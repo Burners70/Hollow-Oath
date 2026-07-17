@@ -1,5 +1,56 @@
 # Changelog
 
+## Bundles I–N + haptics wiring (July 2026)
+
+One pass took the roadmap's whole no-Xcode tail. Per bundle:
+
+- **I — The 41-second clock.** "Repeating, every 41 seconds" is now
+  observable, not just lore: from Curie Fields onward (and in every cave)
+  the world surges on the Static's period — a dry tick, ECG baseline
+  jitter, settlement windows dimming, the lamp faltering ~8%, the HUD
+  sector label glitching for a beat. Diagnostic atmosphere, no damage. In
+  the finale the surge fires hard on the same phase, stronger the closer
+  you fly to SOLACE.
+- **J — The landed scan.** Lure-trees and hollow rocks can now be opened
+  without a shot: land within 60 px and hold ~6 s, grounded and in every
+  turret's sights. Same payoff via a shared `revealSecret(sc, viaFire)`;
+  sets `scannedSecret` instead of `firedAtSecret`, and a no-fire answered
+  run that still read Glycon's lies ranks **OATH KEEPER · EYES OPEN**.
+  Taught once, in the Avicenna briefing.
+- **K — The codex archive.** Every log fragment (`doids_logs`) and shrine
+  card (`doids_shrines_seen`) ever recovered persists across runs. The
+  codex gains MINDS/ARCHIVE tabs (paged by tapping left/right); the title
+  pill counts both: `⚕ 2/11 · ◈ 5/14`.
+- **L — Haunting & epilogue.** An unresolved ending sets `doids_unres`:
+  the title subtitle turns violet — *"the Static answers still — every 41
+  seconds"* — with a faint tick on that exact period, until any run
+  resolves the beacon. The answered ending now holds a 6-second beat in a
+  new `"epilogue"` state: camera eases to the beacon, rings fade, and one
+  line types on — *"AMS SOLACE · crew manifest 214 · status: HEARD."*
+- **M — Remix, daily, wider pool.** `runSeed` threads every generator
+  (seed 0 = the authored campaign, regression-locked by checksum).
+  Resolving the beacon once sets `doids_veteran` and unlocks ⟳ REMIX
+  ROTATION (random seed, famous minds shuffled across sectors). ☀ DAILY
+  FLIGHT is one attempt per UTC day (`doids_daily`), spent at launch, with
+  yesterday-you shown as the bar to beat. Four new famous Scions join the
+  pool — Blackwell (OPEN DOORS), Virchow (CELL DOCTRINE), Fleming
+  (PENICILLIN), Levi-Montalcini (GROWTH FACTOR) — remix/daily draw 7 of 11.
+- **N — The counterfeit MERCY.** The finale hides a second, identical
+  MERCY between spawn and the beacon. One tell only: her emblem pulses
+  like a pulse; its emblem blinks in perfect mechanical unison with the
+  fake fuel pods. Docking is a mouth — fuel drain, ECG *and* soundtrack
+  arrhythmia, −200 and a card ("He built the thing you trust"). Reading it
+  from the ground (J's scan) or one shot powers it down for +800 ("You
+  counted the beats. He never learned a heartbeat."). Fully unmasked runs
+  get an extra epilogue line.
+- **F1/F2 + E3 (web-safe slices).** A `haptic` facade (no-op on web,
+  Capacitor-ready) wired to the medical language: heartbeat lub-dub,
+  dullThud's single heavy beat, the Static's wrong double-tick, arrhythmia
+  taps, hard landings, shield bounces, the breach klaxon. `NATIVE`
+  detection suppresses A2HS/fullscreen inside the future wrapper.
+
+Smoke suite grew 13 → 23 tests, all green.
+
 ## Lift-return bugfix (July 2026)
 
 - **Riding a lift back up out of the Hollows left the ship embedded ~40px

@@ -112,6 +112,10 @@ The reveal is staged across three secret caves ("the Hollows"):
 
 **Rank tiers on the answered ending** (see §7 and the title's meaning):
 - **OATH KEEPER — PRIMUM NON NOCERE** — answered with *no shot fired all run*.
+  If the run also unmasked at least one of Glycon's secrets by the **landed
+  scan** (Bundle J, `scannedSecret`) the rank appends **· EYES OPEN**: the
+  oath held *and* the lies were still read. The patient alternative to
+  HOLLOW KEEPER.
 - **HOLLOW KEEPER** — answered, but the no-fire oath was broken *only* to crack
   open Glycon's secrets (a lure-tree or hollow rock), never in combat. Epilogue
   line: "You found what he hid. It cost you the oath to do it." This makes the
@@ -134,7 +138,16 @@ serpent's mask is catalogued for good — no one will buy his cures again.
 - **3 shrine cards** in the Hollows (the Glycon reveal).
 - **Famous-Scion reveal cards** on delivery (name, era, true story, upgrade).
 - **The ECG** — the player's own health bar doubles as a narrative device
-  (arrhythmia = contaminant aboard).
+  (arrhythmia = contaminant aboard, or the counterfeit MERCY's bay).
+- **The codex ARCHIVE** (Bundle K) — every log fragment and shrine card ever
+  recovered persists across runs and is re-readable from the title codex.
+- **The 41-second clock** (Bundle I) — from Curie Fields onward the world
+  itself surges on the Static's period; in the finale, harder the closer you
+  fly to SOLACE. An unresolved ending follows the player back to the title
+  (a faint tick every 41 s until some run resolves it).
+- **The SOLACE epilogue** (Bundle L) — the answered ending holds a 6-second
+  scripted beat: camera to the beacon, rings fading, one typed line:
+  *"AMS SOLACE · crew manifest 214 · status: HEARD."*
 
 ## 3. Campaign structure
 
@@ -150,7 +163,16 @@ seeded procedural heightmap (deterministic per sector).
 | 4 | CURIE FIELDS | Gravity anomalies | Curie → **Radiosense** (compass to unrecovered black boxes) |
 | 5 | AVICENNA SHOALS | Glycon's counterfeits (fake pods, lure-tree, hollow rock); third lift | Avicenna → **Canon of Truth** (counterfeits unmasked with a "?" mark) |
 | 6 | JENNER TERRACES | Sleeper-saboteur gauntlet (75% sleepers) | Jenner → **Inoculation** (saboteurs can no longer kill passengers) |
-| 7 | THE NULLWAVE | Secret finale: the beacon, two endings | — |
+| 7 | THE NULLWAVE | Secret finale: the beacon, two endings — and a **counterfeit MERCY** (Bundle N) parked between spawn and the beacon, told apart only by its mechanically-blinking emblem | — |
+
+**The wider pool & rotations (Bundle M).** Four more famous minds live in
+`FAMOUS` beyond the canonical seven — Blackwell (**OPEN DOORS**: wider bay
+approach tolerances), Virchow (**CELL DOCTRINE**: all scans ×1.5), Fleming
+(**PENICILLIN**: slow self-heal below half vitals), Levi-Montalcini
+(**GROWTH FACTOR**: 120 fuel). The authored campaign always carries the
+canonical seven; **⟳ REMIX ROTATION** (unlocked by any resolved ending,
+`doids_veteran`) re-seeds every generator and shuffles 7 of the 11 across the
+sectors; **☀ DAILY FLIGHT** is one attempt per UTC day on a shared seed.
 
 Sector clear = every Scion accounted for (saved / lost / contained), then the
 **extraction dock**: MERCY spools to jump, drifts, and the Static shoves your
@@ -202,8 +224,9 @@ counterfeit.**
 | Secret lifts (sectors 1, 3, 5) | Hairline seams + 4 rivets on a flat pad; a rare glint; "THE PAD RINGS HOLLOW…" when you settle on it | Land + hold 2.4s → descend into the Hollows (cave level: floor **and roof** heightmaps, darkness, fuel pods, a lurking drone, return lift) |
 | Shrines (one per cave) | Glowing serpent idol, slow pulse rings | Staged Glycon reveal, +1000 each, all three = GLYCON UNMASKED +3000 + ending epilogue |
 | Fake fuel pods (sectors 5–7) | Real pods flicker organically, each to its own rhythm; **fakes blink in perfect unison** | Touching drains 18 fuel, −100 score |
-| Lure-trees (sectors 5–7) | Sways in perfect mechanical time; in the Nullwave it's *the only tree standing* | Shoot it: hidden Glycon transmitter, +500 |
-| Hollow rock (sectors 5–7) | One rock "breathes" — its outline gently pulses | Shoot it: hidden real cache, +400 + a fuel pod |
+| Lure-trees (sectors 5–7) | Sways in perfect mechanical time; in the Nullwave it's *the only tree standing* | Shoot it (+500, `firedAtSecret`) — **or land within 60 px and scan 6 s** (+500, `scannedSecret`, oath intact) |
+| Hollow rock (sectors 5–7) | One rock "breathes" — its outline gently pulses | Shoot or scan it: hidden real cache, +400 + a fuel pod |
+| **The counterfeit MERCY** (finale) | Identical hull, bay beam, name plate — but the emblem **blinks in perfect mechanical unison with the fake pods** (the real one pulses like a pulse); ECG + soundtrack go arrhythmic in its bay | Dock: the bay is a mouth (fuel drain, −200). Scan from the ground or one shot: powers down, +800 |
 | Black boxes (one per campaign sector) | Faint blink, stronger when near; Curie's compass points at them | +800, a log fragment, finale progress |
 | Famous Scions | Gold shimmer particles if you watch closely | Reveal card + permanent upgrade + 1500 |
 | Saboteurs | See §4 | Quarantine +750 / breach risk |
@@ -226,8 +249,10 @@ rank (§2.5), distinct from breaking it in combat.
 | Turret / drone destroyed | +250 / +150 |
 | Black box | +800 |
 | Shrine | +1000 (all three: +3000) |
-| Lure-tree / hidden cache | +500 / +400 |
+| Lure-tree / hidden cache (shot **or** scanned) | +500 / +400 |
 | Fake pod touched | −100 (and −18 fuel) |
+| Counterfeit MERCY identified (scan or one shot) | +800 |
+| Counterfeit MERCY docked (the trap) | −200 (and fuel drain) |
 | Sector clear | +1000 (+2000 Hippocratic if no shots fired) |
 | Scion lost | −250 (famous −500); crash with passengers −250 each |
 | Endings | fire +3000 · answered +6000 (+2000 no-fire run) |
@@ -243,14 +268,21 @@ rank (§2.5), distinct from breaking it in combat.
 | `doids_tilt` | Gyro steering on/off |
 | `doids_snd` | Sound effects on/off |
 | `doids_mus` | Ambient music on/off |
-| `doids_hapt` | Haptics on/off (no-op until Bundle F wires up the effect) |
-| `doids_cb` | Colorblind palette on/off (no-op until Bundle H wires up the effect) |
+| `doids_hapt` | Haptics on/off (facade is a web no-op; bridges to the native wrapper) |
+| `doids_cb` | Colorblind palette on/off (swaps the four semantic colours) |
+| `doids_easy` | FIELD MEDIC mode (5 lives, tolerances ×1.3, applies to the next run) |
+| `doids_bigtext` | +2 px body text on cards/briefings/intro |
+| `doids_logs` | Log fragments ever recovered (codex ARCHIVE tab) |
+| `doids_shrines_seen` | Shrine cards ever read (codex ARCHIVE tab) |
+| `doids_unres` | The title haunting after an unresolved ending |
+| `doids_veteran` | Any resolved ending reached — unlocks ⟳ REMIX ROTATION |
+| `doids_daily` | Today's daily-flight attempt `{date, score, done}` |
 | `doids_intro` | Intro narrative seen (plays once; ▸ STORY replays) |
 | `doids_a2hs` | Add-to-home-screen banner dismissed |
 
 ## 9. Architecture (for developers)
 
-Everything lives in **`index.html`** (~2.9k lines). No build step: edit,
+Everything lives in **`index.html`** (~4.8k lines). No build step: edit,
 reload. Deliberate order inside the `<script>`:
 
 1. **Input** — touch tracker, keyboard, `pollPad()` (Gamepad API), gyro.
@@ -279,7 +311,9 @@ reload. Deliberate order inside the `<script>`:
    `drawDarkness` with punched lights), HUD (`drawECG` is the health bar),
    screens (title/intro/brief/cards/codex).
 7. **State machine** — `state` ∈ title · intro · help · codex · brief · play
-   · pause · settings · reveal · clear · dead · ending · gameover · win.
+   · pause · settings · reveal · clear · dead · epilogue · ending · gameover
+   · win. (`epilogue` is the 6-second SOLACE beat between the answered
+   resolution and the ending card.)
    Virtual buttons shown only in play/dead (`updateCtlVisibility`). `pause`
    is reachable from play (❚❚ HUD button, Escape/p, gamepad Start) and
    offers RESUME / RESTART SECTOR / SETTINGS / QUIT TO TITLE. `settings` is
@@ -330,14 +364,16 @@ session scratchpad and can be recreated the same way if needed.)
 > acceptance criteria, targeting a paid iOS App Store release — is
 > [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). Check items off there.
 
-- Non-violent way to expose lure-trees/hollow rocks (scan instead of shoot)
-  so pacifist runs can also unmask Glycon. *(→ roadmap Bundle J)*
+- ~~Non-violent way to expose lure-trees/hollow rocks (scan instead of shoot)
+  so pacifist runs can also unmask Glycon.~~ *(shipped — Bundle J)*
 - A version stamp on the title screen (build/date) to make stale caches
   obvious.
-- More famous Scions per sector, randomised from a larger pool; second
-  playthrough modifiers; difficulty settings.
+- ~~More famous Scions from a larger pool; difficulty settings.~~ *(shipped —
+  Bundles M4 and H3)* Second-playthrough *modifiers* beyond remix remain open.
 - Moving rescue targets; saboteur ground-behaviour tells (refusing to panic,
   standing too still).
-- A fourth cave / a Glycon confrontation beyond the shrines; a third finale
+- A fourth cave / a Glycon confrontation beyond the shrines *(the counterfeit
+  MERCY — Bundle N — is now that confrontation's first act)*; a third finale
   branch if GLYCON UNMASKED.
-- Sound design pass for the Hollows (drips, echo); haptics on iOS.
+- Sound design pass for the Hollows (drips, echo); haptics on iOS *(call
+  sites wired — Bundle F1/F2; needs the native wrapper)*.

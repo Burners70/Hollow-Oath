@@ -273,10 +273,11 @@ F should land in the same release.**
   hidden, `UIRequiresFullScreen`, black background behind the webview, and the
   webview's `contentInsetAdjustmentBehavior` left to Capacitor's default (the game
   already handles safe-area insets via `env(safe-area-inset-*)`).
-- [ ] **E3. In-app web/native switches.** In `index.html`, detect the wrapper via
+- [x] **E3. In-app web/native switches.** In `index.html`, detect the wrapper via
   `window.Capacitor?.isNativePlatform?.()`. When native: suppress the A2HS banner
   entirely (the IIFE that manages `#a2hs`), skip `goFullscreen()` (meaningless in
-  a wrapper), and skip the `beforeinstallprompt` path.
+  a wrapper), and skip the `beforeinstallprompt` path. *(Landed as the `NATIVE`
+  const — verify inside the real wrapper when E1/E2 are scaffolded on a Mac.)*
 - [ ] **E4. iCloud save sync.** Mirror `doids_run`, `doids_hi`, `doids_codex` (and
   Bundle K's `doids_logs`) to iCloud key-value storage via a small Capacitor
   plugin (community `capacitor-icloud-kv` or a ~40-line Swift plugin using
@@ -318,12 +319,13 @@ player should **feel** it — the phone becomes the ECG. This is the headline
 App-Store-description feature and the strongest 4.2 defence. **Priority: 6 (ship
 with E). Dependencies: E (native bridge), C4 (settings toggle).**
 
-- [ ] **F1. JS haptics facade.** In `index.html`, a `haptic` object:
+- [x] **F1. JS haptics facade.** In `index.html`, a `haptic` object:
   `haptic.light()`, `haptic.medium()`, `haptic.heavy()`, `haptic.pattern([...])`
   (array of {delay, style}). Web build: no-ops. Native: bridge to Capacitor
   Haptics (impact styles; patterns via chained `setTimeout` — fine at this
   granularity). Gate every call on the `doids_hapt` setting (C4).
-- [ ] **F2. Wire the medical language.** Call sites:
+  *(Landed; the bridge path needs a real device once E exists.)*
+- [x] **F2. Wire the medical language.** Call sites:
   - `heartbeat()` → `pattern` lub-dub: medium at 0 ms, light at 180 ms (mirrors
     the audio pulse timings already in `heartbeat()`).
   - `dullThud()` → one heavy impact. Nothing else. The *absence* of the second
@@ -334,9 +336,14 @@ with E). Dependencies: E (native bridge), C4 (settings toggle).**
   - The Static (`staticTick()` during extraction pulses and Bundle I's clock) →
     two light taps 40 ms apart (a "wrong" double-tick, distinct from lub-dub).
   - Hard landing → heavy. Shield bounce → medium. Breach klaxon → heavy ×2.
+  *(All wired, including the 41-second clock's double-tick from Bundle I and
+  the arrhythmia tap every 3–5 s while a contaminant rides / the counterfeit
+  bay has you. No-ops on web.)*
 - [ ] **F3. Restraint pass.** Play a full sector; if haptics fire more than ~once
   per 5 s of normal flight, cut the least meaningful call sites. Haptics carry
-  meaning here only if they stay rare.
+  meaning here only if they stay rare. *(Needs a real iPhone — do with E8.
+  First candidates to cut if too chatty: the intro-screen heartbeat and the
+  boarding lub-dub for ordinary Scions.)*
 
 ---
 
@@ -404,20 +411,22 @@ actually happens in gameplay. Make the player's own observation skill — the th
 the game claims to teach — real. Small bundle, outsized payoff.
 **Priority: 9. Dependencies: none (F enriches it).**
 
-- [ ] **I1. World clock.** A `staticClock` accumulator in `updatePlay`, active on
+- [x] **I1. World clock.** A `staticClock` accumulator in `updatePlay`, active on
   sectors ≥ 4 (Curie briefing is where the 41 s figure is first mentioned) and in
   caves. Every 41.0 s: `staticTick()` audio, `haptic` double-tick (F), and set
   `staticSurge = 0.6` (seconds, decays).
-- [ ] **I2. Visible symptoms while `staticSurge > 0`:** the ECG trace jitters
+- [x] **I2. Visible symptoms while `staticSurge > 0`:** the ECG trace jitters
   (±1px noise on the baseline in `drawECG`), lit windows in scenery flicker off
   (multiply their alpha), the lamp radius dips ~8% in dark sectors, and the HUD
   sector label glitches one frame. No gameplay damage — this is diagnostic
   atmosphere, not a hazard.
-- [ ] **I3. The beacon syncs.** In the finale, fire the surge at the same 41 s
+- [x] **I3. The beacon syncs.** In the finale, fire the surge at the same 41 s
   phase but *strong* (surge 1.2, camera shake 4) — the closer you get to SOLACE,
   the more the world flinches with her. `updateBeacon` is the anchor.
-- [ ] **I4. Test.** Expose `staticClock` in `__doids.get()`; smoke-test that it
-  only runs on sectors ≥ 4 and fires within 41±0.1 s.
+  *(Landed in `updateStaticClock`: surge 1.2, shake 2 + 4×proximity.)*
+- [x] **I4. Test.** Expose `staticClock` in `__doids.get()`; smoke-test that it
+  only runs on sectors ≥ 4 and fires within 41±0.1 s. *(Test winds the clock to
+  40.8 s via `__doids.setStaticClock` and asserts the surge fires and wraps.)*
 
 ---
 
@@ -429,24 +438,25 @@ KEEPER dilemma. The fix: scanning is possible but **priced in time and exposure*
 so the oath costs risk instead of being impossible.
 **Priority: 10. Dependencies: none.**
 
-- [ ] **J1. Scan interaction.** When landed within 60 px of a live `fake` tree or
+- [x] **J1. Scan interaction.** When landed within 60 px of a live `fake` tree or
   `hollow` rock (scenery entries), a scan timer accumulates — same pattern as
   `updateBlackbox`/`updateShrine` (`scanT`, progress ring, "SCANNING…" label).
   Duration: **6 s** (vs. ~1 s to shoot). While scanning you are landed, static,
   and takeable by turret fire — that's the price.
-- [ ] **J2. Same payoff, clean oath.** Completion triggers the same reveal as the
+- [x] **J2. Same payoff, clean oath.** Completion triggers the same reveal as the
   shot path (`sc.dead = true`, score, cache pod spawn, banner) but sets a new
   `scannedSecret = true` flag instead of `firedAtSecret`. Refactor the shot-path
   reveal in `updateEnemies` into a shared `revealSecret(sc, viaFire)` so the two
   paths cannot drift.
-- [ ] **J3. Rank language.** `drawWin`: an answered ending with `runFired === 0`
+- [x] **J3. Rank language.** `drawWin`: an answered ending with `runFired === 0`
   **and** `scannedSecret` stays OATH KEEPER but appends "· eyes open" to the
   rank line; GAME_DESIGN.md §2.5 gets the new outcome row. HOLLOW KEEPER
   (revealed by fire, no combat) is unchanged — the dilemma survives, it just has
   a patient alternative.
-- [ ] **J4. Teach it once.** One line added to the Avicenna briefing (BRIEFS[5]):
+- [x] **J4. Teach it once.** One line added to the Avicenna briefing (BRIEFS[5]):
   "If you won't fire on a lie, land beside it and *look* at it long enough."
-- [ ] **J5. Test.** Warp to a fake tree (`__doids` needs a `warpScenery(type)`
+  *(Also one sentence in the HOW TO FLY card's secrets paragraph.)*
+- [x] **J5. Test.** Warp to a fake tree (`__doids` needs a `warpScenery(type)`
   helper — add it), scan, assert reveal + `runFired === 0` + `scannedSecret`.
 
 ---
@@ -457,15 +467,16 @@ so the oath costs risk instead of being impossible.
 is told in fragments players will half-forget. Re-readability is cheap and pays
 the mystery off. **Priority: 11. Dependencies: none.**
 
-- [ ] **K1. Persist recovered logs across runs** in `doids_logs` (a Set of
+- [x] **K1. Persist recovered logs across runs** in `doids_logs` (a Set of
   fragment indices, same save/load pattern as `codex`/`saveCodex()`). Add to it
   inside `grantFragment()`. Shrines likewise into `doids_shrines_seen`.
-- [ ] **K2. Codex tabs.** `drawCodex` gains two tabs: **MINDS** (current view) and
+- [x] **K2. Codex tabs.** `drawCodex` gains two tabs: **MINDS** (current view) and
   **ARCHIVE** — a scrollable (paged, tap left/right halves) list of LOG 01–14,
   locked entries shown as `LOG 07 // — signal not yet recovered —`, plus the
   three shrine cards at the bottom once seen. Follow the existing found/unfound
-  styling (gold vs. 30% white).
-- [ ] **K3. Count on the pill.** Title CODEX pill shows both:
+  styling (gold vs. 30% white). *(4 entries per page; shrine cards show their
+  kicker + title and first body line, locked as "THE HOLLOWS · I/II/III".)*
+- [x] **K3. Count on the pill.** Title CODEX pill shows both:
   `⚕ 5/7 · ◈ 9/14`.
 
 ---
@@ -475,14 +486,12 @@ the mystery off. **Priority: 11. Dependencies: none.**
 **Why:** Two small narrative payoffs with outsized feel. **Priority: 12.
 Dependencies: C (audio routing), K optional.**
 
-- [ ] **L1. The Static haunts the title.** On an unresolved ending
+- [x] **L1. The Static haunts the title.** On an unresolved ending
   (`endingType === "unresolved"`), set `doids_unres = "1"`. While it is set, the
   title screen plays a faint `staticTick()` (through `sfxGain`, ×0.4) every 41 s,
   and the subtitle line changes to *"the Static answers still — every 41
-  seconds"*. Clear the flag on any answered/fire ending. (Audio can only start
-  after first user gesture — arm it in `initAudio()`'s first resume, which the
-  existing gesture handlers already trigger.)
-- [ ] **L2. The SOLACE epilogue.** After `resolveBeacon("answered")`, before the
+  seconds"* (in the Static's violet). Clear the flag on any answered/fire ending.
+- [x] **L2. The SOLACE epilogue.** After `resolveBeacon("answered")`, before the
   ending card: a 6-second scripted beat in a new `"epilogue"` state — the world
   keeps rendering, the camera eases toward the beacon (lerp `camera.x/y`), the
   pulse rings fade, and one line types on: *"AMS SOLACE · crew manifest 214 ·
@@ -499,26 +508,29 @@ Dependencies: C (audio routing), K optional.**
 (don't let remix snapshots collide with campaign snapshots — store the seed in the
 A1 snapshot). G2 for the daily board.**
 
-- [ ] **M1. Run seed plumbing.** A `runSeed` global (0 = authored campaign).
+- [x] **M1. Run seed plumbing.** A `runSeed` global (0 = authored campaign).
   Thread it into every generator: `genLevel` seed becomes
   `1013 * (n + 3) + 77 + runSeed`, `genCave` likewise, and the star seed. Seed 0
   must produce today's exact levels (regression-test one heightmap checksum via
-  `__doids`).
-- [ ] **M2. Remix unlock.** Completing the campaign with any resolved ending sets
+  `__doids`). *(Golden checksum for VESALIUS RIDGE is asserted in the suite.)*
+- [x] **M2. Remix unlock.** Completing the campaign with any resolved ending sets
   `doids_veteran = "1"`. Title then shows a `⟳ REMIX ROTATION` pill: new run with
   `runSeed = random 1..2^31`, famous-Scion sector assignment shuffled (permute
   the `famousId ↔ sector` mapping with the run rng), and briefings prefixed
   "REMIX ROTATION //". Ranks/achievements still earnable; snapshot includes the
   seed so resume works.
-- [ ] **M3. Daily flight.** `☀ DAILY` pill: `runSeed = YYYYMMDD` (UTC), one
+- [x] **M3. Daily flight.** `☀ DAILY` pill: `runSeed = YYYYMMDD` (UTC), one
   attempt per day recorded in `doids_daily` (`{date, score, done}`), score
   reported to a daily Game Center board (G). Show yesterday-you as the bar to
-  beat if no board.
-- [ ] **M4. (Stretch) widen the famous pool.** 3–4 additional famous Scions
+  beat if no board. *(The attempt is spent at launch so a bad start can't be
+  re-rolled; the GC report hook is a marked comment in `recordDaily()` for G.)*
+- [x] **M4. (Stretch) widen the famous pool.** 3–4 additional famous Scions
   (candidates with the same rigor as the current seven: Elizabeth Blackwell,
   Rudolf Virchow, Alexander Fleming, Rita Levi-Montalcini) with modest upgrades;
   remix draws 7 of N. Requires new `FAMOUS` entries + codex rows only — the
-  reveal/upgrade machinery is data-driven already.
+  reveal/upgrade machinery is data-driven already. *(All four landed: OPEN
+  DOORS — wider bay-approach speed caps; CELL DOCTRINE — all scans ×1.5 speed;
+  PENICILLIN — slow self-heal below half vitals; GROWTH FACTOR — 120 fuel.)*
 
 ---
 
@@ -532,30 +544,34 @@ MERCY-class wrecks already foreshadow it. **Priority: 14 — the biggest narrati
 lift, do it when A–F are shipped. Dependencies: B (emblem), I (surge timing),
 ideally J (scan).**
 
-- [ ] **N1. The decoy.** In `genLevel(FINALE_IDX)`, place a second mothership
+- [x] **N1. The decoy.** In `genLevel(FINALE_IDX)`, place a second mothership
   (`level.fakeMercy = {x: W*0.45, y: 170}`) between spawn and the beacon. It
   renders via `drawMothership`-style code with ONE difference: the real MERCY's
   emblem pulses organically (`0.55 + 0.45*sin(now*3)` — current code), the
   counterfeit's blinks in **perfect mechanical unison with the fake fuel pods**
   (`sin(now*PI*2) > 0` — the exact tell already used in the fakePods renderer).
   Name plate: "A M S · M E R C Y" — identical. No other visual tell.
-- [ ] **N2. The trap.** Docking in the counterfeit's bay: no heal, no refuel —
+  *(Avicenna's Canon of Truth marks it `?` like every counterfeit; the music
+  and ECG both go arrhythmic inside its bay — one diagnostic language.)*
+- [x] **N2. The trap.** Docking in the counterfeit's bay: no heal, no refuel —
   fuel drains 6/s, ECG arrhythmia flag while inside, and after 2 s a reveal:
   banner "COUNTERFEIT — THE BAY IS A MOUTH", −200 score, the decoy powers down
   permanently (goes dark, serpent mark flickers on its hull), and a log-style
   card: *"He built a better lure this time. He built the thing you trust."*
-- [ ] **N3. The observed win.** Identifying it *without* docking — scanning it
+- [x] **N3. The observed win.** Identifying it *without* docking — scanning it
   (J's mechanic, 6 s hold landed beneath it) or shooting it once
   (`firedAtSecret`) — powers it down for +800 and the card *"You counted the
   beats. He never learned a heartbeat."* If GLYCON UNMASKED (3 shrines), the
   ending epilogue adds one line acknowledging the decoy.
-- [ ] **N4. Briefing seed.** BRIEFS[7] gains one sentence: "Two beacons answer as
+- [x] **N4. Briefing seed.** BRIEFS[7] gains one sentence: "Two beacons answer as
   MERCY on approach. One of them is lying. Count the beats, captain."
-- [ ] **N5. Balance guard.** The decoy must not be reachable before the player has
+- [x] **N5. Balance guard.** The decoy must not be reachable before the player has
   seen fake pods (it's the finale — they have). Ensure `checkSectorClear`/
   extraction logic ignores the decoy (it is scenery-with-behaviour, not a bay:
   keep it out of `bayRects()`', give it its own rects + update function).
-- [ ] **N6. Tests.** Finale smoke: dock decoy → trap fires, real bays unaffected;
+  *(Own `decoyBayRect()`/`updateDecoy()`; `checkSectorClear` already early-outs
+  on the finale, and `updateDocking` only ever reads `bayRects()`.)*
+- [x] **N6. Tests.** Finale smoke: dock decoy → trap fires, real bays unaffected;
   scan decoy → +800 path; both endings still reachable.
 
 ---
@@ -608,6 +624,11 @@ D ──┴────────────────┘
       H, I, J, K, L   → price floor $2.99
       then M, N       → price point $4.99, "1.1 content update" if post-launch
 ```
+
+**Status (July 2026):** A–D and **H–N are all shipped** on the web build, plus
+the web-safe slices of E (E3, E7) and F (F1/F2 — no-ops until the wrapper
+exists). Everything left — E1/E2/E4–E8, F3, G, O — needs a Mac with Xcode
+and/or App Store Connect. The game already plays at the $4.99 feature bar.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), a fourth Hollow, second-playthrough modifiers, Android/Google Play via the
