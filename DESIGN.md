@@ -37,6 +37,22 @@ distinctness problem, because none of it is *Oids*:
   **[TBC: exact effects and how you "deal with" them]**.
 - **Hidden secrets.** The game hides **secrets** to discover **[TBC: what kind —
   hidden Doids, zones, lore, upgrades?]**.
+- **The villain (the twist).** The ultimate antagonist is revealed to be a
+  **representative / avatar of an ancient charlatan** — a snake-oil salesman who
+  wrapped his plague "cures" in manufactured religious nonsense so he could profit
+  while people died. Almost certainly modelled on **Alexander of Abonoteichus**
+  ("Alexander the False Prophet," 2nd c. AD) and his fake snake-god cult of
+  **Glycon**: during the Antonine Plague he sold a useless protective amulet/verse
+  as the plague killed. (Our only source is **Lucian of Samosata's** satire
+  exposing him.) **[TBC: confirm the name D intends; a serpent motif fits perfectly.]**
+
+### The theme (the spine of the whole game)
+Everything hostile is **medical misinformation made physical**. The saboteurs, and
+environmental fakes like **counterfeit trees and decoy fuel stops**, all *represent
+disinfo* — things that look helpful or safe and instead harm you. The real Doids
+(genuine medical knowledge, embodied by history's real healers) are what you're
+saving *from* a world flooded with plausible-looking lies. The snake-oil villain is
+the throughline made personal. This theme should drive art, level, and card design.
 
 ---
 
@@ -150,6 +166,12 @@ rescues unlock **abilities + info cards** → progress to the next zone.
   hook and a completionist retention driver. Could carry light real medical-history
   facts (nice for an "Education"-adjacent App Store angle).
 - **Hidden secrets.** Secret Doids / zones / lore / upgrades to discover. **[TBC]**
+- **Disinformation hazards.** Environmental fakes that mimic help but harm —
+  **counterfeit trees, decoy fuel stops**, and similar. They read as the theme:
+  misinformation that looks safe. Design question: how does a player *tell* real
+  from fake — a scan/verify action, a tell that rewards attention, a rescued-Doid
+  ability that unmasks them? **[TBC]** (Great tie-in for a Hippocrates/Nightingale
+  ability: "diagnosis" that reveals fakes.)
 
 ### Proposed evolutions (react to these)
 1. **The Tether / Lifeline.** Rather than survivors boarding on contact, deploy a
@@ -187,6 +209,11 @@ into this repo — neither exists here yet:
 5. **Saboteurs** — detection, timer, consequences, and how you neutralise them.
 6. **Secrets** — what's hidden (Doids? zones? lore? upgrades?).
 7. **The in-fiction name** for the medical androids (replacing "Doids").
+8. **The villain's name** — confirm whether it's Alexander of Abonoteichus /
+   Glycon, or another charlatan D has in mind; how the "representative/avatar"
+   framing works and when the twist is revealed.
+9. **Disinfo hazards** — the full catalogue of fakes (trees, fuel stops, …) and
+   the real-vs-fake tell mechanic.
 
 ## 6. Suggested next steps
 1. **Bring the source in** — push the existing game code/design to this repo, or
