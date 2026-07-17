@@ -1,5 +1,18 @@
 # Changelog
 
+## Emblem centring + shrine cue (July 2026)
+
+- **AMS MERCY's emblem** now sits vertically centred on the whole hull
+  (`translate(0,-15)`, the midpoint of the tower's -50 top and the hull's
+  +20 bottom edge) instead of riding up on the tower alone — mothership,
+  intro screen, and wreck all follow.
+- **The Hollows shrine drops its clue text entirely.** Rather than reading
+  small or reading at all, the pre-scan hint is now a pulsing yellow
+  landing-pad marker (corner brackets + a glowing baseline) placed beside
+  the shrine, inside the same 80px landing radius `updateShrine` actually
+  checks — a visual invitation instead of an instruction. The
+  "READING THE MARKS…" label during an active scan is unchanged.
+
 ## Audio + legibility fixes (July 2026)
 
 - **Thrust noise kept playing behind panels, on game over, everywhere.**

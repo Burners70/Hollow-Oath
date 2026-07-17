@@ -2929,7 +2929,7 @@ function drawWreckM(sc, now) {
   // the emblem, mostly dead, still on the command tower
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
   ctx.save();
-  ctx.translate(0, -28);
+  ctx.translate(0, -15);
   if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
   drawAsclepius(36, "rgba(255,23,68," + flick + ")");
   ctx.restore();
@@ -3087,11 +3087,20 @@ function drawShrine(now) {
       ctx.fillStyle = "#aef4ff";
       ctx.fillText("READING THE MARKS…", 0, -86);
     } else {
-      ctx.font = "700 13px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(198,255,0,.85)";
-      ctx.shadowColor = "#c6ff00"; ctx.shadowBlur = 6;
-      ctx.fillText("SOMETHING OLD IS ENSHRINED HERE", 0, -96);
-      ctx.fillText("LAND AND LOOK CLOSER", 0, -80);
+      // no clue text — just an inviting marked patch of ground beside it,
+      // within the same 80px landing radius updateShrine actually checks
+      const padX = 42, pulse = 0.4 + 0.4 * Math.abs(Math.sin(now * 2));
+      ctx.strokeStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
+      ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(padX - 14, -6); ctx.lineTo(padX - 14, 0); ctx.lineTo(padX - 6, 0);
+      ctx.moveTo(padX + 14, -6); ctx.lineTo(padX + 14, 0); ctx.lineTo(padX + 6, 0);
+      ctx.stroke();
+      ctx.globalAlpha = pulse * 0.6;
+      ctx.fillStyle = "#ffc400";
+      ctx.fillRect(padX - 14, -1.5, 28, 2);
+      ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     }
   }
@@ -3178,7 +3187,7 @@ function drawMothership(now) {
   drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
   const pulse = 0.55 + 0.45 * Math.sin(now * 3);
   ctx.save();
-  ctx.translate(0, -28);
+  ctx.translate(0, -15);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
   drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.restore();
@@ -3544,7 +3553,7 @@ function iShip(cx, cy, s, tilt, flicker) {
   ctx.fill(); ctx.stroke();
   ctx.shadowBlur = 0;
   mercyGreebles("rgba(0,229,255,.35)");
-  ctx.translate(0, -28);
+  ctx.translate(0, -15);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
   drawAsclepius(36, "#ff2d55");
   ctx.restore();
