@@ -1,7 +1,7 @@
 {
-  "name": "DOIDS — a gravity rescue",
-  "short_name": "DOIDS",
-  "description": "A gravity rescue in the spirit of the Atari ST classic. Five sectors, hidden histories, and something repeating every 41 seconds.",
+  "name": "Hollow Oath — a gravity rescue",
+  "short_name": "Hollow Oath",
+  "description": "A gravity-rescue game: fly a rescue dart over hostile terrain to recover stranded medical androids and carry them home. Seven sectors, hidden histories, and something repeating every 41 seconds.",
   "start_url": ".",
   "display": "fullscreen",
   "orientation": "landscape",

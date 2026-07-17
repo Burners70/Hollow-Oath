@@ -1,9 +1,19 @@
-# DOIDS — build-out notes
+# Hollow Oath — build-out notes
+
+## Rename pass (DOIDS → Hollow Oath)
+
+Renamed the product **DOIDS → Hollow Oath** and the androids **Doids → Scions**
+across the game and docs, threaded the title's meaning through the narrative
+(Glycon's "an oath you never test…" line, the Workshop's "hollow" reveal, ending
+epilogue lines), and added the **HOLLOW KEEPER** rank (new `firedAtSecret` /
+`firedAtCombat` flags). localStorage keys and internal identifiers kept the old
+prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
+[HOLLOW_OATH_BRIEF.md](HOLLOW_OATH_BRIEF.md).
 
 ## Implemented (v3 build-out)
 
 1. **Two new campaign sectors** — Avicenna Shoals (counterfeit fuel lures) and
-   Jenner Terraces (sleeper-saboteur gauntlet), each with a famous Doid and
+   Jenner Terraces (sleeper-saboteur gauntlet), each with a famous Scion and
    upgrade (Canon of Truth unmasks counterfeits; Inoculation protects
    passengers from saboteurs). Black boxes now 7, finale still needs ≥3.
 2. **Scenery** — glow-trees, rocks, buildings with lit windows, ruined
@@ -18,7 +28,7 @@
    fake plague cures). His counterfeits: fake fuel pods that drain the tank
    (tell: they blink in perfect unison; real pods flicker organically),
    lure-trees that sway in mechanical time (transmitters — shoot them), and
-   the saboteur Doids themselves (built, not corrupted — see cave 2). One
+   the saboteur Scions themselves (built, not corrupted — see cave 2). One
    hollow rock per lure-sector hides a real cache. Logs 11–14 extend the
    record; finding all 3 shrines = GLYCON UNMASKED (+3000, ending epilogue).
 5. **Force field** — hold SHIELD (touch button, C/Shift/↓, or LB/B): burns
@@ -35,15 +45,15 @@
    (darkness + your lamp) → Semmelweis Deep (fuel scarcity, fuel pods, drones)
    → Curie Fields (gravity anomalies) → secret finale, The Nullwave.
 2. **Narrative / discovery** — mission transmissions before each sector,
-   10 collectible log fragments (carried by certain Doids, and inside hidden
+   10 collectible log fragments (carried by certain Scions, and inside hidden
    black boxes) telling the story of the Static; recover ≥3 of 5 black boxes
    to triangulate the source and unlock the finale, which has **two endings**
    (destroy the beacon, or land and answer the call — primum non nocere).
-3. **Animated Doids** — walk cycles, waving (with a saboteur "tell" in the
-   rhythm), panic when explosions land nearby, gold shimmer on famous Doids.
-4. **Famous Doids** — one per sector (Hippocrates, Vesalius, Nightingale,
+3. **Animated Scions** — walk cycles, waving (with a saboteur "tell" in the
+   rhythm), panic when explosions land nearby, gold shimmer on famous Scions.
+4. **Famous Scions** — one per sector (Hippocrates, Vesalius, Nightingale,
    Semmelweis, Curie): reveal card on delivery + themed permanent upgrade.
-5. **Saboteur Doids** — indistinguishable at a distance; tells: jerky wave,
+5. **Saboteur Scions** — indistinguishable at a distance; tells: jerky wave,
    dull thud instead of a heartbeat on boarding, ECG arrhythmia while an
    active one is aboard. Active ones cut fuel lines and kill passengers;
    sleepers wait and slip into MERCY at delivery → timed breach countermission
@@ -52,7 +62,7 @@
 ## Future ideas
 
 - Persistent codex / rescue-log gallery across runs (who you've found).
-- More famous Doids per sector, randomised from a larger pool.
+- More famous Scions per sector, randomised from a larger pool.
 - Caves/overhangs (needs non-heightmap terrain), moving rescue targets.
 - Saboteur behavioural tells on the ground (wrong walk speed is in; could add
   refusing to panic, standing too still).

@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DOIDS">
+<meta name="apple-mobile-web-app-title" content="Hollow Oath">
 <meta name="theme-color" content="#05060f">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>DOIDS — a gravity rescue</title>
+<title>Hollow Oath — a gravity rescue</title>
 <style>
   :root { --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none;
@@ -81,11 +81,15 @@
 <script>
 "use strict";
 /* ================================================================
-   DOIDS — a modern-glow homage to the Atari ST gravity classic.
-   Rescue the stranded Doids, ferry them to the hospital mothership
+   HOLLOW OATH — a modern-glow gravity-rescue game (original code and art;
+   mechanically in the lineage of the Atari ST gravity classic).
+   Rescue the stranded Scions, ferry them to the hospital mothership
    AMS MERCY, and piece together what the Static is — seven sectors,
-   hidden black boxes, famous Doids, saboteurs, secret lifts down into
+   hidden black boxes, famous Scions, saboteurs, secret lifts down into
    the Hollows, Glycon's counterfeits, and a secret finale.
+   NOTE: the game was formerly titled DOIDS and the androids were "Doids";
+   renamed to HOLLOW OATH / "Scions" (see CHANGELOG.md). localStorage keys
+   and internal identifiers keep the doids_/__doids prefix on purpose.
    ================================================================ */
 
 const canvas = document.getElementById("game");
@@ -218,7 +222,7 @@ function goFullscreen() {
     window.addEventListener("beforeinstallprompt", e => {
       e.preventDefault();
       deferred = e;
-      txt.textContent = "Play DOIDS fullscreen anytime";
+      txt.textContent = "Play Hollow Oath fullscreen anytime";
       el.classList.remove("hidden");
     });
     const install = e => {
@@ -350,7 +354,7 @@ function boom() {
   const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
   s.connect(lp); lp.connect(g); g.connect(AC.destination); s.start();
 }
-function heartbeat(vol) { // lub-dub, played when a Doid comes aboard
+function heartbeat(vol) { // lub-dub, played when a Scion comes aboard
   if (!AC) return;
   const V = vol || 1;
   const pulse = (t, f) => {
@@ -455,11 +459,11 @@ const SHRINES = [
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · WORKSHOP",
     title: "THEY WERE NEVER RESCUED",
-    body: "Racks of half-finished Doids. Dull chests. No hearts to tick.\n\nThe saboteurs aren't corrupted survivors at all. They are counterfeits — built down here, seeded among the stranded, made to be carried home in good faith.\n\nThe same serpent mark on every chassis.",
+    body: "Racks of half-finished Scions. Dull chests. No hearts to tick.\n\nThe saboteurs were never rescued units. Not corrupted. Hollow. Built empty, and dressed to be carried home in good faith.\n\nThe same serpent mark on every chassis.",
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · SHRINE",
     title: "GLYCON",
-    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.",
+    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\"An oath you never test is easy to keep.\"",
     color: "#c6ff00" }
 ];
 
@@ -502,6 +506,10 @@ const CAPACITY = 6;
 let level, ship, camera, particles, texts, stars;
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
+// why a no-fire run ended: firedAtSecret = shot a lure-tree / hollow rock
+// (secret-hunting); firedAtCombat = shot a turret / drone. Used to award the
+// HOLLOW KEEPER rank (answered ending, oath broken only to reach the truth).
+let firedAtSecret = false, firedAtCombat = false;
 let runFragments = 0, blackboxCount = 0;
 let shrines = new Set();   // Hollows shrines found this run
 let upgrades = {};
@@ -552,7 +560,7 @@ const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y +
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on at the title.",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on at the title.",
   color: "#00e5ff"
 };
 
@@ -645,7 +653,7 @@ function genLevel(n) {
     const y = flatten(heights, x, 80);
     lvl.oids.push(newOid(x, y, "normal"));
   }
-  // one famous Doid per campaign sector
+  // one famous Scion per campaign sector
   if (n < FINALE_IDX && lvl.oids.length) {
     const f = lvl.oids[Math.floor(rng() * lvl.oids.length)];
     f.role = "famous"; f.famousId = n;
@@ -658,7 +666,7 @@ function genLevel(n) {
     sab.sleeper = n >= 2 && rng() < (n === 6 ? 0.75 : 0.5); // the terraces crawl with sleepers
     lvl.oids.push(sab);
   }
-  // two of the ordinary Doids carry log fragments
+  // two of the ordinary Scions carry log fragments
   const normals = lvl.oids.filter(o => o.role === "normal");
   for (let i = 0; i < Math.min(2, normals.length); i++) {
     normals[Math.floor(rng() * normals.length)].carrier = true;
@@ -885,6 +893,7 @@ function spawnShip() {
 /* ---------------- state flow ---------------- */
 function resetRun() {
   score = 0; lives = 3; runSaved = 0; runLost = 0; runFired = 0;
+  firedAtSecret = false; firedAtCombat = false;
   runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; surfaceCtx = null;
@@ -921,7 +930,7 @@ function explode(x, y, color, n) {
       t: 0.5 + Math.random() * 0.8, max: 1.3, color, size: 1.5 + Math.random() * 3 });
   }
   camera.shake = Math.min(camera.shake + 14, 26);
-  // nearby grounded Doids panic
+  // nearby grounded Scions panic
   if (level) for (const o of level.oids) {
     if ((o.state === "wait" || o.state === "walk") && Math.abs(o.x - x) < 160 && Math.abs(o.y - y) < 160) {
       o.state = "panic"; o.panicT = 1.6 + Math.random();
@@ -972,7 +981,7 @@ function shipDie() {
     const penalty = 250 * n;
     score = Math.max(0, score - penalty);
     addText(ship.x, ship.y - 50,
-      n + (n === 1 ? " DOID LOST" : " DOIDS LOST") + "  -" + penalty, "#ff4081");
+      n + (n === 1 ? " SCION LOST" : " SCIONS LOST") + "  -" + penalty, "#ff4081");
     explode(ship.x, ship.y - 12, "#69f0ae", 24);
     ship.passengers = [];
   }
@@ -980,7 +989,7 @@ function shipDie() {
   state = "dead"; stateT = 0;
 }
 
-/* When every Doid is accounted for (saved, lost, or contained), MERCY
+/* When every Scion is accounted for (saved, lost, or contained), MERCY
    closes her manifest and spools the jump drive — she has been holding
    the Static off her systems the whole time, and the moment she stops
    stationkeeping to spool, it starts to reach her. The extraction dock
@@ -1395,10 +1404,10 @@ function updateOids(dt, now) {
         if (o.role === "saboteur") {
           dullThud(); // no heartbeat. Listen closely.
           o.sabT = 6 + Math.random() * 3;
-          addText(s.x, s.y - 34, "DOID ABOARD +500", "#69f0ae");
+          addText(s.x, s.y - 34, "SCION ABOARD +500", "#69f0ae");
         } else {
           heartbeat();
-          addText(s.x, s.y - 34, "DOID ABOARD +500", "#69f0ae");
+          addText(s.x, s.y - 34, "SCION ABOARD +500", "#69f0ae");
           if (o.carrier) addText(s.x, s.y - 48, "◇ CARRYING DATA", "#00e5ff");
           if (o.role === "famous") {
             goldBurst(s.x, s.y - 10);
@@ -1483,7 +1492,7 @@ function updateEnemies(dt) {
     let gone = b.t <= 0 || b.y > groundAt(b.x) || (level.roof && b.y < roofAt(b.x));
     for (const t of level.turrets) {
       if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
-        t.alive = false; gone = true;
+        t.alive = false; gone = true; firedAtCombat = true;
         score += 250;
         explode(t.x, t.y - 8, "#ffc400", 30);
         addText(t.x, t.y - 40, "+250", "#ffc400");
@@ -1491,13 +1500,13 @@ function updateEnemies(dt) {
     }
     for (const dr of level.drones) {
       if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
-        dr.alive = false; gone = true;
+        dr.alive = false; gone = true; firedAtCombat = true;
         score += 150;
         explode(dr.x, dr.y, "#ff4081", 22);
         addText(dr.x, dr.y - 30, "+150", "#ff4081");
       }
     }
-    // friendly fire: a stray shot can hit the very Doid you came for
+    // friendly fire: a stray shot can hit the very Scion you came for
     for (const o of level.oids) {
       if ((o.state === "wait" || o.state === "walk" || o.state === "panic") &&
           Math.hypot(b.x - o.x, b.y - (o.y - 12)) < 12) {
@@ -1509,13 +1518,13 @@ function updateEnemies(dt) {
     for (const sc of level.scenery) {
       if (sc.dead) continue;
       if (sc.fake && Math.hypot(b.x - sc.x, b.y - (sc.y - 30 * sc.s)) < 24 * sc.s) {
-        sc.dead = true; gone = true;
+        sc.dead = true; gone = true; firedAtSecret = true;
         score += 500;
         explode(sc.x, sc.y - 24, "#c6ff00", 26);
         staticTick();
         addText(sc.x, sc.y - 56, "LURE-TREE DESTROYED — GLYCON TRANSMITTER +500", "#c6ff00");
       } else if (sc.hollow && Math.hypot(b.x - sc.x, b.y - (sc.y - 8 * sc.s)) < 16 * sc.s) {
-        sc.dead = true; gone = true;
+        sc.dead = true; gone = true; firedAtSecret = true;
         score += 400;
         explode(sc.x, sc.y - 8, "#ffc400", 20);
         level.pods.push({ x: sc.x, y: sc.y, taken: false, ph: Math.random() * 7 });
@@ -1611,7 +1620,7 @@ function updateDocking(dt) {
     const deliverable = s.passengers.filter(p => p.role !== "saboteur");
     if (deliverable.length > 0 && s.dockT > 0.35) {
       s.dockT = 0; s.escapeT = 0;
-      // famous Doids step out last, for the reveal
+      // famous Scions step out last, for the reveal
       deliverable.sort((a, b) => (a.role === "famous" ? 1 : 0) - (b.role === "famous" ? 1 : 0));
       const p = deliverable[0];
       s.passengers.splice(s.passengers.indexOf(p), 1);
@@ -2077,7 +2086,7 @@ function drawDarkness(now) {
   };
   if (!ship.dead) punch(ship.x, ship.y, lampRadius(), 1);
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
-  for (const o of level.oids) {  // stranded Doids carry tiny beacons
+  for (const o of level.oids) {  // stranded Scions carry tiny beacons
     if (o.state === "wait" || o.state === "walk" || o.state === "panic")
       punch(o.x, o.y - 10, 46, 0.55 + 0.3 * Math.abs(Math.sin(now * 2 + o.wave)));
   }
@@ -2224,7 +2233,7 @@ function doidFigure(p) {
   ctx.shadowBlur = 0;
 }
 
-/* Each Doid has a persona — big wavers, two-arm wavers, jumpers,
+/* Each Scion has a persona — big wavers, two-arm wavers, jumpers,
    pacers, sitters — plus individual size and gait. The saboteur tell
    survives all of them: their motion keeps perfect mechanical time. */
 function drawOid(o, now) {
@@ -2281,7 +2290,7 @@ function drawOid(o, now) {
     sway: mech ? 0 : osc(2.2) * 1.5
   });
   ctx.restore();
-  // famous Doids shimmer, if you watch closely
+  // famous Scions shimmer, if you watch closely
   if (o.role === "famous" && Math.random() < 0.06) {
     particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 22,
       vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
@@ -2692,7 +2701,7 @@ function drawHUD(now) {
   ctx.textAlign = "left";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
-  const rescueLine = "DOIDS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + tl.total;
+  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + tl.total;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
   if (tl.lost > 0) {
@@ -2790,8 +2799,8 @@ function drawTitle(now) {
   const pulse = 0.7 + 0.3 * Math.sin(now * 2);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 30 * pulse;
   ctx.fillStyle = "#aef4ff";
-  ctx.font = "900 " + Math.min(84, vw * 0.16) + "px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("D O I D S", vw / 2, vh * 0.32);
+  ctx.font = "900 " + Math.min(60, vw * 0.12) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("Hollow Oath", vw / 2, vh * 0.32);
   ctx.shadowBlur = 10;
   ctx.font = "600 13px Menlo, monospace";
   ctx.fillStyle = "#9beaf9";
@@ -2799,7 +2808,7 @@ function drawTitle(now) {
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae";
   ctx.fillText("seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.48);
   ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
-  ctx.fillText("not every Doid you rescue is what it seems", vw / 2, vh * 0.54);
+  ctx.fillText("not every Scion you rescue is what it seems", vw / 2, vh * 0.54);
   ctx.fillStyle = "rgba(255,255,255," + pulse.toFixed(2) + ")"; ctx.shadowColor = "#fff";
   ctx.font = "800 17px Menlo, monospace";
   ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.66);
@@ -2862,7 +2871,7 @@ function drawTitle(now) {
   }
 }
 
-/* the codex: famous Doids recovered across every run */
+/* the codex: famous Scions recovered across every run */
 function drawCodex(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(5,6,15,.82)";
@@ -2976,7 +2985,7 @@ function iRidge(px, py, pw, ph, seed) {
 
 const INTRO = [
   { title: "THE MISSION",
-    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems. Her holds carry DOIDS — medical androids, each one programmed with a lifetime of clinical expertise.",
+    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems. Her holds carry SCIONS — medical androids, each the inheritance of generations of human and machine endeavour, carrying true medical science forward.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 11);
       iShip(px + pw / 2, py + ph * 0.45, Math.min(1.4, pw / 320), 0,
@@ -3048,7 +3057,7 @@ const INTRO = [
       ctx.fillText("· 41s ·", sx, sy + ph * 0.5);
     } },
   { title: "THE SCATTERING",
-    caption: "The Doids evacuated in pods and were thrown across the zone. MERCY flies again — barely. You fly the rescue. Bring them home. And captain… count the heartbeats.",
+    caption: "The Scions evacuated in pods and were thrown across the zone. MERCY flies again — barely. You fly the rescue. Bring them home. And captain… count the heartbeats.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 55);
       iRidge(px, py, pw, ph, 9);
@@ -3144,7 +3153,7 @@ function drawPortraitWarning(now) {
   ctx.fillText("ROTATE TO LANDSCAPE", cx, vh * 0.62);
   ctx.font = "600 12px Menlo, monospace";
   ctx.fillStyle = "rgba(155,234,249,.7)";
-  ctx.fillText("DOIDS flies wide — turn your phone on its side", cx, vh * 0.68);
+  ctx.fillText("Hollow Oath flies wide — turn your phone on its side", cx, vh * 0.68);
   ctx.shadowBlur = 0;
 }
 
@@ -3232,15 +3241,17 @@ function drawEnding(now) {
   if (endingType === "answered") {
     title = "THE ANSWERED CALL";
     color = "#aef4ff";
-    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Doid that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+    if (runFired === 0) body += "\n\nThe oath, kept whole.";
+    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
     color = "#ffc400";
-    body = "You burned the beacon out of the dark.\n\nThe Static is gone — and so is whatever was calling. MERCY logs the sector clean.\n\nThe silence feels heavier than it should.\n\n+3000";
+    body = "You burned the beacon out of the dark.\n\nThe Static is gone — and so is whatever was calling. MERCY logs the sector clean.\n\nThe silence feels heavier than it should.\n\nQuiet, at a cost. The oath, hollowed.\n\n+3000";
   } else {
     title = "ROTATION COMPLETE";
     color = "#b388ff";
-    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover at least 3 to triangulate its source.";
+    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\nLeft hollow. The Static answers still.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover at least 3 to triangulate its source.";
   }
   if (endingType !== "unresolved" && shrines.size >= SHRINES.length) {
     body += "\n\nAnd in the fleet record, appended in your hand: the serpent's mask, catalogued for good. No one will buy his cures again.";
@@ -3250,9 +3261,14 @@ function drawEnding(now) {
 
 function drawWin() {
   let rank = "FLIGHT SURGEON, A&M RESCUE DIVISION";
-  if (endingType === "answered") rank = runFired === 0 ? "OATH KEEPER — PRIMUM NON NOCERE" : "THE ONE WHO ANSWERED";
+  if (endingType === "answered") {
+    if (runFired === 0) rank = "OATH KEEPER — PRIMUM NON NOCERE";
+    // broke the no-fire oath only to crack open Glycon's secrets, never in combat
+    else if (firedAtSecret && !firedAtCombat) rank = "HOLLOW KEEPER";
+    else rank = "THE ONE WHO ANSWERED";
+  }
   else if (endingType === "fire") rank = "SECTOR WARDEN";
-  const spotless = runLost === 0 ? "\nspotless record — no Doid lost" : "";
+  const spotless = runLost === 0 ? "\nspotless record — no Scion lost" : "";
   const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
   drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
     "score " + score + "  ·  hi " + hiscore + "\n" + tallyLine() +
@@ -3280,7 +3296,8 @@ function drawCenter(big, small, color) {
 /* test/debug handle into module-scoped state */
 window.__doids = {
   get: () => ({ ship, level, state, levelIdx, upgrades, blackboxCount,
-    runFragments, runSaved, runLost, runFired, mercyBreach, mercyDamaged,
+    runFragments, runSaved, runLost, runFired, firedAtSecret, firedAtCombat,
+    mercyBreach, mercyDamaged,
     endingType, clearCards, revealCard, score, lives,
     shrines: [...shrines], inCave: !!(level && level.isCave),
     input: Object.assign({}, input), ctlShown, introSeen }),
