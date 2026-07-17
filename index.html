@@ -46,6 +46,7 @@
     box-shadow:0 0 18px rgba(105,240,174,.25), inset 0 0 12px rgba(105,240,174,.12); }
   #btnShield.down { background:rgba(105,240,174,.28); box-shadow:0 0 30px rgba(105,240,174,.6); }
   @media (orientation: portrait) { .btn { display:none; } }
+  body.noctl .btn { display:none !important; }  /* controls only exist in flight */
   #a2hs {
     position:fixed; top:calc(10px + env(safe-area-inset-top)); left:50%;
     transform:translateX(-50%); z-index:30;
@@ -112,22 +113,50 @@ resize();
 /* ---------------- input ---------------- */
 const input = { left:false, right:false, thrust:false, fire:false, shield:false, tap:false, tapX:0, tapY:0 };
 
-function bindButton(id, key) {
-  const el = document.getElementById(id);
-  const down = e => { e.preventDefault(); input[key] = true; el.classList.add("down"); initAudio(); };
-  const up   = e => { e.preventDefault(); input[key] = false; el.classList.remove("down"); };
-  el.addEventListener("touchstart", down, { passive:false });
-  el.addEventListener("touchend", up, { passive:false });
-  el.addEventListener("touchcancel", up, { passive:false });
-  el.addEventListener("mousedown", down);
-  el.addEventListener("mouseup", up);
-  el.addEventListener("mouseleave", up);
+/* One document-level multi-touch tracker instead of per-button listeners.
+   Every active touch is hit-tested against every button on every touch
+   event, so rolling a thumb from one button onto another (or pressing a
+   second button while the first is still held) registers instantly —
+   per-button touchstart/touchend can't do that, because a touch that
+   starts on one element never fires events on its neighbour. */
+const BTN_DEFS = [["btnL", "left"], ["btnR", "right"], ["btnThrust", "thrust"],
+                  ["btnFire", "fire"], ["btnShield", "shield"]];
+const btnEls = BTN_DEFS.map(([id, key]) => ({ key, el: document.getElementById(id) }));
+const TOUCH_PAD = 14;   // forgiveness margin around each button, in px
+function refreshButtonTouches(e) {
+  const pressed = {};
+  for (const t of e.touches) {
+    for (const b of btnEls) {
+      const r = b.el.getBoundingClientRect();
+      if (r.width === 0) continue;   // hidden
+      if (t.clientX >= r.left - TOUCH_PAD && t.clientX <= r.right + TOUCH_PAD &&
+          t.clientY >= r.top - TOUCH_PAD && t.clientY <= r.bottom + TOUCH_PAD)
+        pressed[b.key] = true;
+    }
+  }
+  for (const b of btnEls) {
+    input[b.key] = !!pressed[b.key];
+    b.el.classList.toggle("down", !!pressed[b.key]);
+  }
 }
-bindButton("btnL", "left");
-bindButton("btnR", "right");
-bindButton("btnThrust", "thrust");
-bindButton("btnFire", "fire");
-bindButton("btnShield", "shield");
+["touchstart", "touchmove", "touchend", "touchcancel"].forEach(ev =>
+  document.addEventListener(ev, e => {
+    if (ev === "touchstart") {
+      initAudio();
+      if (e.target && e.target.classList && e.target.classList.contains("btn"))
+        e.preventDefault();   // stop synthesized mouse events on the buttons
+    }
+    refreshButtonTouches(e);
+  }, { passive: false })
+);
+// desktop mouse still presses individual buttons
+for (const b of btnEls) {
+  const down = e => { e.preventDefault(); input[b.key] = true; b.el.classList.add("down"); initAudio(); };
+  const up = () => { input[b.key] = false; b.el.classList.remove("down"); };
+  b.el.addEventListener("mousedown", down);
+  b.el.addEventListener("mouseup", up);
+  b.el.addEventListener("mouseleave", up);
+}
 
 /* the tilt pill needs handling inside the raw gesture handler: iOS only
    grants DeviceOrientation permission from a real user gesture */
@@ -489,6 +518,12 @@ function saveCodex() {
 }
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
+let introSeen = false;
+try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
+function markIntroSeen() {
+  introSeen = true;
+  try { localStorage.setItem("doids_intro", "1"); } catch (e) {}
+}
 const ASSIST_CAPTURE = 0.22;
 const ASSIST_RATE = 4.5;
 
@@ -508,6 +543,10 @@ function codexRect() {
 function tiltRect() {
   const c = codexRect();
   return { x: c.x, y: c.y + 42, w: 128, h: 34 };
+}
+function storyRect() {
+  const h = helpRect();
+  return { x: h.x, y: h.y + 42, w: 150, h: 34 };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -1016,9 +1055,24 @@ function resolveBreach(success) {
 }
 
 /* ---------------- update ---------------- */
+let ctlShown = null;
+function updateCtlVisibility() {
+  // virtual controls exist only in flight — not on the title, intro,
+  // briefings, or story cards
+  const want = state === "play" || state === "dead";
+  if (want === ctlShown) return;
+  ctlShown = want;
+  document.body.classList.toggle("noctl", !want);
+  if (!want) for (const b of btnEls) {
+    input[b.key] = false;
+    b.el.classList.remove("down");
+  }
+}
+
 function update(dt) {
   stateT += dt;
   pollPad();
+  updateCtlVisibility();
   if (bannerMsg && (bannerMsg.t -= dt) <= 0) bannerMsg = null;
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1084,12 +1138,24 @@ function updateMenu() {
     } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
       state = "codex"; stateT = 0;
       blip(550, 825, 0.1, "sine", 0.08);
-    } else {
+    } else if (state === "title" && inRect(storyRect(), input.tapX, input.tapY)) {
+      // rewatch the opening narrative (it flows into a new run)
       goFullscreen();
       if (window.hideA2HS) window.hideA2HS();
       resetRun();
       introIdx = 0;
       state = "intro"; stateT = 0;
+      blip(330, 660, 0.2, "sine", 0.1);
+    } else {
+      goFullscreen();
+      if (window.hideA2HS) window.hideA2HS();
+      resetRun();
+      if (introSeen) {
+        toBriefing(0);   // veterans launch straight into the tasking
+      } else {
+        introIdx = 0;
+        state = "intro"; stateT = 0;
+      }
       blip(330, 660, 0.2, "sine", 0.1);
     }
   }
@@ -1107,11 +1173,11 @@ function updateIntro(dt) {
     if (introIdx === 3) staticTick(); else heartbeat(0.55);
   }
   if (input.tap && stateT > 0.35) {
-    if (inRect(skipRect(), input.tapX, input.tapY)) { toBriefing(0); }
+    if (inRect(skipRect(), input.tapX, input.tapY)) { markIntroSeen(); toBriefing(0); }
     else {
       introIdx++; stateT = 0;
       blip(440, 550, 0.08, "sine", 0.07);
-      if (introIdx >= INTRO.length) toBriefing(0);
+      if (introIdx >= INTRO.length) { markIntroSeen(); toBriefing(0); }
     }
   }
   input.tap = false;
@@ -2762,6 +2828,13 @@ function drawTitle(now) {
   ctx.fillText("✦ HOW TO FLY", hr.x + hr.w / 2, hr.y + 22);
   ctx.shadowBlur = 0;
 
+  // story pill — replay the opening narrative
+  const str = storyRect();
+  ctx.strokeStyle = "rgba(255,255,255,.35)";
+  ctx.strokeRect(str.x, str.y, str.w, str.h);
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("▸ STORY", str.x + str.w / 2, str.y + 22);
+
   // codex pill — the minds recovered across all runs
   const cr = codexRect();
   const any = codex.size > 0;
@@ -3209,7 +3282,8 @@ window.__doids = {
   get: () => ({ ship, level, state, levelIdx, upgrades, blackboxCount,
     runFragments, runSaved, runLost, runFired, mercyBreach, mercyDamaged,
     endingType, clearCards, revealCard, score, lives,
-    shrines: [...shrines], inCave: !!(level && level.isCave) }),
+    shrines: [...shrines], inCave: !!(level && level.isCave),
+    input: Object.assign({}, input), ctlShown, introSeen }),
   go: toBriefing,
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
