@@ -13,6 +13,13 @@ acceptance criteria, and tests so any developer can pick one up cold.
 Cross-links added from README.md, ROADMAP.md (now explicitly the historical
 log), and GAME_DESIGN.md §10. No game code changed in this pass.
 
+**A&M references scrubbed (personal project).** The default end-of-run rank in
+`index.html` is now "FLIGHT SURGEON, MERCY RESCUE DIVISION" (was "…A&M RESCUE
+DIVISION"), the doc headers no longer say "A&M internal", and the roadmap's
+suggested bundle ID is a personal reverse-DNS ID (`com.burners70.hollowoath`,
+to be confirmed before first submission). The in-fiction ship prefix **AMS**
+(AMS MERCY, AMS SOLACE) is unrelated naval-style styling and is unchanged.
+
 ## Rename: DOIDS → Hollow Oath (July 2026)
 
 The game was renamed from **DOIDS** to **Hollow Oath**, and the rescued medical

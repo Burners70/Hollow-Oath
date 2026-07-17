@@ -1,6 +1,6 @@
 # Hollow Oath — Game Design & Narrative Document
 
-*A&M internal — everything a developer or writer needs to pick this project up.*
+*Internal design doc — everything a developer or writer needs to pick this project up.*
 
 Last updated: July 2026 · Live build: https://burners70.github.io/Hollow-Oath/
 

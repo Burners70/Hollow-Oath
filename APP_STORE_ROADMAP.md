@@ -242,7 +242,8 @@ F should land in the same release.**
 - [ ] **E1. Capacitor scaffold in `app/`.**
   `app/package.json` with `@capacitor/core`, `@capacitor/ios`, `@capacitor/haptics`,
   `@capacitor/app`, `@capacitor/status-bar`. `capacitor.config.ts` with
-  `appId: "org.artandmedicine.hollowoath"` (confirm with owner), `appName:
+  `appId: "com.burners70.hollowoath"` (a personal reverse-DNS ID — confirm the
+  final value with the owner before first submission; it is permanent), `appName:
   "Hollow Oath"`, `webDir: "www"`. A `sync.sh` (or npm script) that copies
   `index.html`, `manifest.webmanifest`, and the three PNGs from the repo root into
   `app/www/`. The root files remain the source of truth; never edit `app/www/`.

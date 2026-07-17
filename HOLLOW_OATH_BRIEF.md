@@ -1,6 +1,6 @@
 # HOLLOW OATH — Rename & Narrative Brief
 
-*A&M internal — companion brief to GAME_DESIGN.md. Archived verbatim as the record
+*Internal — companion brief to GAME_DESIGN.md. Archived verbatim as the record
 of the decision that drove the DOIDS → Hollow Oath rename. For what was actually
 executed against this brief, see [CHANGELOG.md](CHANGELOG.md).*
 
