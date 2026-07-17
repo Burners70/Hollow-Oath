@@ -1,5 +1,33 @@
 # DOIDS — build-out notes
 
+## Implemented (v3 build-out)
+
+1. **Two new campaign sectors** — Avicenna Shoals (counterfeit fuel lures) and
+   Jenner Terraces (sleeper-saboteur gauntlet), each with a famous Doid and
+   upgrade (Canon of Truth unmasks counterfeits; Inoculation protects
+   passengers from saboteurs). Black boxes now 7, finale still needs ≥3.
+2. **Scenery** — glow-trees, rocks, buildings with lit windows, ruined
+   buildings, crashed MERCY-class hulks (flickering red cross, garbled name)
+   and downed rescue darts, all authored per-sector via `RECIPE[].scn`.
+3. **Secret lifts & the Hollows** — three sectors hide a pad that "rings
+   hollow" (hairline seams + rare glint); land and hold to descend into a
+   cave network (floor + roof heightmaps, darkness, return lift). Each cave
+   holds a shrine revealing the villain in stages.
+4. **The villain: GLYCON** — medical misinformation embodied; the puppet
+   snake-god of Alexander of Abonoteichus (the 2nd-century charlatan who sold
+   fake plague cures). His counterfeits: fake fuel pods that drain the tank
+   (tell: they blink in perfect unison; real pods flicker organically),
+   lure-trees that sway in mechanical time (transmitters — shoot them), and
+   the saboteur Doids themselves (built, not corrupted — see cave 2). One
+   hollow rock per lure-sector hides a real cache. Logs 11–14 extend the
+   record; finding all 3 shrines = GLYCON UNMASKED (+3000, ending epilogue).
+5. **Force field** — hold SHIELD (touch button, C/Shift/↓, or LB/B): burns
+   fuel, deflects bullets, kills drones on contact harmlessly, turns bad
+   landings into bounces, and saves you from cave roofs.
+6. **External controllers & gyro** — Gamepad API (stick/d-pad, A thrust,
+   X fire, LB/B shield, Start = tap) and TILT steering (DeviceOrientation,
+   with iOS permission flow) toggled on the title screen.
+
 ## Implemented (v2 build-out)
 
 1. **Progression across levels** — five authored sectors, each introducing one

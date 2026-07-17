@@ -12,7 +12,11 @@ Landscape is best.
 ## How it plays
 
 - **Left thumb**: rotate left / right
-- **Right thumb**: THRUST and FIRE (keyboard: arrows + space/X on desktop)
+- **Right thumb**: THRUST and FIRE, plus a SHIELD force field that burns fuel but
+  stops bullets, drones and rough landings (keyboard: arrows + space/X, C/Shift/↓
+  for shield)
+- **Gamepads** are supported (stick/d-pad steer, A thrust, X fire, LB/B shield),
+  and **TILT steering** (gyro) can be switched on at the title screen.
 - Gravity is always pulling you down; thrust burns fuel.
 - Land gently (slow, upright, on flattish ground) near a stranded **Doid** and it
   will walk over and climb aboard.
@@ -24,9 +28,14 @@ Landscape is best.
   and it can tell you other things too, if you watch it.
 - **Not every Doid you rescue is what it seems.** Watch how they wave. Listen to
   what boards. The red quarantine bay exists for a reason.
-- Five sectors, each introducing something new — plus famous figures from medical
+- **Not everything on the ground is what it seems either.** Real fuel pods flicker
+  like fire; counterfeits keep perfect time. Some ground rings hollow under your
+  struts — secret lifts descend into cave networks that hold the truth about who
+  is really keeping the Static alive.
+- Seven sectors, each introducing something new — plus famous figures from medical
   history hidden among the stranded (each grants an upgrade), log fragments that
-  piece together what the Static is, hidden black boxes to recover, and a secret
+  piece together what the Static is, hidden black boxes to recover, scenery from
+  glow-forests to ruined settlements and crashed MERCY-class sisters, and a secret
   finale with two endings.
 
 ## Tech

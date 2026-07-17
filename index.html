@@ -40,6 +40,11 @@
     border-color:rgba(255,196,0,.55); color:rgba(255,196,0,.9); background:rgba(255,196,0,.07);
     box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
   #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
+  #btnShield { right:calc(130px + env(safe-area-inset-right)); bottom:calc(122px + env(safe-area-inset-bottom));
+    width:64px; height:64px; line-height:60px; font-size:11px;
+    border-color:rgba(105,240,174,.55); color:rgba(105,240,174,.9); background:rgba(105,240,174,.07);
+    box-shadow:0 0 18px rgba(105,240,174,.25), inset 0 0 12px rgba(105,240,174,.12); }
+  #btnShield.down { background:rgba(105,240,174,.28); box-shadow:0 0 30px rgba(105,240,174,.6); }
   @media (orientation: portrait) { .btn { display:none; } }
   #a2hs {
     position:fixed; top:calc(10px + env(safe-area-inset-top)); left:50%;
@@ -66,6 +71,7 @@
 <div class="btn" id="btnR">&#10227;</div>
 <div class="btn" id="btnFire">FIRE</div>
 <div class="btn" id="btnThrust">THRUST</div>
+<div class="btn" id="btnShield">SHIELD</div>
 <div id="a2hs" class="hidden">
   <span id="a2hsText"></span>
   <button id="a2hsBtn">INSTALL</button>
@@ -76,8 +82,9 @@
 /* ================================================================
    DOIDS — a modern-glow homage to the Atari ST gravity classic.
    Rescue the stranded Doids, ferry them to the hospital mothership
-   AMS MERCY, and piece together what the Static is — five sectors,
-   hidden black boxes, famous Doids, saboteurs, and a secret finale.
+   AMS MERCY, and piece together what the Static is — seven sectors,
+   hidden black boxes, famous Doids, saboteurs, secret lifts down into
+   the Hollows, Glycon's counterfeits, and a secret finale.
    ================================================================ */
 
 const canvas = document.getElementById("game");
@@ -103,7 +110,7 @@ window.addEventListener("orientationchange", () => setTimeout(resize, 250));
 resize();
 
 /* ---------------- input ---------------- */
-const input = { left:false, right:false, thrust:false, fire:false, tap:false, tapX:0, tapY:0 };
+const input = { left:false, right:false, thrust:false, fire:false, shield:false, tap:false, tapX:0, tapY:0 };
 
 function bindButton(id, key) {
   const el = document.getElementById(id);
@@ -120,17 +127,20 @@ bindButton("btnL", "left");
 bindButton("btnR", "right");
 bindButton("btnThrust", "thrust");
 bindButton("btnFire", "fire");
+bindButton("btnShield", "shield");
 
+/* the tilt pill needs handling inside the raw gesture handler: iOS only
+   grants DeviceOrientation permission from a real user gesture */
+function canvasTap(x, y) {
+  initAudio();
+  if (state === "title" && inRect(tiltRect(), x, y)) { toggleTilt(); return; }
+  input.tap = true; input.tapX = x; input.tapY = y;
+}
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
-  input.tap = true;
-  input.tapX = e.touches[0].clientX; input.tapY = e.touches[0].clientY;
-  initAudio();
+  canvasTap(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive:false });
-canvas.addEventListener("mousedown", e => {
-  input.tap = true; input.tapX = e.clientX; input.tapY = e.clientY;
-  initAudio();
-});
+canvas.addEventListener("mousedown", e => canvasTap(e.clientX, e.clientY));
 document.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
 document.addEventListener("gesturestart", e => e.preventDefault());
 
@@ -192,13 +202,84 @@ function goFullscreen() {
   }
 })();
 
-const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust" };
+const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust",
+                 ArrowDown:"shield", c:"shield", Shift:"shield" };
 window.addEventListener("keydown", e => {
   if (keyMap[e.key] !== undefined) { input[keyMap[e.key]] = true; e.preventDefault(); }
   if (e.key === "Enter") input.tap = true;
   initAudio();
 });
 window.addEventListener("keyup", e => { if (keyMap[e.key] !== undefined) input[keyMap[e.key]] = false; });
+
+/* ---------------- external controller (Gamepad API) ---------------- */
+const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false };
+let padStartPrev = false, padAPrev = false;
+function pollPad() {
+  pad.left = pad.right = pad.thrust = pad.fire = pad.shield = false;
+  const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  let gp = null;
+  for (const g of gps) if (g && g.connected) { gp = g; break; }
+  pad.connected = !!gp;
+  if (!gp) { padStartPrev = padAPrev = false; return; }
+  const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+  const ax = gp.axes[0] || 0;
+  pad.left   = ax < -0.35 || b(14);
+  pad.right  = ax >  0.35 || b(15);
+  pad.thrust = b(0) || b(7) || b(12);          // A / RT / d-pad up
+  pad.fire   = b(2) || b(5);                   // X / RB
+  pad.shield = b(1) || b(4) || b(6);           // B / LB / LT
+  const start = b(9), a = b(0);
+  if ((start && !padStartPrev) || (state !== "play" && a && !padAPrev)) input.tap = true;
+  padStartPrev = start; padAPrev = a;
+}
+window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED", "#69f0ae"));
+
+/* ---------------- gyro / tilt steering ---------------- */
+let tilt = false;
+try { tilt = localStorage.getItem("doids_tilt") === "1"; } catch (e) {}
+const gyro = { ok:false, beta:0, gamma:0 };
+let gyroBound = false;
+function startGyro() {
+  if (gyroBound) return;
+  gyroBound = true;
+  window.addEventListener("deviceorientation", e => {
+    if (e.beta === null && e.gamma === null) return;
+    gyro.ok = true; gyro.beta = e.beta || 0; gyro.gamma = e.gamma || 0;
+  });
+}
+function enableGyro() {
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission()
+      .then(r => { if (r === "granted") startGyro(); else disableTilt(); })
+      .catch(() => disableTilt());
+  } else startGyro();
+}
+function disableTilt() {
+  tilt = false;
+  try { localStorage.setItem("doids_tilt", "0"); } catch (e) {}
+}
+function toggleTilt() {
+  tilt = !tilt;
+  try { localStorage.setItem("doids_tilt", tilt ? "1" : "0"); } catch (e) {}
+  if (tilt) enableGyro();
+  blip(tilt ? 440 : 300, tilt ? 660 : 200, 0.12, "sine", 0.1);
+}
+if (tilt) { // re-arm a saved preference on the first gesture (iOS needs one)
+  const arm = () => { if (tilt) enableGyro(); window.removeEventListener("touchstart", arm); };
+  window.addEventListener("touchstart", arm);
+  if (!("ontouchstart" in window)) startGyro();
+}
+/* tilt angle -> steering value in [-1, 1], respecting landscape flip */
+function gyroSteerVal() {
+  if (!tilt || !gyro.ok) return 0;
+  let angle = 0;
+  if (screen.orientation && typeof screen.orientation.angle === "number") angle = screen.orientation.angle;
+  else if (typeof window.orientation === "number") angle = window.orientation;
+  let t = angle === 90 ? gyro.beta : (angle === -90 || angle === 270) ? -gyro.beta : gyro.gamma;
+  const dz = 4, full = 24;
+  return Math.sign(t) * clamp((Math.abs(t) - dz) / (full - dz), 0, 1);
+}
 
 /* ---------------- audio (tiny synth) ---------------- */
 let AC = null, thrustNode = null, thrustGain = null;
@@ -304,14 +385,19 @@ function wrapText(str, maxW) {
 
 /* ---------------- story data ---------------- */
 const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
-                      "SEMMELWEIS DEEP", "CURIE FIELDS", "THE NULLWAVE"];
+                      "SEMMELWEIS DEEP", "CURIE FIELDS", "AVICENNA SHOALS",
+                      "JENNER TERRACES", "THE NULLWAVE"];
+const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
+const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 
 const BRIEFS = [
   "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nEnd transmission.",
   "Captain — some stranded units on the ridge have stopped answering triage pings.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
   "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.",
-  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the last black boxes.",
+  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
+  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.",
+  "Last leg before the ridge. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
   "Triangulation complete. The source of the Static is below the nullwave ridge.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
 ];
 
@@ -325,7 +411,27 @@ const FRAGMENTS = [
   "LOG 07 // It's a voice like ours. Every repeat is a copy of a copy. The rescued units corrupt because they answer honestly.",
   "LOG 08 // Triangulation at 60%. The echo has a source, somewhere dark beyond the last ridge, transmitting on our own frequency.",
   "LOG 09 // Fleet drafted destroy-on-sight orders. The CMO refused to sign. She wrote one line: primum non nocere.",
-  "LOG 10 // If it can be silenced without being destroyed, we owe it that. It has only ever been repeating a call for help."
+  "LOG 10 // If it can be silenced without being destroyed, we owe it that. It has only ever been repeating a call for help.",
+  "LOG 11 // The lures aren't scavenger traps. They're placed. Someone wants rescues to fail — and wants it to look like bad luck.",
+  "LOG 12 // Every counterfeit carries the same maker's mark: a coiled serpent wearing a human mask. The archive is afraid of the match it found.",
+  "LOG 13 // Match confirmed. GLYCON — the puppet god of Alexander of Abonoteichus, Old Earth, second century. He wrapped a snake in linen and sold false plague cures while the plague spread. His amulets hung over doors where precautions should have been.",
+  "LOG 14 // The Static is a wound. Glycon is the hand keeping it open — amplifying the echo, farming the fear, selling the cure that kills. Unmask him. Then answer the wound."
+];
+
+/* the caves under the lifts — three shrines, three revelations */
+const SHRINES = [
+  { kicker: "THE HOLLOWS · RELAY",
+    title: "IT ISN'T AN ECHO",
+    body: "A transmitter, hand-built into the rock. Not wreckage. Not corrosion.\n\nSomething down here is BOOSTING the Static — aiming it along the rescue lanes, keeping the wound open on purpose.\n\nScratched into the casing: a coiled serpent wearing a human mask.",
+    color: "#b388ff" },
+  { kicker: "THE HOLLOWS · WORKSHOP",
+    title: "THEY WERE NEVER RESCUED",
+    body: "Racks of half-finished Doids. Dull chests. No hearts to tick.\n\nThe saboteurs aren't corrupted survivors at all. They are counterfeits — built down here, seeded among the stranded, made to be carried home in good faith.\n\nThe same serpent mark on every chassis.",
+    color: "#b388ff" },
+  { kicker: "THE HOLLOWS · SHRINE",
+    title: "GLYCON",
+    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.",
+    color: "#c6ff00" }
 ];
 
 const FAMOUS = [
@@ -348,7 +454,15 @@ const FAMOUS = [
   { name: "MARIE CURIE", era: "1867–1934",
     story: "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War.",
     upgrade: "radiosense", upgradeName: "RADIOSENSE",
-    upgradeDesc: "A compass now points toward unrecovered black boxes." }
+    upgradeDesc: "A compass now points toward unrecovered black boxes." },
+  { name: "IBN SINA · AVICENNA", era: "980–1037",
+    story: "The Persian polymath whose Canon of Medicine taught physicians on three continents for six hundred years — observation, evidence, and honest doubt.",
+    upgrade: "canon", upgradeName: "CANON OF TRUTH",
+    upgradeDesc: "Counterfeits are unmasked — Glycon's lures and lure-trees are marked for what they are." },
+  { name: "EDWARD JENNER", era: "1749–1823",
+    story: "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
+    upgrade: "inoculation", upgradeName: "INOCULATION",
+    upgradeDesc: "Your passengers are immunised — saboteurs aboard can no longer kill them." }
 ];
 
 /* ---------------- world / level ---------------- */
@@ -360,6 +474,7 @@ let level, ship, camera, particles, texts, stars;
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
 let runFragments = 0, blackboxCount = 0;
+let shrines = new Set();   // Hollows shrines found this run
 let upgrades = {};
 let mercyBreach = null, mercyDamaged = false;
 let endingType = null;
@@ -390,11 +505,15 @@ function skipRect() {
 function codexRect() {
   return { x: 14 + saLeft, y: 12, w: 168, h: 34 };
 }
+function tiltRect() {
+  const c = codexRect();
+  return { x: c.x, y: c.y + 42, w: 128, h: 34 };
+}
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers. Explore.",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on at the title.",
   color: "#00e5ff"
 };
 
@@ -415,19 +534,32 @@ function flatten(heights, cx, halfW) {
   return y;
 }
 
-/* per-sector recipe: each sector introduces one new element */
+/* per-sector recipe: each sector introduces one new element.
+   scn = decorative scenery counts; fakes = Glycon's counterfeit fuel pods;
+   lift marks the sectors whose ground hides a secret lift into the Hollows. */
 const RECIPE = [
-  { oids: 3, turrets: 2, sabs: 0, drones: 0, pods: 0, anomalies: 0, dark: false },
-  { oids: 5, turrets: 4, sabs: 1, drones: 0, pods: 0, anomalies: 0, dark: false },
-  { oids: 6, turrets: 4, sabs: 1, drones: 0, pods: 0, anomalies: 0, dark: true  },
-  { oids: 7, turrets: 6, sabs: 2, drones: 1, pods: 3, anomalies: 0, dark: false },
-  { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 4, anomalies: 3, dark: false },
-  { oids: 2, turrets: 6, sabs: 0, drones: 3, pods: 3, anomalies: 2, dark: true  }
+  { oids: 3, turrets: 2, sabs: 0, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,
+    lift: false, scn: { trees: 9, rocks: 5, bld: 2, ruin: 0, wreck: 0 } },
+  { oids: 5, turrets: 4, sabs: 1, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,
+    lift: true,  scn: { trees: 7, rocks: 6, bld: 1, ruin: 1, wreck: 1 } },
+  { oids: 6, turrets: 4, sabs: 1, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: true,
+    lift: false, scn: { trees: 5, rocks: 6, bld: 0, ruin: 2, wreck: 1 } },
+  { oids: 7, turrets: 6, sabs: 2, drones: 1, pods: 3, fakes: 0, anomalies: 0, dark: false,
+    lift: true,  scn: { trees: 4, rocks: 7, bld: 0, ruin: 2, wreck: 1 } },
+  { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 4, fakes: 0, anomalies: 3, dark: false,
+    lift: false, scn: { trees: 3, rocks: 8, bld: 0, ruin: 3, wreck: 2 } },
+  { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 3, fakes: 3, anomalies: 2, dark: false,
+    lift: true,  scn: { trees: 6, rocks: 6, bld: 0, ruin: 2, wreck: 1 } },
+  { oids: 9, turrets: 8, sabs: 3, drones: 2, pods: 4, fakes: 3, anomalies: 2, dark: false,
+    lift: false, scn: { trees: 2, rocks: 7, bld: 0, ruin: 4, wreck: 2 } },
+  { oids: 2, turrets: 6, sabs: 0, drones: 3, pods: 3, fakes: 2, anomalies: 2, dark: true,
+    lift: false, scn: { trees: 0, rocks: 8, bld: 0, ruin: 3, wreck: 3 } }
 ];
+const LIFT_CAVE = { 1: 0, 3: 1, 5: 2 };  // which sector's lift opens which cave
 
 function genLevel(n) {
   const r = RECIPE[n];
-  const W = n === 5 ? 4400 : 2600 + n * 400;
+  const W = n === FINALE_IDX ? 4400 : 2600 + Math.min(n, 5) * 400;
   const rng = mulberry32(1013 * (n + 3) + 77);
   const count = Math.floor(W / STEP) + 2;
 
@@ -439,7 +571,7 @@ function genLevel(n) {
       return lerp(pts[i], pts[i + 1], (1 - Math.cos(t * Math.PI)) / 2);
     };
   };
-  const rough = 1 + n * 0.12;
+  const rough = 1 + Math.min(n, 5) * 0.12;
   const o1 = octave(420, 190 * rough), o2 = octave(150, 65 * rough), o3 = octave(60, 20);
   const heights = [];
   for (let i = 0; i < count; i++) {
@@ -449,10 +581,11 @@ function genLevel(n) {
   for (let i = 0; i < 4; i++) { heights[i] = 600; heights[count - 1 - i] = 600; }
 
   const lvl = { n, W, heights, oids: [], turrets: [], bullets: [], shots: [],
-    drones: [], pods: [], anomalies: [], blackbox: null, beacon: null,
+    drones: [], pods: [], fakePods: [], anomalies: [], scenery: [],
+    blackbox: null, beacon: null, lift: null, shrine: null, roof: null,
     mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
-    total: 0, firedShots: 0, extraction: null, pulse: null,
-    dark: r.dark, isFinale: n === 5, contamKnown: false, fragmentsHere: [] };
+    total: 0, firedShots: 0, extraction: null, pulse: null, isCave: false,
+    dark: r.dark, isFinale: n === FINALE_IDX, contamKnown: false, fragmentsHere: [] };
 
   const spots = [];
   const pick = minDist => {
@@ -474,7 +607,7 @@ function genLevel(n) {
     lvl.oids.push(newOid(x, y, "normal"));
   }
   // one famous Doid per campaign sector
-  if (n < 5 && lvl.oids.length) {
+  if (n < FINALE_IDX && lvl.oids.length) {
     const f = lvl.oids[Math.floor(rng() * lvl.oids.length)];
     f.role = "famous"; f.famousId = n;
   }
@@ -483,7 +616,7 @@ function genLevel(n) {
     const x = pick(260);
     const y = flatten(heights, x, 70);
     const sab = newOid(x, y, "saboteur");
-    sab.sleeper = n >= 2 && rng() < 0.5;
+    sab.sleeper = n >= 2 && rng() < (n === 6 ? 0.75 : 0.5); // the terraces crawl with sleepers
     lvl.oids.push(sab);
   }
   // two of the ordinary Doids carry log fragments
@@ -504,22 +637,99 @@ function genLevel(n) {
   }
   for (let i = 0; i < r.pods; i++) {
     const x = pick(200);
-    lvl.pods.push({ x, y: flatten(heights, x, 30), taken: false });
+    lvl.pods.push({ x, y: flatten(heights, x, 30), taken: false, ph: rng() * 7 });
+  }
+  // Glycon's lures: counterfeit fuel pods that drain the tank instead.
+  // The tell — they all blink in perfect, mechanical unison.
+  for (let i = 0; i < r.fakes; i++) {
+    const x = pick(200);
+    lvl.fakePods.push({ x, y: flatten(heights, x, 30), taken: false });
   }
   for (let i = 0; i < r.anomalies; i++) {
     lvl.anomalies.push({ x: 800 + rng() * (W - 1400), y: 500 + rng() * 350,
       r: 200 + rng() * 90, str: 80 + rng() * 40, spin: rng() * 6 });
   }
   // one hidden black box per campaign sector
-  if (n < 5) {
+  if (n < FINALE_IDX) {
     const x = pick(300);
     lvl.blackbox = { x, y: flatten(heights, x, 50), found: false, scanT: 0 };
   }
+  // the secret lift: a pad of ground that rings hollow, down into the Hollows
+  if (r.lift) {
+    const x = pick(320);
+    const y = flatten(heights, x, 70);
+    lvl.lift = { x, y, cave: LIFT_CAVE[n], holdT: 0, armed: true };
+  }
   // the finale's beacon — the source of the Static
-  if (n === 5) {
+  if (n === FINALE_IDX) {
     const bx = W - 420;
     const by = flatten(heights, bx, 120);
     lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false };
+  }
+
+  // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
+  const gy = x => {
+    const i = clamp(Math.floor(x / STEP), 0, heights.length - 2);
+    const t = clamp(x / STEP - i, 0, 1);
+    return lerp(heights[i], heights[i + 1], t);
+  };
+  const slopeAt = x => (gy(x + 10) - gy(x - 10)) / 20;
+  const scnSpot = (flatTries) => { // buildings/wrecks prefer flatter ground
+    let x = 320 + rng() * (W - 640);
+    for (let k = 0; k < (flatTries || 0); k++) {
+      if (Math.abs(slopeAt(x)) < 0.14) break;
+      x = 320 + rng() * (W - 640);
+    }
+    return x;
+  };
+  const deco = (type, flatTries, extra) => {
+    const x = scnSpot(flatTries);
+    lvl.scenery.push(Object.assign({ type, x, y: gy(x),
+      tilt: Math.atan(slopeAt(x)) * 0.7, s: 0.8 + rng() * 0.7, ph: rng() * 7 }, extra));
+  };
+  const sc = r.scn;
+  for (let i = 0; i < sc.trees; i++) deco("tree", 0);
+  for (let i = 0; i < sc.rocks; i++) {
+    const verts = [];
+    const k = 5 + Math.floor(rng() * 3), rad = 7 + rng() * 9;
+    for (let v = 0; v < k; v++) {
+      const a = (v / k) * Math.PI * 2;
+      const rr = rad * (0.65 + rng() * 0.5);
+      verts.push([Math.cos(a) * rr, -rad * 0.6 + Math.sin(a) * rr * 0.62]);
+    }
+    deco("rock", 0, { verts });
+  }
+  const mkWindows = (w, h) => {
+    const cols = Math.max(2, Math.floor(w / 14)), rows = Math.max(2, Math.floor(h / 16));
+    const lit = [];
+    for (let i = 0; i < cols * rows; i++) lit.push(rng() < 0.45);
+    return { cols, rows, lit, flick: Math.floor(rng() * cols * rows) };
+  };
+  for (let i = 0; i < sc.bld; i++) {
+    const w = 38 + rng() * 28, h = 58 + rng() * 66;
+    deco("bld", 10, Object.assign({ w, h }, mkWindows(w, h)));
+  }
+  for (let i = 0; i < sc.ruin; i++) {
+    const w = 40 + rng() * 30, h = 44 + rng() * 50;
+    const jag = [];
+    for (let j = 0; j <= 4; j++) jag.push(rng() * h * 0.45);
+    deco("ruin", 6, Object.assign({ w, h, jag }, mkWindows(w, h * 0.6)));
+  }
+  for (let i = 0; i < sc.wreck; i++)
+    deco(rng() < 0.5 ? "wreckM" : "wreckS", 6, { lean: (rng() - 0.5) * 0.7 });
+  // where Glycon seeds lures he also plants a lure-tree: a transmitter
+  // disguised as flora, swaying in perfect mechanical time. In the
+  // nullwave it is the only tree standing at all.
+  if (r.fakes > 0) deco("tree", 0, { fake: true, s: 1 + rng() * 0.3 });
+  // and somewhere, someone hid a real cache from the serpent: one rock
+  // breathes faintly. Crack it open.
+  if (r.fakes > 0) {
+    const verts = [];
+    for (let v = 0; v < 6; v++) {
+      const a = (v / 6) * Math.PI * 2;
+      verts.push([Math.cos(a) * 11, -7 + Math.sin(a) * 7]);
+    }
+    deco("rock", 0, { verts, hollow: true, s: 1.1 });
   }
 
   stars = [];
@@ -529,6 +739,98 @@ function genLevel(n) {
   return lvl;
 }
 
+/* ---------------- the Hollows: secret caves under the lifts ---------------- */
+function roofAt(x) {
+  const h = level.roof;
+  const i = clamp(Math.floor(x / STEP), 0, h.length - 2);
+  const t = clamp(x / STEP - i, 0, 1);
+  return lerp(h[i], h[i + 1], t);
+}
+
+function genCave(ci) {
+  const W = 1800;
+  const rng = mulberry32(5077 + ci * 131);
+  const count = Math.floor(W / STEP) + 2;
+  const octave = (wl, amp) => {
+    const pts = [];
+    for (let i = 0; i <= Math.ceil(W / wl) + 1; i++) pts.push((rng() * 2 - 1) * amp);
+    return x => {
+      const p = x / wl, i = Math.floor(p), t = p - i;
+      return lerp(pts[i], pts[i + 1], (1 - Math.cos(t * Math.PI)) / 2);
+    };
+  };
+  const f1 = octave(260, 90), f2 = octave(90, 34);
+  const r1 = octave(300, 80), r2 = octave(70, 26);
+  const heights = [], roof = [];
+  for (let i = 0; i < count; i++) {
+    const x = i * STEP;
+    heights.push(clamp(1250 + f1(x) + f2(x), 1150, 1380));
+    roof.push(clamp(930 + r1(x) + r2(x), 820, 1090));
+  }
+  for (let i = 0; i < count; i++) roof[i] = Math.min(roof[i], heights[i] - 175);
+
+  const lvl = { n: levelIdx, W, heights, roof, oids: [], turrets: [], bullets: [], shots: [],
+    drones: [], pods: [], fakePods: [], anomalies: [], scenery: [],
+    blackbox: null, beacon: null, mx: -9999, my: -9999, mxo: 0, myo: 0,
+    delivered: 0, lost: 0, contained: 0, total: 0, firedShots: 0,
+    extraction: null, pulse: null, dark: true, isFinale: false, isCave: true,
+    caveIdx: ci, contamKnown: false, fragmentsHere: [],
+    lift: { x: 220, y: 0, cave: ci, holdT: 0, armed: false },
+    shrine: null };
+
+  lvl.lift.y = flatten(heights, lvl.lift.x, 60);
+  const sx = W - 260;
+  const sy = flatten(heights, sx, 80);
+  if (!shrines.has(ci)) lvl.shrine = { x: sx, y: sy, found: false, scanT: 0 };
+
+  for (let i = 0; i < 3; i++) {
+    const x = 500 + rng() * (W - 900);
+    lvl.pods.push({ x, y: flatten(heights, x, 30), taken: false, ph: rng() * 7 });
+  }
+  if (ci >= 1) lvl.drones.push({ x: W * 0.55, y: 1150, vx: 0, vy: 0, alive: true, bob: rng() * 6 });
+  for (let i = 0; i < 5; i++) {
+    const verts = [];
+    const k = 5 + Math.floor(rng() * 3), rad = 6 + rng() * 8;
+    for (let v = 0; v < k; v++) {
+      const a = (v / k) * Math.PI * 2;
+      verts.push([Math.cos(a) * rad * (0.65 + rng() * 0.5), -rad * 0.55 + Math.sin(a) * rad * 0.55]);
+    }
+    const x = 300 + rng() * (W - 600);
+    const i0 = clamp(Math.floor(x / STEP), 0, heights.length - 2);
+    lvl.scenery.push({ type: "rock", x, y: heights[i0], tilt: 0, s: 0.8 + rng() * 0.6, ph: rng() * 7, verts });
+  }
+  return lvl;
+}
+
+let surfaceCtx = null;   // where we came from, while inside a cave
+function acctLevel() {   // sector accounting always lands on the surface level
+  return level && level.isCave && surfaceCtx ? surfaceCtx.level : level;
+}
+
+function enterCave(L) {
+  L.holdT = 0; L.armed = false;
+  surfaceCtx = { level, x: ship.x, y: ship.y };
+  level = genCave(L.cave);
+  ship.x = level.lift.x; ship.y = groundAt(level.lift.x) - SHIP_R;
+  ship.vx = 0; ship.vy = 0; ship.ang = 0; ship.landed = true;
+  camera.x = ship.x; camera.y = ship.y; camera.shake = 14;
+  banner("SECRET LIFT — DESCENDING INTO THE HOLLOWS", "#b388ff");
+  blip(220, 70, 0.9, "sawtooth", 0.16);
+  staticTick();
+}
+
+function exitCave() {
+  if (!surfaceCtx) return;
+  level = surfaceCtx.level;
+  ship.x = surfaceCtx.x; ship.y = surfaceCtx.y;
+  ship.vx = 0; ship.vy = 0; ship.ang = 0; ship.landed = true;
+  if (level.lift) { level.lift.holdT = 0; level.lift.armed = false; }
+  camera.x = ship.x; camera.y = ship.y; camera.shake = 10;
+  surfaceCtx = null;
+  banner("SURFACE — " + SECTOR_NAMES[levelIdx], "#00e5ff");
+  blip(160, 520, 0.6, "sine", 0.12);
+}
+
 function maxVitals() { return upgrades.fabrica ? 125 : 100; }
 function lampRadius() { return upgrades.lamp ? 400 : 230; }
 
@@ -536,20 +838,22 @@ function spawnShip() {
   ship = {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: 100, vitals: maxVitals(), passengers: [], landed: false, dead: false,
-    fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0
+    fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
+    shield: false
   };
 }
 
 /* ---------------- state flow ---------------- */
 function resetRun() {
   score = 0; lives = 3; runSaved = 0; runLost = 0; runFired = 0;
-  runFragments = 0; blackboxCount = 0;
+  runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
-  clearCards = []; revealCard = null;
+  clearCards = []; revealCard = null; surfaceCtx = null;
 }
 
 function toBriefing(n) {
   levelIdx = n;
+  surfaceCtx = null;
   level = genLevel(n);
   spawnShip();
   camera = { x: ship.x, y: ship.y, shake: 0 };
@@ -625,7 +929,7 @@ function shipDie() {
         addText(ship.x, ship.y - 66, "YOU LOST " + FAMOUS[p.famousId].name, "#ffd54f");
       }
     }
-    level.lost += n; runLost += n;
+    acctLevel().lost += n; runLost += n;
     const penalty = 250 * n;
     score = Math.max(0, score - penalty);
     addText(ship.x, ship.y - 50,
@@ -645,7 +949,7 @@ function shipDie() {
    the pulses quicken. Checked every play frame so no accounting path
    (delivery, crash, sabotage, quarantine, escape) can be missed. */
 function checkSectorClear() {
-  if (state !== "play" || level.isFinale || level.extraction || mercyBreach) return;
+  if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach) return;
   if (level.delivered + level.lost + level.contained < level.total) return;
   level.extraction = { t: 0, pulseT: 0, hold: 0 };
   banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nDOCK IN THE RECOVERY BAY BEFORE THE STATIC REACHES HER", "#ffc400");
@@ -714,6 +1018,7 @@ function resolveBreach(success) {
 /* ---------------- update ---------------- */
 function update(dt) {
   stateT += dt;
+  pollPad();
   if (bannerMsg && (bannerMsg.t -= dt) <= 0) bannerMsg = null;
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -751,7 +1056,10 @@ function update(dt) {
     case "dead":
       if (stateT > 1.6) {
         if (lives <= 0) { state = "gameover"; stateT = 0; saveHi(); }
-        else { spawnShip(); state = "play"; stateT = 0; checkSectorClear(); }
+        else {
+          if (level.isCave) exitCave();   // the Hollows spit you back out
+          spawnShip(); state = "play"; stateT = 0; checkSectorClear();
+        }
       }
       input.tap = false;
       return;
@@ -822,9 +1130,9 @@ function updateBrief(dt) {
 function updateClear() {
   if (input.tap && stateT > 0.8) {
     if (clearCards.length > 0) { clearCards.shift(); stateT = Math.max(stateT, 0.81); }
-    else if (levelIdx < 4) toBriefing(levelIdx + 1);
-    else if (levelIdx === 4) {
-      if (blackboxCount >= 3) toBriefing(5);
+    else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
+    else if (levelIdx === FINALE_IDX - 1) {
+      if (blackboxCount >= 3) toBriefing(FINALE_IDX);
       else { endingType = "unresolved"; state = "ending"; stateT = 0; }
     } else { state = "ending"; stateT = 0; }
   }
@@ -836,15 +1144,22 @@ function updatePlay(dt) {
   const s = ship;
   const now = performance.now() / 1000;
 
-  if (input.left)  s.ang -= ROT * dt;
-  if (input.right) s.ang += ROT * dt;
+  let steer = 0;
+  if (input.left || pad.left) steer -= 1;
+  if (input.right || pad.right) steer += 1;
+  if (steer === 0) steer = gyroSteerVal();
+  if (steer) s.ang += ROT * dt * steer;
 
-  if (assist && !s.landed && !input.left && !input.right) {
+  if (assist && !s.landed && !steer) {
     const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     if (Math.abs(tilt) < ASSIST_CAPTURE) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
   }
 
-  const thrusting = input.thrust && s.fuel > 0;
+  // force field: eats fuel, stops bullets, drones, rough ground and cave roofs
+  s.shield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  if (s.shield) s.fuel = Math.max(0, s.fuel - 7 * dt);
+
+  const thrusting = (input.thrust || pad.thrust) && s.fuel > 0;
   if (thrustGain) thrustGain.gain.value = thrusting ? 0.14 : 0;
   if (thrusting) {
     s.vx += Math.sin(s.ang) * THRUST * dt;
@@ -888,11 +1203,33 @@ function updatePlay(dt) {
   s.x = clamp(s.x, 40, level.W - 40);
   if (s.y < 20) { s.y = 20; s.vy = Math.max(s.vy, 0); }
 
+  // cave roofs are unforgiving — unless the field is up
+  if (level.roof && !s.dead && !s.landed) {
+    const rY = roofAt(s.x);
+    if (s.y - SHIP_R <= rY) {
+      if (s.shield) {
+        s.y = rY + SHIP_R + 1;
+        s.vy = Math.abs(s.vy) * 0.5 + 20;
+        s.fuel = Math.max(0, s.fuel - 4);
+        camera.shake += 6;
+        blip(240, 420, 0.12, "sine", 0.1);
+      } else { shipDie(); return; }
+    }
+  }
+
   const g = groundAt(s.x);
   if (!s.landed && s.y + SHIP_R >= g) {
     const { soft, survivable } = landingEval();
     if (soft) {
       s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+    } else if (s.shield) {
+      // the force field turns a bad approach into a bounce
+      s.y = g - SHIP_R;
+      s.vy = -Math.abs(s.vy) * 0.45; s.vx *= 0.65;
+      s.fuel = Math.max(0, s.fuel - 4);
+      camera.shake += 6;
+      addText(s.x, s.y - 30, "SHIELD BOUNCE", "#69f0ae");
+      blip(200, 380, 0.15, "sine", 0.12);
     } else if (survivable) {
       s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
       const dmg = upgrades.gentle ? 12 : 35;
@@ -909,6 +1246,8 @@ function updatePlay(dt) {
   updateDocking(dt);
   updateBlackbox(dt);
   updatePods();
+  updateLift(dt);
+  updateShrine(dt);
   if (level.isFinale) updateBeacon(dt);
 
   if (mercyBreach) {
@@ -1032,12 +1371,17 @@ function updateEnemies(dt) {
     if (sp > 95) { dr.vx *= 95 / sp; dr.vy *= 95 / sp; }
     dr.x += dr.vx * dt; dr.y += dr.vy * dt + Math.sin(dr.bob * 3) * 8 * dt;
     dr.y = Math.min(dr.y, groundAt(dr.x) - 26);
-    if (!s.dead && d < SHIP_R + 10) {
+    if (level.roof) dr.y = Math.max(dr.y, roofAt(dr.x) + 26);
+    if (!s.dead && d < SHIP_R + (s.shield ? 14 : 10)) {
       dr.alive = false;
       explode(dr.x, dr.y, "#ff4081", 24);
-      s.vitals -= 40;
-      addText(s.x, s.y - 30, "-40", "#ff4081");
-      if (s.vitals <= 0) { shipDie(); return; }
+      if (s.shield) {
+        addText(s.x, s.y - 30, "SHIELD HELD", "#69f0ae");
+      } else {
+        s.vitals -= 40;
+        addText(s.x, s.y - 30, "-40", "#ff4081");
+        if (s.vitals <= 0) { shipDie(); return; }
+      }
     }
   }
 
@@ -1045,8 +1389,13 @@ function updateEnemies(dt) {
     const b = level.bullets[i];
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.t <= 0 || b.y > groundAt(b.x)) { level.bullets.splice(i, 1); continue; }
-    if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + 3) {
+    if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + (s.shield ? 10 : 3)) {
       level.bullets.splice(i, 1);
+      if (s.shield) {
+        explode(b.x, b.y, "#69f0ae", 8);
+        blip(500, 900, 0.08, "sine", 0.08);
+        continue;
+      }
       s.vitals -= 26; camera.shake += 8;
       explode(b.x, b.y, "#ff4081", 10);
       addText(s.x, s.y - 30, "-26", "#ff4081");
@@ -1055,9 +1404,9 @@ function updateEnemies(dt) {
   }
 
   s.fireCd -= dt;
-  if (input.fire && s.fireCd <= 0 && !s.dead) {
+  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead) {
     s.fireCd = 0.22;
-    level.firedShots++; runFired++;
+    acctLevel().firedShots++; runFired++;
     level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
       vx: s.vx + Math.sin(s.ang) * 360, vy: s.vy - Math.cos(s.ang) * 360, t: 1.3 });
     blip(880, 180, 0.12, "square", 0.09);
@@ -1065,7 +1414,7 @@ function updateEnemies(dt) {
   for (let i = level.shots.length - 1; i >= 0; i--) {
     const b = level.shots[i];
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-    let gone = b.t <= 0 || b.y > groundAt(b.x);
+    let gone = b.t <= 0 || b.y > groundAt(b.x) || (level.roof && b.y < roofAt(b.x));
     for (const t of level.turrets) {
       if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
         t.alive = false; gone = true;
@@ -1090,6 +1439,24 @@ function updateEnemies(dt) {
         killOid(o, "shot");
       }
     }
+    // Glycon's secrets crack open under fire
+    for (const sc of level.scenery) {
+      if (sc.dead) continue;
+      if (sc.fake && Math.hypot(b.x - sc.x, b.y - (sc.y - 30 * sc.s)) < 24 * sc.s) {
+        sc.dead = true; gone = true;
+        score += 500;
+        explode(sc.x, sc.y - 24, "#c6ff00", 26);
+        staticTick();
+        addText(sc.x, sc.y - 56, "LURE-TREE DESTROYED — GLYCON TRANSMITTER +500", "#c6ff00");
+      } else if (sc.hollow && Math.hypot(b.x - sc.x, b.y - (sc.y - 8 * sc.s)) < 16 * sc.s) {
+        sc.dead = true; gone = true;
+        score += 400;
+        explode(sc.x, sc.y - 8, "#ffc400", 20);
+        level.pods.push({ x: sc.x, y: sc.y, taken: false, ph: Math.random() * 7 });
+        addText(sc.x, sc.y - 44, "HIDDEN CACHE +400 — stashed away from the serpent", "#ffc400");
+        blip(400, 1200, 0.3, "sine", 0.12);
+      }
+    }
     if (level.beacon && !level.beacon.resolved &&
         Math.hypot(b.x - level.beacon.x, b.y - (level.beacon.y - 40)) < 42) {
       gone = true;
@@ -1108,8 +1475,10 @@ function updateSabotage(dt) {
     p.sabT -= dt;
     if (p.sabT > 0) continue;
     p.sabT = 7 + Math.random() * 4;
+    acctLevel().contamKnown = true;
     level.contamKnown = true;
-    if (Math.random() < 0.55 || s.passengers.length === 1) {
+    // Jenner's gift: immunised passengers can't be killed, only inconvenienced
+    if (upgrades.inoculation || Math.random() < 0.55 || s.passengers.length === 1) {
       s.fuel = Math.max(0, s.fuel - 9);
       addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
       blip(140, 60, 0.25, "sawtooth", 0.12);
@@ -1119,7 +1488,7 @@ function updateSabotage(dt) {
         const v = victims[Math.floor(Math.random() * victims.length)];
         s.passengers.splice(s.passengers.indexOf(v), 1);
         v.state = "lost";
-        level.lost++; runLost++;
+        acctLevel().lost++; runLost++;
         if (v.role === "famous")
           addText(s.x, s.y - 48, FAMOUS[v.famousId].name + " WAS KILLED", "#ffd54f");
         addText(s.x, s.y - 34, "PASSENGER KILLED BY SABOTEUR", "#ff4081");
@@ -1160,6 +1529,7 @@ function inBay(b) {
 }
 
 function updateDocking(dt) {
+  if (level.isCave) return;   // no MERCY down in the Hollows
   const s = ship;
   const bays = bayRects();
 
@@ -1253,11 +1623,11 @@ function updateBlackbox(dt) {
       blip(300, 1200, 0.5, "sine", 0.14);
       const frag = grantFragment(false);
       showCard({
-        kicker: "BLACK BOX RECOVERED · SIGNAL " + blackboxCount + "/5 · +800",
+        kicker: "BLACK BOX RECOVERED · SIGNAL " + blackboxCount + "/" + NBOX + " · +800",
         title: "", subtitle: "",
         body: (frag || "The recorder is blank — wiped clean. Someone got here first.") +
           "\n\n" + (blackboxCount >= 3 ? "◈ Triangulation viable. Keep flying."
-                                       : "◈ Recover at least 3 of 5 to triangulate the source."),
+                                       : "◈ Recover at least 3 of " + NBOX + " to triangulate the source."),
         color: "#b388ff"
       });
     }
@@ -1276,6 +1646,63 @@ function updatePods() {
       goldBurst(p.x, p.y - 8);
     }
   }
+  // the counterfeits: they drink instead of pour
+  for (const p of level.fakePods) {
+    if (p.taken) continue;
+    if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
+      p.taken = true;
+      s.fuel = Math.max(0, s.fuel - 18);
+      score = Math.max(0, score - 100);
+      addText(p.x, p.y - 30, "COUNTERFEIT — GLYCON'S LURE  -100", "#c6ff00");
+      addText(p.x, p.y - 46, "FUEL DRAINED -18", "#ff4081");
+      staticTick();
+      explode(p.x, p.y - 8, "#c6ff00", 14);
+    }
+  }
+}
+
+/* ---- the secret lifts and what waits below ---- */
+function updateLift(dt) {
+  const L = level.lift;
+  if (!L) return;
+  if (mercyBreach || level.extraction) { L.holdT = 0; return; }
+  const near = ship.landed && !ship.dead &&
+    Math.abs(ship.x - L.x) < 46 && Math.abs((ship.y + SHIP_R) - L.y) < 24;
+  if (!near) { L.holdT = 0; L.armed = true; return; }
+  if (!L.armed) return;   // must lift off the pad once before it cycles again
+  L.holdT += dt;
+  if (L.holdT > 0.6 && !L.hinted) {
+    L.hinted = true;
+    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
+    blip(180, 120, 0.3, "sine", 0.1);
+  }
+  if (L.holdT >= 2.4) {
+    if (level.isCave) exitCave();
+    else enterCave(L);
+  }
+}
+
+function updateShrine(dt) {
+  const sh = level.shrine;
+  if (!sh || sh.found) return;
+  if (ship.landed && Math.abs(ship.x - sh.x) < 80) {
+    sh.scanT += dt;
+    if (sh.scanT >= 2) {
+      sh.found = true;
+      shrines.add(level.caveIdx);
+      score += 1000;
+      let extra = "";
+      if (shrines.size >= SHRINES.length) {
+        score += 3000;
+        extra = "\n\n★ GLYCON UNMASKED — the whole counterfeit laid bare. +3000";
+      }
+      const c = SHRINES[level.caveIdx];
+      blip(300, 1200, 0.6, "sine", 0.14);
+      staticTick();
+      showCard({ kicker: c.kicker + " · SECRET +1000", title: c.title, subtitle: "",
+        body: c.body + extra, color: c.color });
+    }
+  } else sh.scanT = 0;
 }
 
 function updateBeacon(dt) {
@@ -1370,14 +1797,16 @@ function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
 
-  ctx.save();
-  ctx.translate(cx * 0.35, cy * 0.35);
-  for (const st of stars) {
-    const a = 0.4 + 0.6 * Math.abs(Math.sin(now * 0.8 + st.tw));
-    ctx.fillStyle = "rgba(200,220,255," + a.toFixed(2) + ")";
-    ctx.fillRect(st.x, st.y, st.s, st.s);
+  if (!level.isCave) {
+    ctx.save();
+    ctx.translate(cx * 0.35, cy * 0.35);
+    for (const st of stars) {
+      const a = 0.4 + 0.6 * Math.abs(Math.sin(now * 0.8 + st.tw));
+      ctx.fillStyle = "rgba(200,220,255," + a.toFixed(2) + ")";
+      ctx.fillRect(st.x, st.y, st.s, st.s);
+    }
+    ctx.restore();
   }
-  ctx.restore();
 
   // terrain
   ctx.beginPath();
@@ -1391,6 +1820,23 @@ function drawWorld(now) {
   ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
   ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
   ctx.shadowBlur = 0;
+
+  // cave roof, hanging overhead
+  if (level.roof) {
+    ctx.beginPath();
+    ctx.moveTo(0, -160);
+    for (let i = 0; i < level.roof.length; i++) ctx.lineTo(i * STEP, level.roof[i]);
+    ctx.lineTo(level.W, -160);
+    ctx.closePath();
+    const rg = ctx.createLinearGradient(0, 500, 0, 1100);
+    rg.addColorStop(0, "#0c0820"); rg.addColorStop(1, "#1b1040");
+    ctx.fillStyle = rg; ctx.fill();
+    ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
+    ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  drawScenery(now);
 
   // anomalies
   for (const a of level.anomalies) {
@@ -1407,18 +1853,41 @@ function drawWorld(now) {
     ctx.restore();
   }
 
-  drawMothership(now);
+  if (!level.isCave) drawMothership(now);
+  drawLift(now);
+  if (level.shrine) drawShrine(now);
 
-  // fuel pods
+  // fuel pods — real ones flicker like fire, alive and irregular
   for (const p of level.pods) {
     if (p.taken) continue;
     ctx.save();
     ctx.translate(p.x, p.y - 8);
+    ctx.globalAlpha = 0.72 + 0.28 * Math.abs(Math.sin(now * 2.7 + (p.ph || 0)) * Math.sin(now * 1.3 + (p.ph || 0) * 2));
     ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
     ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2;
     ctx.fillStyle = "rgba(255,196,0,.15)";
     ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
+    ctx.restore();
+  }
+  // counterfeits — every lure blinks in perfect, mechanical unison
+  for (const p of level.fakePods) {
+    if (p.taken) continue;
+    ctx.save();
+    ctx.translate(p.x, p.y - 8);
+    ctx.globalAlpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;
+    const known = upgrades.canon;
+    ctx.shadowColor = known ? "#c6ff00" : "#ffc400"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = known ? "#c6ff00" : "#ffc400"; ctx.lineWidth = 2;
+    ctx.fillStyle = known ? "rgba(198,255,0,.15)" : "rgba(255,196,0,.15)";
+    ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
+    if (known) {
+      ctx.globalAlpha = 1;
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#c6ff00";
+      ctx.fillText("?", 0, -16);
+    }
     ctx.restore();
   }
 
@@ -1541,13 +2010,18 @@ function drawDarkness(now) {
     dctx.beginPath(); dctx.arc(sx, sy, rr, 0, 7); dctx.fill();
   };
   if (!ship.dead) punch(ship.x, ship.y, lampRadius(), 1);
-  punch(level.mx, level.my + 40, 260, 0.9);
+  if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
   for (const o of level.oids) {  // stranded Doids carry tiny beacons
     if (o.state === "wait" || o.state === "walk" || o.state === "panic")
       punch(o.x, o.y - 10, 46, 0.55 + 0.3 * Math.abs(Math.sin(now * 2 + o.wave)));
   }
   if (level.beacon && !level.beacon.resolved) punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
   if (level.blackbox && !level.blackbox.found) punch(level.blackbox.x, level.blackbox.y, 36, 0.4);
+  if (level.isCave) {   // the Hollows keep their own faint lights
+    punch(level.lift.x, level.lift.y - 20, 120, 0.6);
+    if (level.shrine && !level.shrine.found)
+      punch(level.shrine.x, level.shrine.y - 30, 150, 0.5 + 0.2 * Math.abs(Math.sin(now * 1.4)));
+  }
   dctx.globalCompositeOperation = "source-over";
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(darkCanvas, 0, 0);
@@ -1567,6 +2041,18 @@ function drawShip(now) {
   ctx.closePath();
   ctx.fill(); ctx.stroke();
   ctx.restore();
+  if (s.shield) {   // the force field
+    const r = SHIP_R + 8 + Math.sin(now * 10) * 1.3;
+    ctx.save();
+    ctx.strokeStyle = "rgba(105,240,174,.85)";
+    ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 14;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = "#69f0ae";
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fill();
+    ctx.restore();
+  }
   if (s.landed) {
     ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10;
     ctx.strokeStyle = "rgba(105,240,174,.7)";
@@ -1741,6 +2227,272 @@ function drawOid(o, now) {
   }
 }
 
+/* ---------------- scenery ---------------- */
+function drawScenery(now) {
+  for (const sc of level.scenery) {
+    if (sc.dead) continue;
+    switch (sc.type) {
+      case "tree":   drawTree(sc, now); break;
+      case "rock":   drawRockScn(sc, now); break;
+      case "bld":    drawBuilding(sc, now, false); break;
+      case "ruin":   drawBuilding(sc, now, true); break;
+      case "wreckM": drawWreckM(sc, now); break;
+      case "wreckS": drawWreckS(sc, now); break;
+    }
+  }
+}
+
+/* alien glow-flora. The lure-trees keep perfect mechanical time —
+   the same tell the saboteurs carry. */
+function drawTree(sc, now) {
+  const sway = sc.fake ? Math.sign(Math.sin(now * 1.6 + sc.ph)) * 0.55
+                       : Math.sin(now * 0.9 + sc.ph);
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.scale(sc.s, sc.s);
+  const h = 34;
+  ctx.strokeStyle = "rgba(120,200,255,.4)";
+  ctx.lineWidth = 2; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(2, -h * 0.55, sway * 2.4, -h);
+  ctx.moveTo(0.6, -h * 0.45); ctx.lineTo(8 + sway * 2, -h * 0.7);
+  ctx.moveTo(0, -h * 0.6); ctx.lineTo(-7 + sway * 2, -h * 0.85);
+  ctx.stroke();
+  const col = "#00bfa5";
+  ctx.shadowColor = col; ctx.shadowBlur = 8;
+  ctx.strokeStyle = "rgba(0,191,165,.55)";
+  ctx.fillStyle = "rgba(0,191,165,.1)";
+  const puff = (px, py, r) => {
+    ctx.beginPath(); ctx.arc(px + sway * 3, py, r, 0, 7); ctx.fill(); ctx.stroke();
+  };
+  puff(sway * 2.4, -h - 6, 8);
+  puff(sway * 2.4 - 8, -h + 1, 6);
+  puff(sway * 2.4 + 8, -h, 6.5);
+  ctx.restore();
+  if (sc.fake && upgrades.canon) {
+    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "#c6ff00";
+    ctx.fillText("?", sc.x, sc.y - 52 * sc.s);
+  }
+}
+
+/* rocks are inert — except the one that breathes */
+function drawRockScn(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.scale(sc.s, sc.s);
+  const breathe = sc.hollow ? 0.16 * Math.sin(now * 1.1 + sc.ph) : 0;
+  ctx.strokeStyle = "rgba(150,140,200," + (0.4 + breathe).toFixed(2) + ")";
+  ctx.fillStyle = "#141031";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  sc.verts.forEach(([vx, vy], i) => i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy));
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+/* settlements: intact towers with lit windows, and what's left of them */
+function drawBuilding(sc, now, ruined) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt * (ruined ? 1.5 : 0.4));
+  const w = sc.w, h = ruined ? sc.h * 0.62 : sc.h;
+  ctx.fillStyle = "rgba(8,12,30,.9)";
+  ctx.strokeStyle = ruined ? "rgba(150,140,200,.35)" : "rgba(0,229,255,.4)";
+  ctx.lineWidth = 2;
+  ctx.shadowColor = ruined ? "#7c4dff" : "#00e5ff"; ctx.shadowBlur = 5;
+  ctx.beginPath();
+  if (ruined) {
+    ctx.moveTo(-w / 2, 0);
+    ctx.lineTo(-w / 2, -h + sc.jag[0]);
+    for (let j = 1; j <= 4; j++) ctx.lineTo(-w / 2 + (w * j) / 4, -h + sc.jag[j]);
+    ctx.lineTo(w / 2, 0);
+  } else ctx.rect(-w / 2, -h, w, h);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // windows
+  const cw = w / (sc.cols + 1), ch = h / (sc.rows + 1);
+  let idx = 0;
+  for (let r = 0; r < sc.rows; r++) for (let c = 0; c < sc.cols; c++, idx++) {
+    const lit = ruined ? idx === sc.flick : sc.lit[idx];
+    if (!lit) continue;
+    let a = ruined ? 0.12 + 0.25 * Math.abs(Math.sin(now * 3.7 + sc.ph)) : 0.5;
+    if (!ruined && idx === sc.flick) a = 0.15 + 0.4 * Math.abs(Math.sin(now * 5 + sc.ph));
+    const wx = -w / 2 + cw * (c + 0.7), wy = -h + ch * (r + 0.7);
+    if (ruined && wy < -h * 0.75) continue;
+    ctx.fillStyle = "rgba(255,196,0," + a.toFixed(2) + ")";
+    ctx.fillRect(wx, wy, 3.4, 4.6);
+  }
+  if (!ruined) { // antenna with a slow red blink
+    ctx.strokeStyle = "rgba(0,229,255,.4)"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(0, -h - 12); ctx.stroke();
+    if (Math.sin(now * 1.8 + sc.ph) > 0.85) {
+      ctx.fillStyle = "#ff1744"; ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(0, -h - 13, 1.8, 0, 7); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  } else { // rubble at the foot
+    ctx.strokeStyle = "rgba(150,140,200,.25)";
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 - 8, 0); ctx.lineTo(-w / 2 - 2, -5); ctx.lineTo(-w / 2 + 5, 0);
+    ctx.moveTo(w / 2 - 4, 0); ctx.lineTo(w / 2 + 3, -6); ctx.lineTo(w / 2 + 9, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* a MERCY-class sister, down and half-dark — her cross still flickers */
+function drawWreckM(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y + 4);
+  ctx.rotate(sc.tilt + sc.lean * 0.5);
+  ctx.scale(sc.s * 0.62, sc.s * 0.62);
+  ctx.strokeStyle = "rgba(0,229,255,.3)";
+  ctx.fillStyle = "rgba(8,12,26,.85)";
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
+  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // hull breach
+  ctx.strokeStyle = "rgba(150,140,200,.4)"; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(20, -26); ctx.lineTo(34, -8); ctx.lineTo(24, 4); ctx.lineTo(40, 22);
+  ctx.stroke();
+  // the cross, mostly dead
+  const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
+  ctx.fillStyle = "rgba(255,23,68," + flick + ")";
+  if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
+  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  ctx.shadowBlur = 0;
+  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(155,234,249,.3)";
+  ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 38);
+  ctx.restore();
+  if (Math.random() < 0.006) particles.push({
+    x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
+    t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
+}
+
+/* one of ours — a rescue dart that didn't make it */
+function drawWreckS(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y - 4);
+  ctx.rotate(2.35 + sc.lean);
+  ctx.scale(sc.s * 2.1, sc.s * 2.1);
+  ctx.strokeStyle = "rgba(0,229,255,.32)";
+  ctx.fillStyle = "rgba(6,10,22,.8)";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // scorch trail where it came down
+  ctx.strokeStyle = "rgba(30,20,50,.9)"; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(sc.x - 34 * sc.s, sc.y + 1); ctx.lineTo(sc.x + 8 * sc.s, sc.y + 2);
+  ctx.stroke();
+  if (Math.random() < 0.005) particles.push({
+    x: sc.x, y: sc.y - 10, vx: (Math.random() - 0.5) * 14, vy: -24,
+    t: 0.5, max: 0.6, color: "#ff6d00", size: 1.6 });
+}
+
+/* the secret lift. On the surface it is almost nothing: two hairline
+   seams, four rivets, a glint every few seconds. In the Hollows it is
+   the way home, and glows like it. */
+function drawLift(now) {
+  const L = level.lift;
+  if (!L) return;
+  ctx.save();
+  ctx.translate(L.x, L.y);
+  if (level.isCave) {
+    const a = 0.5 + 0.3 * Math.sin(now * 2.2);
+    ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-46, 2); ctx.lineTo(46, 2); ctx.stroke();
+    for (let k = 0; k < 3; k++) {   // chevrons pointing up
+      const ph = ((now * 0.7 + k / 3) % 1);
+      ctx.globalAlpha = (1 - ph) * 0.7;
+      const yy = -8 - ph * 34;
+      ctx.beginPath(); ctx.moveTo(-9, yy); ctx.lineTo(0, yy - 7); ctx.lineTo(9, yy); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(179,136,255,.75)";
+    ctx.fillText("RETURN LIFT — land and hold", 0, -52);
+  } else {
+    const glint = Math.sin(now * 0.43 + L.x) > 0.988 ? 0.4 : 0;
+    const a = 0.13 + glint;
+    ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-44, 1); ctx.lineTo(-44, 4); ctx.moveTo(44, 1); ctx.lineTo(44, 4);
+    ctx.moveTo(-44, 2.5); ctx.lineTo(44, 2.5);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
+    for (const rx of [-36, -12, 12, 36]) ctx.fillRect(rx - 1, 0, 2, 2);
+  }
+  if (L.holdT > 0) {   // the hold ring, once you've noticed
+    ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, -26, 15, -Math.PI / 2, -Math.PI / 2 + (L.holdT / 2.4) * Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* Glycon's shrine, down in the dark: a serpent coiled around a mask */
+function drawShrine(now) {
+  const sh = level.shrine;
+  ctx.save();
+  ctx.translate(sh.x, sh.y);
+  const col = sh.found ? "#69f0ae" : "#c6ff00";
+  ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.lineWidth = 2;
+  // plinth
+  ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-12, -8); ctx.lineTo(12, -8); ctx.lineTo(18, 0); ctx.stroke();
+  // the coil
+  ctx.beginPath();
+  ctx.moveTo(-8, -8);
+  ctx.bezierCurveTo(-16, -20, 8, -22, 2, -32);
+  ctx.bezierCurveTo(-4, -40, 12, -42, 6, -52);
+  ctx.stroke();
+  // the mask it wears
+  ctx.beginPath(); ctx.arc(6, -58, 6, 0, 7); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.fillRect(3, -60, 2.2, 1.4); ctx.fillRect(7.6, -60, 2.2, 1.4);
+  if (!sh.found) {
+    const ph = (now % 2.6) / 2.6;
+    for (let k = 0; k < 2; k++) {
+      const p = (ph + k / 2) % 1;
+      ctx.globalAlpha = (1 - p) * 0.4;
+      ctx.beginPath(); ctx.arc(0, -34, 14 + p * 90, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (sh.scanT > 0) {
+      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
+      ctx.beginPath();
+      ctx.arc(0, -34, 20, -Math.PI / 2, -Math.PI / 2 + (sh.scanT / 2) * Math.PI * 2);
+      ctx.stroke();
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#aef4ff";
+      ctx.fillText("READING THE MARKS…", 0, -84);
+    } else {
+      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(198,255,0,.6)";
+      ctx.fillText("something old is enshrined here — land and look closer", 0, -84);
+    }
+  }
+  ctx.restore();
+}
+
 function drawMothership(now) {
   const { mx, my } = mercyPos();
   const bob = Math.sin(now * 1.2) * 4;
@@ -1864,26 +2616,28 @@ function drawHUD(now) {
   ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
   ctx.font = "600 9px Menlo, monospace";
   ctx.fillStyle = "rgba(155,234,249,.7)";
-  let mid = SECTOR_NAMES[levelIdx] + "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
-  if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/5";
+  let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
+    "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
+  if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
   ctx.fillText(mid, vw / 2, topPad + 23);
   ctx.shadowBlur = 0;
 
+  const tl = acctLevel();
   ctx.textAlign = "left";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
-  const rescueLine = "DOIDS ABOARD " + s.passengers.length + "  ·  SAVED " + level.delivered + "/" + level.total;
+  const rescueLine = "DOIDS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + tl.total;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
-  if (level.lost > 0) {
+  if (tl.lost > 0) {
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081";
-    const lostStr = "  ·  ✝ LOST " + level.lost;
+    const lostStr = "  ·  ✝ LOST " + tl.lost;
     ctx.fillText(lostStr, hx + tallyOff, topPad + 34);
     tallyOff += ctx.measureText(lostStr).width;
   }
-  if (level.contained > 0) {
+  if (tl.contained > 0) {
     ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.shadowColor = "transparent";
-    ctx.fillText("  ·  ⊘ CONTAINED " + level.contained, hx + tallyOff, topPad + 34);
+    ctx.fillText("  ·  ⊘ CONTAINED " + tl.contained, hx + tallyOff, topPad + 34);
   }
   ctx.shadowBlur = 0;
 
@@ -1977,7 +2731,7 @@ function drawTitle(now) {
   ctx.fillStyle = "#9beaf9";
   ctx.fillText("a gravity rescue — in the spirit of the Atari ST classic", vw / 2, vh * 0.4);
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae";
-  ctx.fillText("five sectors · something is repeating every 41 seconds", vw / 2, vh * 0.48);
+  ctx.fillText("seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.48);
   ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
   ctx.fillText("not every Doid you rescue is what it seems", vw / 2, vh * 0.54);
   ctx.fillStyle = "rgba(255,255,255," + pulse.toFixed(2) + ")"; ctx.shadowColor = "#fff";
@@ -2017,6 +2771,22 @@ function drawTitle(now) {
   ctx.fillStyle = any ? "#ffd54f" : "rgba(255,255,255,.45)";
   ctx.fillText("⚕ CODEX " + codex.size + "/" + FAMOUS.length, cr.x + cr.w / 2, cr.y + 22);
   ctx.shadowBlur = 0;
+
+  // tilt-steering pill (gyro)
+  const tr = tiltRect();
+  ctx.strokeStyle = tilt ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
+  ctx.shadowColor = tilt ? "#69f0ae" : "transparent"; ctx.shadowBlur = tilt ? 10 : 0;
+  ctx.strokeRect(tr.x, tr.y, tr.w, tr.h);
+  ctx.fillStyle = tilt ? "#69f0ae" : "rgba(255,255,255,.5)";
+  ctx.fillText("⟲ TILT · " + (tilt ? "ON" : "OFF"), tr.x + tr.w / 2, tr.y + 22);
+  ctx.shadowBlur = 0;
+
+  if (pad.connected) {
+    ctx.font = "600 11px Menlo, monospace";
+    ctx.fillStyle = "rgba(105,240,174,.75)";
+    ctx.fillText("🎮 controller connected — stick steers · A thrust · X fire · LB/B shield",
+      vw / 2, vh * 0.78);
+  }
 }
 
 /* the codex: famous Doids recovered across every run */
@@ -2397,7 +3167,10 @@ function drawEnding(now) {
   } else {
     title = "ROTATION COMPLETE";
     color = "#b388ff";
-    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\n◈ Black boxes recovered: " + blackboxCount + "/5 — recover at least 3 to triangulate its source.";
+    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover at least 3 to triangulate its source.";
+  }
+  if (endingType !== "unresolved" && shrines.size >= SHRINES.length) {
+    body += "\n\nAnd in the fleet record, appended in your hand: the serpent's mask, catalogued for good. No one will buy his cures again.";
   }
   drawCardPanel({ kicker: "— TRANSMISSION ENDS —", title, subtitle: "", body, color }, now);
 }
@@ -2407,9 +3180,11 @@ function drawWin() {
   if (endingType === "answered") rank = runFired === 0 ? "OATH KEEPER — PRIMUM NON NOCERE" : "THE ONE WHO ANSWERED";
   else if (endingType === "fire") rank = "SECTOR WARDEN";
   const spotless = runLost === 0 ? "\nspotless record — no Doid lost" : "";
+  const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
   drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
     "score " + score + "  ·  hi " + hiscore + "\n" + tallyLine() +
-    "  ·  ◈ " + blackboxCount + "/5  ·  logs " + runFragments + "/10" + spotless +
+    "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
+    spotless + serpent +
     "\nrank: " + rank + "\ntap to play again", "#69f0ae");
 }
 
@@ -2433,12 +3208,17 @@ function drawCenter(big, small, color) {
 window.__doids = {
   get: () => ({ ship, level, state, levelIdx, upgrades, blackboxCount,
     runFragments, runSaved, runLost, runFired, mercyBreach, mercyDamaged,
-    endingType, clearCards, revealCard, score, lives }),
+    endingType, clearCards, revealCard, score, lives,
+    shrines: [...shrines], inCave: !!(level && level.isCave) }),
   go: toBriefing,
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
   give: k => { upgrades[k] = true; },
+  warpLift: () => { const L = level.lift; if (L) { ship.x = L.x; ship.y = L.y - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
+  warpShrine: () => { const sh = level.shrine; if (sh) { ship.x = sh.x; ship.y = groundAt(sh.x) - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   reset: resetRun
 };
 
