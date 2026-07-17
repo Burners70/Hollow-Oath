@@ -94,6 +94,13 @@ The reveal is staged across three secret caves ("the Hollows"):
 - The **finale choice** (destroy the beacon vs. land and answer it) sets
   fleet orders against the medical oath. The CMO refuses to sign the
   destroy-on-sight order with one line: *primum non nocere*.
+- **The emblem duality.** MERCY, her wrecks, and every Scion wear the true
+  emblem of medicine — a serpent coiled on a staff, the rod of Asclepius
+  (`drawAsclepius()`) — not a red cross (protected under the Geneva
+  Conventions; replaced for release, see CHANGELOG.md). Glycon's own mark is
+  a serpent too, but *wearing a mask* (§2 above, `drawShrine`'s coil). The
+  real serpent heals; the masked one sells counterfeit cures. Writers: any
+  new emblem-bearing scenery should read as one or the other, deliberately.
 
 ### 2.5 Endings
 

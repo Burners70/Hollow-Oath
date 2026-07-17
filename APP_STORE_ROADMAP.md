@@ -134,11 +134,11 @@ or after launch. The fix is also a narrative upgrade: the true emblem of medicin
 becomes a serpent (rod of Asclepius) — mirroring Glycon, *the serpent wearing a
 mask*. Sector 0 is already ASCLEPION. **Priority: 2. Dependencies: none.**
 
-- [ ] **B1. Draw a `drawAsclepius(w, h)` helper** — a vertical staff with a single
+- [x] **B1. Draw a `drawAsclepius(w, h)` helper** — a vertical staff with a single
   serpent coiled around it (2–3 bezier curves, same neon-stroke style as
   `drawShrine`'s coil). Parameterise size so one helper serves ship-scale and
   Scion-scale.
-- [ ] **B2. Replace the crosses.** Call sites, all in `index.html`:
+- [x] **B2. Replace the crosses.** Call sites, all in `index.html`:
   - `drawMothership()` — the two pulsing `fillRect` pairs after
     `ctx.shadowColor = "#ff1744"`.
   - `drawWreckM()` — the flickering cross (`ctx.fillRect(-5, -16, …)` pair).
@@ -149,11 +149,11 @@ mask*. Sector 0 is already ASCLEPION. **Priority: 2. Dependencies: none.**
     `emblemCol` consistently.
   - Keep the colour family (`#ff1744` / `#ff5d7d`) — the *shape* is the issue, and
     the pink-red reads well against the teal Scions.
-- [ ] **B3. Sweep the copy.** Search the file for "cross" in comments/strings and
+- [x] **B3. Sweep the copy.** Search the file for "cross" in comments/strings and
   update. The HUD `⚕` glyph (CODEX pill) already IS the staff of Asclepius — no
   change. Add one line to GAME_DESIGN.md §2.4 noting the emblem duality (the true
   serpent vs. Glycon's masked serpent) so writers build on it.
-- [ ] **B4. Visual check.** Screenshot title, sector 0 with a waiting Scion, MERCY
+- [x] **B4. Visual check.** Screenshot title, sector 0 with a waiting Scion, MERCY
   close-up, a wreck, and intro panel 1 (Playwright `page.screenshot`) and eyeball
   that the emblem reads at all five scales.
 

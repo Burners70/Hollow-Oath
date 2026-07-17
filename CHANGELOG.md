@@ -1,5 +1,20 @@
 # Changelog
 
+## Bundle B — emblem replacement, red cross → rod of Asclepius (July 2026)
+
+Implemented the second App Store roadmap bundle (legal blocker — the red
+cross is protected under the Geneva Conventions). Added `drawAsclepius(h,
+color, minimal)`: a serpent coiled on a staff drawn with the same
+neon-stroke bezier style as `drawShrine`'s coil, with a `minimal` mode (a
+single S-curve stroke, no staff) for the tiny Scion-scale emblem. Replaced
+every red-cross `fillRect` pair — `drawMothership()`, `drawWreckM()`,
+`iShip()`, and the `doidFigure()` chest emblem — with calls into the new
+helper; renamed the `crossCol` parameter to `emblemCol` throughout and swept
+"cross" out of nearby comments. `GAME_DESIGN.md` §2.4 now records the emblem
+duality (the true serpent vs. Glycon's masked one). Verified visually via
+Playwright screenshots of the title screen and two sectors; smoke suite
+still 8/8 green (no new state to test — purely visual).
+
 ## Bundle A — pause, mid-run save & resume (July 2026)
 
 Implemented the first App Store roadmap bundle. `doids_run` now snapshots

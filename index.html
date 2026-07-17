@@ -2279,7 +2279,7 @@ function drawLandingGuide() {
 
 /* Shared neon android figure, drawn with feet at the origin.
    Rounded head with blinking eyes, antenna with a bobble, a torso
-   wearing the medic cross, articulated arms with hands. */
+   wearing the serpent emblem, articulated arms with hands. */
 function doidFigure(p) {
   ctx.shadowColor = p.col; ctx.shadowBlur = 10;
   ctx.strokeStyle = p.col; ctx.lineWidth = 2;
@@ -2303,10 +2303,11 @@ function doidFigure(p) {
   ctx.moveTo(-4.5, -14); ctx.lineTo(4.5, -14); ctx.lineTo(3.5, -6); ctx.lineTo(-3.5, -6);
   ctx.closePath();
   ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
-  // the medic cross — these are healers
-  ctx.fillStyle = p.crossCol;
-  ctx.fillRect(-0.8, -12.4, 1.6, 4.2);
-  ctx.fillRect(-2.1, -11.1, 4.2, 1.6);
+  // the serpent emblem — these are healers
+  ctx.save();
+  ctx.translate(0, -11.3);
+  drawAsclepius(4.6, p.emblemCol, true);
+  ctx.restore();
   // head
   ctx.beginPath();
   ctx.moveTo(-3.5, -15.5);
@@ -2353,7 +2354,7 @@ function drawOid(o, now) {
   // arm pose
   let armL, armR;
   if (dying && o.deathType === "shot") {
-    armL = [-1.2, -11]; armR = [1.2, -11];                // clutches the cross
+    armL = [-1.2, -11]; armR = [1.2, -11];                // clutches the emblem
   } else if (panic || (o.state === "wait" && o.persona === "jump")) {
     const fl = panic ? osc(12) * 2 : 0;
     armL = [-6.5 - fl, -20]; armR = [6.5 + fl, -20];      // arms overhead
@@ -2377,7 +2378,7 @@ function drawOid(o, now) {
   doidFigure({
     col: tint,
     fill: "rgba(10,30,24,.85)",
-    crossCol: "#ff5d7d",
+    emblemCol: "#ff5d7d",
     legPh, sitting,
     armL, armR,
     blink: mech ? ((t * 2) % 2) < 0.12 : (((t * 0.53) + o.wave) % 3.1) < 0.12,
@@ -2513,7 +2514,7 @@ function drawBuilding(sc, now, ruined) {
   ctx.restore();
 }
 
-/* a MERCY-class sister, down and half-dark — her cross still flickers */
+/* a MERCY-class sister, down and half-dark — her emblem still flickers */
 function drawWreckM(sc, now) {
   ctx.save();
   ctx.translate(sc.x, sc.y + 4);
@@ -2532,11 +2533,10 @@ function drawWreckM(sc, now) {
   ctx.beginPath();
   ctx.moveTo(20, -26); ctx.lineTo(34, -8); ctx.lineTo(24, 4); ctx.lineTo(40, 22);
   ctx.stroke();
-  // the cross, mostly dead
+  // the emblem, mostly dead
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
-  ctx.fillStyle = "rgba(255,23,68," + flick + ")";
   if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
-  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  drawAsclepius(30, "rgba(255,23,68," + flick + ")");
   ctx.shadowBlur = 0;
   ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(155,234,249,.3)";
@@ -2618,6 +2618,36 @@ function drawLift(now) {
 }
 
 /* Glycon's shrine, down in the dark: a serpent coiled around a mask */
+/* the true emblem of medicine: a serpent coiled on a staff (rod of
+   Asclepius) — mirrors Glycon, the serpent wearing a mask. Draws centered
+   at (0,0), sized by h (overall height). `minimal` skips the staff and
+   draws just a single S-curve serpent stroke — used at Scion scale, where
+   a full staff won't read. */
+function drawAsclepius(h, color, minimal) {
+  const w = h * 0.55;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color;
+  ctx.lineCap = "round";
+  if (minimal) {
+    ctx.lineWidth = Math.max(0.8, h * 0.16);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.4, h * 0.4);
+    ctx.bezierCurveTo(-w * 0.9, 0, w * 0.7, 0, w * 0.4, -h * 0.4);
+    ctx.stroke();
+  } else {
+    ctx.lineWidth = Math.max(1.2, h * 0.045);
+    ctx.beginPath(); ctx.moveTo(0, -h / 2); ctx.lineTo(0, h / 2); ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, h * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.25, h * 0.42);
+    ctx.bezierCurveTo(-w, h * 0.05, w * 0.85, -h * 0.12, -w * 0.35, -h * 0.32);
+    ctx.bezierCurveTo(-w * 0.8, -h * 0.5, w * 0.55, -h * 0.56, 0, -h * 0.58);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -h * 0.58, Math.max(1.2, h * 0.06), 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawShrine(now) {
   const sh = level.shrine;
   ctx.save();
@@ -2676,8 +2706,7 @@ function drawMothership(now) {
   ctx.closePath(); ctx.fill(); ctx.stroke();
   const pulse = 0.55 + 0.45 * Math.sin(now * 3);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
-  ctx.fillStyle = "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")";
-  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  drawAsclepius(30, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillStyle = "#9beaf9";
   ctx.font = "700 10px Menlo, monospace";
@@ -3051,8 +3080,7 @@ function iShip(cx, cy, s, tilt, flicker) {
   ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
-  ctx.fillStyle = "#ff2d55";
-  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  drawAsclepius(30, "#ff2d55");
   ctx.restore();
 }
 function iDoid(cx, cy, s, phase, gold, armsUp) {
@@ -3064,7 +3092,7 @@ function iDoid(cx, cy, s, phase, gold, armsUp) {
   doidFigure({
     col: gold ? "#ffd54f" : "#69f0ae",
     fill: "rgba(10,30,24,.85)",
-    crossCol: "#ff5d7d",
+    emblemCol: "#ff5d7d",
     legPh: 0, sitting: false,
     armL: armsUp ? [-6, -19 - w] : [-7, -8],
     armR: [6, -19 + w],
