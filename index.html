@@ -1,0 +1,3316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DOIDS">
+<meta name="theme-color" content="#05060f">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>DOIDS — a gravity rescue</title>
+<style>
+  :root { --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none;
+      -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; background:#05060f; position:fixed; inset:0;
+      touch-action:none; overscroll-behavior:none; }
+  canvas { display:block; width:100%; height:100%; }
+  .btn {
+    position:fixed; width:72px; height:72px; border-radius:50%;
+    border:2px solid rgba(0,229,255,.55); color:rgba(0,229,255,.9);
+    background:rgba(0,229,255,.07);
+    box-shadow:0 0 18px rgba(0,229,255,.25), inset 0 0 12px rgba(0,229,255,.12);
+    font:700 13px/68px "Helvetica Neue", Arial, sans-serif; text-align:center;
+    letter-spacing:1px; z-index:10; touch-action:none;
+  }
+  .btn.down { background:rgba(0,229,255,.28); box-shadow:0 0 30px rgba(0,229,255,.6); }
+  #btnL, #btnR { width:88px; height:88px; font-size:15px; line-height:84px; }
+  #btnL   { left:calc(14px + env(safe-area-inset-left));  bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #btnR   { left:calc(108px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #btnFire   { right:calc(104px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom));
+    border-color:rgba(255,64,129,.55); color:rgba(255,64,129,.9); background:rgba(255,64,129,.07);
+    box-shadow:0 0 18px rgba(255,64,129,.25), inset 0 0 12px rgba(255,64,129,.12); }
+  #btnFire.down { background:rgba(255,64,129,.28); box-shadow:0 0 30px rgba(255,64,129,.6); }
+  #btnThrust { right:calc(18px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom));
+    width:84px; height:84px; line-height:80px;
+    border-color:rgba(255,196,0,.55); color:rgba(255,196,0,.9); background:rgba(255,196,0,.07);
+    box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
+  #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
+  #btnShield { right:calc(130px + env(safe-area-inset-right)); bottom:calc(122px + env(safe-area-inset-bottom));
+    width:64px; height:64px; line-height:60px; font-size:11px;
+    border-color:rgba(105,240,174,.55); color:rgba(105,240,174,.9); background:rgba(105,240,174,.07);
+    box-shadow:0 0 18px rgba(105,240,174,.25), inset 0 0 12px rgba(105,240,174,.12); }
+  #btnShield.down { background:rgba(105,240,174,.28); box-shadow:0 0 30px rgba(105,240,174,.6); }
+  @media (orientation: portrait) { .btn { display:none; } }
+  body.noctl .btn { display:none !important; }  /* controls only exist in flight */
+  #a2hs {
+    position:fixed; top:calc(10px + env(safe-area-inset-top)); left:50%;
+    transform:translateX(-50%); z-index:30;
+    display:flex; gap:10px; align-items:center; max-width:92vw;
+    background:rgba(8,10,26,.95); border:1.5px solid rgba(0,229,255,.6);
+    border-radius:12px; padding:9px 12px;
+    color:#bfeefb; font:600 12px Menlo, monospace;
+    box-shadow:0 0 18px rgba(0,229,255,.3);
+  }
+  #a2hs.hidden { display:none; }
+  #a2hsBtn {
+    background:rgba(0,229,255,.15); border:1.5px solid rgba(0,229,255,.7);
+    color:#7fe9ff; font:700 12px Menlo, monospace; padding:6px 12px;
+    border-radius:8px; white-space:nowrap;
+  }
+  #a2hsClose { background:none; border:none; color:rgba(255,255,255,.6);
+    font:700 14px Menlo, monospace; padding:4px 6px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="btn" id="btnL">&#10226;</div>
+<div class="btn" id="btnR">&#10227;</div>
+<div class="btn" id="btnFire">FIRE</div>
+<div class="btn" id="btnThrust">THRUST</div>
+<div class="btn" id="btnShield">SHIELD</div>
+<div id="a2hs" class="hidden">
+  <span id="a2hsText"></span>
+  <button id="a2hsBtn">INSTALL</button>
+  <button id="a2hsClose">✕</button>
+</div>
+<script>
+"use strict";
+/* ================================================================
+   DOIDS — a modern-glow homage to the Atari ST gravity classic.
+   Rescue the stranded Doids, ferry them to the hospital mothership
+   AMS MERCY, and piece together what the Static is — seven sectors,
+   hidden black boxes, famous Doids, saboteurs, secret lifts down into
+   the Hollows, Glycon's counterfeits, and a secret finale.
+   ================================================================ */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let vw = 0, vh = 0, dpr = 1;
+let saLeft = 0, saRight = 0;
+let darkCanvas = null, dctx = null;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  vw = window.innerWidth; vh = window.innerHeight;
+  canvas.width = vw * dpr; canvas.height = vh * dpr;
+  darkCanvas = document.createElement("canvas");
+  darkCanvas.width = canvas.width; darkCanvas.height = canvas.height;
+  dctx = darkCanvas.getContext("2d");
+  // camera-cutout insets: keep the world clear of the lozenge
+  const cs = getComputedStyle(document.documentElement);
+  saLeft = parseFloat(cs.getPropertyValue("--sal")) || 0;
+  saRight = parseFloat(cs.getPropertyValue("--sar")) || 0;
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 250));
+resize();
+
+/* ---------------- input ---------------- */
+const input = { left:false, right:false, thrust:false, fire:false, shield:false, tap:false, tapX:0, tapY:0 };
+
+/* One document-level multi-touch tracker instead of per-button listeners.
+   Every active touch is hit-tested against every button on every touch
+   event, so rolling a thumb from one button onto another (or pressing a
+   second button while the first is still held) registers instantly —
+   per-button touchstart/touchend can't do that, because a touch that
+   starts on one element never fires events on its neighbour. */
+const BTN_DEFS = [["btnL", "left"], ["btnR", "right"], ["btnThrust", "thrust"],
+                  ["btnFire", "fire"], ["btnShield", "shield"]];
+const btnEls = BTN_DEFS.map(([id, key]) => ({ key, el: document.getElementById(id) }));
+const TOUCH_PAD = 14;   // forgiveness margin around each button, in px
+function refreshButtonTouches(e) {
+  const pressed = {};
+  for (const t of e.touches) {
+    for (const b of btnEls) {
+      const r = b.el.getBoundingClientRect();
+      if (r.width === 0) continue;   // hidden
+      if (t.clientX >= r.left - TOUCH_PAD && t.clientX <= r.right + TOUCH_PAD &&
+          t.clientY >= r.top - TOUCH_PAD && t.clientY <= r.bottom + TOUCH_PAD)
+        pressed[b.key] = true;
+    }
+  }
+  for (const b of btnEls) {
+    input[b.key] = !!pressed[b.key];
+    b.el.classList.toggle("down", !!pressed[b.key]);
+  }
+}
+["touchstart", "touchmove", "touchend", "touchcancel"].forEach(ev =>
+  document.addEventListener(ev, e => {
+    if (ev === "touchstart") {
+      initAudio();
+      if (e.target && e.target.classList && e.target.classList.contains("btn"))
+        e.preventDefault();   // stop synthesized mouse events on the buttons
+    }
+    refreshButtonTouches(e);
+  }, { passive: false })
+);
+// desktop mouse still presses individual buttons
+for (const b of btnEls) {
+  const down = e => { e.preventDefault(); input[b.key] = true; b.el.classList.add("down"); initAudio(); };
+  const up = () => { input[b.key] = false; b.el.classList.remove("down"); };
+  b.el.addEventListener("mousedown", down);
+  b.el.addEventListener("mouseup", up);
+  b.el.addEventListener("mouseleave", up);
+}
+
+/* the tilt pill needs handling inside the raw gesture handler: iOS only
+   grants DeviceOrientation permission from a real user gesture */
+function canvasTap(x, y) {
+  initAudio();
+  if (state === "title" && inRect(tiltRect(), x, y)) { toggleTilt(); return; }
+  input.tap = true; input.tapX = x; input.tapY = y;
+}
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  canvasTap(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive:false });
+canvas.addEventListener("mousedown", e => canvasTap(e.clientX, e.clientY));
+document.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
+document.addEventListener("gesturestart", e => e.preventDefault());
+
+function goFullscreen() {
+  if (!("ontouchstart" in window)) return;
+  const standalone = window.navigator.standalone ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  if (standalone || document.fullscreenElement || document.webkitFullscreenElement) return;
+  const el = document.documentElement;
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!fn) return;
+  try {
+    const p = fn.call(el);
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) {}
+}
+
+/* add-to-home-screen guidance for first-time visitors from a shared
+   link: iOS gets share-sheet instructions, Android an install button */
+(function () {
+  const el = document.getElementById("a2hs");
+  const txt = document.getElementById("a2hsText");
+  const btn = document.getElementById("a2hsBtn");
+  const close = document.getElementById("a2hsClose");
+  let deferred = null;
+  const standalone = window.navigator.standalone ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  const inFrame = window.top !== window.self;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem("doids_a2hs") === "1"; } catch (e) {}
+  const dismiss = () => {
+    el.classList.add("hidden");
+    try { localStorage.setItem("doids_a2hs", "1"); } catch (e) {}
+  };
+  close.addEventListener("click", dismiss);
+  close.addEventListener("touchstart", e => { e.preventDefault(); dismiss(); }, { passive:false });
+  window.hideA2HS = () => el.classList.add("hidden");
+  if (standalone || inFrame || dismissed) return;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) {
+    btn.style.display = "none";
+    txt.textContent = "Play fullscreen: tap ⬆ Share, then “Add to Home Screen”";
+    el.classList.remove("hidden");
+  } else {
+    window.addEventListener("beforeinstallprompt", e => {
+      e.preventDefault();
+      deferred = e;
+      txt.textContent = "Play DOIDS fullscreen anytime";
+      el.classList.remove("hidden");
+    });
+    const install = e => {
+      e.preventDefault();
+      if (deferred) { deferred.prompt(); deferred = null; }
+      dismiss();
+    };
+    btn.addEventListener("click", install);
+    btn.addEventListener("touchstart", install, { passive:false });
+  }
+})();
+
+const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust",
+                 ArrowDown:"shield", c:"shield", Shift:"shield" };
+window.addEventListener("keydown", e => {
+  if (keyMap[e.key] !== undefined) { input[keyMap[e.key]] = true; e.preventDefault(); }
+  if (e.key === "Enter") input.tap = true;
+  initAudio();
+});
+window.addEventListener("keyup", e => { if (keyMap[e.key] !== undefined) input[keyMap[e.key]] = false; });
+
+/* ---------------- external controller (Gamepad API) ---------------- */
+const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false };
+let padStartPrev = false, padAPrev = false;
+function pollPad() {
+  pad.left = pad.right = pad.thrust = pad.fire = pad.shield = false;
+  const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  let gp = null;
+  for (const g of gps) if (g && g.connected) { gp = g; break; }
+  pad.connected = !!gp;
+  if (!gp) { padStartPrev = padAPrev = false; return; }
+  const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+  const ax = gp.axes[0] || 0;
+  pad.left   = ax < -0.35 || b(14);
+  pad.right  = ax >  0.35 || b(15);
+  pad.thrust = b(0) || b(7) || b(12);          // A / RT / d-pad up
+  pad.fire   = b(2) || b(5);                   // X / RB
+  pad.shield = b(1) || b(4) || b(6);           // B / LB / LT
+  const start = b(9), a = b(0);
+  if ((start && !padStartPrev) || (state !== "play" && a && !padAPrev)) input.tap = true;
+  padStartPrev = start; padAPrev = a;
+}
+window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED", "#69f0ae"));
+
+/* ---------------- gyro / tilt steering ---------------- */
+let tilt = false;
+try { tilt = localStorage.getItem("doids_tilt") === "1"; } catch (e) {}
+const gyro = { ok:false, beta:0, gamma:0 };
+let gyroBound = false;
+function startGyro() {
+  if (gyroBound) return;
+  gyroBound = true;
+  window.addEventListener("deviceorientation", e => {
+    if (e.beta === null && e.gamma === null) return;
+    gyro.ok = true; gyro.beta = e.beta || 0; gyro.gamma = e.gamma || 0;
+  });
+}
+function enableGyro() {
+  if (typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission()
+      .then(r => { if (r === "granted") startGyro(); else disableTilt(); })
+      .catch(() => disableTilt());
+  } else startGyro();
+}
+function disableTilt() {
+  tilt = false;
+  try { localStorage.setItem("doids_tilt", "0"); } catch (e) {}
+}
+function toggleTilt() {
+  tilt = !tilt;
+  try { localStorage.setItem("doids_tilt", tilt ? "1" : "0"); } catch (e) {}
+  if (tilt) enableGyro();
+  blip(tilt ? 440 : 300, tilt ? 660 : 200, 0.12, "sine", 0.1);
+}
+if (tilt) { // re-arm a saved preference on the first gesture (iOS needs one)
+  const arm = () => { if (tilt) enableGyro(); window.removeEventListener("touchstart", arm); };
+  window.addEventListener("touchstart", arm);
+  if (!("ontouchstart" in window)) startGyro();
+}
+/* tilt angle -> steering value in [-1, 1], respecting landscape flip */
+function gyroSteerVal() {
+  if (!tilt || !gyro.ok) return 0;
+  let angle = 0;
+  if (screen.orientation && typeof screen.orientation.angle === "number") angle = screen.orientation.angle;
+  else if (typeof window.orientation === "number") angle = window.orientation;
+  let t = angle === 90 ? gyro.beta : (angle === -90 || angle === 270) ? -gyro.beta : gyro.gamma;
+  const dz = 4, full = 24;
+  return Math.sign(t) * clamp((Math.abs(t) - dz) / (full - dz), 0, 1);
+}
+
+/* ---------------- audio (tiny synth) ---------------- */
+let AC = null, thrustNode = null, thrustGain = null;
+function initAudio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const bufferSize = AC.sampleRate * 0.5;
+    const buf = AC.createBuffer(1, bufferSize, AC.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    thrustNode = AC.createBufferSource();
+    thrustNode.buffer = buf; thrustNode.loop = true;
+    const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
+    thrustGain = AC.createGain(); thrustGain.gain.value = 0;
+    thrustNode.connect(lp); lp.connect(thrustGain); thrustGain.connect(AC.destination);
+    thrustNode.start();
+  } catch (e) { AC = null; }
+}
+function blip(freq0, freq1, dur, type, vol) {
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || "square";
+  o.frequency.setValueAtTime(freq0, AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(Math.max(freq1, 1), AC.currentTime + dur);
+  g.gain.setValueAtTime(vol || 0.12, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(); o.stop(AC.currentTime + dur + 0.02);
+}
+function boom() {
+  if (!AC) return;
+  const dur = 0.6, sz = AC.sampleRate * dur;
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const g = AC.createGain(); g.gain.value = 0.35;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+  s.connect(lp); lp.connect(g); g.connect(AC.destination); s.start();
+}
+function heartbeat(vol) { // lub-dub, played when a Doid comes aboard
+  if (!AC) return;
+  const V = vol || 1;
+  const pulse = (t, f) => {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, AC.currentTime + t);
+    g.gain.exponentialRampToValueAtTime(0.4 * V, AC.currentTime + t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + t + 0.16);
+    o.connect(g); g.connect(AC.destination);
+    o.start(AC.currentTime + t); o.stop(AC.currentTime + t + 0.2);
+  };
+  pulse(0, 150); pulse(0.18, 112);
+}
+function staticTick() { // the Static — a dry burst where a heartbeat should be
+  if (!AC) return;
+  const dur = 0.12, sz = AC.sampleRate * dur;
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 2;
+  const g = AC.createGain(); g.gain.value = 0.08;
+  s.connect(bp); bp.connect(g); g.connect(AC.destination); s.start();
+}
+function dullThud() { // what boards when there is no heartbeat
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = "sine"; o.frequency.value = 90;
+  g.gain.setValueAtTime(0.0001, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.5, AC.currentTime + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 0.3);
+  o.connect(g); g.connect(AC.destination);
+  o.start(); o.stop(AC.currentTime + 0.35);
+}
+
+/* ---------------- helpers ---------------- */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function wrapText(str, maxW) {
+  const out = [];
+  for (const para of str.split("\n")) {
+    let line = "";
+    for (const w of para.split(" ")) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxW && line) { out.push(line); line = w; }
+      else line = test;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+/* ---------------- story data ---------------- */
+const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
+                      "SEMMELWEIS DEEP", "CURIE FIELDS", "AVICENNA SHOALS",
+                      "JENNER TERRACES", "THE NULLWAVE"];
+const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
+const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
+
+const BRIEFS = [
+  "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nEnd transmission.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
+  "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
+  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.",
+  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
+  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.",
+  "Last leg before the ridge. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Triangulation complete. The source of the Static is below the nullwave ridge.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
+];
+
+const FRAGMENTS = [
+  "LOG 01 // The convoy scattered after the relay burst. We logged it as a solar flare. Nobody checked the waveform.",
+  "LOG 02 // The burst wasn't natural. It repeats. Forty-one seconds. Always forty-one seconds.",
+  "LOG 03 // Some stranded units stopped answering triage pings. They still walk. They still wave. But the rhythm is wrong.",
+  "LOG 04 // Comms calls it the Static. It doesn't jam a signal. It rewrites the one who answers.",
+  "LOG 05 // Quarantine protocol drafted: any unit with an irregular heartbeat goes to the red bay. No exceptions. Not even friends.",
+  "LOG 06 // First black box decoded. The Static's waveform matches... us. An old MERCY-class distress call, degraded, looping.",
+  "LOG 07 // It's a voice like ours. Every repeat is a copy of a copy. The rescued units corrupt because they answer honestly.",
+  "LOG 08 // Triangulation at 60%. The echo has a source, somewhere dark beyond the last ridge, transmitting on our own frequency.",
+  "LOG 09 // Fleet drafted destroy-on-sight orders. The CMO refused to sign. She wrote one line: primum non nocere.",
+  "LOG 10 // If it can be silenced without being destroyed, we owe it that. It has only ever been repeating a call for help.",
+  "LOG 11 // The lures aren't scavenger traps. They're placed. Someone wants rescues to fail — and wants it to look like bad luck.",
+  "LOG 12 // Every counterfeit carries the same maker's mark: a coiled serpent wearing a human mask. The archive is afraid of the match it found.",
+  "LOG 13 // Match confirmed. GLYCON — the puppet god of Alexander of Abonoteichus, Old Earth, second century. He wrapped a snake in linen and sold false plague cures while the plague spread. His amulets hung over doors where precautions should have been.",
+  "LOG 14 // The Static is a wound. Glycon is the hand keeping it open — amplifying the echo, farming the fear, selling the cure that kills. Unmask him. Then answer the wound."
+];
+
+/* the caves under the lifts — three shrines, three revelations */
+const SHRINES = [
+  { kicker: "THE HOLLOWS · RELAY",
+    title: "IT ISN'T AN ECHO",
+    body: "A transmitter, hand-built into the rock. Not wreckage. Not corrosion.\n\nSomething down here is BOOSTING the Static — aiming it along the rescue lanes, keeping the wound open on purpose.\n\nScratched into the casing: a coiled serpent wearing a human mask.",
+    color: "#b388ff" },
+  { kicker: "THE HOLLOWS · WORKSHOP",
+    title: "THEY WERE NEVER RESCUED",
+    body: "Racks of half-finished Doids. Dull chests. No hearts to tick.\n\nThe saboteurs aren't corrupted survivors at all. They are counterfeits — built down here, seeded among the stranded, made to be carried home in good faith.\n\nThe same serpent mark on every chassis.",
+    color: "#b388ff" },
+  { kicker: "THE HOLLOWS · SHRINE",
+    title: "GLYCON",
+    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.",
+    color: "#c6ff00" }
+];
+
+const FAMOUS = [
+  { name: "HIPPOCRATES OF KOS", era: "c. 460–370 BC",
+    story: "The physician of Kos, whose oath still binds medicine twenty-four centuries on: first, do no harm.",
+    upgrade: "gentle", upgradeName: "GENTLE TOUCH",
+    upgradeDesc: "Hard landings now do far less damage to your hull." },
+  { name: "ANDREAS VESALIUS", era: "1514–1564",
+    story: "He looked inside the body for himself and rewrote anatomy — his Fabrica corrected a thousand years of guesswork.",
+    upgrade: "fabrica", upgradeName: "FABRICA HULL",
+    upgradeDesc: "Maximum vitals raised to 125." },
+  { name: "FLORENCE NIGHTINGALE", era: "1820–1910",
+    story: "The Lady with the Lamp — she proved with statistics that sanitation saves more soldiers than surgery.",
+    upgrade: "lamp", upgradeName: "THE LAMP",
+    upgradeDesc: "Your light reaches much further in the dark." },
+  { name: "IGNAZ SEMMELWEIS", era: "1818–1865",
+    story: "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades.",
+    upgrade: "antisepsis", upgradeName: "ANTISEPSIS",
+    upgradeDesc: "Saboteurs are now revealed by a sickly tint. You can see the contamination." },
+  { name: "MARIE CURIE", era: "1867–1934",
+    story: "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War.",
+    upgrade: "radiosense", upgradeName: "RADIOSENSE",
+    upgradeDesc: "A compass now points toward unrecovered black boxes." },
+  { name: "IBN SINA · AVICENNA", era: "980–1037",
+    story: "The Persian polymath whose Canon of Medicine taught physicians on three continents for six hundred years — observation, evidence, and honest doubt.",
+    upgrade: "canon", upgradeName: "CANON OF TRUTH",
+    upgradeDesc: "Counterfeits are unmasked — Glycon's lures and lure-trees are marked for what they are." },
+  { name: "EDWARD JENNER", era: "1749–1823",
+    story: "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
+    upgrade: "inoculation", upgradeName: "INOCULATION",
+    upgradeDesc: "Your passengers are immunised — saboteurs aboard can no longer kill them." }
+];
+
+/* ---------------- world / level ---------------- */
+const GRAV = 46, THRUST = 138, ROT = 3.7, SHIP_R = 11;
+const WORLD_H = 1500, STEP = 16;
+const CAPACITY = 6;
+
+let level, ship, camera, particles, texts, stars;
+let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
+let runSaved = 0, runLost = 0, runFired = 0;
+let runFragments = 0, blackboxCount = 0;
+let shrines = new Set();   // Hollows shrines found this run
+let upgrades = {};
+let mercyBreach = null, mercyDamaged = false;
+let endingType = null;
+let clearCards = [], revealCard = null;
+let briefChars = 0;
+let hiscore = 0;
+try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
+let codex = new Set();
+try { codex = new Set(JSON.parse(localStorage.getItem("doids_codex") || "[]")); } catch (e) {}
+function saveCodex() {
+  try { localStorage.setItem("doids_codex", JSON.stringify([...codex])); } catch (e) {}
+}
+let assist = true;
+try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
+let introSeen = false;
+try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
+function markIntroSeen() {
+  introSeen = true;
+  try { localStorage.setItem("doids_intro", "1"); } catch (e) {}
+}
+const ASSIST_CAPTURE = 0.22;
+const ASSIST_RATE = 4.5;
+
+function helpRect() {
+  return { x: vw - saRight - 14 - 150, y: 12, w: 150, h: 34 };
+}
+function assistRect() {
+  const h = helpRect();
+  return { x: h.x - 198, y: 12, w: 190, h: 34 };
+}
+function skipRect() {
+  return { x: vw - 110 - saRight, y: 12, w: 96, h: 34 };
+}
+function codexRect() {
+  return { x: 14 + saLeft, y: 12, w: 168, h: 34 };
+}
+function tiltRect() {
+  const c = codexRect();
+  return { x: c.x, y: c.y + 42, w: 128, h: 34 };
+}
+function storyRect() {
+  const h = helpRect();
+  return { x: h.x, y: h.y + 42, w: 150, h: 34 };
+}
+const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+const HELP_CARD = {
+  kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on at the title.",
+  color: "#00e5ff"
+};
+
+function groundAt(x) {
+  const h = level.heights;
+  const i = clamp(Math.floor(x / STEP), 0, h.length - 2);
+  const t = clamp(x / STEP - i, 0, 1);
+  return lerp(h[i], h[i + 1], t);
+}
+
+function flatten(heights, cx, halfW) {
+  const i0 = Math.max(1, Math.floor((cx - halfW) / STEP));
+  const i1 = Math.min(heights.length - 2, Math.ceil((cx + halfW) / STEP));
+  const y = heights[Math.floor(cx / STEP)];
+  for (let i = i0; i <= i1; i++) heights[i] = y;
+  if (i0 > 1) heights[i0 - 1] = (heights[i0 - 2] + y) / 2;
+  if (i1 < heights.length - 2) heights[i1 + 1] = (heights[i1 + 2] + y) / 2;
+  return y;
+}
+
+/* per-sector recipe: each sector introduces one new element.
+   scn = decorative scenery counts; fakes = Glycon's counterfeit fuel pods;
+   lift marks the sectors whose ground hides a secret lift into the Hollows. */
+const RECIPE = [
+  { oids: 3, turrets: 2, sabs: 0, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,
+    lift: false, scn: { trees: 9, rocks: 5, bld: 2, ruin: 0, wreck: 0 } },
+  { oids: 5, turrets: 4, sabs: 1, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,
+    lift: true,  scn: { trees: 7, rocks: 6, bld: 1, ruin: 1, wreck: 1 } },
+  { oids: 6, turrets: 4, sabs: 1, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: true,
+    lift: false, scn: { trees: 5, rocks: 6, bld: 0, ruin: 2, wreck: 1 } },
+  { oids: 7, turrets: 6, sabs: 2, drones: 1, pods: 3, fakes: 0, anomalies: 0, dark: false,
+    lift: true,  scn: { trees: 4, rocks: 7, bld: 0, ruin: 2, wreck: 1 } },
+  { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 4, fakes: 0, anomalies: 3, dark: false,
+    lift: false, scn: { trees: 3, rocks: 8, bld: 0, ruin: 3, wreck: 2 } },
+  { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 3, fakes: 3, anomalies: 2, dark: false,
+    lift: true,  scn: { trees: 6, rocks: 6, bld: 0, ruin: 2, wreck: 1 } },
+  { oids: 9, turrets: 8, sabs: 3, drones: 2, pods: 4, fakes: 3, anomalies: 2, dark: false,
+    lift: false, scn: { trees: 2, rocks: 7, bld: 0, ruin: 4, wreck: 2 } },
+  { oids: 2, turrets: 6, sabs: 0, drones: 3, pods: 3, fakes: 2, anomalies: 2, dark: true,
+    lift: false, scn: { trees: 0, rocks: 8, bld: 0, ruin: 3, wreck: 3 } }
+];
+const LIFT_CAVE = { 1: 0, 3: 1, 5: 2 };  // which sector's lift opens which cave
+
+function genLevel(n) {
+  const r = RECIPE[n];
+  const W = n === FINALE_IDX ? 4400 : 2600 + Math.min(n, 5) * 400;
+  const rng = mulberry32(1013 * (n + 3) + 77);
+  const count = Math.floor(W / STEP) + 2;
+
+  const octave = (wl, amp) => {
+    const pts = [];
+    for (let i = 0; i <= Math.ceil(W / wl) + 1; i++) pts.push((rng() * 2 - 1) * amp);
+    return x => {
+      const p = x / wl, i = Math.floor(p), t = p - i;
+      return lerp(pts[i], pts[i + 1], (1 - Math.cos(t * Math.PI)) / 2);
+    };
+  };
+  const rough = 1 + Math.min(n, 5) * 0.12;
+  const o1 = octave(420, 190 * rough), o2 = octave(150, 65 * rough), o3 = octave(60, 20);
+  const heights = [];
+  for (let i = 0; i < count; i++) {
+    const x = i * STEP;
+    heights.push(clamp(1100 + o1(x) + o2(x) + o3(x), 760, 1380));
+  }
+  for (let i = 0; i < 4; i++) { heights[i] = 600; heights[count - 1 - i] = 600; }
+
+  const lvl = { n, W, heights, oids: [], turrets: [], bullets: [], shots: [],
+    drones: [], pods: [], fakePods: [], anomalies: [], scenery: [],
+    blackbox: null, beacon: null, lift: null, shrine: null, roof: null,
+    mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
+    total: 0, firedShots: 0, extraction: null, pulse: null, isCave: false,
+    dark: r.dark, isFinale: n === FINALE_IDX, contamKnown: false, fragmentsHere: [] };
+
+  const spots = [];
+  const pick = minDist => {
+    for (let tries = 0; tries < 80; tries++) {
+      const x = 600 + rng() * (W - 900);
+      if (spots.every(s => Math.abs(s - x) > minDist)) { spots.push(x); return x; }
+    }
+    return 600 + rng() * (W - 900);
+  };
+
+  const PERSONAS = ["wave1", "wave2", "jump", "pace", "sit"];
+  const newOid = (x, y, role) => ({ x, y, home: x, state: "wait", wave: rng() * 6,
+    role, sleeper: false, famousId: -1, carrier: false, panicT: 0, sabT: 0,
+    persona: PERSONAS[Math.floor(rng() * PERSONAS.length)],
+    scale: 0.95 + rng() * 0.3, gait: 30 + rng() * 12, nearShip: false });
+  for (let i = 0; i < r.oids; i++) {
+    const x = pick(280);
+    const y = flatten(heights, x, 80);
+    lvl.oids.push(newOid(x, y, "normal"));
+  }
+  // one famous Doid per campaign sector
+  if (n < FINALE_IDX && lvl.oids.length) {
+    const f = lvl.oids[Math.floor(rng() * lvl.oids.length)];
+    f.role = "famous"; f.famousId = n;
+  }
+  // saboteurs are extra figures, indistinguishable at a distance
+  for (let i = 0; i < r.sabs; i++) {
+    const x = pick(260);
+    const y = flatten(heights, x, 70);
+    const sab = newOid(x, y, "saboteur");
+    sab.sleeper = n >= 2 && rng() < (n === 6 ? 0.75 : 0.5); // the terraces crawl with sleepers
+    lvl.oids.push(sab);
+  }
+  // two of the ordinary Doids carry log fragments
+  const normals = lvl.oids.filter(o => o.role === "normal");
+  for (let i = 0; i < Math.min(2, normals.length); i++) {
+    normals[Math.floor(rng() * normals.length)].carrier = true;
+  }
+  lvl.total = lvl.oids.length;
+
+  for (let i = 0; i < r.turrets; i++) {
+    const x = pick(220);
+    const y = flatten(heights, x, 40);
+    lvl.turrets.push({ x, y, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
+  }
+  for (let i = 0; i < r.drones; i++) {
+    lvl.drones.push({ x: 900 + rng() * (W - 1200), y: 400 + rng() * 250,
+      vx: 0, vy: 0, alive: true, bob: rng() * 6 });
+  }
+  for (let i = 0; i < r.pods; i++) {
+    const x = pick(200);
+    lvl.pods.push({ x, y: flatten(heights, x, 30), taken: false, ph: rng() * 7 });
+  }
+  // Glycon's lures: counterfeit fuel pods that drain the tank instead.
+  // The tell — they all blink in perfect, mechanical unison.
+  for (let i = 0; i < r.fakes; i++) {
+    const x = pick(200);
+    lvl.fakePods.push({ x, y: flatten(heights, x, 30), taken: false });
+  }
+  for (let i = 0; i < r.anomalies; i++) {
+    lvl.anomalies.push({ x: 800 + rng() * (W - 1400), y: 500 + rng() * 350,
+      r: 200 + rng() * 90, str: 80 + rng() * 40, spin: rng() * 6 });
+  }
+  // one hidden black box per campaign sector
+  if (n < FINALE_IDX) {
+    const x = pick(300);
+    lvl.blackbox = { x, y: flatten(heights, x, 50), found: false, scanT: 0 };
+  }
+  // the secret lift: a pad of ground that rings hollow, down into the Hollows
+  if (r.lift) {
+    const x = pick(320);
+    const y = flatten(heights, x, 70);
+    lvl.lift = { x, y, cave: LIFT_CAVE[n], holdT: 0, armed: true };
+  }
+  // the finale's beacon — the source of the Static
+  if (n === FINALE_IDX) {
+    const bx = W - 420;
+    const by = flatten(heights, bx, 120);
+    lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false };
+  }
+
+  // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
+  const gy = x => {
+    const i = clamp(Math.floor(x / STEP), 0, heights.length - 2);
+    const t = clamp(x / STEP - i, 0, 1);
+    return lerp(heights[i], heights[i + 1], t);
+  };
+  const slopeAt = x => (gy(x + 10) - gy(x - 10)) / 20;
+  const scnSpot = (flatTries) => { // buildings/wrecks prefer flatter ground
+    let x = 320 + rng() * (W - 640);
+    for (let k = 0; k < (flatTries || 0); k++) {
+      if (Math.abs(slopeAt(x)) < 0.14) break;
+      x = 320 + rng() * (W - 640);
+    }
+    return x;
+  };
+  const deco = (type, flatTries, extra) => {
+    const x = scnSpot(flatTries);
+    lvl.scenery.push(Object.assign({ type, x, y: gy(x),
+      tilt: Math.atan(slopeAt(x)) * 0.7, s: 0.8 + rng() * 0.7, ph: rng() * 7 }, extra));
+  };
+  const sc = r.scn;
+  for (let i = 0; i < sc.trees; i++) deco("tree", 0);
+  for (let i = 0; i < sc.rocks; i++) {
+    const verts = [];
+    const k = 5 + Math.floor(rng() * 3), rad = 7 + rng() * 9;
+    for (let v = 0; v < k; v++) {
+      const a = (v / k) * Math.PI * 2;
+      const rr = rad * (0.65 + rng() * 0.5);
+      verts.push([Math.cos(a) * rr, -rad * 0.6 + Math.sin(a) * rr * 0.62]);
+    }
+    deco("rock", 0, { verts });
+  }
+  const mkWindows = (w, h) => {
+    const cols = Math.max(2, Math.floor(w / 14)), rows = Math.max(2, Math.floor(h / 16));
+    const lit = [];
+    for (let i = 0; i < cols * rows; i++) lit.push(rng() < 0.45);
+    return { cols, rows, lit, flick: Math.floor(rng() * cols * rows) };
+  };
+  for (let i = 0; i < sc.bld; i++) {
+    const w = 38 + rng() * 28, h = 58 + rng() * 66;
+    deco("bld", 10, Object.assign({ w, h }, mkWindows(w, h)));
+  }
+  for (let i = 0; i < sc.ruin; i++) {
+    const w = 40 + rng() * 30, h = 44 + rng() * 50;
+    const jag = [];
+    for (let j = 0; j <= 4; j++) jag.push(rng() * h * 0.45);
+    deco("ruin", 6, Object.assign({ w, h, jag }, mkWindows(w, h * 0.6)));
+  }
+  for (let i = 0; i < sc.wreck; i++)
+    deco(rng() < 0.5 ? "wreckM" : "wreckS", 6, { lean: (rng() - 0.5) * 0.7 });
+  // where Glycon seeds lures he also plants a lure-tree: a transmitter
+  // disguised as flora, swaying in perfect mechanical time. In the
+  // nullwave it is the only tree standing at all.
+  if (r.fakes > 0) deco("tree", 0, { fake: true, s: 1 + rng() * 0.3 });
+  // and somewhere, someone hid a real cache from the serpent: one rock
+  // breathes faintly. Crack it open.
+  if (r.fakes > 0) {
+    const verts = [];
+    for (let v = 0; v < 6; v++) {
+      const a = (v / 6) * Math.PI * 2;
+      verts.push([Math.cos(a) * 11, -7 + Math.sin(a) * 7]);
+    }
+    deco("rock", 0, { verts, hollow: true, s: 1.1 });
+  }
+
+  stars = [];
+  const srng = mulberry32(999 + n);
+  for (let i = 0; i < 220; i++)
+    stars.push({ x: srng() * W, y: srng() * 900, s: srng() * 1.6 + 0.4, tw: srng() * 6 });
+  return lvl;
+}
+
+/* ---------------- the Hollows: secret caves under the lifts ---------------- */
+function roofAt(x) {
+  const h = level.roof;
+  const i = clamp(Math.floor(x / STEP), 0, h.length - 2);
+  const t = clamp(x / STEP - i, 0, 1);
+  return lerp(h[i], h[i + 1], t);
+}
+
+function genCave(ci) {
+  const W = 1800;
+  const rng = mulberry32(5077 + ci * 131);
+  const count = Math.floor(W / STEP) + 2;
+  const octave = (wl, amp) => {
+    const pts = [];
+    for (let i = 0; i <= Math.ceil(W / wl) + 1; i++) pts.push((rng() * 2 - 1) * amp);
+    return x => {
+      const p = x / wl, i = Math.floor(p), t = p - i;
+      return lerp(pts[i], pts[i + 1], (1 - Math.cos(t * Math.PI)) / 2);
+    };
+  };
+  const f1 = octave(260, 90), f2 = octave(90, 34);
+  const r1 = octave(300, 80), r2 = octave(70, 26);
+  const heights = [], roof = [];
+  for (let i = 0; i < count; i++) {
+    const x = i * STEP;
+    heights.push(clamp(1250 + f1(x) + f2(x), 1150, 1380));
+    roof.push(clamp(930 + r1(x) + r2(x), 820, 1090));
+  }
+  for (let i = 0; i < count; i++) roof[i] = Math.min(roof[i], heights[i] - 175);
+
+  const lvl = { n: levelIdx, W, heights, roof, oids: [], turrets: [], bullets: [], shots: [],
+    drones: [], pods: [], fakePods: [], anomalies: [], scenery: [],
+    blackbox: null, beacon: null, mx: -9999, my: -9999, mxo: 0, myo: 0,
+    delivered: 0, lost: 0, contained: 0, total: 0, firedShots: 0,
+    extraction: null, pulse: null, dark: true, isFinale: false, isCave: true,
+    caveIdx: ci, contamKnown: false, fragmentsHere: [],
+    lift: { x: 220, y: 0, cave: ci, holdT: 0, armed: false },
+    shrine: null };
+
+  lvl.lift.y = flatten(heights, lvl.lift.x, 60);
+  const sx = W - 260;
+  const sy = flatten(heights, sx, 80);
+  if (!shrines.has(ci)) lvl.shrine = { x: sx, y: sy, found: false, scanT: 0 };
+
+  for (let i = 0; i < 3; i++) {
+    const x = 500 + rng() * (W - 900);
+    lvl.pods.push({ x, y: flatten(heights, x, 30), taken: false, ph: rng() * 7 });
+  }
+  if (ci >= 1) lvl.drones.push({ x: W * 0.55, y: 1150, vx: 0, vy: 0, alive: true, bob: rng() * 6 });
+  for (let i = 0; i < 5; i++) {
+    const verts = [];
+    const k = 5 + Math.floor(rng() * 3), rad = 6 + rng() * 8;
+    for (let v = 0; v < k; v++) {
+      const a = (v / k) * Math.PI * 2;
+      verts.push([Math.cos(a) * rad * (0.65 + rng() * 0.5), -rad * 0.55 + Math.sin(a) * rad * 0.55]);
+    }
+    const x = 300 + rng() * (W - 600);
+    const i0 = clamp(Math.floor(x / STEP), 0, heights.length - 2);
+    lvl.scenery.push({ type: "rock", x, y: heights[i0], tilt: 0, s: 0.8 + rng() * 0.6, ph: rng() * 7, verts });
+  }
+  return lvl;
+}
+
+let surfaceCtx = null;   // where we came from, while inside a cave
+function acctLevel() {   // sector accounting always lands on the surface level
+  return level && level.isCave && surfaceCtx ? surfaceCtx.level : level;
+}
+
+function enterCave(L) {
+  L.holdT = 0; L.armed = false;
+  surfaceCtx = { level, x: ship.x, y: ship.y };
+  level = genCave(L.cave);
+  ship.x = level.lift.x; ship.y = groundAt(level.lift.x) - SHIP_R;
+  ship.vx = 0; ship.vy = 0; ship.ang = 0; ship.landed = true;
+  camera.x = ship.x; camera.y = ship.y; camera.shake = 14;
+  banner("SECRET LIFT — DESCENDING INTO THE HOLLOWS", "#b388ff");
+  blip(220, 70, 0.9, "sawtooth", 0.16);
+  staticTick();
+}
+
+function exitCave() {
+  if (!surfaceCtx) return;
+  level = surfaceCtx.level;
+  ship.x = surfaceCtx.x; ship.y = surfaceCtx.y;
+  ship.vx = 0; ship.vy = 0; ship.ang = 0; ship.landed = true;
+  if (level.lift) { level.lift.holdT = 0; level.lift.armed = false; }
+  camera.x = ship.x; camera.y = ship.y; camera.shake = 10;
+  surfaceCtx = null;
+  banner("SURFACE — " + SECTOR_NAMES[levelIdx], "#00e5ff");
+  blip(160, 520, 0.6, "sine", 0.12);
+}
+
+function maxVitals() { return upgrades.fabrica ? 125 : 100; }
+function lampRadius() { return upgrades.lamp ? 400 : 230; }
+
+function spawnShip() {
+  ship = {
+    x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
+    fuel: 100, vitals: maxVitals(), passengers: [], landed: false, dead: false,
+    fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
+    shield: false
+  };
+}
+
+/* ---------------- state flow ---------------- */
+function resetRun() {
+  score = 0; lives = 3; runSaved = 0; runLost = 0; runFired = 0;
+  runFragments = 0; blackboxCount = 0; shrines = new Set();
+  upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
+  clearCards = []; revealCard = null; surfaceCtx = null;
+}
+
+function toBriefing(n) {
+  levelIdx = n;
+  surfaceCtx = null;
+  level = genLevel(n);
+  spawnShip();
+  camera = { x: ship.x, y: ship.y, shake: 0 };
+  particles = []; texts = [];
+  mercyBreach = null; mercyDamaged = false;
+  state = "brief"; stateT = 0; briefChars = 0;
+}
+
+let bannerMsg = null;
+function banner(str, color) { bannerMsg = { str, color, t: 2.6 }; }
+function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 1.6 }); }
+
+function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
+
+function grantFragment(queueForClear) {
+  if (runFragments >= FRAGMENTS.length) { score += 500; return null; }
+  const frag = FRAGMENTS[runFragments++];
+  if (queueForClear) level.fragmentsHere.push(frag);
+  return frag;
+}
+
+function explode(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 220;
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      t: 0.5 + Math.random() * 0.8, max: 1.3, color, size: 1.5 + Math.random() * 3 });
+  }
+  camera.shake = Math.min(camera.shake + 14, 26);
+  // nearby grounded Doids panic
+  if (level) for (const o of level.oids) {
+    if ((o.state === "wait" || o.state === "walk") && Math.abs(o.x - x) < 160 && Math.abs(o.y - y) < 160) {
+      o.state = "panic"; o.panicT = 1.6 + Math.random();
+    }
+  }
+  boom();
+}
+
+function goldBurst(x, y) {
+  for (let i = 0; i < 24; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 120;
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
+      t: 0.6 + Math.random() * 0.8, max: 1.4, color: "#ffd54f", size: 1.5 + Math.random() * 2.5 });
+  }
+}
+
+/* ---------------- landing rules ---------------- */
+function landingEval() {
+  const s = ship;
+  const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
+  const tilt = Math.abs(((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  const upright = tilt < 0.5;
+  const vyMax = upgrades.gentle ? 62 : 52;
+  const soft = Math.abs(s.vy) < vyMax && Math.abs(s.vx) < 38 && slope < 0.25 && upright;
+  const survivable = Math.abs(s.vy) < (upgrades.gentle ? 100 : 85) && Math.abs(s.vx) < 60 && slope < 0.35 && upright;
+  let reason = "";
+  if (!upright) reason = "LEVEL THE SHIP";
+  else if (slope >= 0.25) reason = "GROUND TOO STEEP";
+  else if (Math.abs(s.vy) >= vyMax) reason = "DESCENDING TOO FAST";
+  else if (Math.abs(s.vx) >= 38) reason = "DRIFTING SIDEWAYS";
+  return { soft, survivable, reason };
+}
+
+function shipDie() {
+  if (ship.dead) return;
+  ship.dead = true;
+  explode(ship.x, ship.y, "#ff4081", 60);
+  explode(ship.x, ship.y, "#ffc400", 40);
+  if (ship.passengers.length > 0) {
+    const n = ship.passengers.length;
+    for (const p of ship.passengers) {
+      p.state = "lost";
+      if (p.role === "famous") {
+        addText(ship.x, ship.y - 66, "YOU LOST " + FAMOUS[p.famousId].name, "#ffd54f");
+      }
+    }
+    acctLevel().lost += n; runLost += n;
+    const penalty = 250 * n;
+    score = Math.max(0, score - penalty);
+    addText(ship.x, ship.y - 50,
+      n + (n === 1 ? " DOID LOST" : " DOIDS LOST") + "  -" + penalty, "#ff4081");
+    explode(ship.x, ship.y - 12, "#69f0ae", 24);
+    ship.passengers = [];
+  }
+  lives--;
+  state = "dead"; stateT = 0;
+}
+
+/* When every Doid is accounted for (saved, lost, or contained), MERCY
+   closes her manifest and spools the jump drive — she has been holding
+   the Static off her systems the whole time, and the moment she stops
+   stationkeeping to spool, it starts to reach her. The extraction dock
+   is the sector's final exam: dock with a drifting mothership while
+   the pulses quicken. Checked every play frame so no accounting path
+   (delivery, crash, sabotage, quarantine, escape) can be missed. */
+function checkSectorClear() {
+  if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach) return;
+  if (level.delivered + level.lost + level.contained < level.total) return;
+  level.extraction = { t: 0, pulseT: 0, hold: 0 };
+  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nDOCK IN THE RECOVERY BAY BEFORE THE STATIC REACHES HER", "#ffc400");
+  blip(660, 220, 0.6, "sawtooth", 0.15);
+}
+
+function sectorClearNow() {
+  score += 1000;
+  if (level.firedShots === 0) score += 2000;
+  bannerMsg = null;
+  clearCards = level.fragmentsHere.map(f => ({
+    kicker: "LOG FRAGMENT RECOVERED", title: "", body: f, color: "#00e5ff" }));
+  state = "clear"; stateT = 0;
+  blip(440, 1760, 0.5, "sine", 0.15);
+}
+
+function updateExtraction(dt) {
+  const e = level.extraction;
+  e.t += dt;
+  // MERCY drifts harder the longer you take
+  level.mxo = Math.sin(e.t * 0.55) * Math.min(60, 8 + e.t * 2.2);
+  level.myo = Math.sin(e.t * 1.15) * Math.min(30, 5 + e.t * 1.1);
+  // the Static surges in quickening pulses that shove your ship
+  e.pulseT += dt;
+  if (e.pulseT >= Math.max(2.8, 6.5 - e.t * 0.09)) {
+    e.pulseT = 0;
+    level.pulse = { t: 0 };
+    staticTick();
+    const { mx, my } = mercyPos();
+    const dx = ship.x - mx, dy = ship.y - my, d = Math.hypot(dx, dy) || 1;
+    if (d < 600 && !ship.landed && !ship.dead) {
+      const kick = 110 * (1 - d / 600);
+      ship.vx += dx / d * kick; ship.vy += dy / d * kick;
+      camera.shake += 8;
+      addText(ship.x, ship.y - 30, "THE STATIC SURGES", "#b388ff");
+    }
+  }
+  if (level.pulse && (level.pulse.t += dt) > 1.2) level.pulse = null;
+  if (!ship.dead && inBay(bayRects().med)) {
+    e.hold += dt;
+    if (e.hold >= 1.5) sectorClearNow();
+  } else e.hold = 0;
+}
+
+function triggerBreach() {
+  mercyBreach = { t: 45 };
+  level.contamKnown = true;
+  banner("SECURITY BREACH ABOARD MERCY\nDOCK AT THE RED BAY TO CONTAIN IT", "#ff4081");
+  blip(880, 220, 0.6, "sawtooth", 0.2);
+}
+
+function resolveBreach(success) {
+  mercyBreach = null;
+  if (success) {
+    score += 750;
+    banner("CONTAMINANT CONTAINED  +750\nLOCKDOWN LIFTED", "#69f0ae");
+    blip(520, 1040, 0.3, "sine", 0.15);
+  } else {
+    score = Math.max(0, score - 1000);
+    mercyDamaged = true;
+    banner("RECOVERY BAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", "#ff4081");
+    blip(300, 60, 0.6, "sawtooth", 0.2);
+  }
+}
+
+/* ---------------- update ---------------- */
+let ctlShown = null;
+function updateCtlVisibility() {
+  // virtual controls exist only in flight — not on the title, intro,
+  // briefings, or story cards
+  const want = state === "play" || state === "dead";
+  if (want === ctlShown) return;
+  ctlShown = want;
+  document.body.classList.toggle("noctl", !want);
+  if (!want) for (const b of btnEls) {
+    input[b.key] = false;
+    b.el.classList.remove("down");
+  }
+}
+
+function update(dt) {
+  stateT += dt;
+  pollPad();
+  updateCtlVisibility();
+  if (bannerMsg && (bannerMsg.t -= dt) <= 0) bannerMsg = null;
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.t -= dt; if (p.t <= 0) { particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += GRAV * 0.6 * dt;
+  }
+  for (let i = texts.length - 1; i >= 0; i--) {
+    texts[i].t -= dt; texts[i].y -= 24 * dt;
+    if (texts[i].t <= 0) texts.splice(i, 1);
+  }
+  if (camera) camera.shake = Math.max(0, camera.shake - 60 * dt);
+
+  // portrait: hold the game and show the rotate prompt instead
+  if (vh > vw) {
+    if (thrustGain) thrustGain.gain.value = 0;
+    input.tap = false;
+    return;
+  }
+
+  switch (state) {
+    case "title": case "gameover": case "win": updateMenu(); return;
+    case "intro": updateIntro(dt); return;
+    case "help": case "codex":
+      if (input.tap && stateT > 0.4) { state = "title"; stateT = 0.7; }
+      input.tap = false; return;
+    case "brief": updateBrief(dt); return;
+    case "reveal":
+      if (input.tap && stateT > 0.4) { revealCard = null; state = "play"; }
+      input.tap = false; return;
+    case "clear": updateClear(); return;
+    case "ending":
+      if (input.tap && stateT > 1) { state = "win"; stateT = 0; saveHi(); }
+      input.tap = false; return;
+    case "dead":
+      if (stateT > 1.6) {
+        if (lives <= 0) { state = "gameover"; stateT = 0; saveHi(); }
+        else {
+          if (level.isCave) exitCave();   // the Hollows spit you back out
+          spawnShip(); state = "play"; stateT = 0; checkSectorClear();
+        }
+      }
+      input.tap = false;
+      return;
+    case "play": updatePlay(dt); return;
+  }
+}
+
+function saveHi() {
+  if (score > hiscore) { hiscore = score; try { localStorage.setItem("doids_hi", hiscore); } catch (e) {} }
+}
+
+let introIdx = 0;
+function updateMenu() {
+  if (input.tap && stateT > 0.6) {
+    if (state === "title" && inRect(assistRect(), input.tapX, input.tapY)) {
+      assist = !assist;
+      try { localStorage.setItem("doids_assist", assist ? "1" : "0"); } catch (e) {}
+      blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
+    } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
+      state = "help"; stateT = 0;
+      blip(440, 660, 0.1, "sine", 0.08);
+    } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
+      state = "codex"; stateT = 0;
+      blip(550, 825, 0.1, "sine", 0.08);
+    } else if (state === "title" && inRect(storyRect(), input.tapX, input.tapY)) {
+      // rewatch the opening narrative (it flows into a new run)
+      goFullscreen();
+      if (window.hideA2HS) window.hideA2HS();
+      resetRun();
+      introIdx = 0;
+      state = "intro"; stateT = 0;
+      blip(330, 660, 0.2, "sine", 0.1);
+    } else {
+      goFullscreen();
+      if (window.hideA2HS) window.hideA2HS();
+      resetRun();
+      if (introSeen) {
+        toBriefing(0);   // veterans launch straight into the tasking
+      } else {
+        introIdx = 0;
+        state = "intro"; stateT = 0;
+      }
+      blip(330, 660, 0.2, "sine", 0.1);
+    }
+  }
+  input.tap = false;
+}
+
+let introBeat = 0;
+function updateIntro(dt) {
+  // a slow heartbeat under the story — except the failure panel,
+  // where the Static answers instead
+  introBeat += dt;
+  const cyc = introIdx === 3 ? 1.4 : 1.5;
+  if (introBeat >= cyc) {
+    introBeat = 0;
+    if (introIdx === 3) staticTick(); else heartbeat(0.55);
+  }
+  if (input.tap && stateT > 0.35) {
+    if (inRect(skipRect(), input.tapX, input.tapY)) { markIntroSeen(); toBriefing(0); }
+    else {
+      introIdx++; stateT = 0;
+      blip(440, 550, 0.08, "sine", 0.07);
+      if (introIdx >= INTRO.length) { markIntroSeen(); toBriefing(0); }
+    }
+  }
+  input.tap = false;
+}
+
+function updateBrief(dt) {
+  const full = BRIEFS[levelIdx].length;
+  briefChars = Math.min(full, briefChars + dt * 55);
+  if (input.tap && stateT > 0.5) {
+    if (briefChars < full) briefChars = full;
+    else { state = "play"; stateT = 0; banner(SECTOR_NAMES[levelIdx], "#00e5ff"); }
+  }
+  input.tap = false;
+}
+
+function updateClear() {
+  if (input.tap && stateT > 0.8) {
+    if (clearCards.length > 0) { clearCards.shift(); stateT = Math.max(stateT, 0.81); }
+    else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
+    else if (levelIdx === FINALE_IDX - 1) {
+      if (blackboxCount >= 3) toBriefing(FINALE_IDX);
+      else { endingType = "unresolved"; state = "ending"; stateT = 0; }
+    } else { state = "ending"; stateT = 0; }
+  }
+  input.tap = false;
+}
+
+function updatePlay(dt) {
+  input.tap = false;
+  const s = ship;
+  const now = performance.now() / 1000;
+
+  let steer = 0;
+  if (input.left || pad.left) steer -= 1;
+  if (input.right || pad.right) steer += 1;
+  if (steer === 0) steer = gyroSteerVal();
+  if (steer) s.ang += ROT * dt * steer;
+
+  if (assist && !s.landed && !steer) {
+    const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+    if (Math.abs(tilt) < ASSIST_CAPTURE) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
+  }
+
+  // force field: eats fuel, stops bullets, drones, rough ground and cave roofs
+  s.shield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  if (s.shield) s.fuel = Math.max(0, s.fuel - 7 * dt);
+
+  const thrusting = (input.thrust || pad.thrust) && s.fuel > 0;
+  if (thrustGain) thrustGain.gain.value = thrusting ? 0.14 : 0;
+  if (thrusting) {
+    s.vx += Math.sin(s.ang) * THRUST * dt;
+    s.vy -= Math.cos(s.ang) * THRUST * dt;
+    s.fuel = Math.max(0, s.fuel - 5.2 * dt);
+    s.landed = false;
+    for (let i = 0; i < 2; i++) {
+      const spread = (Math.random() - 0.5) * 0.5;
+      particles.push({
+        x: s.x - Math.sin(s.ang) * 12, y: s.y + Math.cos(s.ang) * 12,
+        vx: s.vx - Math.sin(s.ang + spread) * 160, vy: s.vy + Math.cos(s.ang + spread) * 160,
+        t: 0.25 + Math.random() * 0.2, max: 0.45,
+        color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2 + Math.random() * 2
+      });
+    }
+    // friendly fire: hovering your exhaust over someone is malpractice
+    const exX = s.x - Math.sin(s.ang) * 16, exY = s.y + Math.cos(s.ang) * 16;
+    for (const o of level.oids) {
+      if ((o.state === "wait" || o.state === "walk" || o.state === "panic") &&
+          Math.abs(o.x - exX) < 26 && o.y - exY > -6 && o.y - exY < 46) {
+        o.scorch = (o.scorch || 0) + dt * 2.2;
+        if (o.scorch > 0.5) killOid(o, "torched");
+      } else if (o.scorch) o.scorch = Math.max(0, o.scorch - dt);
+    }
+  }
+
+  // gravity anomalies pull the ship toward their centres
+  for (const a of level.anomalies) {
+    const dx = a.x - s.x, dy = a.y - s.y, d = Math.hypot(dx, dy);
+    if (d < a.r && d > 1 && !s.landed) {
+      const f = a.str * (1 - d / a.r);
+      s.vx += dx / d * f * dt; s.vy += dy / d * f * dt;
+    }
+  }
+
+  if (!s.landed) {
+    s.vy += GRAV * dt;
+    s.x += s.vx * dt; s.y += s.vy * dt;
+  }
+
+  s.x = clamp(s.x, 40, level.W - 40);
+  if (s.y < 20) { s.y = 20; s.vy = Math.max(s.vy, 0); }
+
+  // cave roofs are unforgiving — unless the field is up
+  if (level.roof && !s.dead && !s.landed) {
+    const rY = roofAt(s.x);
+    if (s.y - SHIP_R <= rY) {
+      if (s.shield) {
+        s.y = rY + SHIP_R + 1;
+        s.vy = Math.abs(s.vy) * 0.5 + 20;
+        s.fuel = Math.max(0, s.fuel - 4);
+        camera.shake += 6;
+        blip(240, 420, 0.12, "sine", 0.1);
+      } else { shipDie(); return; }
+    }
+  }
+
+  const g = groundAt(s.x);
+  if (!s.landed && s.y + SHIP_R >= g) {
+    const { soft, survivable } = landingEval();
+    if (soft) {
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+    } else if (s.shield) {
+      // the force field turns a bad approach into a bounce
+      s.y = g - SHIP_R;
+      s.vy = -Math.abs(s.vy) * 0.45; s.vx *= 0.65;
+      s.fuel = Math.max(0, s.fuel - 4);
+      camera.shake += 6;
+      addText(s.x, s.y - 30, "SHIELD BOUNCE", "#69f0ae");
+      blip(200, 380, 0.15, "sine", 0.12);
+    } else if (survivable) {
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+      const dmg = upgrades.gentle ? 12 : 35;
+      s.vitals -= dmg; camera.shake += 10;
+      addText(s.x, s.y - 30, "HARD LANDING -" + dmg, "#ff4081");
+      blip(160, 40, 0.3, "sawtooth", 0.2);
+      if (s.vitals <= 0) { shipDie(); return; }
+    } else { shipDie(); return; }
+  }
+
+  updateOids(dt, now);
+  updateEnemies(dt);
+  updateSabotage(dt);
+  updateDocking(dt);
+  updateBlackbox(dt);
+  updatePods();
+  updateLift(dt);
+  updateShrine(dt);
+  if (level.isFinale) updateBeacon(dt);
+
+  if (mercyBreach) {
+    mercyBreach.t -= dt;
+    if (mercyBreach.t <= 0) resolveBreach(false);
+  }
+
+  if (level.extraction && state === "play") updateExtraction(dt);
+  checkSectorClear();
+
+  s.beat = Math.max(0, s.beat - dt);
+  camera.x = lerp(camera.x, s.x + s.vx * 0.35, 1 - Math.pow(0.001, dt));
+  camera.y = lerp(camera.y, s.y + s.vy * 0.2 - 40, 1 - Math.pow(0.001, dt));
+}
+
+function updateOids(dt, now) {
+  const s = ship;
+  for (const o of level.oids) {
+    o.wave += dt;
+    if (o.state === "dying") {
+      o.deathT += dt;
+      if (o.deathType === "torched") {
+        // staggering about in flames
+        o.x += Math.sin(o.deathT * 22) * 44 * dt;
+        o.y = groundAt(o.x);
+        if (Math.random() < 0.6) particles.push({
+          x: o.x + (Math.random() - 0.5) * 8, y: o.y - 12 - Math.random() * 12,
+          vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 40,
+          t: 0.4, max: 0.5,
+          color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2.5 });
+      }
+      if (o.deathT >= 1.3) {
+        o.state = "lost";
+        level.lost++; runLost++;
+        const fam = o.role === "famous";
+        const pen = fam ? 500 : 250;
+        score = Math.max(0, score - pen);
+        addText(o.x, o.y - 40,
+          (fam ? "YOU KILLED " + FAMOUS[o.famousId].name : "MALPRACTICE") + "  -" + pen,
+          fam ? "#ffd54f" : "#ff4081");
+        explode(o.x, o.y - 8, o.deathType === "torched" ? "#ff6d00" : "#69f0ae", 18);
+      }
+      continue;
+    }
+    if (o.state === "wait") {
+      o.nearShip = Math.abs(s.x - o.x) < 240 && Math.abs(s.y - o.y) < 180;
+      if (o.persona === "pace") {
+        o.x = o.home + Math.sin((now + o.wave * 3) * 0.7) * 26;
+        o.y = groundAt(o.x);
+      }
+    }
+    if (o.state === "panic") {
+      o.panicT -= dt;
+      o.x += Math.sin(now * 7 + o.wave * 9) * 60 * dt;
+      o.x = clamp(o.x, o.home - 70, o.home + 70);
+      o.y = groundAt(o.x);
+      if (o.panicT <= 0) o.state = "wait";
+      continue;
+    }
+    if (o.state === "wait" && s.landed &&
+        Math.abs(s.x - o.x) < 150 && Math.abs(groundAt(o.x) - (s.y + SHIP_R)) < 60) {
+      o.state = "walk";
+    }
+    if (o.state === "walk") {
+      if (!s.landed) { o.state = "wait"; continue; }
+      const speed = o.role === "saboteur" ? 40 : 34; // a touch too eager
+      o.x += Math.sign(s.x - o.x) * speed * dt;
+      o.y = groundAt(o.x);
+      if (Math.abs(s.x - o.x) < 14) {
+        if (s.passengers.length >= CAPACITY) {
+          addText(s.x, s.y - 34, "SHIP FULL", "#ffc400");
+          o.state = "wait"; o.x = s.x + 20 * Math.sign(o.x - s.x || 1);
+          continue;
+        }
+        o.state = "aboard";
+        s.passengers.push(o);
+        score += 500;
+        s.beat = 1;
+        if (o.role === "saboteur") {
+          dullThud(); // no heartbeat. Listen closely.
+          o.sabT = 6 + Math.random() * 3;
+          addText(s.x, s.y - 34, "DOID ABOARD +500", "#69f0ae");
+        } else {
+          heartbeat();
+          addText(s.x, s.y - 34, "DOID ABOARD +500", "#69f0ae");
+          if (o.carrier) addText(s.x, s.y - 48, "◇ CARRYING DATA", "#00e5ff");
+          if (o.role === "famous") {
+            goldBurst(s.x, s.y - 10);
+            banner("SOMEONE EXTRAORDINARY IS ABOARD…", "#ffd54f");
+            blip(660, 1320, 0.3, "sine", 0.12);
+          }
+        }
+      }
+    }
+  }
+}
+
+function updateEnemies(dt) {
+  const s = ship;
+  for (const t of level.turrets) {
+    if (!t.alive) continue;
+    const dx = s.x - t.x, dy = s.y - (t.y - 10);
+    const d = Math.hypot(dx, dy);
+    const target = Math.atan2(dy, dx);
+    t.ang += clamp(target - t.ang, -1.6 * dt, 1.6 * dt);
+    t.cd -= dt;
+    if (d < 500 && t.cd <= 0 && !s.dead) {
+      t.cd = 1.5 + Math.random() * 0.9;
+      level.bullets.push({ x: t.x + Math.cos(t.ang) * 14, y: t.y - 10 + Math.sin(t.ang) * 14,
+        vx: Math.cos(t.ang) * 150, vy: Math.sin(t.ang) * 150, t: 4 });
+      blip(300, 90, 0.18, "square", 0.07);
+    }
+  }
+
+  for (const dr of level.drones) {
+    if (!dr.alive) continue;
+    dr.bob += dt;
+    const dx = s.x - dr.x, dy = s.y - dr.y, d = Math.hypot(dx, dy) || 1;
+    if (d < 700) { dr.vx += dx / d * 60 * dt; dr.vy += dy / d * 60 * dt; }
+    const sp = Math.hypot(dr.vx, dr.vy);
+    if (sp > 95) { dr.vx *= 95 / sp; dr.vy *= 95 / sp; }
+    dr.x += dr.vx * dt; dr.y += dr.vy * dt + Math.sin(dr.bob * 3) * 8 * dt;
+    dr.y = Math.min(dr.y, groundAt(dr.x) - 26);
+    if (level.roof) dr.y = Math.max(dr.y, roofAt(dr.x) + 26);
+    if (!s.dead && d < SHIP_R + (s.shield ? 14 : 10)) {
+      dr.alive = false;
+      explode(dr.x, dr.y, "#ff4081", 24);
+      if (s.shield) {
+        addText(s.x, s.y - 30, "SHIELD HELD", "#69f0ae");
+      } else {
+        s.vitals -= 40;
+        addText(s.x, s.y - 30, "-40", "#ff4081");
+        if (s.vitals <= 0) { shipDie(); return; }
+      }
+    }
+  }
+
+  for (let i = level.bullets.length - 1; i >= 0; i--) {
+    const b = level.bullets[i];
+    b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    if (b.t <= 0 || b.y > groundAt(b.x)) { level.bullets.splice(i, 1); continue; }
+    if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + (s.shield ? 10 : 3)) {
+      level.bullets.splice(i, 1);
+      if (s.shield) {
+        explode(b.x, b.y, "#69f0ae", 8);
+        blip(500, 900, 0.08, "sine", 0.08);
+        continue;
+      }
+      s.vitals -= 26; camera.shake += 8;
+      explode(b.x, b.y, "#ff4081", 10);
+      addText(s.x, s.y - 30, "-26", "#ff4081");
+      if (s.vitals <= 0) { shipDie(); return; }
+    }
+  }
+
+  s.fireCd -= dt;
+  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead) {
+    s.fireCd = 0.22;
+    acctLevel().firedShots++; runFired++;
+    level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
+      vx: s.vx + Math.sin(s.ang) * 360, vy: s.vy - Math.cos(s.ang) * 360, t: 1.3 });
+    blip(880, 180, 0.12, "square", 0.09);
+  }
+  for (let i = level.shots.length - 1; i >= 0; i--) {
+    const b = level.shots[i];
+    b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    let gone = b.t <= 0 || b.y > groundAt(b.x) || (level.roof && b.y < roofAt(b.x));
+    for (const t of level.turrets) {
+      if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
+        t.alive = false; gone = true;
+        score += 250;
+        explode(t.x, t.y - 8, "#ffc400", 30);
+        addText(t.x, t.y - 40, "+250", "#ffc400");
+      }
+    }
+    for (const dr of level.drones) {
+      if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
+        dr.alive = false; gone = true;
+        score += 150;
+        explode(dr.x, dr.y, "#ff4081", 22);
+        addText(dr.x, dr.y - 30, "+150", "#ff4081");
+      }
+    }
+    // friendly fire: a stray shot can hit the very Doid you came for
+    for (const o of level.oids) {
+      if ((o.state === "wait" || o.state === "walk" || o.state === "panic") &&
+          Math.hypot(b.x - o.x, b.y - (o.y - 12)) < 12) {
+        gone = true;
+        killOid(o, "shot");
+      }
+    }
+    // Glycon's secrets crack open under fire
+    for (const sc of level.scenery) {
+      if (sc.dead) continue;
+      if (sc.fake && Math.hypot(b.x - sc.x, b.y - (sc.y - 30 * sc.s)) < 24 * sc.s) {
+        sc.dead = true; gone = true;
+        score += 500;
+        explode(sc.x, sc.y - 24, "#c6ff00", 26);
+        staticTick();
+        addText(sc.x, sc.y - 56, "LURE-TREE DESTROYED — GLYCON TRANSMITTER +500", "#c6ff00");
+      } else if (sc.hollow && Math.hypot(b.x - sc.x, b.y - (sc.y - 8 * sc.s)) < 16 * sc.s) {
+        sc.dead = true; gone = true;
+        score += 400;
+        explode(sc.x, sc.y - 8, "#ffc400", 20);
+        level.pods.push({ x: sc.x, y: sc.y, taken: false, ph: Math.random() * 7 });
+        addText(sc.x, sc.y - 44, "HIDDEN CACHE +400 — stashed away from the serpent", "#ffc400");
+        blip(400, 1200, 0.3, "sine", 0.12);
+      }
+    }
+    if (level.beacon && !level.beacon.resolved &&
+        Math.hypot(b.x - level.beacon.x, b.y - (level.beacon.y - 40)) < 42) {
+      gone = true;
+      level.beacon.hp--;
+      explode(level.beacon.x, level.beacon.y - 40, "#b388ff", 20);
+      if (level.beacon.hp <= 0) resolveBeacon("fire");
+    }
+    if (gone) level.shots.splice(i, 1);
+  }
+}
+
+function updateSabotage(dt) {
+  const s = ship;
+  for (const p of s.passengers) {
+    if (p.role !== "saboteur" || p.sleeper) continue;
+    p.sabT -= dt;
+    if (p.sabT > 0) continue;
+    p.sabT = 7 + Math.random() * 4;
+    acctLevel().contamKnown = true;
+    level.contamKnown = true;
+    // Jenner's gift: immunised passengers can't be killed, only inconvenienced
+    if (upgrades.inoculation || Math.random() < 0.55 || s.passengers.length === 1) {
+      s.fuel = Math.max(0, s.fuel - 9);
+      addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
+      blip(140, 60, 0.25, "sawtooth", 0.12);
+    } else {
+      const victims = s.passengers.filter(q => q.role !== "saboteur");
+      if (victims.length) {
+        const v = victims[Math.floor(Math.random() * victims.length)];
+        s.passengers.splice(s.passengers.indexOf(v), 1);
+        v.state = "lost";
+        acctLevel().lost++; runLost++;
+        if (v.role === "famous")
+          addText(s.x, s.y - 48, FAMOUS[v.famousId].name + " WAS KILLED", "#ffd54f");
+        addText(s.x, s.y - 34, "PASSENGER KILLED BY SABOTEUR", "#ff4081");
+        dullThud();
+        checkSectorClear();
+      }
+    }
+  }
+}
+
+function contaminantAboard() {
+  return ship.passengers.some(p => p.role === "saboteur" && !p.sleeper);
+}
+
+function killOid(o, how) {
+  if (o.state === "dying") return;
+  o.state = "dying"; o.deathType = how; o.deathT = 0;
+  if (how === "torched") blip(220, 60, 0.5, "sawtooth", 0.15);
+  else blip(400, 80, 0.25, "square", 0.12);
+}
+
+/* recovery bay (cyan) spans MERCY's underside and heals & delivers;
+   the red quarantine bay hangs off her starboard side */
+function mercyPos() {
+  return { mx: level.mx + (level.mxo || 0), my: level.my + (level.myo || 0) };
+}
+function bayRects() {
+  const { mx, my } = mercyPos();
+  return {
+    med: { x0: mx - 115, x1: mx + 115, y0: my + 24, y1: my + 134 },
+    red: { x0: mx + 150, x1: mx + 250, y0: my + 24, y1: my + 134 }
+  };
+}
+function inBay(b) {
+  const s = ship;
+  return s.x > b.x0 && s.x < b.x1 && s.y > b.y0 && s.y < b.y1 &&
+    Math.abs(s.vx) < 70 && Math.abs(s.vy) < 70 && !s.dead;
+}
+
+function updateDocking(dt) {
+  if (level.isCave) return;   // no MERCY down in the Hollows
+  const s = ship;
+  const bays = bayRects();
+
+  if (inBay(bays.med)) {
+    if (!mercyBreach) {
+      s.fuel = Math.min(100, s.fuel + 30 * dt);
+      if (!mercyDamaged) {
+        const rate = upgrades.lamp ? 40 : 24; // Nightingale runs a better ward
+        s.vitals = Math.min(maxVitals(), s.vitals + rate * dt);
+      }
+    }
+    s.dockT += dt;
+    const deliverable = s.passengers.filter(p => p.role !== "saboteur");
+    if (deliverable.length > 0 && s.dockT > 0.35) {
+      s.dockT = 0; s.escapeT = 0;
+      // famous Doids step out last, for the reveal
+      deliverable.sort((a, b) => (a.role === "famous" ? 1 : 0) - (b.role === "famous" ? 1 : 0));
+      const p = deliverable[0];
+      s.passengers.splice(s.passengers.indexOf(p), 1);
+      p.state = "delivered";
+      level.delivered++; runSaved++;
+      score += 300;
+      addText(level.mx, level.my + 40, "DELIVERED +300", "#69f0ae");
+      blip(520, 1040, 0.2, "sine", 0.12);
+      if (p.carrier) {
+        const frag = grantFragment(true);
+        if (frag) addText(level.mx, level.my + 56, "LOG FRAGMENT RECOVERED", "#00e5ff");
+      }
+      if (p.role === "famous") {
+        const f = FAMOUS[p.famousId];
+        upgrades[f.upgrade] = true;
+        codex.add(p.famousId); saveCodex();
+        if (f.upgrade === "fabrica") s.vitals = Math.min(maxVitals(), s.vitals + 25);
+        score += 1500;
+        goldBurst(level.mx, level.my + 40);
+        showCard({
+          kicker: "RESCUED · +1500", title: f.name, subtitle: f.era,
+          body: f.story + "\n\n★ " + f.upgradeName + " — " + f.upgradeDesc,
+          color: "#ffd54f"
+        });
+        return;
+      }
+      checkSectorClear();
+      return;
+    }
+    // only saboteurs left aboard: given the chance, one slips inside
+    if (deliverable.length === 0 && s.passengers.length > 0) {
+      s.escapeT += dt;
+      if (s.escapeT > 1.2) {
+        s.escapeT = 0;
+        const sab = s.passengers.find(p => p.role === "saboteur");
+        s.passengers.splice(s.passengers.indexOf(sab), 1);
+        sab.state = "escaped";
+        level.contained++; // off the manifest either way
+        triggerBreach();
+      }
+    }
+  } else { s.dockT = 0; s.escapeT = 0; }
+
+  if (inBay(bays.red)) {
+    s.redDockT += dt;
+    const sab = s.passengers.find(p => p.role === "saboteur");
+    if (sab && s.redDockT > 0.35) {
+      s.redDockT = 0;
+      s.passengers.splice(s.passengers.indexOf(sab), 1);
+      sab.state = "contained";
+      level.contained++; // accounted for, but not a casualty
+      score += 750;
+      addText(level.mx, level.my + 40, "CONTAMINANT CONTAINED +750", "#ff4081");
+      explode(level.mx + 65, level.my + 60, "#ff4081", 14);
+      blip(220, 660, 0.3, "square", 0.12);
+      checkSectorClear();
+    }
+    if (mercyBreach) {
+      s.breachDockT += dt;
+      if (s.breachDockT > 2) { s.breachDockT = 0; resolveBreach(true); }
+    }
+  } else { s.breachDockT = 0; s.redDockT = 0; }
+}
+
+function updateBlackbox(dt) {
+  const bb = level.blackbox;
+  if (!bb || bb.found) return;
+  const s = ship;
+  if (s.landed && Math.abs(s.x - bb.x) < 70) {
+    bb.scanT += dt;
+    if (bb.scanT >= 1.5) {
+      bb.found = true;
+      blackboxCount++;
+      score += 800;
+      blip(300, 1200, 0.5, "sine", 0.14);
+      const frag = grantFragment(false);
+      showCard({
+        kicker: "BLACK BOX RECOVERED · SIGNAL " + blackboxCount + "/" + NBOX + " · +800",
+        title: "", subtitle: "",
+        body: (frag || "The recorder is blank — wiped clean. Someone got here first.") +
+          "\n\n" + (blackboxCount >= 3 ? "◈ Triangulation viable. Keep flying."
+                                       : "◈ Recover at least 3 of " + NBOX + " to triangulate the source."),
+        color: "#b388ff"
+      });
+    }
+  } else bb.scanT = 0;
+}
+
+function updatePods() {
+  const s = ship;
+  for (const p of level.pods) {
+    if (p.taken) continue;
+    if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
+      p.taken = true;
+      s.fuel = Math.min(100, s.fuel + 35);
+      addText(p.x, p.y - 30, "FUEL +35", "#ffc400");
+      blip(520, 780, 0.15, "sine", 0.1);
+      goldBurst(p.x, p.y - 8);
+    }
+  }
+  // the counterfeits: they drink instead of pour
+  for (const p of level.fakePods) {
+    if (p.taken) continue;
+    if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
+      p.taken = true;
+      s.fuel = Math.max(0, s.fuel - 18);
+      score = Math.max(0, score - 100);
+      addText(p.x, p.y - 30, "COUNTERFEIT — GLYCON'S LURE  -100", "#c6ff00");
+      addText(p.x, p.y - 46, "FUEL DRAINED -18", "#ff4081");
+      staticTick();
+      explode(p.x, p.y - 8, "#c6ff00", 14);
+    }
+  }
+}
+
+/* ---- the secret lifts and what waits below ---- */
+function updateLift(dt) {
+  const L = level.lift;
+  if (!L) return;
+  if (mercyBreach || level.extraction) { L.holdT = 0; return; }
+  const near = ship.landed && !ship.dead &&
+    Math.abs(ship.x - L.x) < 46 && Math.abs((ship.y + SHIP_R) - L.y) < 24;
+  if (!near) { L.holdT = 0; L.armed = true; return; }
+  if (!L.armed) return;   // must lift off the pad once before it cycles again
+  L.holdT += dt;
+  if (L.holdT > 0.6 && !L.hinted) {
+    L.hinted = true;
+    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
+    blip(180, 120, 0.3, "sine", 0.1);
+  }
+  if (L.holdT >= 2.4) {
+    if (level.isCave) exitCave();
+    else enterCave(L);
+  }
+}
+
+function updateShrine(dt) {
+  const sh = level.shrine;
+  if (!sh || sh.found) return;
+  if (ship.landed && Math.abs(ship.x - sh.x) < 80) {
+    sh.scanT += dt;
+    if (sh.scanT >= 2) {
+      sh.found = true;
+      shrines.add(level.caveIdx);
+      score += 1000;
+      let extra = "";
+      if (shrines.size >= SHRINES.length) {
+        score += 3000;
+        extra = "\n\n★ GLYCON UNMASKED — the whole counterfeit laid bare. +3000";
+      }
+      const c = SHRINES[level.caveIdx];
+      blip(300, 1200, 0.6, "sine", 0.14);
+      staticTick();
+      showCard({ kicker: c.kicker + " · SECRET +1000", title: c.title, subtitle: "",
+        body: c.body + extra, color: c.color });
+    }
+  } else sh.scanT = 0;
+}
+
+function updateBeacon(dt) {
+  const b = level.beacon;
+  if (!b || b.resolved) return;
+  const s = ship;
+  if (s.landed && Math.abs(s.x - b.x) < 90) {
+    b.silenceT += dt;
+    if (b.silenceT >= 5) resolveBeacon("answered");
+  } else b.silenceT = Math.max(0, b.silenceT - dt * 2);
+}
+
+function resolveBeacon(how) {
+  const b = level.beacon;
+  b.resolved = true;
+  endingType = how;
+  if (how === "fire") {
+    score += 3000;
+    explode(b.x, b.y - 40, "#b388ff", 80);
+    explode(b.x, b.y - 20, "#ffc400", 50);
+  } else {
+    score += 6000;
+    if (runFired === 0) score += 2000;
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2;
+      particles.push({ x: b.x, y: b.y - 40, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90 - 30,
+        t: 1 + Math.random(), max: 2, color: "#aef4ff", size: 2 });
+    }
+    blip(220, 880, 1.2, "sine", 0.15);
+  }
+  state = "ending"; stateT = 0;
+}
+
+/* ================= render ================= */
+function zoomLevel() {
+  return clamp(Math.min((vw - saLeft) / 900, vh / 640), 0.55, 1);
+}
+
+function render() {
+  const now = performance.now() / 1000;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const bg = ctx.createLinearGradient(0, 0, 0, vh);
+  bg.addColorStop(0, "#05060f"); bg.addColorStop(0.7, "#0a0d22"); bg.addColorStop(1, "#101433");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, vw, vh);
+
+  if (vh > vw) { drawPortraitWarning(now); return; }
+  if (state === "brief") { drawBrief(now); return; }
+  if (state === "intro") { drawIntroScreen(now); return; }
+
+  if (level) drawWorld(now);
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (state === "play" || state === "dead" || state === "reveal" || state === "clear") drawHUD(now);
+
+  if (state === "title") drawTitle(now);
+  if (state === "help") drawCardPanel(HELP_CARD, now);
+  if (state === "codex") drawCodex(now);
+  if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
+  if (state === "clear") drawClear(now);
+  if (state === "ending") drawEnding(now);
+  if (state === "gameover") {
+    drawCenter("FLATLINE", "GAME OVER — " + tallyLine() + "\ntap to try again", "#ff4081");
+  }
+  if (state === "win") drawWin();
+
+  if (bannerMsg && (state === "play" || state === "dead")) {
+    ctx.textAlign = "center";
+    ctx.font = "800 22px 'Helvetica Neue', Arial, sans-serif";
+    ctx.shadowColor = bannerMsg.color; ctx.shadowBlur = 18;
+    ctx.fillStyle = bannerMsg.color;
+    ctx.globalAlpha = clamp(bannerMsg.t, 0, 1);
+    bannerMsg.str.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.26 + i * 28));
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  }
+}
+
+function worldTransform() {
+  const z = zoomLevel();
+  // the visible viewport starts right of the camera lozenge
+  const cw = (vw - saLeft) / z, ch = vh / z;
+  let cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
+  let cy = clamp(camera.y - ch / 2, -100, WORLD_H - ch);
+  if (camera.shake > 0) {
+    cx += (Math.random() - 0.5) * camera.shake;
+    cy += (Math.random() - 0.5) * camera.shake;
+  }
+  return { z, cx, cy };
+}
+
+function drawWorld(now) {
+  const { z, cx, cy } = worldTransform();
+  ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
+
+  if (!level.isCave) {
+    ctx.save();
+    ctx.translate(cx * 0.35, cy * 0.35);
+    for (const st of stars) {
+      const a = 0.4 + 0.6 * Math.abs(Math.sin(now * 0.8 + st.tw));
+      ctx.fillStyle = "rgba(200,220,255," + a.toFixed(2) + ")";
+      ctx.fillRect(st.x, st.y, st.s, st.s);
+    }
+    ctx.restore();
+  }
+
+  // terrain
+  ctx.beginPath();
+  ctx.moveTo(0, WORLD_H + 100);
+  for (let i = 0; i < level.heights.length; i++) ctx.lineTo(i * STEP, level.heights[i]);
+  ctx.lineTo(level.W, WORLD_H + 100);
+  ctx.closePath();
+  const tg = ctx.createLinearGradient(0, 700, 0, WORLD_H);
+  tg.addColorStop(0, "#1b1040"); tg.addColorStop(1, "#0c0820");
+  ctx.fillStyle = tg; ctx.fill();
+  ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
+  ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // cave roof, hanging overhead
+  if (level.roof) {
+    ctx.beginPath();
+    ctx.moveTo(0, -160);
+    for (let i = 0; i < level.roof.length; i++) ctx.lineTo(i * STEP, level.roof[i]);
+    ctx.lineTo(level.W, -160);
+    ctx.closePath();
+    const rg = ctx.createLinearGradient(0, 500, 0, 1100);
+    rg.addColorStop(0, "#0c0820"); rg.addColorStop(1, "#1b1040");
+    ctx.fillStyle = rg; ctx.fill();
+    ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
+    ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  drawScenery(now);
+
+  // anomalies
+  for (const a of level.anomalies) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(now * 0.4 + a.spin);
+    ctx.strokeStyle = "rgba(179,136,255,.35)";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.setLineDash([10, 14]);
+    for (let r = a.r; r > 40; r -= a.r / 3) {
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  if (!level.isCave) drawMothership(now);
+  drawLift(now);
+  if (level.shrine) drawShrine(now);
+
+  // fuel pods — real ones flicker like fire, alive and irregular
+  for (const p of level.pods) {
+    if (p.taken) continue;
+    ctx.save();
+    ctx.translate(p.x, p.y - 8);
+    ctx.globalAlpha = 0.72 + 0.28 * Math.abs(Math.sin(now * 2.7 + (p.ph || 0)) * Math.sin(now * 1.3 + (p.ph || 0) * 2));
+    ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2;
+    ctx.fillStyle = "rgba(255,196,0,.15)";
+    ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
+    ctx.restore();
+  }
+  // counterfeits — every lure blinks in perfect, mechanical unison
+  for (const p of level.fakePods) {
+    if (p.taken) continue;
+    ctx.save();
+    ctx.translate(p.x, p.y - 8);
+    ctx.globalAlpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;
+    const known = upgrades.canon;
+    ctx.shadowColor = known ? "#c6ff00" : "#ffc400"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = known ? "#c6ff00" : "#ffc400"; ctx.lineWidth = 2;
+    ctx.fillStyle = known ? "rgba(198,255,0,.15)" : "rgba(255,196,0,.15)";
+    ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
+    if (known) {
+      ctx.globalAlpha = 1;
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#c6ff00";
+      ctx.fillText("?", 0, -16);
+    }
+    ctx.restore();
+  }
+
+  // black box: half-buried, blinking faintly when you're near
+  const bb = level.blackbox;
+  if (bb && !bb.found) {
+    const near = Math.hypot(ship.x - bb.x, ship.y - bb.y) < 420;
+    const blink = 0.25 + (near ? 0.55 * Math.abs(Math.sin(now * 4)) : 0.08 * Math.abs(Math.sin(now * 1.3)));
+    ctx.save();
+    ctx.translate(bb.x, bb.y);
+    ctx.rotate(0.4);
+    ctx.strokeStyle = "rgba(179,136,255," + blink.toFixed(2) + ")";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = near ? 14 : 4;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-8, -6, 16, 10);
+    ctx.beginPath(); ctx.arc(0, -10, 2, 0, 7); ctx.stroke();
+    ctx.restore();
+    if (bb.scanT > 0) {
+      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(bb.x, bb.y - 24, 16, -Math.PI / 2, -Math.PI / 2 + (bb.scanT / 1.5) * Math.PI * 2);
+      ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#b388ff";
+      ctx.fillText("SCANNING…", bb.x, bb.y - 48);
+    }
+  }
+
+  if (level.beacon) drawBeacon(now);
+
+  for (const o of level.oids) {
+    if (o.state === "aboard" || o.state === "delivered" || o.state === "lost" ||
+        o.state === "contained" || o.state === "escaped") continue;
+    drawOid(o, now);
+  }
+
+  for (const t of level.turrets) {
+    if (!t.alive) continue;
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+    ctx.fillStyle = "#3a0d24";
+    ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 12, Math.PI, 0); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(t.ang) * 6, -10 + Math.sin(t.ang) * 6);
+    ctx.lineTo(Math.cos(t.ang) * 18, -10 + Math.sin(t.ang) * 18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const dr of level.drones) {
+    if (!dr.alive) continue;
+    ctx.save();
+    ctx.translate(dr.x, dr.y);
+    ctx.rotate(Math.sin(dr.bob * 2) * 0.2);
+    ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 12;
+    ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
+    ctx.fillStyle = "rgba(255,64,129,.12)";
+    ctx.beginPath();
+    ctx.moveTo(0, -10); ctx.lineTo(9, 0); ctx.lineTo(0, 10); ctx.lineTo(-9, 0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ff8ab3";
+    ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.shadowBlur = 8;
+  for (const b of level.bullets) {
+    ctx.shadowColor = "#ff4081"; ctx.fillStyle = "#ff8ab3";
+    ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
+  }
+  for (const b of level.shots) {
+    ctx.shadowColor = "#00e5ff"; ctx.fillStyle = "#a7f6ff";
+    ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, 7); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  for (const p of particles) {
+    ctx.globalAlpha = clamp(p.t / p.max, 0, 1);
+    ctx.shadowColor = p.color; ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  if (!ship.dead) drawShip(now);
+  if (!ship.dead && !ship.landed && state === "play") drawLandingGuide();
+
+  ctx.textAlign = "center";
+  ctx.font = "700 13px Menlo, monospace";
+  for (const t of texts) {
+    ctx.globalAlpha = clamp(t.t, 0, 1);
+    ctx.shadowColor = t.color; ctx.shadowBlur = 8;
+    ctx.fillStyle = t.color;
+    ctx.fillText(t.str, t.x, t.y);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  if (level.dark) drawDarkness(now);
+}
+
+/* darkness overlay with punched lights — Nightingale's sector */
+function drawDarkness(now) {
+  const { z, cx, cy } = worldTransform();
+  const toScreen = (wx, wy) => [(saLeft + (wx - cx) * z) * dpr, (wy - cy) * z * dpr];
+  dctx.setTransform(1, 0, 0, 1, 0, 0);
+  dctx.clearRect(0, 0, darkCanvas.width, darkCanvas.height);
+  dctx.fillStyle = "rgba(2,3,10,0.9)";
+  dctx.fillRect(0, 0, darkCanvas.width, darkCanvas.height);
+  dctx.globalCompositeOperation = "destination-out";
+  const punch = (wx, wy, r, strength) => {
+    const [sx, sy] = toScreen(wx, wy);
+    const rr = r * z * dpr;
+    const gr = dctx.createRadialGradient(sx, sy, 0, sx, sy, rr);
+    gr.addColorStop(0, "rgba(0,0,0," + strength + ")");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    dctx.fillStyle = gr;
+    dctx.beginPath(); dctx.arc(sx, sy, rr, 0, 7); dctx.fill();
+  };
+  if (!ship.dead) punch(ship.x, ship.y, lampRadius(), 1);
+  if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
+  for (const o of level.oids) {  // stranded Doids carry tiny beacons
+    if (o.state === "wait" || o.state === "walk" || o.state === "panic")
+      punch(o.x, o.y - 10, 46, 0.55 + 0.3 * Math.abs(Math.sin(now * 2 + o.wave)));
+  }
+  if (level.beacon && !level.beacon.resolved) punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
+  if (level.blackbox && !level.blackbox.found) punch(level.blackbox.x, level.blackbox.y, 36, 0.4);
+  if (level.isCave) {   // the Hollows keep their own faint lights
+    punch(level.lift.x, level.lift.y - 20, 120, 0.6);
+    if (level.shrine && !level.shrine.found)
+      punch(level.shrine.x, level.shrine.y - 30, 150, 0.5 + 0.2 * Math.abs(Math.sin(now * 1.4)));
+  }
+  dctx.globalCompositeOperation = "source-over";
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(darkCanvas, 0, 0);
+}
+
+function drawShip(now) {
+  const s = ship;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.rotate(s.ang);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
+  ctx.fillStyle = "rgba(0,229,255,.12)";
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  if (s.shield) {   // the force field
+    const r = SHIP_R + 8 + Math.sin(now * 10) * 1.3;
+    ctx.save();
+    ctx.strokeStyle = "rgba(105,240,174,.85)";
+    ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 14;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = "#69f0ae";
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  if (s.landed) {
+    ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = "rgba(105,240,174,.7)";
+    ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // Curie's compass to the nearest unrecovered black box
+  if (upgrades.radiosense && level.blackbox && !level.blackbox.found) {
+    const dx = level.blackbox.x - s.x, dy = level.blackbox.y - s.y;
+    const a = Math.atan2(dy, dx);
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(a);
+    ctx.strokeStyle = "rgba(179,136,255," + (0.4 + 0.4 * Math.abs(Math.sin(now * 3))).toFixed(2) + ")";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(24, 0); ctx.lineTo(34, 0);
+    ctx.lineTo(30, -4); ctx.moveTo(34, 0); ctx.lineTo(30, 4);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawLandingGuide() {
+  const s = ship;
+  const g = groundAt(s.x);
+  const alt = g - (s.y + SHIP_R);
+  if (alt <= 0 || alt > 320) return;
+  const ev = landingEval();
+  const color = ev.soft ? "#69f0ae" : ev.survivable ? "#ffc400" : "#ff4081";
+  ctx.save();
+  ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
+  ctx.globalAlpha = 0.9;
+  ctx.setLineDash([4, 6]);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(s.x, s.y + 16); ctx.lineTo(s.x, g); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(s.x - 14, groundAt(s.x - 14));
+  ctx.lineTo(s.x + 14, groundAt(s.x + 14));
+  ctx.stroke();
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.textAlign = "left";
+  ctx.fillStyle = color;
+  const vArrow = s.vy >= 0 ? "↓" : "↑";
+  ctx.fillText(vArrow + Math.abs(Math.round(s.vy)) + "  ↔" + Math.abs(Math.round(s.vx)), s.x + 20, s.y - 2);
+  if (!ev.soft && ev.reason) {
+    ctx.font = "600 9px Menlo, monospace";
+    ctx.fillText(ev.reason, s.x + 20, s.y + 10);
+  }
+  ctx.restore();
+}
+
+/* Shared neon android figure, drawn with feet at the origin.
+   Rounded head with blinking eyes, antenna with a bobble, a torso
+   wearing the medic cross, articulated arms with hands. */
+function doidFigure(p) {
+  ctx.shadowColor = p.col; ctx.shadowBlur = 10;
+  ctx.strokeStyle = p.col; ctx.lineWidth = 2;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (p.sitting) {
+    ctx.moveTo(-1.5, -6); ctx.lineTo(-5, -6); ctx.lineTo(-5, 0);
+    ctx.moveTo(1.5, -6); ctx.lineTo(5, -6); ctx.lineTo(5, 0);
+  } else {
+    ctx.moveTo(-1.5, -6); ctx.lineTo(-3.5 - p.legPh, 0);
+    ctx.moveTo(1.5, -6); ctx.lineTo(3.5 + p.legPh, 0);
+  }
+  ctx.moveTo(-4, -12); ctx.lineTo(p.armL[0], p.armL[1]);
+  ctx.moveTo(4, -12); ctx.lineTo(p.armR[0], p.armR[1]);
+  ctx.stroke();
+  ctx.fillStyle = p.col;
+  ctx.beginPath(); ctx.arc(p.armL[0], p.armL[1], 1.3, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.armR[0], p.armR[1], 1.3, 0, 7); ctx.fill();
+  // torso
+  ctx.beginPath();
+  ctx.moveTo(-4.5, -14); ctx.lineTo(4.5, -14); ctx.lineTo(3.5, -6); ctx.lineTo(-3.5, -6);
+  ctx.closePath();
+  ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
+  // the medic cross — these are healers
+  ctx.fillStyle = p.crossCol;
+  ctx.fillRect(-0.8, -12.4, 1.6, 4.2);
+  ctx.fillRect(-2.1, -11.1, 4.2, 1.6);
+  // head
+  ctx.beginPath();
+  ctx.moveTo(-3.5, -15.5);
+  ctx.lineTo(-3.5, -19); ctx.arcTo(-3.5, -21, -1.5, -21, 2);
+  ctx.lineTo(1.5, -21); ctx.arcTo(3.5, -21, 3.5, -19, 2);
+  ctx.lineTo(3.5, -15.5);
+  ctx.closePath();
+  ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
+  // eyes (they blink)
+  ctx.fillStyle = p.col;
+  if (p.blink) { ctx.fillRect(-2.4, -18.1, 1.7, 0.9); ctx.fillRect(0.7, -18.1, 1.7, 0.9); }
+  else { ctx.fillRect(-2.3, -18.9, 1.6, 2); ctx.fillRect(0.7, -18.9, 1.6, 2); }
+  // antenna with swaying bobble
+  ctx.beginPath();
+  ctx.moveTo(0, -21); ctx.lineTo(p.sway, -25);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.sway, -26, 1.4, 0, 7); ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+/* Each Doid has a persona — big wavers, two-arm wavers, jumpers,
+   pacers, sitters — plus individual size and gait. The saboteur tell
+   survives all of them: their motion keeps perfect mechanical time. */
+function drawOid(o, now) {
+  const mech = o.role === "saboteur";
+  const t = now + o.wave * 3;
+  const sc = 1.2 * (o.scale || 1);
+  const osc = f => mech ? Math.sign(Math.sin(t * f)) * 0.85 : Math.sin(t * f);
+  const dying = o.state === "dying";
+  const panic = o.state === "panic" || (dying && o.deathType === "torched");
+  const walking = o.state === "walk";
+  const pacing = o.state === "wait" && o.persona === "pace";
+  const sitting = o.state === "wait" && o.persona === "sit" && !o.nearShip;
+  let hop = 0;
+  if (o.state === "wait" && o.persona === "jump") {
+    const cyc = 1.7, ph = ((t % cyc) + cyc) % cyc;
+    if (ph < 0.45) hop = (mech
+      ? (ph < 0.225 ? ph / 0.225 : 1 - (ph - 0.225) / 0.225)
+      : Math.sin(ph / 0.45 * Math.PI)) * 7;
+  }
+  if (panic) hop = Math.abs(Math.sin(t * 14)) * 3;
+  const legPh = (walking || pacing || panic) ? Math.sin(t * (panic ? 16 : 10)) * 2.6 : 0;
+
+  // arm pose
+  let armL, armR;
+  if (dying && o.deathType === "shot") {
+    armL = [-1.2, -11]; armR = [1.2, -11];                // clutches the cross
+  } else if (panic || (o.state === "wait" && o.persona === "jump")) {
+    const fl = panic ? osc(12) * 2 : 0;
+    armL = [-6.5 - fl, -20]; armR = [6.5 + fl, -20];      // arms overhead
+  } else if (walking || pacing) {
+    armL = [-5 - legPh * 0.7, -7]; armR = [5 + legPh * 0.7, -7];  // stride swing
+  } else if (sitting) {
+    armL = [-5, -7]; armR = [5, -7];                       // hands on knees
+  } else if (o.persona === "wave2" || (o.persona === "sit" && o.nearShip)) {
+    armL = [-6, -19 - osc(5) * 3]; armR = [6, -19 + osc(5) * 3];  // "over here!"
+  } else {
+    armL = [-7, -8]; armR = [6, -19 + osc(5) * 3.5];       // one big wave
+  }
+
+  ctx.save();
+  ctx.translate(o.x, o.y - hop);
+  if (dying && o.deathType === "shot")
+    ctx.rotate(-Math.min(1, o.deathT) * Math.PI / 2);      // keels over backward
+  ctx.scale(sc, sc);
+  let tint = mech && upgrades.antisepsis ? "#c6ff00" : "#69f0ae";
+  if (dying && o.deathType === "torched") tint = "#ff9e40";
+  doidFigure({
+    col: tint,
+    fill: "rgba(10,30,24,.85)",
+    crossCol: "#ff5d7d",
+    legPh, sitting,
+    armL, armR,
+    blink: mech ? ((t * 2) % 2) < 0.12 : (((t * 0.53) + o.wave) % 3.1) < 0.12,
+    sway: mech ? 0 : osc(2.2) * 1.5
+  });
+  ctx.restore();
+  // famous Doids shimmer, if you watch closely
+  if (o.role === "famous" && Math.random() < 0.06) {
+    particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 22,
+      vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
+  }
+  if (mech && upgrades.antisepsis && !dying) {
+    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "#c6ff00";
+    ctx.fillText("?", o.x, o.y - hop - 36);
+  }
+}
+
+/* ---------------- scenery ---------------- */
+function drawScenery(now) {
+  for (const sc of level.scenery) {
+    if (sc.dead) continue;
+    switch (sc.type) {
+      case "tree":   drawTree(sc, now); break;
+      case "rock":   drawRockScn(sc, now); break;
+      case "bld":    drawBuilding(sc, now, false); break;
+      case "ruin":   drawBuilding(sc, now, true); break;
+      case "wreckM": drawWreckM(sc, now); break;
+      case "wreckS": drawWreckS(sc, now); break;
+    }
+  }
+}
+
+/* alien glow-flora. The lure-trees keep perfect mechanical time —
+   the same tell the saboteurs carry. */
+function drawTree(sc, now) {
+  const sway = sc.fake ? Math.sign(Math.sin(now * 1.6 + sc.ph)) * 0.55
+                       : Math.sin(now * 0.9 + sc.ph);
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.scale(sc.s, sc.s);
+  const h = 34;
+  ctx.strokeStyle = "rgba(120,200,255,.4)";
+  ctx.lineWidth = 2; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(2, -h * 0.55, sway * 2.4, -h);
+  ctx.moveTo(0.6, -h * 0.45); ctx.lineTo(8 + sway * 2, -h * 0.7);
+  ctx.moveTo(0, -h * 0.6); ctx.lineTo(-7 + sway * 2, -h * 0.85);
+  ctx.stroke();
+  const col = "#00bfa5";
+  ctx.shadowColor = col; ctx.shadowBlur = 8;
+  ctx.strokeStyle = "rgba(0,191,165,.55)";
+  ctx.fillStyle = "rgba(0,191,165,.1)";
+  const puff = (px, py, r) => {
+    ctx.beginPath(); ctx.arc(px + sway * 3, py, r, 0, 7); ctx.fill(); ctx.stroke();
+  };
+  puff(sway * 2.4, -h - 6, 8);
+  puff(sway * 2.4 - 8, -h + 1, 6);
+  puff(sway * 2.4 + 8, -h, 6.5);
+  ctx.restore();
+  if (sc.fake && upgrades.canon) {
+    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "#c6ff00";
+    ctx.fillText("?", sc.x, sc.y - 52 * sc.s);
+  }
+}
+
+/* rocks are inert — except the one that breathes */
+function drawRockScn(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.scale(sc.s, sc.s);
+  const breathe = sc.hollow ? 0.16 * Math.sin(now * 1.1 + sc.ph) : 0;
+  ctx.strokeStyle = "rgba(150,140,200," + (0.4 + breathe).toFixed(2) + ")";
+  ctx.fillStyle = "#141031";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  sc.verts.forEach(([vx, vy], i) => i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy));
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+/* settlements: intact towers with lit windows, and what's left of them */
+function drawBuilding(sc, now, ruined) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt * (ruined ? 1.5 : 0.4));
+  const w = sc.w, h = ruined ? sc.h * 0.62 : sc.h;
+  ctx.fillStyle = "rgba(8,12,30,.9)";
+  ctx.strokeStyle = ruined ? "rgba(150,140,200,.35)" : "rgba(0,229,255,.4)";
+  ctx.lineWidth = 2;
+  ctx.shadowColor = ruined ? "#7c4dff" : "#00e5ff"; ctx.shadowBlur = 5;
+  ctx.beginPath();
+  if (ruined) {
+    ctx.moveTo(-w / 2, 0);
+    ctx.lineTo(-w / 2, -h + sc.jag[0]);
+    for (let j = 1; j <= 4; j++) ctx.lineTo(-w / 2 + (w * j) / 4, -h + sc.jag[j]);
+    ctx.lineTo(w / 2, 0);
+  } else ctx.rect(-w / 2, -h, w, h);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // windows
+  const cw = w / (sc.cols + 1), ch = h / (sc.rows + 1);
+  let idx = 0;
+  for (let r = 0; r < sc.rows; r++) for (let c = 0; c < sc.cols; c++, idx++) {
+    const lit = ruined ? idx === sc.flick : sc.lit[idx];
+    if (!lit) continue;
+    let a = ruined ? 0.12 + 0.25 * Math.abs(Math.sin(now * 3.7 + sc.ph)) : 0.5;
+    if (!ruined && idx === sc.flick) a = 0.15 + 0.4 * Math.abs(Math.sin(now * 5 + sc.ph));
+    const wx = -w / 2 + cw * (c + 0.7), wy = -h + ch * (r + 0.7);
+    if (ruined && wy < -h * 0.75) continue;
+    ctx.fillStyle = "rgba(255,196,0," + a.toFixed(2) + ")";
+    ctx.fillRect(wx, wy, 3.4, 4.6);
+  }
+  if (!ruined) { // antenna with a slow red blink
+    ctx.strokeStyle = "rgba(0,229,255,.4)"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(0, -h - 12); ctx.stroke();
+    if (Math.sin(now * 1.8 + sc.ph) > 0.85) {
+      ctx.fillStyle = "#ff1744"; ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(0, -h - 13, 1.8, 0, 7); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  } else { // rubble at the foot
+    ctx.strokeStyle = "rgba(150,140,200,.25)";
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 - 8, 0); ctx.lineTo(-w / 2 - 2, -5); ctx.lineTo(-w / 2 + 5, 0);
+    ctx.moveTo(w / 2 - 4, 0); ctx.lineTo(w / 2 + 3, -6); ctx.lineTo(w / 2 + 9, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* a MERCY-class sister, down and half-dark — her cross still flickers */
+function drawWreckM(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y + 4);
+  ctx.rotate(sc.tilt + sc.lean * 0.5);
+  ctx.scale(sc.s * 0.62, sc.s * 0.62);
+  ctx.strokeStyle = "rgba(0,229,255,.3)";
+  ctx.fillStyle = "rgba(8,12,26,.85)";
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
+  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // hull breach
+  ctx.strokeStyle = "rgba(150,140,200,.4)"; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(20, -26); ctx.lineTo(34, -8); ctx.lineTo(24, 4); ctx.lineTo(40, 22);
+  ctx.stroke();
+  // the cross, mostly dead
+  const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
+  ctx.fillStyle = "rgba(255,23,68," + flick + ")";
+  if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
+  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  ctx.shadowBlur = 0;
+  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(155,234,249,.3)";
+  ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 38);
+  ctx.restore();
+  if (Math.random() < 0.006) particles.push({
+    x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
+    t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
+}
+
+/* one of ours — a rescue dart that didn't make it */
+function drawWreckS(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y - 4);
+  ctx.rotate(2.35 + sc.lean);
+  ctx.scale(sc.s * 2.1, sc.s * 2.1);
+  ctx.strokeStyle = "rgba(0,229,255,.32)";
+  ctx.fillStyle = "rgba(6,10,22,.8)";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // scorch trail where it came down
+  ctx.strokeStyle = "rgba(30,20,50,.9)"; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(sc.x - 34 * sc.s, sc.y + 1); ctx.lineTo(sc.x + 8 * sc.s, sc.y + 2);
+  ctx.stroke();
+  if (Math.random() < 0.005) particles.push({
+    x: sc.x, y: sc.y - 10, vx: (Math.random() - 0.5) * 14, vy: -24,
+    t: 0.5, max: 0.6, color: "#ff6d00", size: 1.6 });
+}
+
+/* the secret lift. On the surface it is almost nothing: two hairline
+   seams, four rivets, a glint every few seconds. In the Hollows it is
+   the way home, and glows like it. */
+function drawLift(now) {
+  const L = level.lift;
+  if (!L) return;
+  ctx.save();
+  ctx.translate(L.x, L.y);
+  if (level.isCave) {
+    const a = 0.5 + 0.3 * Math.sin(now * 2.2);
+    ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-46, 2); ctx.lineTo(46, 2); ctx.stroke();
+    for (let k = 0; k < 3; k++) {   // chevrons pointing up
+      const ph = ((now * 0.7 + k / 3) % 1);
+      ctx.globalAlpha = (1 - ph) * 0.7;
+      const yy = -8 - ph * 34;
+      ctx.beginPath(); ctx.moveTo(-9, yy); ctx.lineTo(0, yy - 7); ctx.lineTo(9, yy); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(179,136,255,.75)";
+    ctx.fillText("RETURN LIFT — land and hold", 0, -52);
+  } else {
+    const glint = Math.sin(now * 0.43 + L.x) > 0.988 ? 0.4 : 0;
+    const a = 0.13 + glint;
+    ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-44, 1); ctx.lineTo(-44, 4); ctx.moveTo(44, 1); ctx.lineTo(44, 4);
+    ctx.moveTo(-44, 2.5); ctx.lineTo(44, 2.5);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
+    for (const rx of [-36, -12, 12, 36]) ctx.fillRect(rx - 1, 0, 2, 2);
+  }
+  if (L.holdT > 0) {   // the hold ring, once you've noticed
+    ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, -26, 15, -Math.PI / 2, -Math.PI / 2 + (L.holdT / 2.4) * Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* Glycon's shrine, down in the dark: a serpent coiled around a mask */
+function drawShrine(now) {
+  const sh = level.shrine;
+  ctx.save();
+  ctx.translate(sh.x, sh.y);
+  const col = sh.found ? "#69f0ae" : "#c6ff00";
+  ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.lineWidth = 2;
+  // plinth
+  ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-12, -8); ctx.lineTo(12, -8); ctx.lineTo(18, 0); ctx.stroke();
+  // the coil
+  ctx.beginPath();
+  ctx.moveTo(-8, -8);
+  ctx.bezierCurveTo(-16, -20, 8, -22, 2, -32);
+  ctx.bezierCurveTo(-4, -40, 12, -42, 6, -52);
+  ctx.stroke();
+  // the mask it wears
+  ctx.beginPath(); ctx.arc(6, -58, 6, 0, 7); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.fillRect(3, -60, 2.2, 1.4); ctx.fillRect(7.6, -60, 2.2, 1.4);
+  if (!sh.found) {
+    const ph = (now % 2.6) / 2.6;
+    for (let k = 0; k < 2; k++) {
+      const p = (ph + k / 2) % 1;
+      ctx.globalAlpha = (1 - p) * 0.4;
+      ctx.beginPath(); ctx.arc(0, -34, 14 + p * 90, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (sh.scanT > 0) {
+      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
+      ctx.beginPath();
+      ctx.arc(0, -34, 20, -Math.PI / 2, -Math.PI / 2 + (sh.scanT / 2) * Math.PI * 2);
+      ctx.stroke();
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#aef4ff";
+      ctx.fillText("READING THE MARKS…", 0, -84);
+    } else {
+      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(198,255,0,.6)";
+      ctx.fillText("something old is enshrined here — land and look closer", 0, -84);
+    }
+  }
+  ctx.restore();
+}
+
+function drawMothership(now) {
+  const { mx, my } = mercyPos();
+  const bob = Math.sin(now * 1.2) * 4;
+  ctx.save();
+  ctx.translate(mx, my + bob);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.fillStyle = "rgba(0,40,60,.55)";
+  ctx.beginPath();
+  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
+  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  const pulse = 0.55 + 0.45 * Math.sin(now * 3);
+  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
+  ctx.fillStyle = "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")";
+  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.fillStyle = "#9beaf9";
+  ctx.font = "700 10px Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("A M S · M E R C Y", 0, 36);
+  ctx.restore();
+
+  // extraction: the Static's pulse rings wash over MERCY
+  if (level.pulse) {
+    const p = level.pulse.t / 1.2;
+    ctx.save();
+    ctx.strokeStyle = "rgba(179,136,255," + ((1 - p) * 0.7).toFixed(2) + ")";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(mx, my, 40 + p * 560, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+
+  const bays = bayRects();
+  ctx.save();
+  ctx.setLineDash([6, 8]);
+  ctx.lineWidth = 1.5;
+  // recovery bay (cyan) spans the underside
+  ctx.strokeStyle = mercyBreach
+    ? "rgba(255,64,129," + (0.3 + 0.3 * Math.sin(now * 6)).toFixed(2) + ")"
+    : level.extraction
+      ? "rgba(255,196,0," + (0.4 + 0.3 * Math.sin(now * 5)).toFixed(2) + ")"
+      : "rgba(0,229,255," + (0.25 + 0.2 * Math.sin(now * 2)).toFixed(2) + ")";
+  ctx.strokeRect(bays.med.x0, bays.med.y0, bays.med.x1 - bays.med.x0, bays.med.y1 - bays.med.y0);
+  ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = level.extraction ? "rgba(255,196,0,.8)" : "rgba(0,229,255,.6)";
+  ctx.fillText(mercyBreach ? "LOCKDOWN" : level.extraction ? "EXTRACTION DOCK" : "RECOVERY BAY",
+    (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 14);
+  // extraction dock-hold progress
+  if (level.extraction && level.extraction.hold > 0) {
+    ctx.strokeStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(mx, bays.med.y0 + 55, 22, -Math.PI / 2,
+      -Math.PI / 2 + (level.extraction.hold / 1.5) * Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([6, 8]); ctx.shadowBlur = 0;
+  }
+  // quarantine bay (red) off the starboard side
+  ctx.strokeStyle = "rgba(255,23,68," + (0.35 + 0.25 * Math.sin(now * 3)).toFixed(2) + ")";
+  ctx.strokeRect(bays.red.x0, bays.red.y0, bays.red.x1 - bays.red.x0, bays.red.y1 - bays.red.y0);
+  ctx.fillStyle = "rgba(255,23,68,.7)";
+  ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawBeacon(now) {
+  const b = level.beacon;
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  const col = b.resolved ? "#69f0ae" : "#b388ff";
+  ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 14;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-14, 0); ctx.lineTo(-4, -56); ctx.lineTo(4, -56); ctx.lineTo(14, 0);
+  ctx.moveTo(-9, -20); ctx.lineTo(9, -20);
+  ctx.moveTo(-6, -40); ctx.lineTo(6, -40);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -62, 4, 0, 7); ctx.stroke();
+  if (!b.resolved) {
+    // the Static: expanding rings every beat
+    const ph = (now % 1.6) / 1.6;
+    for (let k = 0; k < 3; k++) {
+      const p = (ph + k / 3) % 1;
+      ctx.globalAlpha = (1 - p) * 0.5;
+      ctx.beginPath(); ctx.arc(0, -62, 10 + p * 130, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (b.silenceT > 0) {
+      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
+      ctx.beginPath();
+      ctx.arc(0, -62, 20, -Math.PI / 2, -Math.PI / 2 + (b.silenceT / 5) * Math.PI * 2);
+      ctx.stroke();
+      ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#aef4ff";
+      ctx.fillText("ANSWERING… " + Math.round(b.silenceT / 5 * 100) + "%", 0, -104);
+    } else {
+      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(179,136,255,.7)";
+      ctx.fillText("THE SIGNAL SOURCE — land beside it, or open fire", 0, -104);
+    }
+  }
+  ctx.restore();
+}
+
+/* ---------------- HUD ---------------- */
+function drawHUD(now) {
+  const s = ship;
+  const topPad = 14;
+  const hx = 14 + saLeft;
+  ctx.font = "700 12px Menlo, monospace";
+
+  const bw = Math.min(150, vw * 0.3);
+  drawBar(hx, topPad, bw, 10, s.fuel / 100, "#ffc400", "FUEL");
+  drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+  ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
+  ctx.font = "600 9px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.7)";
+  let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
+    "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
+  if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
+  ctx.fillText(mid, vw / 2, topPad + 23);
+  ctx.shadowBlur = 0;
+
+  const tl = acctLevel();
+  ctx.textAlign = "left";
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
+  const rescueLine = "DOIDS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + tl.total;
+  ctx.fillText(rescueLine, hx, topPad + 34);
+  let tallyOff = ctx.measureText(rescueLine).width;
+  if (tl.lost > 0) {
+    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081";
+    const lostStr = "  ·  ✝ LOST " + tl.lost;
+    ctx.fillText(lostStr, hx + tallyOff, topPad + 34);
+    tallyOff += ctx.measureText(lostStr).width;
+  }
+  if (tl.contained > 0) {
+    ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.shadowColor = "transparent";
+    ctx.fillText("  ·  ⊘ CONTAINED " + tl.contained, hx + tallyOff, topPad + 34);
+  }
+  ctx.shadowBlur = 0;
+
+  if (mercyBreach) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+    ctx.font = "800 14px Menlo, monospace";
+    ctx.fillText("⚠ BREACH — RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
+    ctx.shadowBlur = 0;
+  } else if (level.extraction && state === "play" && Math.sin(now * 5) > -0.3) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillText("⚠ EXTRACTION — DOCK WITH MERCY", vw / 2, topPad + 44);
+    ctx.shadowBlur = 0;
+  } else if (level.contamKnown && contaminantAboard() && Math.sin(now * 6) > 0) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillText("⚠ CONTAMINANT ABOARD — RED BAY", vw / 2, topPad + 44);
+    ctx.shadowBlur = 0;
+  } else if ((s.fuel < 20 || s.vitals < 30) && Math.sin(now * 8) > 0 && state === "play") {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillText(s.vitals < 30 ? "⚠ VITALS CRITICAL" : "⚠ LOW FUEL", vw / 2, topPad + 44);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawBar(x, y, w, h, frac, color, label) {
+  ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
+  ctx.fillRect(x + 1, y + 1, (w - 2) * clamp(frac, 0, 1), h - 2);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "left";
+  ctx.fillText(label, x, y + h + 9);
+}
+
+/* Live ECG as the health bar. Beat rate rises as vitals fall;
+   a contaminant aboard shows as an arrhythmia — the medical tell. */
+function drawECG(x, y, w, h, frac, now) {
+  const color = frac > 0.55 ? "#69f0ae" : frac > 0.3 ? "#ffc400" : "#ff4081";
+  ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  const bpm = lerp(3.4, 1.2, clamp(frac, 0, 1)) + (ship.beat > 0 ? 2 : 0);
+  const arrhythmia = state !== "title" && contaminantAboard();
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h); ctx.clip();
+  ctx.beginPath();
+  const mid = y + h * 0.6;
+  for (let px = 0; px <= w; px += 2) {
+    const t = (now * 90 - (w - px)) / 90 * bpm;
+    let ph = ((t % 1) + 1) % 1;
+    // every third beat arrives early when something is wrong aboard
+    if (arrhythmia && Math.floor(t) % 3 === 2) ph = (ph * 1.7) % 1;
+    let v = 0;
+    if (ph < 0.08) v = -0.2;
+    else if (ph < 0.14) v = 1.0;
+    else if (ph < 0.18) v = -0.45;
+    else if (ph < 0.3) v = 0.18;
+    v *= (frac > 0 ? 1 : 0);
+    const yy = mid - v * h * 0.55;
+    px === 0 ? ctx.moveTo(x + px, yy) : ctx.lineTo(x + px, yy);
+  }
+  ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.restore();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "right";
+  ctx.fillText("VITALS " + Math.max(0, Math.round(frac * 100)) + "%", x + w, y + h + 9);
+}
+
+/* ---------------- screens ---------------- */
+function drawTitle(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.72)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  const pulse = 0.7 + 0.3 * Math.sin(now * 2);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 30 * pulse;
+  ctx.fillStyle = "#aef4ff";
+  ctx.font = "900 " + Math.min(84, vw * 0.16) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("D O I D S", vw / 2, vh * 0.32);
+  ctx.shadowBlur = 10;
+  ctx.font = "600 13px Menlo, monospace";
+  ctx.fillStyle = "#9beaf9";
+  ctx.fillText("a gravity rescue — in the spirit of the Atari ST classic", vw / 2, vh * 0.4);
+  ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae";
+  ctx.fillText("seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.48);
+  ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
+  ctx.fillText("not every Doid you rescue is what it seems", vw / 2, vh * 0.54);
+  ctx.fillStyle = "rgba(255,255,255," + pulse.toFixed(2) + ")"; ctx.shadowColor = "#fff";
+  ctx.font = "800 17px Menlo, monospace";
+  ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.66);
+  ctx.shadowBlur = 0;
+  ctx.font = "600 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.55)";
+  ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.72);
+
+  // pills: landing assist toggle + flight manual
+  const r = assistRect();
+  const on = assist;
+  ctx.strokeStyle = on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
+  ctx.shadowColor = on ? "#69f0ae" : "transparent"; ctx.shadowBlur = on ? 10 : 0;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+  ctx.font = "700 12px Menlo, monospace";
+  ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
+  ctx.fillText("ASSIST · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + 22);
+  ctx.shadowBlur = 0;
+
+  const hr = helpRect();
+  ctx.strokeStyle = "rgba(0,229,255,.7)";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+  ctx.strokeRect(hr.x, hr.y, hr.w, hr.h);
+  ctx.fillStyle = "#7fe9ff";
+  ctx.fillText("✦ HOW TO FLY", hr.x + hr.w / 2, hr.y + 22);
+  ctx.shadowBlur = 0;
+
+  // story pill — replay the opening narrative
+  const str = storyRect();
+  ctx.strokeStyle = "rgba(255,255,255,.35)";
+  ctx.strokeRect(str.x, str.y, str.w, str.h);
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("▸ STORY", str.x + str.w / 2, str.y + 22);
+
+  // codex pill — the minds recovered across all runs
+  const cr = codexRect();
+  const any = codex.size > 0;
+  ctx.strokeStyle = any ? "rgba(255,213,79,.75)" : "rgba(255,255,255,.3)";
+  ctx.shadowColor = any ? "#ffd54f" : "transparent"; ctx.shadowBlur = any ? 10 : 0;
+  ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
+  ctx.fillStyle = any ? "#ffd54f" : "rgba(255,255,255,.45)";
+  ctx.fillText("⚕ CODEX " + codex.size + "/" + FAMOUS.length, cr.x + cr.w / 2, cr.y + 22);
+  ctx.shadowBlur = 0;
+
+  // tilt-steering pill (gyro)
+  const tr = tiltRect();
+  ctx.strokeStyle = tilt ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
+  ctx.shadowColor = tilt ? "#69f0ae" : "transparent"; ctx.shadowBlur = tilt ? 10 : 0;
+  ctx.strokeRect(tr.x, tr.y, tr.w, tr.h);
+  ctx.fillStyle = tilt ? "#69f0ae" : "rgba(255,255,255,.5)";
+  ctx.fillText("⟲ TILT · " + (tilt ? "ON" : "OFF"), tr.x + tr.w / 2, tr.y + 22);
+  ctx.shadowBlur = 0;
+
+  if (pad.connected) {
+    ctx.font = "600 11px Menlo, monospace";
+    ctx.fillStyle = "rgba(105,240,174,.75)";
+    ctx.fillText("🎮 controller connected — stick steers · A thrust · X fire · LB/B shield",
+      vw / 2, vh * 0.78);
+  }
+}
+
+/* the codex: famous Doids recovered across every run */
+function drawCodex(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.82)";
+  ctx.fillRect(0, 0, vw, vh);
+  const w = Math.min(640, vw - 36);
+  const rowH = Math.min(50, (vh - 132) / FAMOUS.length);
+  const h = 66 + rowH * FAMOUS.length + 30;
+  const x = (vw - w) / 2, y = Math.max(10, (vh - h) / 2);
+  ctx.fillStyle = "rgba(8,10,26,.94)";
+  ctx.strokeStyle = "#ffd54f"; ctx.shadowColor = "#ffd54f"; ctx.shadowBlur = 16;
+  ctx.lineWidth = 2;
+  ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+  ctx.shadowBlur = 4;
+  ctx.textAlign = "center";
+  ctx.font = "800 15px Menlo, monospace";
+  ctx.fillStyle = "#ffd54f";
+  ctx.fillText("MEDICAL CODEX", vw / 2, y + 24);
+  ctx.font = "600 10px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length + " · all runs", vw / 2, y + 40);
+  for (let i = 0; i < FAMOUS.length; i++) {
+    const ry = y + 54 + i * rowH;
+    const found = codex.has(i);
+    if (i > 0) {
+      ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 16, ry); ctx.lineTo(x + w - 16, ry); ctx.stroke();
+    }
+    iDoid(x + 34, ry + rowH * 0.78, Math.min(1.7, rowH / 28), i * 1.3, found, found);
+    ctx.textAlign = "left";
+    ctx.font = "700 13px Menlo, monospace";
+    ctx.fillStyle = found ? "#ffe9a8" : "rgba(255,255,255,.3)";
+    ctx.shadowColor = found ? "#ffd54f" : "transparent"; ctx.shadowBlur = found ? 6 : 0;
+    ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", x + 60, ry + rowH * 0.52);
+    ctx.shadowBlur = 0;
+    ctx.font = "600 10px Menlo, monospace";
+    ctx.fillStyle = found ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
+    ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", x + 60, ry + rowH * 0.82);
+    ctx.textAlign = "right";
+    ctx.font = "700 11px Menlo, monospace";
+    ctx.fillStyle = found ? "#69f0ae" : "rgba(255,255,255,.25)";
+    ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", x + w - 18, ry + rowH * 0.62);
+  }
+  ctx.textAlign = "center";
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.fillText("tap to close", vw / 2, y + h - 11);
+}
+
+/* ------- illustrated intro panels ------- */
+function iShip(cx, cy, s, tilt, flicker) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tilt || 0);
+  ctx.scale(s, s);
+  ctx.globalAlpha *= flicker === undefined ? 1 : flicker;
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.fillStyle = "rgba(0,40,60,.55)";
+  ctx.beginPath();
+  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
+  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
+  ctx.fillStyle = "#ff2d55";
+  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  ctx.restore();
+}
+function iDoid(cx, cy, s, phase, gold, armsUp) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
+  const t = performance.now() / 1000 * 5 + phase;
+  const w = Math.sin(t) * 3;
+  doidFigure({
+    col: gold ? "#ffd54f" : "#69f0ae",
+    fill: "rgba(10,30,24,.85)",
+    crossCol: "#ff5d7d",
+    legPh: 0, sitting: false,
+    armL: armsUp ? [-6, -19 - w] : [-7, -8],
+    armR: [6, -19 + w],
+    blink: ((t * 0.11 + phase) % 3.1) < 0.12,
+    sway: Math.sin(t * 0.44) * 1.5
+  });
+  ctx.restore();
+}
+function iStars(px, py, pw, ph, seed) {
+  const rng = mulberry32(seed);
+  ctx.fillStyle = "rgba(200,220,255,.7)";
+  for (let i = 0; i < 40; i++) {
+    ctx.globalAlpha = 0.2 + rng() * 0.6;
+    ctx.fillRect(px + rng() * pw, py + rng() * ph, 1.5, 1.5);
+  }
+  ctx.globalAlpha = 1;
+}
+function iRidge(px, py, pw, ph, seed) {
+  const rng = mulberry32(seed);
+  ctx.beginPath();
+  ctx.moveTo(px, py + ph);
+  let y = ph * 0.72;
+  for (let x = 0; x <= pw; x += pw / 14) {
+    y = clamp(y + (rng() - 0.5) * ph * 0.3, ph * 0.55, ph * 0.9);
+    ctx.lineTo(px + x, py + y);
+  }
+  ctx.lineTo(px + pw, py + ph);
+  ctx.closePath();
+  ctx.fillStyle = "#151040"; ctx.fill();
+  ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 10;
+  ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+const INTRO = [
+  { title: "THE MISSION",
+    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems. Her holds carry DOIDS — medical androids, each one programmed with a lifetime of clinical expertise.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 11);
+      iShip(px + pw / 2, py + ph * 0.45, Math.min(1.4, pw / 320), 0,
+        1);
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+      ctx.fillText("A M S · M E R C Y", px + pw / 2, py + ph * 0.45 + 58);
+      ctx.shadowBlur = 0;
+    } },
+  { title: "THE CARGO",
+    caption: "Most are standard units. A few carry something rarer — the complete minds of medicine's giants, preserved and still practising. All of them are needed where MERCY is headed.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph * 0.5, 22);
+      ctx.strokeStyle = "rgba(0,229,255,.4)"; ctx.lineWidth = 1.5;
+      ctx.strokeRect(px + pw * 0.1, py + ph * 0.25, pw * 0.8, ph * 0.55);
+      const n = 6;
+      for (let i = 0; i < n; i++) {
+        const gold = i === 4;
+        iDoid(px + pw * (0.18 + 0.64 * i / (n - 1)), py + ph * 0.72,
+          Math.min(2.2, ph / 110), i * 1.3, gold, gold);
+      }
+      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(0,229,255,.6)";
+      ctx.fillText("WARD 7 · CRYOSTASIS", px + pw / 2, py + ph * 0.2);
+    } },
+  { title: "THE ZONE",
+    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. Nobody remembers who they were built to keep out.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 33);
+      iRidge(px, py, pw, ph, 7);
+      const tx = [0.25, 0.62, 0.85];
+      for (const f of tx) {
+        const gx = px + pw * f, gy = py + ph * 0.74;
+        ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+        ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
+        ctx.fillStyle = "#3a0d24";
+        ctx.beginPath(); ctx.arc(gx, gy, 10, Math.PI, 0); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(gx + 4, gy - 8); ctx.lineTo(gx + 13, gy - 16); ctx.stroke();
+      }
+      // drone
+      ctx.save();
+      ctx.translate(px + pw * 0.45, py + ph * 0.3);
+      ctx.strokeStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(0, -9); ctx.lineTo(8, 0); ctx.lineTo(0, 9); ctx.lineTo(-8, 0);
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+      ctx.shadowBlur = 0;
+    } },
+  { title: "THE FAILURE",
+    caption: "Mid-crossing, every system aboard failed at once. Cause unknown. The recorders kept only one thing: a signal, repeating, every 41 seconds.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 44);
+      const flick = 0.45 + 0.55 * Math.abs(Math.sin(now * 7) * Math.sin(now * 2.3));
+      iShip(px + pw * 0.38, py + ph * 0.5, Math.min(1.1, pw / 380), -0.1, flick);
+      // the Static
+      const sx = px + pw * 0.82, sy = py + ph * 0.4;
+      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+      const phase = (now % 1.4) / 1.4;
+      for (let k = 0; k < 3; k++) {
+        const p = (phase + k / 3) % 1;
+        ctx.globalAlpha = (1 - p) * 0.7;
+        ctx.beginPath(); ctx.arc(sx, sy, 8 + p * ph * 0.42, 0, 7); ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#b388ff";
+      ctx.fillText("· 41s ·", sx, sy + ph * 0.5);
+    } },
+  { title: "THE SCATTERING",
+    caption: "The Doids evacuated in pods and were thrown across the zone. MERCY flies again — barely. You fly the rescue. Bring them home. And captain… count the heartbeats.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 55);
+      iRidge(px, py, pw, ph, 9);
+      iShip(px + pw * 0.18, py + ph * 0.22, Math.min(0.7, pw / 520), 0, 1);
+      ctx.setLineDash([3, 6]);
+      ctx.strokeStyle = "rgba(255,196,0,.5)"; ctx.lineWidth = 1.5;
+      const drops = [[0.34, 0.62], [0.52, 0.7], [0.7, 0.6], [0.86, 0.68]];
+      for (const [fx, fy] of drops) {
+        ctx.beginPath();
+        ctx.moveTo(px + pw * 0.2, py + ph * 0.24);
+        ctx.quadraticCurveTo(px + pw * (fx - 0.1), py + ph * 0.2, px + pw * fx, py + ph * fy);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      drops.forEach(([fx, fy], i) =>
+        iDoid(px + pw * fx, py + ph * fy, Math.min(1.6, ph / 150), i * 2.1, false, i % 2 === 0));
+    } }
+];
+
+function drawIntroScreen(now) {
+  const pw = Math.min(660, vw - 36);
+  const ph = Math.min(vh * 0.5, 300);
+  const px = (vw - pw) / 2, py = vh * 0.09;
+  const panel = INTRO[Math.min(introIdx, INTRO.length - 1)];
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px, py, pw, ph);
+  ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+  panel.draw(px, py, pw, ph, now);
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.font = "800 16px Menlo, monospace";
+  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.fillText(panel.title, vw / 2, py + ph + 30);
+  ctx.shadowBlur = 2;
+  ctx.font = "600 13px Menlo, monospace";
+  ctx.fillStyle = "#c9e6f7";
+  const lines = wrapText(panel.caption, Math.min(600, vw - 70));
+  lines.forEach((l, i) => ctx.fillText(l, vw / 2, py + ph + 52 + i * 19));
+  ctx.shadowBlur = 0;
+
+  // page dots
+  for (let i = 0; i < INTRO.length; i++) {
+    ctx.fillStyle = i === introIdx ? "#00e5ff" : "rgba(255,255,255,.25)";
+    ctx.beginPath();
+    ctx.arc(vw / 2 + (i - (INTRO.length - 1) / 2) * 18, py + ph + 58 + lines.length * 19, 3, 0, 7);
+    ctx.fill();
+  }
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.fillText("tap ▸", vw / 2, py + ph + 76 + lines.length * 19);
+
+  const sr = skipRect();
+  ctx.strokeStyle = "rgba(255,255,255,.3)"; ctx.lineWidth = 1;
+  ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("SKIP ▸▸", sr.x + sr.w / 2, sr.y + 22);
+}
+
+/* rotate-to-landscape gate */
+function drawPortraitWarning(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(3,4,12,.92)";
+  ctx.fillRect(0, 0, vw, vh);
+  const cx = vw / 2, cy = vh * 0.4;
+  // phone glyph animating from portrait to landscape
+  const ph = (now % 2.4) / 2.4;
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const ang = ph < 0.55 ? ease(clamp(ph / 0.55, 0, 1)) * Math.PI / 2 : Math.PI / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-ang);
+  ctx.strokeStyle = "#00e5ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 16;
+  ctx.lineWidth = 3;
+  const w = 54, h = 96, r = 10;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + r, -h / 2);
+  ctx.arcTo(w / 2, -h / 2, w / 2, h / 2, r);
+  ctx.arcTo(w / 2, h / 2, -w / 2, h / 2, r);
+  ctx.arcTo(-w / 2, h / 2, -w / 2, -h / 2, r);
+  ctx.arcTo(-w / 2, -h / 2, w / 2, -h / 2, r);
+  ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10, h / 2 - 12); ctx.lineTo(10, h / 2 - 12); ctx.stroke();
+  ctx.restore();
+  ctx.shadowBlur = 8;
+  ctx.textAlign = "center";
+  ctx.font = "800 18px Menlo, monospace";
+  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff";
+  ctx.fillText("ROTATE TO LANDSCAPE", cx, vh * 0.62);
+  ctx.font = "600 12px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.7)";
+  ctx.fillText("DOIDS flies wide — turn your phone on its side", cx, vh * 0.68);
+  ctx.shadowBlur = 0;
+}
+
+function drawBrief(now) {
+  ctx.textAlign = "center";
+  ctx.font = "600 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(0,229,255," + (0.5 + 0.4 * Math.sin(now * 3)).toFixed(2) + ")";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.fillText("— INCOMING TRANSMISSION · AMS MERCY —", vw / 2, vh * 0.16);
+  ctx.font = "800 24px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillStyle = "#aef4ff";
+  ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, vh * 0.25);
+  ctx.shadowBlur = 4;
+  ctx.font = "600 14px Menlo, monospace";
+  ctx.fillStyle = "#c9f3dd";
+  const shown = BRIEFS[levelIdx].slice(0, Math.floor(briefChars));
+  const lines = wrapText(shown, Math.min(560, vw - 60));
+  lines.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.34 + i * 22));
+  if (briefChars >= BRIEFS[levelIdx].length) {
+    ctx.font = "800 15px Menlo, monospace";
+    ctx.fillStyle = "rgba(255,255,255," + (0.6 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+    ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.34 + lines.length * 22 + 40);
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawCardPanel(card, now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.7)";
+  ctx.fillRect(0, 0, vw, vh);
+  const w = Math.min(600, vw - 40);
+  ctx.font = "600 14px Menlo, monospace";
+  const bodyLines = wrapText(card.body, w - 60);
+  const titleH = (card.title ? 34 : 0) + (card.subtitle ? 18 : 0);
+  const h = 86 + titleH + bodyLines.length * 21;
+  const x = (vw - w) / 2, y = Math.max(20, (vh - h) / 2);
+  ctx.fillStyle = "rgba(8,10,26,.92)";
+  ctx.strokeStyle = card.color; ctx.shadowColor = card.color; ctx.shadowBlur = 18;
+  ctx.lineWidth = 2;
+  ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+  ctx.shadowBlur = 6;
+  ctx.textAlign = "center";
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = card.color;
+  ctx.fillText(card.kicker, vw / 2, y + 26);
+  let cy = y + 26;
+  if (card.title) {
+    cy += 32;
+    ctx.font = "900 22px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillStyle = "#f4f8ff";
+    ctx.fillText(card.title, vw / 2, cy);
+  }
+  if (card.subtitle) {
+    cy += 18;
+    ctx.font = "600 11px Menlo, monospace";
+    ctx.fillStyle = "rgba(255,255,255,.6)";
+    ctx.fillText(card.subtitle, vw / 2, cy);
+  }
+  cy += 28;
+  ctx.font = "600 14px Menlo, monospace";
+  ctx.fillStyle = "#d9e8ff";
+  bodyLines.forEach((l, i) => ctx.fillText(l, vw / 2, cy + i * 21));
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.fillText("tap to continue", vw / 2, y + h - 14);
+  ctx.shadowBlur = 0;
+}
+
+function tallyLine() {
+  return "saved " + runSaved + (runLost > 0 ? "  ·  ✝ lost " + runLost : "");
+}
+
+function drawClear(now) {
+  if (clearCards.length > 0) { drawCardPanel(clearCards[0], now); return; }
+  const hip = level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "";
+  const boxNote = level.blackbox && !level.blackbox.found ? "\n(a signal source went unfound in this sector)" : "";
+  drawCenter(SECTOR_NAMES[levelIdx] + " CLEAR",
+    hip + "saved " + level.delivered + "/" + level.total +
+    (level.lost > 0 ? "  ·  ✝ lost " + level.lost : "") + boxNote +
+    "\ntap to continue", "#69f0ae");
+}
+
+function drawEnding(now) {
+  let title, body, color;
+  if (endingType === "answered") {
+    title = "THE ANSWERED CALL";
+    color = "#aef4ff";
+    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Doid that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+  } else if (endingType === "fire") {
+    title = "SILENCE BY FIRE";
+    color = "#ffc400";
+    body = "You burned the beacon out of the dark.\n\nThe Static is gone — and so is whatever was calling. MERCY logs the sector clean.\n\nThe silence feels heavier than it should.\n\n+3000";
+  } else {
+    title = "ROTATION COMPLETE";
+    color = "#b388ff";
+    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover at least 3 to triangulate its source.";
+  }
+  if (endingType !== "unresolved" && shrines.size >= SHRINES.length) {
+    body += "\n\nAnd in the fleet record, appended in your hand: the serpent's mask, catalogued for good. No one will buy his cures again.";
+  }
+  drawCardPanel({ kicker: "— TRANSMISSION ENDS —", title, subtitle: "", body, color }, now);
+}
+
+function drawWin() {
+  let rank = "FLIGHT SURGEON, A&M RESCUE DIVISION";
+  if (endingType === "answered") rank = runFired === 0 ? "OATH KEEPER — PRIMUM NON NOCERE" : "THE ONE WHO ANSWERED";
+  else if (endingType === "fire") rank = "SECTOR WARDEN";
+  const spotless = runLost === 0 ? "\nspotless record — no Doid lost" : "";
+  const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
+  drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
+    "score " + score + "  ·  hi " + hiscore + "\n" + tallyLine() +
+    "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
+    spotless + serpent +
+    "\nrank: " + rank + "\ntap to play again", "#69f0ae");
+}
+
+function drawCenter(big, small, color) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.55)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.shadowColor = color; ctx.shadowBlur = 24;
+  ctx.fillStyle = color;
+  ctx.font = "900 " + Math.min(46, vw * 0.09) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(big, vw / 2, vh * 0.34);
+  ctx.shadowBlur = 8;
+  ctx.font = "600 14px Menlo, monospace";
+  ctx.fillStyle = "#dff8ff";
+  small.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.44 + i * 22));
+  ctx.shadowBlur = 0;
+}
+
+/* test/debug handle into module-scoped state */
+window.__doids = {
+  get: () => ({ ship, level, state, levelIdx, upgrades, blackboxCount,
+    runFragments, runSaved, runLost, runFired, mercyBreach, mercyDamaged,
+    endingType, clearCards, revealCard, score, lives,
+    shrines: [...shrines], inCave: !!(level && level.isCave),
+    input: Object.assign({}, input), ctlShown, introSeen }),
+  go: toBriefing,
+  launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
+  ground: groundAt,
+  evalLanding: landingEval,
+  give: k => { upgrades[k] = true; },
+  warpLift: () => { const L = level.lift; if (L) { ship.x = L.x; ship.y = L.y - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
+  warpShrine: () => { const sh = level.shrine; if (sh) { ship.x = sh.x; ship.y = groundAt(sh.x) - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
+  reset: resetRun
+};
+
+/* ---------------- main loop ---------------- */
+level = genLevel(0);
+spawnShip();
+camera = { x: ship.x, y: ship.y, shake: 0 };
+particles = []; texts = [];
+
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min((t - last) / 1000, 0.05);
+  last = t;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
