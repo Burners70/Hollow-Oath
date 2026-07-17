@@ -313,6 +313,23 @@ function explode(x, y, color, n) {
 }
 
 /* ---------------- update ---------------- */
+/* One source of truth for what counts as a good touchdown — used by
+   the collision code and the landing guide so they can never disagree. */
+function landingEval() {
+  const s = ship;
+  const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
+  const tilt = Math.abs(((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  const upright = tilt < 0.5;
+  const soft = Math.abs(s.vy) < 52 && Math.abs(s.vx) < 38 && slope < 0.25 && upright;
+  const survivable = Math.abs(s.vy) < 85 && Math.abs(s.vx) < 60 && slope < 0.35 && upright;
+  let reason = "";
+  if (!upright) reason = "LEVEL THE SHIP";
+  else if (slope >= 0.25) reason = "GROUND TOO STEEP";
+  else if (Math.abs(s.vy) >= 52) reason = "DESCENDING TOO FAST";
+  else if (Math.abs(s.vx) >= 38) reason = "DRIFTING SIDEWAYS";
+  return { soft, survivable, reason };
+}
+
 function shipDie() {
   if (ship.dead) return;
   ship.dead = true;
@@ -425,10 +442,7 @@ function update(dt) {
   // terrain collision
   const g = groundAt(s.x);
   if (!s.landed && s.y + SHIP_R >= g) {
-    const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
-    const upright = Math.abs(((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI) > Math.PI - 0.5;
-    const soft = Math.abs(s.vy) < 52 && Math.abs(s.vx) < 38 && slope < 0.25 && upright;
-    const survivable = Math.abs(s.vy) < 85 && Math.abs(s.vx) < 60 && slope < 0.35 && upright;
+    const { soft, survivable } = landingEval();
     if (soft) {
       s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
     } else if (survivable) {
@@ -662,6 +676,7 @@ function render() {
 
   // ship
   if (!ship.dead) drawShip(now);
+  if (!ship.dead && !ship.landed && state === "play") drawLandingGuide();
 
   // floating text
   ctx.textAlign = "center";
@@ -715,6 +730,41 @@ function drawShip(now) {
     ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
     ctx.shadowBlur = 0;
   }
+}
+
+/* Approach telemetry: shown when airborne near the ground. A dashed
+   drop line and touchdown tick turn green when the current angle,
+   speed, and terrain would make a safe landing; the readout shows
+   descent and drift speed plus what to fix when it isn't safe yet. */
+function drawLandingGuide() {
+  const s = ship;
+  const g = groundAt(s.x);
+  const alt = g - (s.y + SHIP_R);
+  if (alt <= 0 || alt > 320) return;
+  const ev = landingEval();
+  const color = ev.soft ? "#69f0ae" : ev.survivable ? "#ffc400" : "#ff4081";
+  ctx.save();
+  ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
+  ctx.globalAlpha = 0.9;
+  ctx.setLineDash([4, 6]);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(s.x, s.y + 16); ctx.lineTo(s.x, g); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(s.x - 14, groundAt(s.x - 14));
+  ctx.lineTo(s.x + 14, groundAt(s.x + 14));
+  ctx.stroke();
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.textAlign = "left";
+  ctx.fillStyle = color;
+  const vArrow = s.vy >= 0 ? "↓" : "↑";
+  ctx.fillText(vArrow + Math.abs(Math.round(s.vy)) + "  ↔" + Math.abs(Math.round(s.vx)), s.x + 20, s.y - 2);
+  if (!ev.soft && ev.reason) {
+    ctx.font = "600 9px Menlo, monospace";
+    ctx.fillText(ev.reason, s.x + 20, s.y + 10);
+  }
+  ctx.restore();
 }
 
 function drawOid(o, now) {
@@ -910,6 +960,9 @@ function drawCenter(big, small, color, now) {
   small.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.5 + i * 22));
   ctx.shadowBlur = 0;
 }
+
+/* test/debug handle into module-scoped state */
+window.__doids = () => ({ ship, level, state, groundAt, landingEval });
 
 /* ---------------- main loop ---------------- */
 level = genLevel(0);
