@@ -3,6 +3,13 @@
 A modern-glow homage to the classic Atari ST gravity-rescue game, built for iPhone
 Safari as a single self-contained HTML5 canvas game. All code and art are original.
 
+**Play it live:** https://burners70.github.io/Doids/
+
+**New developers / writers:** start with [GAME_DESIGN.md](GAME_DESIGN.md) — the full
+game definition, evolved narrative canon (the Static, Glycon), mechanics, secrets,
+scoring, code architecture, branch/deployment layout, and future ideas.
+Build-out history is in [ROADMAP.md](ROADMAP.md).
+
 ## Play
 
 Open `index.html` in any browser — on iPhone, serve it (e.g. GitHub Pages) and use
