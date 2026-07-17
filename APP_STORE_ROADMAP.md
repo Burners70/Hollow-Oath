@@ -122,7 +122,7 @@ in v1.
   Add `hasSave` (boolean) and `paused` to `__doids.get()`. Smoke test: start a
   run, `go(3)`, reload the page, assert the resume pill state restores
   `levelIdx === 3` and score/upgrades survive.
-- [ ] **A7. Bug: CONTINUE box text overspill on game over.** `continueRect()`
+- [x] **A7. Bug: CONTINUE box text overspill on game over.** `continueRect()`
   caps the box at `Math.min(300, vw * 0.72)` wide with a fixed `h: 40`, but
   `drawGameOver()` draws `"CONTINUE — " + SECTOR_NAMES[...] + " · 3 LIVES ·
   -25% SCORE"` at a flat `13px` with no measure/shrink/wrap step — on a
@@ -202,7 +202,7 @@ merges).**
   routing its tap through the same synchronous handler).
 - [x] **C5. Test.** Smoke: toggle each setting, reload, assert persistence.
   Assert `thrustGain` routes through `sfxGain` (thrust is silent with sound off).
-- [ ] **C6. Sound-effect variety pass.** The SFX functions (`blip`, `boom`,
+- [x] **C6. Sound-effect variety pass.** The SFX functions (`blip`, `boom`,
   `heartbeat`, `staticTick`, `dullThud`, `hydraulic`) are all quick one-shot
   synths built from the same handful of oscillator/noise-burst shapes;
   played dozens of times a run, repeats start to sample identically. Give

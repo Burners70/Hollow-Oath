@@ -1,5 +1,24 @@
 # Changelog
 
+## CONTINUE box overflow fix + SFX variety pass (July 2026)
+
+- **A7: CONTINUE box text overspill on game over.** `continueRect()`'s box
+  and the flat 13px line couldn't accommodate long sector names ("AVICENNA
+  SHOALS", "JENNER TERRACES") on narrow viewports. The box grew to two
+  lines (`h: 40` → `54`), the sector name got its own auto-shrinking line
+  (measures and steps the font down to 9px if still too wide), and "3 LIVES
+  · -25% SCORE" moved to its own line below.
+- **C6: Sound-effect variety pass.** `blip`, `boom`, `heartbeat`,
+  `staticTick`, `dullThud`, and `hydraulic` now carry a small `rjit()`
+  pitch/duration jitter (±3-15% depending on the sound) so repeats across a
+  run don't sample identically, plus a quiet second layer per sound (an
+  upper harmonic on `blip`, an overtone on each `heartbeat` pulse, a sub
+  thump under `boom`) for a touch more body. What each sound signals is
+  unchanged — `heartbeat` is still lub-dub, `dullThud` is still one heavy
+  low note, and the two stay clearly distinct from each other.
+
+Smoke suite: 13/13 green.
+
 ## Emblem centring + shrine cue (July 2026)
 
 - **AMS MERCY's emblem** now sits vertically centred on the whole hull
