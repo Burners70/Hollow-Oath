@@ -714,6 +714,18 @@ try { codex = new Set(JSON.parse(localStorage.getItem("doids_codex") || "[]")); 
 function saveCodex() {
   try { localStorage.setItem("doids_codex", JSON.stringify([...codex])); } catch (e) {}
 }
+/* Bundle K1 — the Static's story is re-readable: every log fragment and
+   shrine card ever recovered persists across runs, into the codex ARCHIVE */
+let logsSeen = new Set();
+try { logsSeen = new Set(JSON.parse(localStorage.getItem("doids_logs") || "[]")); } catch (e) {}
+function saveLogs() {
+  try { localStorage.setItem("doids_logs", JSON.stringify([...logsSeen])); } catch (e) {}
+}
+let shrinesSeen = new Set();
+try { shrinesSeen = new Set(JSON.parse(localStorage.getItem("doids_shrines_seen") || "[]")); } catch (e) {}
+function saveShrinesSeen() {
+  try { localStorage.setItem("doids_shrines_seen", JSON.stringify([...shrinesSeen])); } catch (e) {}
+}
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
 // haptics is a web no-op (the facade below bridges to the native wrapper
@@ -1197,7 +1209,9 @@ function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
 
 function grantFragment(queueForClear) {
   if (runFragments >= FRAGMENTS.length) { score += 500; return null; }
+  const idx = runFragments;
   const frag = FRAGMENTS[runFragments++];
+  logsSeen.add(idx); saveLogs();   // into the ARCHIVE, permanently (K1)
   if (queueForClear) level.fragmentsHere.push(frag);
   return frag;
 }
@@ -1395,9 +1409,10 @@ function update(dt) {
   switch (state) {
     case "title": case "gameover": case "win": updateMenu(); return;
     case "intro": updateIntro(dt); return;
-    case "help": case "codex":
+    case "help":
       if (input.tap && stateT > 0.4) { state = "title"; stateT = 0.7; }
       input.tap = false; return;
+    case "codex": updateCodex(); return;
     case "brief": updateBrief(dt); return;
     case "reveal":
       if (input.tap && stateT > 0.4) { revealCard = null; state = "play"; }
@@ -1439,6 +1454,7 @@ function updateMenu() {
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
       state = "codex"; stateT = 0;
+      codexTab = 0; archivePage = 0;
       blip(550, 825, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(storyRect(), input.tapX, input.tapY)) {
       // rewatch the opening narrative (it flows into a new run)
@@ -2263,6 +2279,7 @@ function updateShrine(dt) {
     if (sh.scanT >= 2) {
       sh.found = true;
       shrines.add(level.caveIdx);
+      shrinesSeen.add(level.caveIdx); saveShrinesSeen();
       score += 1000;
       let extra = "";
       if (shrines.size >= SHRINES.length) {
@@ -3657,14 +3674,15 @@ function drawTitle(now) {
   ctx.fillStyle = "rgba(255,255,255,.55)";
   ctx.fillText("▸ STORY", str.x + str.w / 2, str.y + 22);
 
-  // codex pill — the minds recovered across all runs
+  // codex pill — minds recovered + the signal archive, across all runs (K3)
   const cr = codexRect();
-  const any = codex.size > 0;
+  const any = codex.size > 0 || logsSeen.size > 0;
   ctx.strokeStyle = any ? "rgba(255,213,79,.75)" : "rgba(255,255,255,.3)";
   ctx.shadowColor = any ? "#ffd54f" : "transparent"; ctx.shadowBlur = any ? 10 : 0;
   ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
   ctx.fillStyle = any ? "#ffd54f" : "rgba(255,255,255,.45)";
-  ctx.fillText("⚕ CODEX " + codex.size + "/" + FAMOUS.length, cr.x + cr.w / 2, cr.y + 22);
+  ctx.fillText("⚕ " + codex.size + "/" + FAMOUS.length + " · ◈ " + logsSeen.size + "/" + FRAGMENTS.length,
+    cr.x + cr.w / 2, cr.y + 22);
   ctx.shadowBlur = 0;
 
   if (pad.connected) {
@@ -3687,53 +3705,145 @@ function drawTitle(now) {
   }
 }
 
-/* the codex: famous Scions recovered across every run */
+/* the codex (Bundle K2): two tabs — MINDS (famous Scions recovered across
+   every run) and ARCHIVE (every log fragment and shrine card ever read,
+   re-readable forever; the Static's story stops evaporating) */
+let codexTab = 0, archivePage = 0;
+const ARCHIVE_PER_PAGE = 4;
+function codexPanelRect() {
+  const w = Math.min(640, vw - 36);
+  const h = Math.min(vh - 20, 470);
+  return { x: (vw - w) / 2, y: Math.max(10, (vh - h) / 2), w, h };
+}
+function codexTabRect(i) {
+  const p = codexPanelRect();
+  const w = 132;
+  return { x: p.x + p.w / 2 + (i === 0 ? -w - 8 : 8), y: p.y + 32, w, h: 26 };
+}
+function archiveEntries() {
+  const out = [];
+  for (let i = 0; i < FRAGMENTS.length; i++) {
+    const on = logsSeen.has(i);
+    out.push({
+      title: "LOG " + String(i + 1).padStart(2, "0"),
+      body: on ? FRAGMENTS[i].replace(/^LOG \d+ \/\/ /, "") : "— signal not yet recovered —",
+      on, shrine: false
+    });
+  }
+  for (let ci = 0; ci < SHRINES.length; ci++) {
+    const on = shrinesSeen.has(ci);
+    out.push({
+      title: on ? SHRINES[ci].kicker + " — " + SHRINES[ci].title
+                : "THE HOLLOWS · " + ["I", "II", "III"][ci],
+      body: on ? SHRINES[ci].body.split("\n")[0] : "— not yet descended —",
+      on, shrine: true
+    });
+  }
+  return out;
+}
+function updateCodex() {
+  if (input.tap && stateT > 0.35) {
+    const p = codexPanelRect();
+    if (inRect(codexTabRect(0), input.tapX, input.tapY)) {
+      codexTab = 0; blip(500, 750, 0.08, "sine", 0.07);
+    } else if (inRect(codexTabRect(1), input.tapX, input.tapY)) {
+      codexTab = 1; blip(500, 750, 0.08, "sine", 0.07);
+    } else if (!inRect(p, input.tapX, input.tapY)) {
+      state = "title"; stateT = 0.7;
+    } else if (codexTab === 1) {
+      // page by tapping the panel's left / right half
+      const pages = Math.ceil(archiveEntries().length / ARCHIVE_PER_PAGE);
+      archivePage = (archivePage + (input.tapX < p.x + p.w / 2 ? pages - 1 : 1)) % pages;
+      blip(440, 550, 0.06, "sine", 0.06);
+    }
+  }
+  input.tap = false;
+}
 function drawCodex(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(5,6,15,.82)";
   ctx.fillRect(0, 0, vw, vh);
-  const w = Math.min(640, vw - 36);
-  const rowH = Math.min(50, (vh - 132) / FAMOUS.length);
-  const h = 66 + rowH * FAMOUS.length + 30;
-  const x = (vw - w) / 2, y = Math.max(10, (vh - h) / 2);
+  const p = codexPanelRect();
   ctx.fillStyle = "rgba(8,10,26,.94)";
   ctx.strokeStyle = "#ffd54f"; ctx.shadowColor = "#ffd54f"; ctx.shadowBlur = 16;
   ctx.lineWidth = 2;
-  ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+  ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeRect(p.x, p.y, p.w, p.h);
   ctx.shadowBlur = 4;
   ctx.textAlign = "center";
   ctx.font = "800 15px Menlo, monospace";
   ctx.fillStyle = "#ffd54f";
-  ctx.fillText("MEDICAL CODEX", vw / 2, y + 24);
-  ctx.font = "600 10px Menlo, monospace";
-  ctx.fillStyle = "rgba(255,255,255,.55)";
-  ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length + " · all runs", vw / 2, y + 40);
-  for (let i = 0; i < FAMOUS.length; i++) {
-    const ry = y + 54 + i * rowH;
-    const found = codex.has(i);
-    if (i > 0) {
-      ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x + 16, ry); ctx.lineTo(x + w - 16, ry); ctx.stroke();
-    }
-    iDoid(x + 34, ry + rowH * 0.78, Math.min(1.7, rowH / 28), i * 1.3, found, found);
-    ctx.textAlign = "left";
-    ctx.font = "700 13px Menlo, monospace";
-    ctx.fillStyle = found ? "#ffe9a8" : "rgba(255,255,255,.3)";
-    ctx.shadowColor = found ? "#ffd54f" : "transparent"; ctx.shadowBlur = found ? 6 : 0;
-    ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", x + 60, ry + rowH * 0.52);
-    ctx.shadowBlur = 0;
-    ctx.font = "600 10px Menlo, monospace";
-    ctx.fillStyle = found ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
-    ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", x + 60, ry + rowH * 0.82);
-    ctx.textAlign = "right";
+  ctx.fillText("MEDICAL CODEX", vw / 2, p.y + 22);
+  ctx.shadowBlur = 0;
+  const tabs = ["⚕ MINDS", "◈ ARCHIVE"];
+  for (let i = 0; i < 2; i++) {
+    const r = codexTabRect(i), on = codexTab === i;
+    ctx.strokeStyle = on ? "rgba(255,213,79,.9)" : "rgba(255,255,255,.25)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.font = "700 11px Menlo, monospace";
-    ctx.fillStyle = found ? "#69f0ae" : "rgba(255,255,255,.25)";
-    ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", x + w - 18, ry + rowH * 0.62);
+    ctx.fillStyle = on ? "#ffd54f" : "rgba(255,255,255,.45)";
+    ctx.fillText(tabs[i], r.x + r.w / 2, r.y + 17);
   }
+  if (codexTab === 0) drawCodexMinds(p); else drawCodexArchive(p);
   ctx.textAlign = "center";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-  ctx.fillText("tap to close", vw / 2, y + h - 11);
+  ctx.fillText(codexTab === 1 ? "tap left / right to page · tap outside to close"
+                              : "tap outside to close", vw / 2, p.y + p.h - 10);
+}
+function drawCodexMinds(p) {
+  ctx.font = "600 10px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length + " · all runs", vw / 2, p.y + 74);
+  const rowH = Math.min(46, (p.h - 118) / FAMOUS.length);
+  for (let i = 0; i < FAMOUS.length; i++) {
+    const ry = p.y + 82 + i * rowH;
+    const found = codex.has(i);
+    if (i > 0) {
+      ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x + 16, ry); ctx.lineTo(p.x + p.w - 16, ry); ctx.stroke();
+    }
+    iDoid(p.x + 34, ry + rowH * 0.78, Math.min(1.7, rowH / 28), i * 1.3, found, found);
+    ctx.textAlign = "left";
+    ctx.font = "700 12px Menlo, monospace";
+    ctx.fillStyle = found ? "#ffe9a8" : "rgba(255,255,255,.3)";
+    ctx.shadowColor = found ? "#ffd54f" : "transparent"; ctx.shadowBlur = found ? 6 : 0;
+    ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", p.x + 60, ry + rowH * 0.52);
+    ctx.shadowBlur = 0;
+    ctx.font = "600 10px Menlo, monospace";
+    ctx.fillStyle = found ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
+    ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", p.x + 60, ry + rowH * 0.82);
+    ctx.textAlign = "right";
+    ctx.font = "700 11px Menlo, monospace";
+    ctx.fillStyle = found ? "#69f0ae" : "rgba(255,255,255,.25)";
+    ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", p.x + p.w - 18, ry + rowH * 0.62);
+  }
+  ctx.textAlign = "center";
+}
+function drawCodexArchive(p) {
+  const entries = archiveEntries();
+  const pages = Math.ceil(entries.length / ARCHIVE_PER_PAGE);
+  archivePage = clamp(archivePage, 0, pages - 1);
+  ctx.font = "600 10px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("the signal record · " + logsSeen.size + "/" + FRAGMENTS.length + " logs · " +
+    shrinesSeen.size + "/" + SHRINES.length + " shrines · page " + (archivePage + 1) + "/" + pages,
+    vw / 2, p.y + 74);
+  const slotH = (p.h - 118) / ARCHIVE_PER_PAGE;
+  const maxLines = Math.max(1, Math.floor((slotH - 22) / 14));
+  const items = entries.slice(archivePage * ARCHIVE_PER_PAGE, (archivePage + 1) * ARCHIVE_PER_PAGE);
+  items.forEach((en, k) => {
+    const ey = p.y + 94 + k * slotH;
+    ctx.textAlign = "left";
+    ctx.font = "700 11px Menlo, monospace";
+    ctx.fillStyle = en.on ? (en.shrine ? "#c9a6ff" : "#ffe9a8") : "rgba(255,255,255,.3)";
+    ctx.fillText(en.title, p.x + 22, ey);
+    ctx.font = "600 11px Menlo, monospace";
+    ctx.fillStyle = en.on ? "rgba(255,255,255,.75)" : "rgba(255,255,255,.28)";
+    wrapText(en.body, p.w - 44).slice(0, maxLines)
+      .forEach((l, li) => ctx.fillText(l, p.x + 22, ey + 15 + li * 14));
+  });
+  ctx.textAlign = "center";
 }
 
 /* ------- illustrated intro panels ------- */
@@ -4218,7 +4328,8 @@ window.__doids = {
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
     perfFrameMs, perfFps, resupplyDrone, liftTransit,
-    staticClock, staticSurge }),
+    staticClock, staticSurge,
+    logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage }),
   go: toBriefing,
   setStaticClock: v => { staticClock = v; },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },

@@ -178,6 +178,37 @@ test("a landed 6s scan unmasks a lure-tree without breaking the oath (Bundle J)"
   expect(treeDead).toBe(true);
 });
 
+test("recovered logs persist across reload and the codex ARCHIVE pages (Bundle K)", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.evaluate(() => { grantFragment(false); grantFragment(false); });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.logsSeen).toEqual([0, 1]);
+  // open the codex from the title, switch to ARCHIVE, page forward
+  await page.waitForTimeout(700);
+  const pill = await page.evaluate(() => window.codexRect());
+  await page.mouse.click(pill.x + pill.w / 2, pill.y + pill.h / 2);
+  await page.waitForTimeout(450);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("codex");
+  const tab = await page.evaluate(() => window.codexTabRect(1));
+  await page.mouse.click(tab.x + tab.w / 2, tab.y + tab.h / 2);
+  await page.waitForTimeout(120);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.codexTab).toBe(1);
+  const panel = await page.evaluate(() => window.codexPanelRect());
+  await page.mouse.click(panel.x + panel.w * 0.75, panel.y + panel.h * 0.6);
+  await page.waitForTimeout(120);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.archivePage).toBe(1);
+  // tapping outside the panel closes back to the title
+  await page.mouse.click(panel.x + panel.w / 2, 4);
+  await page.waitForTimeout(120);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("title");
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen
