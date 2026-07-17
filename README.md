@@ -1,9 +1,12 @@
 # Hollow Oath
 
 An original 2D gravity-rescue game, built for iPhone Safari as a single
-self-contained HTML5 canvas game. All code, art, story, and character names are
-original; the flight-and-rescue *mechanic* is in the lineage of the classic Atari
-ST gravity games.
+self-contained HTML5 canvas game — and a love letter to the 16-bit
+gravity-lander classics. If you wore out a mouse on *Oids* (FTL Games, Atari ST,
+1987), fought gravity in *Thrust*, or fed coins to *Gravitar*, this is for you:
+the same land-gently-or-die flying, rebuilt from scratch. All code, art, story,
+and names here are original; this is an unaffiliated fan homage to a genre, not
+a remake of any of them.
 
 > **Formerly "DOIDS".** The game was renamed to **Hollow Oath** and the rescued
 > androids from "Doids" to **Scions**. See [CHANGELOG.md](CHANGELOG.md) for the

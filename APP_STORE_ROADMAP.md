@@ -268,11 +268,20 @@ F should land in the same release.**
 - [ ] **E6. Icons & launch screen.** Generate the full AppIcon set from
   `icon-512.png` (needs a 1024×1024 master — ask the owner or upscale carefully),
   plus a plain black launch storyboard with the title wordmark.
-- [ ] **E7. IP-sensitive copy check.** The title screen and README say
-  "in the spirit of the Atari ST classic". In-game homage is a judgment call —
-  **flag it to the owner** — but the App Store *listing* must not lean on
-  another game's name. Store copy sells "gravity rescue with a heartbeat", not
-  the lineage. (Decision recorded here when made.)
+- [x] **E7. IP-sensitive copy check — RESOLVED (owner decision, July 2026).**
+  Nostalgia is part of the sell: the homage stays loud, tiered by surface so it
+  is both discoverable and trademark-safe.
+  - **In-game** (title tagline): era-evocative, no trademarks — *"a love letter
+    to the 16-bit lander classics"*. Done.
+  - **Web** (README / GitHub Pages / the homepage the store listing links to):
+    factual, *named* homage — *Oids*, *Thrust*, *Gravitar* are named outright,
+    with an explicit "original, unaffiliated" line (nominative fair use). Done.
+    This is where nostalgia searchers land from Google — keep it named.
+  - **App Store metadata**: no third-party trademarks anywhere (Apple guideline
+    2.3.7 — other companies' marks in keywords/description risk rejection).
+    Evoke the era generically and link the homepage, which carries the named
+    lineage. Details in O2.
+  At submission (O6), verify all three tiers still hold.
 - [ ] **E8. Device test matrix.** Run on the oldest iOS you claim (suggest iOS 15+,
   which bounds hardware at ~iPhone 6s/SE1 — consider iOS 16+ to keep the perf
   floor at A11): touch controls, gyro permission flow, pause-on-background,
@@ -536,9 +545,14 @@ merged; G/H strongly recommended.**
   collected" is the positioning.
 - [ ] **O2. Metadata.** Name "Hollow Oath", subtitle ≤30 chars (e.g. "A gravity
   rescue with a heartbeat"), description leading on: feel the heartbeat
-  (haptics), trust nothing perfect, primum non nocere. Keywords: lander, gravity,
-  rescue, arcade, story. **No competitor/Atari references anywhere in metadata
-  (see E7).**
+  (haptics), trust nothing perfect, primum non nocere — **plus one nostalgia
+  paragraph in generic terms** ("if you grew up steering a lander through
+  16-bit caves and gravity wells, this is for you"). Keywords (all generic
+  genre/mechanic words — defensible even where they coincide with old game
+  names): lander, gravity, thrust, rescue, retro, arcade, 16-bit, cave, story.
+  **No third-party trademarks in any metadata field (E7 / Apple 2.3.7)** — the
+  *named* homage (Oids, Thrust, Gravitar) lives on the store-linked homepage
+  and README instead, which is what search engines index for "games like Oids".
 - [ ] **O3. Age rating questionnaire** — expect 9+ (infrequent mild fantasy
   violence). The player *can* shoot medics (malpractice mechanic); answer the
   violence questions honestly and keep the store description's framing on

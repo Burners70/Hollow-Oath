@@ -20,6 +20,15 @@ suggested bundle ID is a personal reverse-DNS ID (`com.burners70.hollowoath`,
 to be confirmed before first submission). The in-fiction ship prefix **AMS**
 (AMS MERCY, AMS SOLACE) is unrelated naval-style styling and is unchanged.
 
+**Homage line loosened, nostalgia kept loud (owner decision).** The homage is
+now tiered by surface: the in-game title tagline is era-evocative without
+trademarks ("a love letter to the 16-bit lander classics", was "in the spirit
+of the Atari ST classic"); the README names the lineage outright (*Oids*,
+*Thrust*, *Gravitar*) with an explicit original-and-unaffiliated line, because
+the web is where nostalgia searchers arrive from Google; App Store metadata
+will stay trademark-free per Apple 2.3.7 (see roadmap E7/O2, where the policy
+is recorded).
+
 ## Rename: DOIDS → Hollow Oath (July 2026)
 
 The game was renamed from **DOIDS** to **Hollow Oath**, and the rescued medical
