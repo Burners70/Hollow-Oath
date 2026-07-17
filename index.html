@@ -92,6 +92,11 @@
    and internal identifiers keep the doids_/__doids prefix on purpose.
    ================================================================ */
 
+/* Bundle E3 — running inside the Capacitor wrapper? Web-only furniture
+   (fullscreen, the add-to-home-screen banner) switches off when native. */
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform &&
+                  window.Capacitor.isNativePlatform());
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 let vw = 0, vh = 0, dpr = 1;
@@ -184,6 +189,7 @@ document.addEventListener("touchmove", e => e.preventDefault(), { passive:false 
 document.addEventListener("gesturestart", e => e.preventDefault());
 
 function goFullscreen() {
+  if (NATIVE) return;   // meaningless inside the wrapper (E3)
   if (!("ontouchstart" in window)) return;
   const standalone = window.navigator.standalone ||
     (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
@@ -200,6 +206,7 @@ function goFullscreen() {
 /* add-to-home-screen guidance for first-time visitors from a shared
    link: iOS gets share-sheet instructions, Android an install button */
 (function () {
+  if (NATIVE) { window.hideA2HS = () => {}; return; }   // the app IS installed (E3)
   const el = document.getElementById("a2hs");
   const txt = document.getElementById("a2hsText");
   const btn = document.getElementById("a2hsBtn");
@@ -404,6 +411,8 @@ function boom() {
   o.start(); o.stop(AC.currentTime + dur * 0.7 + 0.02);
 }
 function heartbeat(vol) { // lub-dub, played when a Scion comes aboard
+  // F2: the phone beats too — medium lub, light dub, same timings as the audio
+  haptic.pattern([{ delay: 0, style: "medium" }, { delay: 180, style: "light" }]);
   if (!AC) return;
   const V = vol || 1;
   const pulse = (t, f) => {
@@ -439,6 +448,7 @@ function staticTick(vol) { // the Static — a dry burst where a heartbeat shoul
   s.connect(bp); bp.connect(g); g.connect(sfxGain); s.start();
 }
 function dullThud() { // what boards when there is no heartbeat
+  haptic.heavy();   // F2: one heavy impact. No second beat. THAT is the tell.
   if (!AC) return;
   const f = rjit(90, 0.04), d = rjit(0.3, 0.08);
   const o = AC.createOscillator(), g = AC.createGain();
@@ -1302,6 +1312,7 @@ function toBriefing(n) {
    hazard — the player's reward for noticing is understanding, not damage. */
 const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
+let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -1446,6 +1457,8 @@ function updateExtraction(dt) {
     e.pulseT = 0;
     level.pulse = { t: 0 };
     staticTick();
+    // the "wrong" double-tick — distinct from any heartbeat (F2)
+    haptic.pattern([{ delay: 0, style: "light" }, { delay: 40, style: "light" }]);
     const { mx, my } = mercyPos();
     const dx = ship.x - mx, dy = ship.y - my, d = Math.hypot(dx, dy) || 1;
     if (d < 600 && !ship.landed && !ship.dead) {
@@ -1464,6 +1477,7 @@ function updateExtraction(dt) {
 
 function triggerBreach() {
   mercyBreach = { t: easyMode ? 60 : 45 };
+  haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 250, style: "heavy" }]);   // klaxon ×2 (F2)
   level.contamKnown = true;
   banner("SECURITY BREACH ABOARD MERCY\nDOCK AT THE RED BAY TO CONTAIN IT", "#ff4081");
   blip(880, 220, 0.6, "sawtooth", 0.2);
@@ -1828,12 +1842,14 @@ function updatePlay(dt) {
       s.vy = -Math.abs(s.vy) * 0.45; s.vx *= 0.65;
       s.fuel = Math.max(0, s.fuel - 4);
       camera.shake += 6;
+      haptic.medium();
       addText(s.x, s.y - 30, "SHIELD BOUNCE", "#69f0ae");
       blip(200, 380, 0.15, "sine", 0.12);
     } else if (survivable) {
       s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
       const dmg = upgrades.gentle ? 12 : 35;
       s.vitals -= dmg; camera.shake += 10;
+      haptic.heavy();
       addText(s.x, s.y - 30, "HARD LANDING -" + dmg, "#ff4081");
       blip(160, 40, 0.3, "sawtooth", 0.2);
       if (s.vitals <= 0) { shipDie(); return; }
@@ -1865,6 +1881,13 @@ function updatePlay(dt) {
   // Fleming: the hull cultures its own repair while vitals sit below half
   if (upgrades.penicillin && !s.dead && s.vitals > 0 && s.vitals < maxVitals() * 0.5)
     s.vitals = Math.min(maxVitals() * 0.5, s.vitals + 2 * dt);
+
+  // F2: the arrhythmia reaches the player's hand — a light early tap every
+  // few seconds while something wrong rides along (or the bay has you)
+  if (contaminantAboard() || decoySnared()) {
+    arrhythmiaHapT -= dt;
+    if (arrhythmiaHapT <= 0) { arrhythmiaHapT = 3 + Math.random() * 2; haptic.light(); }
+  } else arrhythmiaHapT = 0;
 
   s.beat = Math.max(0, s.beat - dt);
   camera.x = lerp(camera.x, s.x + s.vx * 0.35, 1 - Math.pow(0.001, dt));
