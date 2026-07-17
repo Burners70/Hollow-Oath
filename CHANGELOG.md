@@ -1,5 +1,22 @@
 # Changelog
 
+## Bundle H — Accessibility & difficulty (July 2026)
+
+- **H1 Colorblind mode is live** (`doids_cb`): the four *semantic* colours —
+  SAFE / WARN / DANGER / REVEAL — now route through `PAL()`; colorblind mode
+  swaps them to blue / orange / white / magenta on the landing guide, the ECG
+  ramp, the antisepsis tint and every canon `?` counterfeit mark. Nothing else
+  is re-skinned.
+- **H2 Shape redundancy:** the landing guide prefixes a `✓ / ! / ✕` glyph to
+  the descent numbers, so the landing state reads with no colour at all.
+- **H3 FIELD MEDIC mode** (`doids_easy`): 5 lives, landing tolerances ×1.3,
+  saboteur fuel-cuts halved, breach timer 60 s. Applies to the next run, not
+  mid-run. Settings copy: "for pilots who want the story."
+- **H4 BIG TEXT** (`doids_bigtext`): +2 px on card, briefing and intro body
+  text (line heights follow).
+- Settings panel grows to 8 rows (TILT keeps its gesture-path slot at row 4).
+
+
 ## CONTINUE box overflow fix + SFX variety pass (July 2026)
 
 - **A7: CONTINUE box text overspill on game over.** `continueRect()`'s box

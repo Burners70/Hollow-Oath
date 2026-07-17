@@ -125,6 +125,25 @@ test("settings panel opens from the title pill and toggles ASSIST", async ({ pag
   expect(s.assist).toBe(!before);
 });
 
+test("FIELD MEDIC / colorblind / big text persist and take effect (Bundle H)", async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem("doids_easy", "1");
+    localStorage.setItem("doids_cb", "1");
+    localStorage.setItem("doids_bigtext", "1");
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.easyMode).toBe(true);
+  expect(s.colorblind).toBe(true);
+  expect(s.bigText).toBe(true);
+  // FIELD MEDIC: a fresh run launches with 5 lives
+  await page.evaluate(() => { __doids.reset(); __doids.go(0); __doids.launch(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.lives).toBe(5);
+  expect(s.state).toBe("play");
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen

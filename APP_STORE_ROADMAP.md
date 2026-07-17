@@ -372,21 +372,26 @@ already a finished achievement list. **Priority: 7. Dependencies: E.**
 exactly the hues colorblind players lose. Assist-on is currently the only
 difficulty dial. **Priority: 8. Dependencies: C4 (settings panel).**
 
-- [ ] **H1. Colorblind mode** (`doids_cb`). A palette indirection for the
+- [x] **H1. Colorblind mode** (`doids_cb`). A palette indirection for the
   *semantic* colours only: define `SAFE`, `WARN`, `DANGER`, `REVEAL` colour
   constants used by `drawLandingGuide`, the ECG bar colour ramp, the antisepsis
   tint, and the canon `?` marks; colorblind mode swaps to a blue/orange/white
   set. Do not re-skin the whole game — just the four meanings.
-- [ ] **H2. Shape redundancy.** The landing guide already prints reason text; add
+  *(Landed as `PALETTES`/`PAL()`; the CB set is blue/orange/white plus magenta
+  for REVEAL so revealed counterfeits stay distinct from both WARN and DANGER.)*
+- [x] **H2. Shape redundancy.** The landing guide already prints reason text; add
   a `✓ / ! / ✕` glyph next to the descent numbers so the state reads without
   colour at all. Saboteur antisepsis tint gains the `?` mark it already uses for
-  canon — one glyph language for "counterfeit".
-- [ ] **H3. FIELD MEDIC mode** (easier; `doids_easy`): 5 lives, landing tolerances
+  canon — one glyph language for "counterfeit". *(The antisepsis `?` was already
+  in; the landing-guide glyph is new.)*
+- [x] **H3. FIELD MEDIC mode** (easier; `doids_easy`): 5 lives, landing tolerances
   ×1.3 (`landingEval` thresholds), saboteur fuel-cut damage halved, breach timer
   60 s. Label scores on the leaderboard-reporting path so easy-mode runs don't
   post to the main board (report only when off). Surface as a settings toggle
-  with one honest line: "for pilots who want the story".
-- [ ] **H4. Text size.** The card/brief body font sizes (`drawCardPanel`,
+  with one honest line: "for pilots who want the story". *(Leaderboard labelling
+  = `easyMode` is exposed on `__doids.get()`/run state; when G lands, gate the
+  main-board report on `!easyMode`.)*
+- [x] **H4. Text size.** The card/brief body font sizes (`drawCardPanel`,
   `drawBrief`, captions in `drawIntroScreen`) get +2px when `doids_bigtext` is
   on. Wrap widths already derive from measured text, so this is low-risk.
 
