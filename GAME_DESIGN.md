@@ -94,6 +94,13 @@ The reveal is staged across three secret caves ("the Hollows"):
 - The **finale choice** (destroy the beacon vs. land and answer it) sets
   fleet orders against the medical oath. The CMO refuses to sign the
   destroy-on-sight order with one line: *primum non nocere*.
+- **The emblem duality.** MERCY, her wrecks, and every Scion wear the true
+  emblem of medicine — a serpent coiled on a staff, the rod of Asclepius
+  (`drawAsclepius()`) — not a red cross (protected under the Geneva
+  Conventions; replaced for release, see CHANGELOG.md). Glycon's own mark is
+  a serpent too, but *wearing a mask* (§2 above, `drawShrine`'s coil). The
+  real serpent heals; the masked one sells counterfeit cures. Writers: any
+  new emblem-bearing scenery should read as one or the other, deliberately.
 
 ### 2.5 Endings
 
@@ -182,7 +189,7 @@ ship in quickening pulses while you dock one last time.
 | Touch | ⟲ ⟳ rotate (left thumb) · THRUST / FIRE / SHIELD (right thumb). One document-level multi-touch tracker hit-tests every active touch against every button (14px margin) so rolling between buttons transfers instantly. Buttons exist **only in flight** — hidden on title/intro/briefings/cards. |
 | Keyboard | ← → rotate · ↑/Z thrust · Space/X fire · C / Shift / ↓ shield · Enter tap |
 | Gamepad | Stick or d-pad rotate · A thrust · X/RB fire · B/LB/LT shield · Start = tap (menus) |
-| Gyro | ⟲ TILT pill on title (analog steering, 4° deadzone → full at 24°, orientation-aware, iOS permission flow) |
+| Gyro | TILT toggle in the ⚙ SETTINGS panel (analog steering, 4° deadzone → full at 24°, orientation-aware, iOS permission flow) |
 
 ## 6. Secrets inventory (and their tells)
 
@@ -231,8 +238,13 @@ rank (§2.5), distinct from breaking it in combat.
 |---|---|
 | `doids_hi` | Hi-score |
 | `doids_codex` | Famous Scions recovered across all runs (title CODEX) |
+| `doids_run` | Mid-campaign checkpoint, written at every sector boundary; powers the title's RESUME pill and the game-over CONTINUE option |
 | `doids_assist` | Landing assist on/off |
 | `doids_tilt` | Gyro steering on/off |
+| `doids_snd` | Sound effects on/off |
+| `doids_mus` | Ambient music on/off |
+| `doids_hapt` | Haptics on/off (no-op until Bundle F wires up the effect) |
+| `doids_cb` | Colorblind palette on/off (no-op until Bundle H wires up the effect) |
 | `doids_intro` | Intro narrative seen (plays once; ▸ STORY replays) |
 | `doids_a2hs` | Add-to-home-screen banner dismissed |
 
@@ -243,7 +255,14 @@ reload. Deliberate order inside the `<script>`:
 
 1. **Input** — touch tracker, keyboard, `pollPad()` (Gamepad API), gyro.
 2. **Audio** — tiny WebAudio synth: thrust noise, blips, boom, heartbeat
-   (lub-dub), `staticTick()` (the Static's dry burst), dull thud.
+   (lub-dub), `staticTick()` (the Static's dry burst), dull thud — all routed
+   through `sfxGain`. A generative ambient score (`startMusic()`: two
+   detuned drone oscillators + a filter LFO, plus a sparse pentatonic motif
+   via `updateMusic()`) routes through `musicGain`; it ducks under
+   briefings/cards, drops an octave and halves its motif rate in the finale,
+   and goes arrhythmic in its own timing while a contaminant is aboard —
+   same diagnostic language as the ECG. `sfxGain`/`musicGain` are gated by
+   the SOUND/MUSIC settings toggles (0 or 1, no sliders).
 3. **Story data** — `SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`,
    `FAMOUS`, `INTRO`. `FINALE_IDX` / `NBOX` derive from `SECTOR_NAMES`.
 4. **World gen** — `RECIPE[]` (per-sector counts incl. `scn` scenery and
@@ -260,8 +279,14 @@ reload. Deliberate order inside the `<script>`:
    `drawDarkness` with punched lights), HUD (`drawECG` is the health bar),
    screens (title/intro/brief/cards/codex).
 7. **State machine** — `state` ∈ title · intro · help · codex · brief · play
-   · reveal · clear · dead · ending · gameover · win. Virtual buttons shown
-   only in play/dead (`updateCtlVisibility`).
+   · pause · settings · reveal · clear · dead · ending · gameover · win.
+   Virtual buttons shown only in play/dead (`updateCtlVisibility`). `pause`
+   is reachable from play (❚❚ HUD button, Escape/p, gamepad Start) and
+   offers RESUME / RESTART SECTOR / SETTINGS / QUIT TO TITLE. `settings` is
+   reachable from the title's ⚙ pill or the pause menu and returns to
+   whichever opened it (`settingsReturnState`); it holds the SOUND, MUSIC,
+   HAPTICS, ASSIST, TILT, and COLORBLIND toggles (the last two are no-ops
+   until Bundles F/H land).
 
 **Debug/test handle**: `window.__doids` exposes state plus `go(n)` (jump to
 sector), `launch()`, `warpLift()`, `warpShrine()`, `give(upgrade)`,

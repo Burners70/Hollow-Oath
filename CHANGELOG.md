@@ -1,5 +1,54 @@
 # Changelog
 
+## Bundle C — audio baseline & settings menu (July 2026)
+
+Implemented the third App Store roadmap bundle (paid-game floor — the game
+previously shipped with zero music and no mute). All sound now routes
+through a new `sfxGain` node; a generative ambient score (`startMusic()`:
+two detuned drone oscillators through a lowpass with an LFO on cutoff, plus
+a sparse pentatonic motif) routes through `musicGain`. The score ducks under
+briefings/cards, drops an octave and halves its motif rate in the finale,
+and — the same diagnostic language as the ECG — goes arrhythmic in its own
+timing while a contaminant is aboard. Added a `"settings"` state (⚙ pill on
+the title, a new row in the pause menu) with SOUND/MUSIC/HAPTICS/ASSIST/
+TILT/COLORBLIND toggles; moved the old title-screen ASSIST and TILT pills
+into it (TILT's iOS permission request still fires from the raw
+`canvasTap()` gesture handler, not the deferred tap flow, per Apple's rule).
+HAPTICS/COLORBLIND are no-ops until Bundles F/H land, but their flags
+persist now. `__doids.get()` exposes `sound`/`music`/`haptics`/`colorblind`/
+gain values; 4 new smoke tests (persistence, sfxGain gating, and an
+end-to-end settings-panel toggle) bring the suite to 10/10 green.
+
+## Bundle B — emblem replacement, red cross → rod of Asclepius (July 2026)
+
+Implemented the second App Store roadmap bundle (legal blocker — the red
+cross is protected under the Geneva Conventions). Added `drawAsclepius(h,
+color, minimal)`: a serpent coiled on a staff drawn with the same
+neon-stroke bezier style as `drawShrine`'s coil, with a `minimal` mode (a
+single S-curve stroke, no staff) for the tiny Scion-scale emblem. Replaced
+every red-cross `fillRect` pair — `drawMothership()`, `drawWreckM()`,
+`iShip()`, and the `doidFigure()` chest emblem — with calls into the new
+helper; renamed the `crossCol` parameter to `emblemCol` throughout and swept
+"cross" out of nearby comments. `GAME_DESIGN.md` §2.4 now records the emblem
+duality (the true serpent vs. Glycon's masked one). Verified visually via
+Playwright screenshots of the title screen and two sectors; smoke suite
+still 8/8 green (no new state to test — purely visual).
+
+## Bundle A — pause, mid-run save & resume (July 2026)
+
+Implemented the first App Store roadmap bundle. `doids_run` now snapshots
+`levelIdx`/score/lives/upgrades/etc. at every sector boundary (`toBriefing`);
+the title screen shows a `▶ RESUME — <SECTOR>` pill when a snapshot exists,
+restoring it via a new `restoreRun()` helper. Added a `"pause"` state (❚❚ HUD
+button, `Escape`/`p`, and the gamepad Start button while flying) with a
+RESUME / RESTART SECTOR / QUIT TO TITLE menu; auto-pauses on
+`visibilitychange` so backgrounding never loses a run mid-flight. Game over
+now offers **CONTINUE** (restores the sector-start checkpoint with 3 lives
+and −25% score, via a new `checkpoint` captured just before the run snapshot
+is cleared) alongside the existing NEW ROTATION. `__doids.get()` gained
+`hasSave` and `paused`; two new smoke tests cover reload-resume and the pause
+toggle (8/8 passing).
+
 ## App Store roadmap added (July 2026)
 
 Added **[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)**: the prioritised,

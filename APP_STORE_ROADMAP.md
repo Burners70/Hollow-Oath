@@ -75,7 +75,7 @@ mid-sector.** Resuming a run re-enters the briefing of the sector the player was
 Mid-sector world state (positions, which Scions are aboard, etc.) is *not* serialized
 in v1.
 
-- [ ] **A1. Serialize run state to `doids_run`.**
+- [x] **A1. Serialize run state to `doids_run`.**
   Write a JSON snapshot to `localStorage["doids_run"]` at every sector boundary —
   i.e. inside `toBriefing(n)` — containing: `levelIdx`, `score`, `lives`,
   `runSaved`, `runLost`, `runFired`, `firedAtSecret`, `firedAtCombat`,
@@ -86,7 +86,7 @@ in v1.
   inside a new `clearRun()` helper called next to both `saveHi()` call sites is
   cleanest), and at the top of `resetRun()` **only when starting a fresh run from
   the title** (see A2 — resume must not clear it before restoring).
-- [ ] **A2. RESUME pill on the title screen.**
+- [x] **A2. RESUME pill on the title screen.**
   In `drawTitle()`, when a valid `doids_run` exists, draw a `▶ RESUME — <SECTOR
   NAME>` pill (follow the pattern of `assistRect()`/`helpRect()`/`storyRect()`:
   add a `resumeRect()`, draw a stroked rect + label, hit-test it in `updateMenu()`).
@@ -94,7 +94,7 @@ in v1.
   (`shrines = new Set(saved.shrines)`, `upgrades = saved.upgrades`, …) and calls
   `toBriefing(saved.levelIdx)`. Plain TAP TO LAUNCH still starts a fresh run
   (calls `resetRun()`, which clears the snapshot).
-- [ ] **A3. Pause state.**
+- [x] **A3. Pause state.**
   Add `"pause"` to the state machine. Enter it from `"play"` via: a small `❚❚`
   tap-target drawn in the HUD top-centre (add `pauseRect()`, hit-test in a new
   early branch of `updatePlay()` using `input.tap` — note `updatePlay` currently
@@ -108,17 +108,17 @@ in v1.
   While paused: freeze the sim (early-return in `update()` before `updatePlay`),
   silence `thrustGain`, and keep virtual buttons hidden
   (`updateCtlVisibility()` — add `"pause"` to the states where `want` is false).
-- [ ] **A4. Auto-pause on backgrounding.**
+- [x] **A4. Auto-pause on backgrounding.**
   On `document.visibilitychange` → hidden while `state === "play"`, enter the
   pause state and write the snapshot. (rAF already stops when hidden; this makes
   the *resume* experience deliberate instead of mid-flight.)
-- [ ] **A5. Continue from checkpoint on game over.**
+- [x] **A5. Continue from checkpoint on game over.**
   On the game-over screen (`drawCenter("FLATLINE", …)`), offer two options instead
   of only "tap to try again": **CONTINUE — restart <SECTOR> with 3 lives, score
   −25%** (restores the A1 snapshot, `lives = 3`,
   `score = Math.floor(score * 0.75)`, `toBriefing(levelIdx)`) and **NEW ROTATION**
   (current behaviour). Hit-test two stacked rects; keyboard Enter = continue.
-- [ ] **A6. Expose + test.**
+- [x] **A6. Expose + test.**
   Add `hasSave` (boolean) and `paused` to `__doids.get()`. Smoke test: start a
   run, `go(3)`, reload the page, assert the resume pill state restores
   `levelIdx === 3` and score/upgrades survive.
@@ -134,11 +134,11 @@ or after launch. The fix is also a narrative upgrade: the true emblem of medicin
 becomes a serpent (rod of Asclepius) — mirroring Glycon, *the serpent wearing a
 mask*. Sector 0 is already ASCLEPION. **Priority: 2. Dependencies: none.**
 
-- [ ] **B1. Draw a `drawAsclepius(w, h)` helper** — a vertical staff with a single
+- [x] **B1. Draw a `drawAsclepius(w, h)` helper** — a vertical staff with a single
   serpent coiled around it (2–3 bezier curves, same neon-stroke style as
   `drawShrine`'s coil). Parameterise size so one helper serves ship-scale and
   Scion-scale.
-- [ ] **B2. Replace the crosses.** Call sites, all in `index.html`:
+- [x] **B2. Replace the crosses.** Call sites, all in `index.html`:
   - `drawMothership()` — the two pulsing `fillRect` pairs after
     `ctx.shadowColor = "#ff1744"`.
   - `drawWreckM()` — the flickering cross (`ctx.fillRect(-5, -16, …)` pair).
@@ -149,11 +149,11 @@ mask*. Sector 0 is already ASCLEPION. **Priority: 2. Dependencies: none.**
     `emblemCol` consistently.
   - Keep the colour family (`#ff1744` / `#ff5d7d`) — the *shape* is the issue, and
     the pink-red reads well against the teal Scions.
-- [ ] **B3. Sweep the copy.** Search the file for "cross" in comments/strings and
+- [x] **B3. Sweep the copy.** Search the file for "cross" in comments/strings and
   update. The HUD `⚕` glyph (CODEX pill) already IS the staff of Asclepius — no
   change. Add one line to GAME_DESIGN.md §2.4 noting the emblem duality (the true
   serpent vs. Glycon's masked serpent) so writers build on it.
-- [ ] **B4. Visual check.** Screenshot title, sector 0 with a waiting Scion, MERCY
+- [x] **B4. Visual check.** Screenshot title, sector 0 with a waiting Scion, MERCY
   close-up, a wreck, and intro panel 1 (Playwright `page.screenshot`) and eyeball
   that the emblem reads at all five scales.
 
@@ -167,23 +167,23 @@ functions. **Priority: 3. Dependencies: none (A3's pause screen will link to the
 same settings panel if A lands first — otherwise settings is title-only until A
 merges).**
 
-- [ ] **C1. Master/music gain plumbing.** In `initAudio()`, create `sfxGain` and
+- [x] **C1. Master/music gain plumbing.** In `initAudio()`, create `sfxGain` and
   `musicGain`, both → `AC.destination`. Reroute every existing sound
   (`blip`, `boom`, `heartbeat`, `staticTick`, `dullThud`, `thrustGain`) through
   `sfxGain`. Two persisted toggles: `doids_snd`, `doids_mus` ("1"/"0", default on)
   driving `sfxGain.gain` / `musicGain.gain` (0 or 1 — no sliders in v1).
-- [ ] **C2. Generative ambient score.** A `startMusic()` that builds a quiet,
+- [x] **C2. Generative ambient score.** A `startMusic()` that builds a quiet,
   slowly-evolving WebAudio drone: two detuned sine/triangle oscillators around
   55–110 Hz through a lowpass, an LFO on filter cutoff (~0.05 Hz), and a sparse
   pentatonic motif (one `blip`-like sine note every 9–15 s, randomised). Route via
   `musicGain`. Duck it (gain ×0.4, 1 s ramp) under briefings and cards; restore in
   play. On the finale sector, halve the motif rate and drop the drone an octave.
   Keep it *very* quiet — this is atmosphere, not melody.
-- [ ] **C3. Arrhythmic score tell.** While `contaminantAboard()` is true, push the
+- [x] **C3. Arrhythmic score tell.** While `contaminantAboard()` is true, push the
   music motif's timing off-grid (multiply the next-note delay by 0.5/1.7
   alternately). The soundtrack itself develops an arrhythmia — same diagnostic
   language as the ECG. One-line hook where the motif timer is armed.
-- [ ] **C4. SETTINGS panel.** New `"settings"` state, reachable from a `⚙ SETTINGS`
+- [x] **C4. SETTINGS panel.** New `"settings"` state, reachable from a `⚙ SETTINGS`
   pill on the title (pattern: `helpRect()` et al) and from the pause menu (A3).
   Rows with tap-toggles: SOUND, MUSIC, HAPTICS (no-op until Bundle F; still show
   it), ASSIST, TILT, COLORBLIND (no-op until Bundle H). Move the existing
@@ -192,7 +192,7 @@ merges).**
   requirement that iOS permission is requested from a real user gesture** (see
   `canvasTap()` — the tilt toggle must stay inside the raw gesture path, so keep
   routing its tap through the same synchronous handler).
-- [ ] **C5. Test.** Smoke: toggle each setting, reload, assert persistence.
+- [x] **C5. Test.** Smoke: toggle each setting, reload, assert persistence.
   Assert `thrustGain` routes through `sfxGain` (thrust is silent with sound off).
 
 ---
