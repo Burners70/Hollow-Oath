@@ -89,6 +89,22 @@ canvas.addEventListener("mousedown", () => { input.tap = true; initAudio(); });
 document.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
 document.addEventListener("gesturestart", e => e.preventDefault());
 
+function goFullscreen() {
+  // hide browser chrome on touch devices; no-op when already installed
+  // to the home screen or when the platform doesn't allow it
+  if (!("ontouchstart" in window)) return;
+  const standalone = window.navigator.standalone ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  if (standalone || document.fullscreenElement || document.webkitFullscreenElement) return;
+  const el = document.documentElement;
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!fn) return;
+  try {
+    const p = fn.call(el);
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) {}
+}
+
 const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust" };
 window.addEventListener("keydown", e => {
   if (keyMap[e.key] !== undefined) { input[keyMap[e.key]] = true; e.preventDefault(); }
@@ -308,6 +324,7 @@ function update(dt) {
 
   if (state === "title" || state === "gameover" || state === "win") {
     if (input.tap && stateT > 0.6) {
+      goFullscreen();
       score = 0; lives = 3;
       startLevel(0);
     }
