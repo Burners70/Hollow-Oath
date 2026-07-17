@@ -166,7 +166,10 @@ for (const b of btnEls) {
    grants DeviceOrientation permission from a real user gesture */
 function canvasTap(x, y) {
   initAudio();
-  if (state === "title" && inRect(tiltRect(), x, y)) { toggleTilt(); return; }
+  // TILT permission must be requested from this synchronous gesture handler
+  // (iOS DeviceOrientation rule) — never route it through the deferred
+  // input.tap flag consumed later in the update() loop.
+  if (state === "settings" && inRect(settingsRowRect(4), x, y)) { toggleTilt(); return; }
   input.tap = true; input.tapX = x; input.tapY = y;
 }
 canvas.addEventListener("touchstart", e => {
@@ -332,11 +335,16 @@ function gyroSteerVal() {
 }
 
 /* ---------------- audio (tiny synth) ---------------- */
-let AC = null, thrustNode = null, thrustGain = null;
+let AC = null, thrustNode = null, thrustGain = null, sfxGain = null, musicGain = null;
+let sound = true, music = true;
+try { sound = localStorage.getItem("doids_snd") !== "0"; } catch (e) {}
+try { music = localStorage.getItem("doids_mus") !== "0"; } catch (e) {}
 function initAudio() {
   if (AC) { if (AC.state === "suspended") AC.resume(); return; }
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
+    sfxGain = AC.createGain(); sfxGain.gain.value = sound ? 1 : 0; sfxGain.connect(AC.destination);
+    musicGain = AC.createGain(); musicGain.gain.value = music ? 1 : 0; musicGain.connect(AC.destination);
     const bufferSize = AC.sampleRate * 0.5;
     const buf = AC.createBuffer(1, bufferSize, AC.sampleRate);
     const data = buf.getChannelData(0);
@@ -345,8 +353,10 @@ function initAudio() {
     thrustNode.buffer = buf; thrustNode.loop = true;
     const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
     thrustGain = AC.createGain(); thrustGain.gain.value = 0;
-    thrustNode.connect(lp); lp.connect(thrustGain); thrustGain.connect(AC.destination);
+    thrustNode.connect(lp); lp.connect(thrustGain); thrustGain.connect(sfxGain);
     thrustNode.start();
+    startMusic();
+    updateDroneFreq();
   } catch (e) { AC = null; }
 }
 function blip(freq0, freq1, dur, type, vol) {
@@ -357,7 +367,7 @@ function blip(freq0, freq1, dur, type, vol) {
   o.frequency.exponentialRampToValueAtTime(Math.max(freq1, 1), AC.currentTime + dur);
   g.gain.setValueAtTime(vol || 0.12, AC.currentTime);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
-  o.connect(g); g.connect(AC.destination);
+  o.connect(g); g.connect(sfxGain);
   o.start(); o.stop(AC.currentTime + dur + 0.02);
 }
 function boom() {
@@ -369,7 +379,7 @@ function boom() {
   const s = AC.createBufferSource(); s.buffer = buf;
   const g = AC.createGain(); g.gain.value = 0.35;
   const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
-  s.connect(lp); lp.connect(g); g.connect(AC.destination); s.start();
+  s.connect(lp); lp.connect(g); g.connect(sfxGain); s.start();
 }
 function heartbeat(vol) { // lub-dub, played when a Scion comes aboard
   if (!AC) return;
@@ -380,7 +390,7 @@ function heartbeat(vol) { // lub-dub, played when a Scion comes aboard
     g.gain.setValueAtTime(0.0001, AC.currentTime + t);
     g.gain.exponentialRampToValueAtTime(0.4 * V, AC.currentTime + t + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + t + 0.16);
-    o.connect(g); g.connect(AC.destination);
+    o.connect(g); g.connect(sfxGain);
     o.start(AC.currentTime + t); o.stop(AC.currentTime + t + 0.2);
   };
   pulse(0, 150); pulse(0.18, 112);
@@ -394,7 +404,7 @@ function staticTick() { // the Static — a dry burst where a heartbeat should b
   const s = AC.createBufferSource(); s.buffer = buf;
   const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 2;
   const g = AC.createGain(); g.gain.value = 0.08;
-  s.connect(bp); bp.connect(g); g.connect(AC.destination); s.start();
+  s.connect(bp); bp.connect(g); g.connect(sfxGain); s.start();
 }
 function dullThud() { // what boards when there is no heartbeat
   if (!AC) return;
@@ -403,8 +413,66 @@ function dullThud() { // what boards when there is no heartbeat
   g.gain.setValueAtTime(0.0001, AC.currentTime);
   g.gain.exponentialRampToValueAtTime(0.5, AC.currentTime + 0.03);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 0.3);
-  o.connect(g); g.connect(AC.destination);
+  o.connect(g); g.connect(sfxGain);
   o.start(); o.stop(AC.currentTime + 0.35);
+}
+
+/* ---------------- generative ambient score ---------------- */
+const PENTATONIC = [220.00, 261.63, 293.66, 329.63, 392.00];
+let droneOsc1 = null, droneOsc2 = null;
+let musicNoteT = 0, musicNoteNext = 9 + Math.random() * 6, musicArrhythmiaFlip = false;
+function startMusic() {
+  if (!AC || !musicGain) return;
+  droneOsc1 = AC.createOscillator(); droneOsc1.type = "sine"; droneOsc1.frequency.value = 55;
+  droneOsc2 = AC.createOscillator(); droneOsc2.type = "triangle"; droneOsc2.frequency.value = 55 * 1.01;
+  const droneFilter = AC.createBiquadFilter(); droneFilter.type = "lowpass"; droneFilter.frequency.value = 300;
+  const droneGain = AC.createGain(); droneGain.gain.value = 0.06;
+  const lfo = AC.createOscillator(); lfo.frequency.value = 0.05;
+  const lfoGain = AC.createGain(); lfoGain.gain.value = 150;
+  lfo.connect(lfoGain); lfoGain.connect(droneFilter.frequency);
+  droneOsc1.connect(droneFilter); droneOsc2.connect(droneFilter);
+  droneFilter.connect(droneGain); droneGain.connect(musicGain);
+  droneOsc1.start(); droneOsc2.start(); lfo.start();
+}
+function updateDroneFreq() {
+  if (!droneOsc1) return;
+  const base = (level && level.isFinale) ? 27.5 : 55;
+  droneOsc1.frequency.value = base;
+  droneOsc2.frequency.value = base * 1.01;
+}
+function playMotifNote() {
+  if (!AC || !musicGain) return;
+  const finale = level && level.isFinale;
+  const freq = PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)] * (finale ? 0.5 : 1);
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = "sine"; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.05, AC.currentTime + 0.4);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 2.2);
+  o.connect(g); g.connect(musicGain);
+  o.start(); o.stop(AC.currentTime + 2.3);
+}
+/* the ambient motif ducks under briefings/cards, and — the same diagnostic
+   language as the ECG and the haptic tell — goes arrhythmic on its own
+   timing while a contaminant is aboard */
+function updateMusic(dt) {
+  if (!AC || !musicGain) return;
+  const ducked = state === "brief" || state === "reveal" || state === "clear" ||
+    state === "ending" || state === "help" || state === "codex";
+  const target = music ? (ducked ? 0.4 : 1) : 0;
+  musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt);
+  musicNoteT += dt;
+  if (musicNoteT >= musicNoteNext) {
+    musicNoteT = 0;
+    playMotifNote();
+    const finale = level && level.isFinale;
+    let base = (finale ? 18 : 9) + Math.random() * (finale ? 12 : 6);
+    if (state === "play" && contaminantAboard()) {
+      musicArrhythmiaFlip = !musicArrhythmiaFlip;
+      base *= musicArrhythmiaFlip ? 0.5 : 1.7;
+    }
+    musicNoteNext = base;
+  }
 }
 
 /* ---------------- helpers ---------------- */
@@ -569,6 +637,13 @@ function saveCodex() {
 }
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
+// haptics/colorblind are no-ops until Bundles F/H wire up their behaviour —
+// the settings row and persisted flag land now so those bundles have
+// nothing left to plumb but the effect itself.
+let haptics = true;
+try { haptics = localStorage.getItem("doids_hapt") !== "0"; } catch (e) {}
+let colorblind = false;
+try { colorblind = localStorage.getItem("doids_cb") === "1"; } catch (e) {}
 let introSeen = false;
 try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
 function markIntroSeen() {
@@ -581,7 +656,7 @@ const ASSIST_RATE = 4.5;
 function helpRect() {
   return { x: vw - saRight - 14 - 150, y: 12, w: 150, h: 34 };
 }
-function assistRect() {
+function settingsRect() {
   const h = helpRect();
   return { x: h.x - 198, y: 12, w: 190, h: 34 };
 }
@@ -590,10 +665,6 @@ function skipRect() {
 }
 function codexRect() {
   return { x: 14 + saLeft, y: 12, w: 168, h: 34 };
-}
-function tiltRect() {
-  const c = codexRect();
-  return { x: c.x, y: c.y + 42, w: 128, h: 34 };
 }
 function storyRect() {
   const h = helpRect();
@@ -612,15 +683,21 @@ function pauseRect() {
 }
 function pauseRowRect(i) {
   const w = Math.min(260, vw * 0.6), h = 40, gap = 14;
-  const totalH = h * 3 + gap * 2;
+  const totalH = h * 4 + gap * 3;
   const y0 = vh / 2 - totalH / 2;
+  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
+}
+function settingsRowRect(i) {
+  const w = Math.min(280, vw * 0.7), h = 36, gap = 8;
+  const totalH = h * 6 + gap * 5;
+  const y0 = vh / 2 - totalH / 2 + 12;
   return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on at the title.",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on in SETTINGS.",
   color: "#00e5ff"
 };
 
@@ -971,6 +1048,7 @@ function toBriefing(n) {
   mercyBreach = null; mercyDamaged = false;
   state = "brief"; stateT = 0; briefChars = 0;
   snapshotRun();
+  updateDroneFreq();
 }
 
 let bannerMsg = null;
@@ -1145,6 +1223,7 @@ function update(dt) {
   stateT += dt;
   pollPad();
   updateCtlVisibility();
+  updateMusic(dt);
   if (bannerMsg && (bannerMsg.t -= dt) <= 0) bannerMsg = null;
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1192,6 +1271,7 @@ function update(dt) {
       input.tap = false;
       return;
     case "pause": updatePause(); return;
+    case "settings": updateSettings(); return;
     case "play": updatePlay(dt); return;
   }
 }
@@ -1203,10 +1283,9 @@ function saveHi() {
 let introIdx = 0;
 function updateMenu() {
   if (input.tap && stateT > 0.6) {
-    if (state === "title" && inRect(assistRect(), input.tapX, input.tapY)) {
-      assist = !assist;
-      try { localStorage.setItem("doids_assist", assist ? "1" : "0"); } catch (e) {}
-      blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
+    if (state === "title" && inRect(settingsRect(), input.tapX, input.tapY)) {
+      settingsReturnState = "title"; state = "settings"; stateT = 0;
+      blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
       state = "help"; stateT = 0;
       blip(440, 660, 0.1, "sine", 0.08);
@@ -1299,7 +1378,47 @@ function updatePause() {
   if (input.tap && stateT > 0.25) {
     if (inRect(pauseRowRect(0), input.tapX, input.tapY)) { state = "play"; stateT = 0; }
     else if (inRect(pauseRowRect(1), input.tapX, input.tapY)) { toBriefing(levelIdx); }
-    else if (inRect(pauseRowRect(2), input.tapX, input.tapY)) { snapshotRun(); state = "title"; stateT = 0; }
+    else if (inRect(pauseRowRect(2), input.tapX, input.tapY)) {
+      settingsReturnState = "pause"; state = "settings"; stateT = 0;
+    }
+    else if (inRect(pauseRowRect(3), input.tapX, input.tapY)) { snapshotRun(); state = "title"; stateT = 0; }
+  }
+  input.tap = false;
+}
+
+let settingsReturnState = "title";
+function updateSettings() {
+  if (input.tap && stateT > 0.3) {
+    let hit = false;
+    for (let i = 0; i < 6; i++) {
+      if (i === 4) continue;   // TILT is handled synchronously in canvasTap()
+      if (inRect(settingsRowRect(i), input.tapX, input.tapY)) {
+        hit = true;
+        if (i === 0) {
+          sound = !sound;
+          try { localStorage.setItem("doids_snd", sound ? "1" : "0"); } catch (e) {}
+          if (sfxGain) sfxGain.gain.value = sound ? 1 : 0;
+          blip(sound ? 440 : 300, sound ? 660 : 200, 0.12, "sine", 0.1);
+        } else if (i === 1) {
+          music = !music;
+          try { localStorage.setItem("doids_mus", music ? "1" : "0"); } catch (e) {}
+          blip(440, 660, 0.1, "sine", 0.08);
+        } else if (i === 2) {
+          haptics = !haptics;
+          try { localStorage.setItem("doids_hapt", haptics ? "1" : "0"); } catch (e) {}
+          blip(440, 660, 0.1, "sine", 0.08);
+        } else if (i === 3) {
+          assist = !assist;
+          try { localStorage.setItem("doids_assist", assist ? "1" : "0"); } catch (e) {}
+          blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
+        } else if (i === 5) {
+          colorblind = !colorblind;
+          try { localStorage.setItem("doids_cb", colorblind ? "1" : "0"); } catch (e) {}
+          blip(440, 660, 0.1, "sine", 0.08);
+        }
+      }
+    }
+    if (!hit) { state = settingsReturnState || "title"; stateT = 0; }
   }
   input.tap = false;
 }
@@ -1934,6 +2053,7 @@ function render() {
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
   if (state === "pause") drawPause(now);
+  if (state === "settings") drawSettings(now);
   if (state === "ending") drawEnding(now);
   if (state === "gameover") drawGameOver(now);
   if (state === "win") drawWin();
@@ -2950,16 +3070,15 @@ function drawTitle(now) {
   ctx.fillStyle = "rgba(155,234,249,.55)";
   ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.72);
 
-  // pills: landing assist toggle + flight manual
-  const r = assistRect();
-  const on = assist;
-  ctx.strokeStyle = on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
-  ctx.shadowColor = on ? "#69f0ae" : "transparent"; ctx.shadowBlur = on ? 10 : 0;
+  // settings pill (sound, music, assist, tilt, ...)
+  const r = settingsRect();
+  ctx.strokeStyle = "rgba(0,229,255,.7)";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(r.x, r.y, r.w, r.h);
   ctx.font = "700 12px Menlo, monospace";
-  ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
-  ctx.fillText("ASSIST · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + 22);
+  ctx.fillStyle = "#7fe9ff";
+  ctx.fillText("⚙ SETTINGS", r.x + r.w / 2, r.y + 22);
   ctx.shadowBlur = 0;
 
   const hr = helpRect();
@@ -2985,15 +3104,6 @@ function drawTitle(now) {
   ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
   ctx.fillStyle = any ? "#ffd54f" : "rgba(255,255,255,.45)";
   ctx.fillText("⚕ CODEX " + codex.size + "/" + FAMOUS.length, cr.x + cr.w / 2, cr.y + 22);
-  ctx.shadowBlur = 0;
-
-  // tilt-steering pill (gyro)
-  const tr = tiltRect();
-  ctx.strokeStyle = tilt ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
-  ctx.shadowColor = tilt ? "#69f0ae" : "transparent"; ctx.shadowBlur = tilt ? 10 : 0;
-  ctx.strokeRect(tr.x, tr.y, tr.w, tr.h);
-  ctx.fillStyle = tilt ? "#69f0ae" : "rgba(255,255,255,.5)";
-  ctx.fillText("⟲ TILT · " + (tilt ? "ON" : "OFF"), tr.x + tr.w / 2, tr.y + 22);
   ctx.shadowBlur = 0;
 
   if (pad.connected) {
@@ -3390,8 +3500,8 @@ function drawPause(now) {
   ctx.font = "900 " + Math.min(38, vw * 0.08) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("PAUSED", vw / 2, vh * 0.28);
   ctx.shadowBlur = 0;
-  const labels = ["RESUME", "RESTART SECTOR", "QUIT TO TITLE"];
-  for (let i = 0; i < 3; i++) {
+  const labels = ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
+  for (let i = 0; i < 4; i++) {
     const r = pauseRowRect(i);
     ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.5;
@@ -3401,6 +3511,40 @@ function drawPause(now) {
     ctx.fillText(labels[i], vw / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
+}
+
+/* SOUND/MUSIC/ASSIST/COLORBLIND toggle now; HAPTICS/COLORBLIND are no-ops
+   until Bundles F/H wire up their effect (the flag persists regardless) */
+function drawSettings(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.85)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
+  ctx.fillStyle = "#aef4ff";
+  ctx.font = "900 " + Math.min(34, vw * 0.07) + "px 'Helvetica Neue', Arial, sans-serif";
+  const topY = settingsRowRect(0).y - 30;
+  ctx.fillText("SETTINGS", vw / 2, topY);
+  ctx.shadowBlur = 0;
+  const rows = [
+    ["SOUND", sound], ["MUSIC", music], ["HAPTICS", haptics],
+    ["ASSIST", assist], ["TILT", tilt], ["COLORBLIND", colorblind]
+  ];
+  for (let i = 0; i < rows.length; i++) {
+    const [label, on] = rows[i];
+    const r = settingsRowRect(i);
+    ctx.strokeStyle = on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
+    ctx.shadowColor = on ? "#69f0ae" : "transparent"; ctx.shadowBlur = on ? 8 : 0;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
+    ctx.font = "700 13px Menlo, monospace";
+    ctx.fillText(label + " · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + r.h / 2 + 5);
+    ctx.shadowBlur = 0;
+  }
+  ctx.font = "600 10px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.4)";
+  ctx.fillText("tap outside a row to close", vw / 2, settingsRowRect(5).y + settingsRowRect(5).h + 26);
 }
 
 function drawGameOver(now) {
@@ -3488,7 +3632,10 @@ window.__doids = {
     endingType, clearCards, revealCard, score, lives,
     shrines: [...shrines], inCave: !!(level && level.isCave),
     input: Object.assign({}, input), ctlShown, introSeen,
-    hasSave: !!savedRun, paused: state === "pause" }),
+    hasSave: !!savedRun, paused: state === "pause",
+    sound, music, haptics, assist, tilt, colorblind,
+    sfxGainValue: sfxGain ? sfxGain.gain.value : null,
+    musicGainValue: musicGain ? musicGain.gain.value : null }),
   go: toBriefing,
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,

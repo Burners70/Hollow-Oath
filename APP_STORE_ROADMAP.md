@@ -167,23 +167,23 @@ functions. **Priority: 3. Dependencies: none (A3's pause screen will link to the
 same settings panel if A lands first — otherwise settings is title-only until A
 merges).**
 
-- [ ] **C1. Master/music gain plumbing.** In `initAudio()`, create `sfxGain` and
+- [x] **C1. Master/music gain plumbing.** In `initAudio()`, create `sfxGain` and
   `musicGain`, both → `AC.destination`. Reroute every existing sound
   (`blip`, `boom`, `heartbeat`, `staticTick`, `dullThud`, `thrustGain`) through
   `sfxGain`. Two persisted toggles: `doids_snd`, `doids_mus` ("1"/"0", default on)
   driving `sfxGain.gain` / `musicGain.gain` (0 or 1 — no sliders in v1).
-- [ ] **C2. Generative ambient score.** A `startMusic()` that builds a quiet,
+- [x] **C2. Generative ambient score.** A `startMusic()` that builds a quiet,
   slowly-evolving WebAudio drone: two detuned sine/triangle oscillators around
   55–110 Hz through a lowpass, an LFO on filter cutoff (~0.05 Hz), and a sparse
   pentatonic motif (one `blip`-like sine note every 9–15 s, randomised). Route via
   `musicGain`. Duck it (gain ×0.4, 1 s ramp) under briefings and cards; restore in
   play. On the finale sector, halve the motif rate and drop the drone an octave.
   Keep it *very* quiet — this is atmosphere, not melody.
-- [ ] **C3. Arrhythmic score tell.** While `contaminantAboard()` is true, push the
+- [x] **C3. Arrhythmic score tell.** While `contaminantAboard()` is true, push the
   music motif's timing off-grid (multiply the next-note delay by 0.5/1.7
   alternately). The soundtrack itself develops an arrhythmia — same diagnostic
   language as the ECG. One-line hook where the motif timer is armed.
-- [ ] **C4. SETTINGS panel.** New `"settings"` state, reachable from a `⚙ SETTINGS`
+- [x] **C4. SETTINGS panel.** New `"settings"` state, reachable from a `⚙ SETTINGS`
   pill on the title (pattern: `helpRect()` et al) and from the pause menu (A3).
   Rows with tap-toggles: SOUND, MUSIC, HAPTICS (no-op until Bundle F; still show
   it), ASSIST, TILT, COLORBLIND (no-op until Bundle H). Move the existing
@@ -192,7 +192,7 @@ merges).**
   requirement that iOS permission is requested from a real user gesture** (see
   `canvasTap()` — the tilt toggle must stay inside the raw gesture path, so keep
   routing its tap through the same synchronous handler).
-- [ ] **C5. Test.** Smoke: toggle each setting, reload, assert persistence.
+- [x] **C5. Test.** Smoke: toggle each setting, reload, assert persistence.
   Assert `thrustGain` routes through `sfxGain` (thrust is silent with sound off).
 
 ---

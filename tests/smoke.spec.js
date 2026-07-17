@@ -95,6 +95,36 @@ test("pause freezes play and resume returns to it", async ({ page }) => {
   expect(s.state).toBe("play");
 });
 
+test("settings persist across reload and the sound toggle gates sfxGain", async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem("doids_snd", "0");
+    localStorage.setItem("doids_mus", "0");
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => window.initAudio());   // module-scoped fn on a classic <script> == a window property
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.sound).toBe(false);
+  expect(s.music).toBe(false);
+  expect(s.sfxGainValue).toBe(0);
+});
+
+test("settings panel opens from the title pill and toggles ASSIST", async ({ page }) => {
+  await page.waitForTimeout(700);   // clear the title's stateT > 0.6 just-arrived guard
+  const pill = await page.evaluate(() => window.settingsRect());
+  await page.mouse.click(pill.x + pill.w / 2, pill.y + pill.h / 2);
+  await page.waitForTimeout(50);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("settings");
+  const before = s.assist;
+  await page.waitForTimeout(350);   // clear the stateT > 0.3 just-opened guard
+  const assistRow = await page.evaluate(() => window.settingsRowRect(3));
+  await page.mouse.click(assistRow.x + assistRow.w / 2, assistRow.y + assistRow.h / 2);
+  await page.waitForTimeout(50);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.assist).toBe(!before);
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen

@@ -1,5 +1,24 @@
 # Changelog
 
+## Bundle C — audio baseline & settings menu (July 2026)
+
+Implemented the third App Store roadmap bundle (paid-game floor — the game
+previously shipped with zero music and no mute). All sound now routes
+through a new `sfxGain` node; a generative ambient score (`startMusic()`:
+two detuned drone oscillators through a lowpass with an LFO on cutoff, plus
+a sparse pentatonic motif) routes through `musicGain`. The score ducks under
+briefings/cards, drops an octave and halves its motif rate in the finale,
+and — the same diagnostic language as the ECG — goes arrhythmic in its own
+timing while a contaminant is aboard. Added a `"settings"` state (⚙ pill on
+the title, a new row in the pause menu) with SOUND/MUSIC/HAPTICS/ASSIST/
+TILT/COLORBLIND toggles; moved the old title-screen ASSIST and TILT pills
+into it (TILT's iOS permission request still fires from the raw
+`canvasTap()` gesture handler, not the deferred tap flow, per Apple's rule).
+HAPTICS/COLORBLIND are no-ops until Bundles F/H land, but their flags
+persist now. `__doids.get()` exposes `sound`/`music`/`haptics`/`colorblind`/
+gain values; 4 new smoke tests (persistence, sfxGain gating, and an
+end-to-end settings-panel toggle) bring the suite to 10/10 green.
+
 ## Bundle B — emblem replacement, red cross → rod of Asclepius (July 2026)
 
 Implemented the second App Store roadmap bundle (legal blocker — the red
