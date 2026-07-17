@@ -209,6 +209,25 @@ test("recovered logs persist across reload and the codex ARCHIVE pages (Bundle K
   expect(s.state).toBe("title");
 });
 
+test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle L)", async ({ page }) => {
+  // start haunted (as after an unresolved ending)
+  await page.evaluate(() => localStorage.setItem("doids_unres", "1"));
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.unresolvedHaunt).toBe(true);
+  // land beside the beacon and answer the call
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.endingType).toBe("answered");
+  expect(s.unresolvedHaunt).toBe(false);   // the Static is heard; the title rests
+  // the typed line arrives, then a tap advances to the ending card
+  await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 3000 });
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen
