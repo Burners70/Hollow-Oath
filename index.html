@@ -520,6 +520,34 @@ function updateMusic(dt) {
   }
 }
 
+/* ---------------- haptics facade (Bundle F1) ----------------
+   On the web this is a no-op; inside the Capacitor wrapper (Bundle E) the
+   same calls bridge to native impact haptics — the phone becomes the ECG.
+   Every call gates on the HAPTICS setting. Patterns are arrays of
+   {delay (ms), style: "light"|"medium"|"heavy"}. */
+const haptic = (() => {
+  const plugin = () => {
+    const C = window.Capacitor;
+    return (C && C.isNativePlatform && C.isNativePlatform() &&
+            C.Plugins && C.Plugins.Haptics) || null;
+  };
+  const impact = style => {
+    if (!haptics) return;
+    const H = plugin();
+    if (!H) return;
+    try { H.impact({ style: String(style).toUpperCase() }); } catch (e) {}
+  };
+  return {
+    light: () => impact("light"),
+    medium: () => impact("medium"),
+    heavy: () => impact("heavy"),
+    pattern: steps => {
+      if (!haptics || !plugin()) return;
+      for (const st of steps) setTimeout(() => impact(st.style), st.delay);
+    }
+  };
+})();
+
 /* ---------------- helpers ---------------- */
 function mulberry32(a) {
   return function () {
@@ -1081,7 +1109,10 @@ function exitCave() {
 }
 
 function maxVitals() { return upgrades.fabrica ? 125 : 100; }
-function lampRadius() { return upgrades.lamp ? 400 : 230; }
+function lampRadius() {
+  // the lamp itself falters while the Static surges (Bundle I2)
+  return (upgrades.lamp ? 400 : 230) * (staticSurge > 0 ? 0.92 : 1);
+}
 
 function spawnShip() {
   ship = {
@@ -1113,8 +1144,39 @@ function toBriefing(n) {
   mercyBreach = null; mercyDamaged = false;
   resupplyDrone = null; liftTransit = null;
   state = "brief"; stateT = 0; briefChars = 0;
+  staticClock = 0; staticSurge = 0; staticGlitchT = 0;
   snapshotRun();
   updateDroneFreq();
+}
+
+/* Bundle I — the 41-second clock. "Repeating, every 41 seconds" stops being
+   lore and becomes observable: from Curie Fields onward (where the briefing
+   first names the figure) and everywhere down in the Hollows, the whole
+   world flinches on the Static's own period. Diagnostic atmosphere, not a
+   hazard — the player's reward for noticing is understanding, not damage. */
+const STATIC_PERIOD = 41.0;
+let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
+function updateStaticClock(dt) {
+  staticSurge = Math.max(0, staticSurge - dt);
+  staticGlitchT = Math.max(0, staticGlitchT - dt);
+  if (!(levelIdx >= 4 || level.isCave)) return;
+  staticClock += dt;
+  if (staticClock < STATIC_PERIOD) return;
+  staticClock -= STATIC_PERIOD;
+  staticTick();
+  // a "wrong" double-tick, distinct from the heartbeat's lub-dub (F2)
+  haptic.pattern([{ delay: 0, style: "light" }, { delay: 40, style: "light" }]);
+  staticGlitchT = 0.12;
+  if (level.isFinale && level.beacon && !level.beacon.resolved) {
+    // the beacon surges on the same phase, but strong — the closer you fly
+    // to SOLACE, the harder the world flinches with her (I3)
+    const d = Math.hypot(ship.x - level.beacon.x, ship.y - level.beacon.y);
+    const near = 1 - clamp(d / 2200, 0, 1);
+    staticSurge = 1.2;
+    camera.shake += 2 + 4 * near;
+  } else {
+    staticSurge = 0.6;
+  }
 }
 
 let bannerMsg = null;
@@ -1626,6 +1688,7 @@ function updatePlay(dt) {
   updateResupplySignal(dt);
   updateLift(dt);
   updateShrine(dt);
+  updateStaticClock(dt);
   if (level.isFinale) updateBeacon(dt);
 
   if (mercyBreach) {
@@ -2953,6 +3016,7 @@ function drawBuilding(sc, now, ruined) {
     if (!lit) continue;
     let a = ruined ? 0.12 + 0.25 * Math.abs(Math.sin(now * 3.7 + sc.ph)) : 0.5;
     if (!ruined && idx === sc.flick) a = 0.15 + 0.4 * Math.abs(Math.sin(now * 5 + sc.ph));
+    if (staticSurge > 0) a *= 0.15 + 0.3 * Math.random();   // the surge dims every window (I2)
     const wx = -w / 2 + cw * (c + 0.7), wy = -h + ch * (r + 0.7);
     if (ruined && wy < -h * 0.75) continue;
     ctx.fillStyle = "rgba(255,196,0," + a.toFixed(2) + ")";
@@ -3368,6 +3432,9 @@ function drawHUD(now) {
   let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
     "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
+  // the sector label itself glitches for a beat when the Static fires (I2)
+  if (staticGlitchT > 0)
+    mid = mid.replace(/[A-Z0-9]/g, c => Math.random() < 0.2 ? "▓▒░#%"[Math.floor(Math.random() * 5)] : c);
   ctx.fillText(mid, vw / 2, topPad + 23);
   ctx.shadowBlur = 0;
 
@@ -3461,7 +3528,9 @@ function drawECG(x, y, w, h, frac, now) {
     else if (ph < 0.18) v = -0.45;
     else if (ph < 0.3) v = 0.18;
     v *= (frac > 0 ? 1 : 0);
-    const yy = mid - v * h * 0.55;
+    let yy = mid - v * h * 0.55;
+    // the Static's surge rides the trace itself (Bundle I2)
+    if (staticSurge > 0) yy += (Math.random() * 2 - 1) * Math.min(1, staticSurge) * 1.4;
     px === 0 ? ctx.moveTo(x + px, yy) : ctx.lineTo(x + px, yy);
   }
   ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.lineWidth = 1.6;
@@ -4085,8 +4154,10 @@ window.__doids = {
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
-    perfFrameMs, perfFps, resupplyDrone, liftTransit }),
+    perfFrameMs, perfFps, resupplyDrone, liftTransit,
+    staticClock, staticSurge }),
   go: toBriefing,
+  setStaticClock: v => { staticClock = v; },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,

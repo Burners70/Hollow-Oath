@@ -144,6 +144,22 @@ test("FIELD MEDIC / colorblind / big text persist and take effect (Bundle H)", a
   expect(s.state).toBe("play");
 });
 
+test("the 41-second clock runs only from sector 4 on and surges on period (Bundle I)", async ({ page }) => {
+  // sector 2: the clock must not accumulate
+  await page.evaluate(() => { __doids.go(2); __doids.launch(); });
+  await page.waitForTimeout(400);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.staticClock).toBe(0);
+  expect(s.staticSurge).toBe(0);
+  // sector 4: wind the clock to just under the period and watch it fire
+  await page.evaluate(() => { __doids.go(4); __doids.launch(); __doids.setStaticClock(40.8); });
+  await page.waitForFunction(() => __doids.get().staticSurge > 0, null, { timeout: 3000 });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.staticClock).toBeLessThan(1);   // wrapped, not still climbing
+  expect(s.staticSurge).toBeGreaterThan(0);
+  expect(s.staticSurge).toBeLessThanOrEqual(0.6);
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen
