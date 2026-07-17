@@ -97,6 +97,9 @@ const ctx = canvas.getContext("2d");
 let vw = 0, vh = 0, dpr = 1;
 let saLeft = 0, saRight = 0;
 let darkCanvas = null, dctx = null;
+/* ?perf=1 — an FPS/frame-time meter, cost-free unless the flag is set (Bundle D1) */
+const PERF = /(?:^|[?&])perf=1(?:&|$)/.test(location.search);
+let perfFrameMs = 0, perfFps = 0;
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2026,6 +2029,55 @@ function resolveBeacon(how) {
 }
 
 /* ================= render ================= */
+
+/* Bundle D2/D3 — perf: ctx.shadowBlur is extremely expensive per-draw-call;
+   it may only appear on singletons drawn once per frame (ship, mothership,
+   title text), never inside a per-entity or per-particle loop. Two cheap
+   substitutes stand in for it:
+   - glowSprite/drawGlow: a cached pre-rendered radial-gradient blob,
+     drawImage'd under a point/icon instead of blurring it live.
+   - glowStroke: a 2-pass stroke (soft wide + crisp normal) for per-entity
+     line art (Scions, turrets, drones, lure-trees). */
+const glowSpriteCache = new Map();
+function glowSprite(color, r) {
+  const rr = Math.max(2, Math.round(r));
+  const key = color + "|" + rr;
+  let c = glowSpriteCache.get(key);
+  if (c) return c;
+  const size = rr * 2;
+  c = document.createElement("canvas");
+  c.width = c.height = size;
+  const gctx = c.getContext("2d");
+  const g = gctx.createRadialGradient(rr, rr, 0, rr, rr, rr);
+  g.addColorStop(0, color);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  gctx.fillStyle = g;
+  gctx.fillRect(0, 0, size, size);
+  glowSpriteCache.set(key, c);
+  return c;
+}
+function drawGlow(x, y, r, color, alpha) {
+  const sp = glowSprite(color, r);
+  const rr = sp.width / 2;
+  if (alpha !== undefined) { ctx.save(); ctx.globalAlpha *= alpha; }
+  ctx.drawImage(sp, x - rr, y - rr);
+  if (alpha !== undefined) ctx.restore();
+}
+/* Call after building a path (beginPath/moveTo/lineTo…) with no ctx.stroke()
+   of your own yet — leaves strokeStyle/lineWidth set to the crisp values so
+   a caller can keep stroking or filling the same path afterward. */
+function glowStroke(color, lineWidth) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.globalAlpha *= 0.25;
+  ctx.lineWidth = lineWidth + 3;
+  ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+}
+
 function zoomLevel() {
   return clamp(Math.min((vw - saLeft) / 900, vh / 640), 0.55, 1);
 }
@@ -2082,9 +2134,68 @@ function worldTransform() {
   return { z, cx, cy };
 }
 
+/* Bundle D4 — terrain and cave-roof geometry is static per level; instead of
+   retracing the full heightmap path (with its shadowBlur stroke) every
+   frame, render it once per 512px-wide chunk into an offscreen canvas and
+   drawImage the chunk back every frame after. Chunks are built lazily as
+   the camera reaches them and kept in a small per-level LRU, so a level is
+   never rendered at full width/resolution in one shot. */
+const TILE_W = 512, TILE_CACHE_CAP = 12;
+
+function tileTouch(map, key, tile) {
+  if (map.has(key)) map.delete(key);
+  map.set(key, tile);
+  if (map.size > TILE_CACHE_CAP) map.delete(map.keys().next().value);
+  return tile;
+}
+
+/* closeAt: "bottom" for terrain (solid ground below the surface line) or
+   "top" for a cave roof (solid rock above the ceiling line). */
+function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops) {
+  const ov = STEP * 2;
+  const sx0 = Math.max(0, x0 - ov), sx1 = Math.min((arr.length - 1) * STEP, x1 + ov);
+  const i0 = Math.max(0, Math.floor(sx0 / STEP)), i1 = Math.min(arr.length - 1, Math.ceil(sx1 / STEP));
+  let lo = Infinity, hi = -Infinity;
+  for (let i = i0; i <= i1; i++) { const v = arr[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+  const top = lo - padAbove, bottom = hi + padBelow;
+  const closeY = closeAt === "bottom" ? bottom + 100 : top - 20;
+  const sc = dpr;
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.ceil((x1 - x0) * sc));
+  c.height = Math.max(1, Math.ceil((bottom - top) * sc));
+  const tctx = c.getContext("2d");
+  tctx.setTransform(sc, 0, 0, sc, -x0 * sc, -top * sc);
+  tctx.beginPath();
+  tctx.moveTo(sx0, closeY);
+  for (let i = i0; i <= i1; i++) tctx.lineTo(i * STEP, arr[i]);
+  tctx.lineTo(sx1, closeY);
+  tctx.closePath();
+  const grad = tctx.createLinearGradient(0, gradFrom, 0, gradTo);
+  grad.addColorStop(0, gradStops[0]); grad.addColorStop(1, gradStops[1]);
+  tctx.fillStyle = grad; tctx.fill();
+  tctx.shadowColor = "#7c4dff"; tctx.shadowBlur = 12;
+  tctx.strokeStyle = "#b388ff"; tctx.lineWidth = 2; tctx.stroke();
+  return { canvas: c, x0, y0: top, w: x1 - x0, h: bottom - top };
+}
+
+function getTiles(lvl, cacheKey, arr, xLo, xHi, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops) {
+  if (!lvl[cacheKey]) lvl[cacheKey] = new Map();
+  const map = lvl[cacheKey];
+  const t0 = Math.max(0, Math.floor(xLo / TILE_W)), t1 = Math.floor(clamp(xHi, 0, lvl.W) / TILE_W);
+  const out = [];
+  for (let ti = t0; ti <= t1; ti++) {
+    const x0 = ti * TILE_W, x1 = Math.min(x0 + TILE_W, lvl.W);
+    let tile = map.get(ti);
+    if (!tile) tile = buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops);
+    out.push(tileTouch(map, ti, tile));
+  }
+  return out;
+}
+
 function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
+  const viewW = (vw - saLeft) / z;
 
   if (!level.isCave) {
     ctx.save();
@@ -2097,32 +2208,16 @@ function drawWorld(now) {
     ctx.restore();
   }
 
-  // terrain
-  ctx.beginPath();
-  ctx.moveTo(0, WORLD_H + 100);
-  for (let i = 0; i < level.heights.length; i++) ctx.lineTo(i * STEP, level.heights[i]);
-  ctx.lineTo(level.W, WORLD_H + 100);
-  ctx.closePath();
-  const tg = ctx.createLinearGradient(0, 700, 0, WORLD_H);
-  tg.addColorStop(0, "#1b1040"); tg.addColorStop(1, "#0c0820");
-  ctx.fillStyle = tg; ctx.fill();
-  ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
-  ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
-  ctx.shadowBlur = 0;
+  // terrain — cached per 512px chunk (Bundle D4), not retraced every frame
+  for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
+      40, 220, "bottom", 700, WORLD_H, ["#1b1040", "#0c0820"]))
+    ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
 
-  // cave roof, hanging overhead
+  // cave roof, hanging overhead — same tile cache
   if (level.roof) {
-    ctx.beginPath();
-    ctx.moveTo(0, -160);
-    for (let i = 0; i < level.roof.length; i++) ctx.lineTo(i * STEP, level.roof[i]);
-    ctx.lineTo(level.W, -160);
-    ctx.closePath();
-    const rg = ctx.createLinearGradient(0, 500, 0, 1100);
-    rg.addColorStop(0, "#0c0820"); rg.addColorStop(1, "#1b1040");
-    ctx.fillStyle = rg; ctx.fill();
-    ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
-    ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
-    ctx.shadowBlur = 0;
+    for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
+        350, 40, "top", 500, 1100, ["#0c0820", "#1b1040"]))
+      ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
   }
 
   drawScenery(now);
@@ -2132,11 +2227,10 @@ function drawWorld(now) {
     ctx.save();
     ctx.translate(a.x, a.y);
     ctx.rotate(now * 0.4 + a.spin);
-    ctx.strokeStyle = "rgba(179,136,255,.35)";
-    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
     ctx.setLineDash([10, 14]);
     for (let r = a.r; r > 40; r -= a.r / 3) {
-      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7);
+      glowStroke("rgba(179,136,255,.35)", 1);
     }
     ctx.setLineDash([]);
     ctx.restore();
@@ -2149,10 +2243,11 @@ function drawWorld(now) {
   // fuel pods — real ones flicker like fire, alive and irregular
   for (const p of level.pods) {
     if (p.taken) continue;
+    const flicker = 0.72 + 0.28 * Math.abs(Math.sin(now * 2.7 + (p.ph || 0)) * Math.sin(now * 1.3 + (p.ph || 0) * 2));
+    drawGlow(p.x, p.y - 8, 14, "#ffc400", flicker * 0.7);
     ctx.save();
     ctx.translate(p.x, p.y - 8);
-    ctx.globalAlpha = 0.72 + 0.28 * Math.abs(Math.sin(now * 2.7 + (p.ph || 0)) * Math.sin(now * 1.3 + (p.ph || 0) * 2));
-    ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+    ctx.globalAlpha = flicker;
     ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2;
     ctx.fillStyle = "rgba(255,196,0,.15)";
     ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
@@ -2162,12 +2257,14 @@ function drawWorld(now) {
   // counterfeits — every lure blinks in perfect, mechanical unison
   for (const p of level.fakePods) {
     if (p.taken) continue;
+    const known = upgrades.canon;
+    const alpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;
+    const col = known ? "#c6ff00" : "#ffc400";
+    drawGlow(p.x, p.y - 8, 14, col, alpha * 0.7);
     ctx.save();
     ctx.translate(p.x, p.y - 8);
-    ctx.globalAlpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;
-    const known = upgrades.canon;
-    ctx.shadowColor = known ? "#c6ff00" : "#ffc400"; ctx.shadowBlur = 10;
-    ctx.strokeStyle = known ? "#c6ff00" : "#ffc400"; ctx.lineWidth = 2;
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
     ctx.fillStyle = known ? "rgba(198,255,0,.15)" : "rgba(255,196,0,.15)";
     ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
@@ -2217,15 +2314,14 @@ function drawWorld(now) {
     if (!t.alive) continue;
     ctx.save();
     ctx.translate(t.x, t.y);
-    ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.fillStyle = "#3a0d24";
-    ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, 12, Math.PI, 0); ctx.closePath();
-    ctx.fill(); ctx.stroke();
+    ctx.fill();
+    glowStroke("#ff4081", 2);
     ctx.beginPath();
     ctx.moveTo(Math.cos(t.ang) * 6, -10 + Math.sin(t.ang) * 6);
     ctx.lineTo(Math.cos(t.ang) * 18, -10 + Math.sin(t.ang) * 18);
-    ctx.stroke();
+    glowStroke("#ff4081", 2);
     ctx.restore();
   }
 
@@ -2234,35 +2330,35 @@ function drawWorld(now) {
     ctx.save();
     ctx.translate(dr.x, dr.y);
     ctx.rotate(Math.sin(dr.bob * 2) * 0.2);
-    ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 12;
-    ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
     ctx.fillStyle = "rgba(255,64,129,.12)";
     ctx.beginPath();
     ctx.moveTo(0, -10); ctx.lineTo(9, 0); ctx.lineTo(0, 10); ctx.lineTo(-9, 0);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.closePath(); ctx.fill();
+    glowStroke("#ff4081", 2);
     ctx.fillStyle = "#ff8ab3";
     ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill();
     ctx.restore();
   }
 
-  ctx.shadowBlur = 8;
   for (const b of level.bullets) {
-    ctx.shadowColor = "#ff4081"; ctx.fillStyle = "#ff8ab3";
+    drawGlow(b.x, b.y, 8, "#ff4081");
+    ctx.fillStyle = "#ff8ab3";
     ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
   }
   for (const b of level.shots) {
-    ctx.shadowColor = "#00e5ff"; ctx.fillStyle = "#a7f6ff";
+    drawGlow(b.x, b.y, 7, "#00e5ff");
+    ctx.fillStyle = "#a7f6ff";
     ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, 7); ctx.fill();
   }
-  ctx.shadowBlur = 0;
 
   for (const p of particles) {
-    ctx.globalAlpha = clamp(p.t / p.max, 0, 1);
-    ctx.shadowColor = p.color; ctx.shadowBlur = 6;
+    const a = clamp(p.t / p.max, 0, 1);
+    drawGlow(p.x, p.y, p.size * 2.2, p.color, a * 0.8);
+    ctx.globalAlpha = a;
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
-  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
 
   if (!ship.dead) drawShip(now);
   if (!ship.dead && !ship.landed && state === "play") drawLandingGuide();
@@ -2401,8 +2497,6 @@ function drawLandingGuide() {
    Rounded head with blinking eyes, antenna with a bobble, a torso
    wearing the serpent emblem, articulated arms with hands. */
 function doidFigure(p) {
-  ctx.shadowColor = p.col; ctx.shadowBlur = 10;
-  ctx.strokeStyle = p.col; ctx.lineWidth = 2;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   ctx.beginPath();
   if (p.sitting) {
@@ -2414,7 +2508,7 @@ function doidFigure(p) {
   }
   ctx.moveTo(-4, -12); ctx.lineTo(p.armL[0], p.armL[1]);
   ctx.moveTo(4, -12); ctx.lineTo(p.armR[0], p.armR[1]);
-  ctx.stroke();
+  glowStroke(p.col, 2);
   ctx.fillStyle = p.col;
   ctx.beginPath(); ctx.arc(p.armL[0], p.armL[1], 1.3, 0, 7); ctx.fill();
   ctx.beginPath(); ctx.arc(p.armR[0], p.armR[1], 1.3, 0, 7); ctx.fill();
@@ -2422,7 +2516,8 @@ function doidFigure(p) {
   ctx.beginPath();
   ctx.moveTo(-4.5, -14); ctx.lineTo(4.5, -14); ctx.lineTo(3.5, -6); ctx.lineTo(-3.5, -6);
   ctx.closePath();
-  ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
+  ctx.fillStyle = p.fill; ctx.fill();
+  glowStroke(p.col, 2);
   // the serpent emblem — these are healers
   ctx.save();
   ctx.translate(0, -11.3);
@@ -2435,7 +2530,8 @@ function doidFigure(p) {
   ctx.lineTo(1.5, -21); ctx.arcTo(3.5, -21, 3.5, -19, 2);
   ctx.lineTo(3.5, -15.5);
   ctx.closePath();
-  ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
+  ctx.fillStyle = p.fill; ctx.fill();
+  glowStroke(p.col, 2);
   // eyes (they blink)
   ctx.fillStyle = p.col;
   if (p.blink) { ctx.fillRect(-2.4, -18.1, 1.7, 0.9); ctx.fillRect(0.7, -18.1, 1.7, 0.9); }
@@ -2443,9 +2539,9 @@ function doidFigure(p) {
   // antenna with swaying bobble
   ctx.beginPath();
   ctx.moveTo(0, -21); ctx.lineTo(p.sway, -25);
-  ctx.stroke();
+  glowStroke(p.col, 2);
+  ctx.fillStyle = p.col;
   ctx.beginPath(); ctx.arc(p.sway, -26, 1.4, 0, 7); ctx.fill();
-  ctx.shadowBlur = 0;
 }
 
 /* Each Scion has a persona — big wavers, two-arm wavers, jumpers,
@@ -2550,12 +2646,11 @@ function drawTree(sc, now) {
   ctx.moveTo(0.6, -h * 0.45); ctx.lineTo(8 + sway * 2, -h * 0.7);
   ctx.moveTo(0, -h * 0.6); ctx.lineTo(-7 + sway * 2, -h * 0.85);
   ctx.stroke();
-  const col = "#00bfa5";
-  ctx.shadowColor = col; ctx.shadowBlur = 8;
-  ctx.strokeStyle = "rgba(0,191,165,.55)";
   ctx.fillStyle = "rgba(0,191,165,.1)";
   const puff = (px, py, r) => {
-    ctx.beginPath(); ctx.arc(px + sway * 3, py, r, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(px + sway * 3, py, r, 0, 7);
+    ctx.fill();
+    glowStroke("rgba(0,191,165,.55)", 1.6);
   };
   puff(sway * 2.4, -h - 6, 8);
   puff(sway * 2.4 - 8, -h + 1, 6);
@@ -2591,9 +2686,7 @@ function drawBuilding(sc, now, ruined) {
   ctx.rotate(sc.tilt * (ruined ? 1.5 : 0.4));
   const w = sc.w, h = ruined ? sc.h * 0.62 : sc.h;
   ctx.fillStyle = "rgba(8,12,30,.9)";
-  ctx.strokeStyle = ruined ? "rgba(150,140,200,.35)" : "rgba(0,229,255,.4)";
   ctx.lineWidth = 2;
-  ctx.shadowColor = ruined ? "#7c4dff" : "#00e5ff"; ctx.shadowBlur = 5;
   ctx.beginPath();
   if (ruined) {
     ctx.moveTo(-w / 2, 0);
@@ -2601,8 +2694,8 @@ function drawBuilding(sc, now, ruined) {
     for (let j = 1; j <= 4; j++) ctx.lineTo(-w / 2 + (w * j) / 4, -h + sc.jag[j]);
     ctx.lineTo(w / 2, 0);
   } else ctx.rect(-w / 2, -h, w, h);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.shadowBlur = 0;
+  ctx.closePath(); ctx.fill();
+  glowStroke(ruined ? "rgba(150,140,200,.35)" : "rgba(0,229,255,.4)", 2);
   // windows
   const cw = w / (sc.cols + 1), ch = h / (sc.rows + 1);
   let idx = 0;
@@ -2620,9 +2713,9 @@ function drawBuilding(sc, now, ruined) {
     ctx.strokeStyle = "rgba(0,229,255,.4)"; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(0, -h - 12); ctx.stroke();
     if (Math.sin(now * 1.8 + sc.ph) > 0.85) {
-      ctx.fillStyle = "#ff1744"; ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 8;
+      drawGlow(0, -h - 13, 6, "#ff1744");
+      ctx.fillStyle = "#ff1744";
       ctx.beginPath(); ctx.arc(0, -h - 13, 1.8, 0, 7); ctx.fill();
-      ctx.shadowBlur = 0;
     }
   } else { // rubble at the foot
     ctx.strokeStyle = "rgba(150,140,200,.25)";
@@ -2640,19 +2733,17 @@ function drawWreckM(sc, now) {
   ctx.translate(sc.x, sc.y + 4);
   ctx.rotate(sc.tilt + sc.lean * 0.5);
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
-  ctx.strokeStyle = "rgba(0,229,255,.3)";
   ctx.fillStyle = "rgba(8,12,26,.85)";
   ctx.lineWidth = 2.5;
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 4;
   ctx.beginPath();
   ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
   ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.closePath(); ctx.fill();
+  glowStroke("rgba(0,229,255,.3)", 2.5);
   // hull breach
-  ctx.strokeStyle = "rgba(150,140,200,.4)"; ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.moveTo(20, -26); ctx.lineTo(34, -8); ctx.lineTo(24, 4); ctx.lineTo(40, 22);
-  ctx.stroke();
+  glowStroke("rgba(150,140,200,.4)", 1.6);
   // the emblem, mostly dead
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
   if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
@@ -2993,6 +3084,14 @@ function drawHUD(now) {
     ctx.font = "800 13px Menlo, monospace";
     ctx.fillText(s.vitals < 30 ? "⚠ VITALS CRITICAL" : "⚠ LOW FUEL", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
+  }
+
+  if (PERF) {
+    ctx.textAlign = "right";
+    ctx.font = "700 11px Menlo, monospace";
+    ctx.fillStyle = perfFrameMs > 20 ? "#ff4081" : "#69f0ae";
+    ctx.fillText(perfFrameMs.toFixed(1) + "ms · " + Math.round(perfFps) + " FPS",
+      vw - 14 - saRight, topPad + 40);
   }
 }
 
@@ -3635,7 +3734,8 @@ window.__doids = {
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
-    musicGainValue: musicGain ? musicGain.gain.value : null }),
+    musicGainValue: musicGain ? musicGain.gain.value : null,
+    perfFrameMs, perfFps }),
   go: toBriefing,
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
@@ -3656,8 +3756,10 @@ particles = []; texts = [];
 
 let last = performance.now();
 function frame(t) {
-  const dt = Math.min((t - last) / 1000, 0.05);
+  const rawMs = t - last;
+  const dt = Math.min(rawMs / 1000, 0.05);
   last = t;
+  if (PERF) { perfFrameMs = rawMs; perfFps = rawMs > 0 ? 1000 / rawMs : 0; }
   update(dt);
   render();
   requestAnimationFrame(frame);

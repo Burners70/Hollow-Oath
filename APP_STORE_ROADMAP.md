@@ -208,25 +208,25 @@ Rule of thumb after this bundle: **`shadowBlur` may appear on singletons drawn o
 per frame (ship, mothership, title text) but never inside a per-entity or
 per-particle loop.**
 
-- [ ] **D1. FPS meter behind a flag.** If the URL contains `?perf=1`, draw
+- [x] **D1. FPS meter behind a flag.** If the URL contains `?perf=1`, draw
   frame-time ms + FPS in the corner of `drawHUD`. Ship it — it costs nothing and
   every later bundle uses it.
-- [ ] **D2. Glow-sprite helper.** Pre-render small radial-gradient circles
+- [x] **D2. Glow-sprite helper.** Pre-render small radial-gradient circles
   (one offscreen canvas per colour, cached in a map) and `drawImage` them under
   point objects to fake glow. Replace shadowBlur in: the `particles` loop, the
   `bullets`/`shots` loops, star field (stars need no glow at all — delete their
   shadow), and fuel pods / fake pods.
-- [ ] **D3. Multi-stroke glow for lines.** For stroked shapes drawn per-entity
+- [x] **D3. Multi-stroke glow for lines.** For stroked shapes drawn per-entity
   (Scions via `doidFigure`, turrets, drones, scenery trees/rocks), replace
   `shadowBlur` with a 2-pass stroke: first pass `lineWidth+3` at `globalAlpha
   0.25`, second pass normal. Wrap as `glowStroke()` so call sites stay one line.
-- [ ] **D4. Cache the terrain.** Terrain + cave roof geometry is static per level.
+- [x] **D4. Cache the terrain.** Terrain + cave roof geometry is static per level.
   Render the filled/stroked terrain path once into an offscreen canvas **per
   visible chunk** (e.g. 512px-wide tiles rendered lazily as the camera reaches
   them, kept in an LRU of ~12 tiles) rather than re-tracing the full heightmap
   path every frame. Do NOT pre-render the whole level at full DPR (a 4400×1500
   finale at 2× is >100 MB — that's why tiles).
-- [ ] **D5. Measure.** Before/after frame-time numbers in the PR description, from
+- [x] **D5. Measure.** Before/after frame-time numbers in the PR description, from
   a desktop Chromium run (`?perf=1`, sector 5 with scenery + counterfeits) and,
   if available, a real iPhone via the live Pages build.
 

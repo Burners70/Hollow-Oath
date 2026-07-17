@@ -1,5 +1,34 @@
 # Changelog
 
+## Bundle D — performance pass (July 2026)
+
+Implemented the fourth App Store roadmap bundle (App Review runs on real
+hardware, and `ctx.shadowBlur` was set on nearly every draw call — terrain,
+scenery, every Scion, every particle, every bullet). Added an FPS/frame-time
+meter behind `?perf=1` in `drawHUD`, free unless the flag is set. Replaced
+shadowBlur on point objects (particles, bullets/shots, fuel pods/fake pods)
+with a cached-per-colour `glowSprite()`/`drawGlow()` radial-gradient blob
+drawn under the crisp icon instead of blurring it live. Replaced shadowBlur on
+per-entity stroked shapes (`doidFigure`'s limbs/torso/head/antenna, turrets,
+drones, lure-trees, buildings, wreck hulls, gravity anomalies) with a
+`glowStroke()` 2-pass stroke (soft wide pass + crisp normal pass) — call
+sites stay one line. Terrain and cave-roof geometry are now rendered once
+per 512px-wide chunk into an offscreen canvas (bounded to each chunk's local
+height range, not the whole world height) instead of retracing the full
+heightmap path every frame; chunks build lazily as the camera reaches them
+and live in a 12-tile-per-level LRU. `shadowBlur` now only appears on
+singletons drawn once per frame (ship, mothership, title text, HUD text),
+never inside a per-entity or per-particle loop. Measured via direct
+`render()` timing (bypasses vsync pacing) at 2× DPR: Avicenna Shoals
+(scenery + counterfeits) dropped from a 28.2ms to 20.6ms per-frame median
+(~1.37×), the finale (dark, wrecks, drones) from 55.2ms to 43.1ms (~1.28×);
+gains on real mobile Safari — where shadowBlur is markedly more expensive
+than on desktop Chromium — are expected to be larger but weren't verified on
+physical hardware in this pass. `__doids.get()` now exposes `perfFrameMs`/
+`perfFps`; smoke suite still 10/10 green (no new game state to test — purely
+a rendering-cost change, verified visually via Playwright screenshots of a
+surface sector and a cave interior for tile-seam artifacts).
+
 ## Bundle C — audio baseline & settings menu (July 2026)
 
 Implemented the third App Store roadmap bundle (paid-game floor — the game
