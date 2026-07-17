@@ -194,6 +194,7 @@ const LEVEL_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN"];
 
 let level, ship, camera, particles, texts, stars;
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
+let runSaved = 0, runLost = 0;
 let hiscore = 0;
 try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
 let assist = true;
@@ -247,7 +248,7 @@ function genLevel(n) {
   for (let i = 0; i < 4; i++) { heights[i] = 600; heights[count - 1 - i] = 600; }
 
   const lvl = { n, W, heights, oids: [], turrets: [], bullets: [], shots: [],
-                mx: 280, my: 170, delivered: 0, total: 0, firedShots: 0 };
+                mx: 280, my: 170, delivered: 0, lost: 0, total: 0, firedShots: 0 };
 
   // place oids on flattened perches
   const nOids = 3 + n * 2;
@@ -335,8 +336,28 @@ function shipDie() {
   ship.dead = true;
   explode(ship.x, ship.y, "#ff4081", 60);
   explode(ship.x, ship.y, "#ffc400", 40);
+  if (ship.aboard > 0) {
+    // passengers don't survive a crash — the sector's rescue target
+    // shrinks accordingly so it stays completable
+    level.lost += ship.aboard;
+    runLost += ship.aboard;
+    const penalty = 250 * ship.aboard;
+    score = Math.max(0, score - penalty);
+    addText(ship.x, ship.y - 50,
+      ship.aboard + (ship.aboard === 1 ? " DOID LOST" : " DOIDS LOST") + "  -" + penalty, "#ff4081");
+    explode(ship.x, ship.y - 12, "#69f0ae", 24);
+  }
   lives--;
   state = "dead"; stateT = 0;
+}
+
+function checkSectorClear() {
+  if (state !== "play" || level.delivered + level.lost < level.total) return;
+  score += 1000;
+  if (level.firedShots === 0) score += 2000;
+  bannerMsg = null; // the clear screen carries the full tally
+  state = "clear"; stateT = 0;
+  blip(440, 1760, 0.5, "sine", 0.15);
 }
 
 function update(dt) {
@@ -366,7 +387,7 @@ function update(dt) {
         blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
       } else {
         goFullscreen();
-        score = 0; lives = 3;
+        score = 0; lives = 3; runSaved = 0; runLost = 0;
         startLevel(0);
       }
     }
@@ -378,7 +399,7 @@ function update(dt) {
       if (lives <= 0) {
         state = "gameover"; stateT = 0;
         if (score > hiscore) { hiscore = score; try { localStorage.setItem("doids_hi", hiscore); } catch (e) {} }
-      } else { spawnShip(); state = "play"; stateT = 0; }
+      } else { spawnShip(); state = "play"; stateT = 0; checkSectorClear(); }
     }
     input.tap = false;
     updateWorld(dt, false);
@@ -542,21 +563,11 @@ function update(dt) {
     s.dockT += dt;
     if (s.aboard > 0 && s.dockT > 0.35) {
       s.dockT = 0;
-      s.aboard--; level.delivered++;
+      s.aboard--; level.delivered++; runSaved++;
       score += 300;
       addText(level.mx, level.my + 40, "DELIVERED +300", "#69f0ae");
       blip(520, 1040, 0.2, "sine", 0.12);
-      if (level.delivered >= level.total) {
-        score += 1000;
-        let msg = "SECTOR CLEAR  +1000";
-        if (level.firedShots === 0) {
-          score += 2000;
-          msg += "\nPRIMUM NON NOCERE — HIPPOCRATIC BONUS +2000";
-        }
-        banner(msg, "#69f0ae");
-        state = "clear"; stateT = 0;
-        blip(440, 1760, 0.5, "sine", 0.15);
-      }
+      checkSectorClear();
     }
   } else s.dockT = 0;
 
@@ -694,9 +705,10 @@ function render() {
   drawHUD(now);
 
   if (state === "title") drawTitle(now);
-  if (state === "gameover") drawCenter("FLATLINE", "GAME OVER — tap to try again", "#ff4081", now);
-  if (state === "win") drawCenter("ALL DOIDS SAVED", "score " + score + "  ·  hi " + hiscore + "\nrank: FLIGHT SURGEON, A&M RESCUE DIVISION\ntap to play again", "#69f0ae", now);
-  if (state === "clear") drawCenter(LEVEL_NAMES[levelIdx] + " CLEAR", (level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "") + "tap for next sector", "#69f0ae", now);
+  const tally = "saved " + runSaved + (runLost > 0 ? "  ·  ✝ lost " + runLost : "");
+  if (state === "gameover") drawCenter("FLATLINE", "GAME OVER — " + tally + "\ntap to try again", "#ff4081", now);
+  if (state === "win") drawCenter(runLost === 0 ? "ALL DOIDS SAVED" : "MISSION COMPLETE", "score " + score + "  ·  hi " + hiscore + "\n" + tally + "\nrank: FLIGHT SURGEON, A&M RESCUE DIVISION\ntap to play again", "#69f0ae", now);
+  if (state === "clear") drawCenter(LEVEL_NAMES[levelIdx] + " CLEAR", (level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "") + "saved " + level.delivered + "/" + level.total + (level.lost > 0 ? "  ·  ✝ lost " + level.lost : "") + "\ntap for next sector", "#69f0ae", now);
   if (bannerMsg) {
     ctx.textAlign = "center";
     ctx.font = "800 26px 'Helvetica Neue', Arial, sans-serif";
@@ -849,7 +861,13 @@ function drawHUD(now) {
   ctx.textAlign = "left";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
-  ctx.fillText("DOIDS ABOARD " + s.aboard + "  ·  SAVED " + level.delivered + "/" + level.total, 14, topPad + 34);
+  const rescueLine = "DOIDS ABOARD " + s.aboard + "  ·  SAVED " + level.delivered + "/" + level.total;
+  ctx.fillText(rescueLine, 14, topPad + 34);
+  if (level.lost > 0) {
+    const off = ctx.measureText(rescueLine).width;
+    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081";
+    ctx.fillText("  ·  ✝ LOST " + level.lost, 14 + off, topPad + 34);
+  }
   ctx.shadowBlur = 0;
 
   // low fuel / vitals warnings
