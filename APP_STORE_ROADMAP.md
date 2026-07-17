@@ -122,6 +122,14 @@ in v1.
   Add `hasSave` (boolean) and `paused` to `__doids.get()`. Smoke test: start a
   run, `go(3)`, reload the page, assert the resume pill state restores
   `levelIdx === 3` and score/upgrades survive.
+- [ ] **A7. Bug: CONTINUE box text overspill on game over.** `continueRect()`
+  caps the box at `Math.min(300, vw * 0.72)` wide with a fixed `h: 40`, but
+  `drawGameOver()` draws `"CONTINUE — " + SECTOR_NAMES[...] + " · 3 LIVES ·
+  -25% SCORE"` at a flat `13px` with no measure/shrink/wrap step — on a
+  narrow viewport (72% of `vw` can be well under 300px) or a long sector name
+  ("AVICENNA SHOALS", "JENNER TERRACES") the text runs past the box edges.
+  Fix by measuring and shrinking the font to fit (same idea as `wrapText`)
+  or splitting the sector name onto its own line in a taller box.
 
 ---
 
@@ -194,6 +202,17 @@ merges).**
   routing its tap through the same synchronous handler).
 - [x] **C5. Test.** Smoke: toggle each setting, reload, assert persistence.
   Assert `thrustGain` routes through `sfxGain` (thrust is silent with sound off).
+- [ ] **C6. Sound-effect variety pass.** The SFX functions (`blip`, `boom`,
+  `heartbeat`, `staticTick`, `dullThud`, `hydraulic`) are all quick one-shot
+  synths built from the same handful of oscillator/noise-burst shapes;
+  played dozens of times a run, repeats start to sample identically. Give
+  each a touch more character — a little per-call pitch/timing jitter so
+  repeats don't sound cloned, a second harmonic layer, gentle filter
+  movement — without changing what any of them signal or drifting from the
+  game's deliberately sparse, diagnostic sound language (this is a richness
+  pass, not a redesign). Spot-check the highest-frequency ones first: `blip`
+  (fire/pickups) and `heartbeat`/`dullThud` (the boarding tell — the
+  saboteur read depends on these staying clearly distinct from each other).
 
 ---
 
