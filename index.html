@@ -13,6 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <title>DOIDS — a gravity rescue</title>
 <style>
+  :root { --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none;
       -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
   html, body { height:100%; overflow:hidden; background:#05060f; position:fixed; inset:0;
@@ -27,8 +28,9 @@
     letter-spacing:1px; z-index:10; touch-action:none;
   }
   .btn.down { background:rgba(0,229,255,.28); box-shadow:0 0 30px rgba(0,229,255,.6); }
-  #btnL   { left:calc(18px + env(safe-area-inset-left));  bottom:calc(24px + env(safe-area-inset-bottom)); }
-  #btnR   { left:calc(104px + env(safe-area-inset-left)); bottom:calc(24px + env(safe-area-inset-bottom)); }
+  #btnL, #btnR { width:88px; height:88px; font-size:15px; line-height:84px; }
+  #btnL   { left:calc(14px + env(safe-area-inset-left));  bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #btnR   { left:calc(108px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
   #btnFire   { right:calc(104px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom));
     border-color:rgba(255,64,129,.55); color:rgba(255,64,129,.9); background:rgba(255,64,129,.07);
     box-shadow:0 0 18px rgba(255,64,129,.25), inset 0 0 12px rgba(255,64,129,.12); }
@@ -39,6 +41,23 @@
     box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
   #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
   @media (orientation: portrait) { .btn { display:none; } }
+  #a2hs {
+    position:fixed; top:calc(10px + env(safe-area-inset-top)); left:50%;
+    transform:translateX(-50%); z-index:30;
+    display:flex; gap:10px; align-items:center; max-width:92vw;
+    background:rgba(8,10,26,.95); border:1.5px solid rgba(0,229,255,.6);
+    border-radius:12px; padding:9px 12px;
+    color:#bfeefb; font:600 12px Menlo, monospace;
+    box-shadow:0 0 18px rgba(0,229,255,.3);
+  }
+  #a2hs.hidden { display:none; }
+  #a2hsBtn {
+    background:rgba(0,229,255,.15); border:1.5px solid rgba(0,229,255,.7);
+    color:#7fe9ff; font:700 12px Menlo, monospace; padding:6px 12px;
+    border-radius:8px; white-space:nowrap;
+  }
+  #a2hsClose { background:none; border:none; color:rgba(255,255,255,.6);
+    font:700 14px Menlo, monospace; padding:4px 6px; }
 </style>
 </head>
 <body>
@@ -47,6 +66,11 @@
 <div class="btn" id="btnR">&#10227;</div>
 <div class="btn" id="btnFire">FIRE</div>
 <div class="btn" id="btnThrust">THRUST</div>
+<div id="a2hs" class="hidden">
+  <span id="a2hsText"></span>
+  <button id="a2hsBtn">INSTALL</button>
+  <button id="a2hsClose">✕</button>
+</div>
 <script>
 "use strict";
 /* ================================================================
@@ -59,6 +83,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 let vw = 0, vh = 0, dpr = 1;
+let saLeft = 0, saRight = 0;
 let darkCanvas = null, dctx = null;
 
 function resize() {
@@ -68,6 +93,10 @@ function resize() {
   darkCanvas = document.createElement("canvas");
   darkCanvas.width = canvas.width; darkCanvas.height = canvas.height;
   dctx = darkCanvas.getContext("2d");
+  // camera-cutout insets: keep the world clear of the lozenge
+  const cs = getComputedStyle(document.documentElement);
+  saLeft = parseFloat(cs.getPropertyValue("--sal")) || 0;
+  saRight = parseFloat(cs.getPropertyValue("--sar")) || 0;
 }
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 250));
@@ -118,6 +147,50 @@ function goFullscreen() {
     if (p && p.catch) p.catch(() => {});
   } catch (e) {}
 }
+
+/* add-to-home-screen guidance for first-time visitors from a shared
+   link: iOS gets share-sheet instructions, Android an install button */
+(function () {
+  const el = document.getElementById("a2hs");
+  const txt = document.getElementById("a2hsText");
+  const btn = document.getElementById("a2hsBtn");
+  const close = document.getElementById("a2hsClose");
+  let deferred = null;
+  const standalone = window.navigator.standalone ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  const inFrame = window.top !== window.self;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem("doids_a2hs") === "1"; } catch (e) {}
+  const dismiss = () => {
+    el.classList.add("hidden");
+    try { localStorage.setItem("doids_a2hs", "1"); } catch (e) {}
+  };
+  close.addEventListener("click", dismiss);
+  close.addEventListener("touchstart", e => { e.preventDefault(); dismiss(); }, { passive:false });
+  window.hideA2HS = () => el.classList.add("hidden");
+  if (standalone || inFrame || dismissed) return;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) {
+    btn.style.display = "none";
+    txt.textContent = "Play fullscreen: tap ⬆ Share, then “Add to Home Screen”";
+    el.classList.remove("hidden");
+  } else {
+    window.addEventListener("beforeinstallprompt", e => {
+      e.preventDefault();
+      deferred = e;
+      txt.textContent = "Play DOIDS fullscreen anytime";
+      el.classList.remove("hidden");
+    });
+    const install = e => {
+      e.preventDefault();
+      if (deferred) { deferred.prompt(); deferred = null; }
+      dismiss();
+    };
+    btn.addEventListener("click", install);
+    btn.addEventListener("touchstart", install, { passive:false });
+  }
+})();
 
 const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust" };
 window.addEventListener("keydown", e => {
@@ -179,7 +252,7 @@ function heartbeat(vol) { // lub-dub, played when a Doid comes aboard
     o.connect(g); g.connect(AC.destination);
     o.start(AC.currentTime + t); o.stop(AC.currentTime + t + 0.2);
   };
-  pulse(0, 82); pulse(0.18, 62);
+  pulse(0, 150); pulse(0.18, 112);
 }
 function staticTick() { // the Static — a dry burst where a heartbeat should be
   if (!AC) return;
@@ -195,7 +268,7 @@ function staticTick() { // the Static — a dry burst where a heartbeat should b
 function dullThud() { // what boards when there is no heartbeat
   if (!AC) return;
   const o = AC.createOscillator(), g = AC.createGain();
-  o.type = "sine"; o.frequency.value = 46;
+  o.type = "sine"; o.frequency.value = 90;
   g.gain.setValueAtTime(0.0001, AC.currentTime);
   g.gain.exponentialRampToValueAtTime(0.5, AC.currentTime + 0.03);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 0.3);
@@ -234,10 +307,10 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
                       "SEMMELWEIS DEEP", "CURIE FIELDS", "THE NULLWAVE"];
 
 const BRIEFS = [
-  "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the med bay.\nEnd transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the med bay.",
+  "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nEnd transmission.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
-  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the medbay overnight. Watch your passengers. Watch all of them.",
+  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the last black boxes.",
   "Triangulation complete. The source of the Static is below the nullwave ridge.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
 ];
@@ -304,23 +377,24 @@ try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
 const ASSIST_CAPTURE = 0.22;
 const ASSIST_RATE = 4.5;
 
-function assistRect() {
-  return { x: vw / 2 - 250, y: vh * 0.78, w: 236, h: 34 };
-}
 function helpRect() {
-  return { x: vw / 2 + 14, y: vh * 0.78, w: 236, h: 34 };
+  return { x: vw - saRight - 14 - 150, y: 12, w: 150, h: 34 };
+}
+function assistRect() {
+  const h = helpRect();
+  return { x: h.x - 198, y: 12, w: 190, h: 34 };
 }
 function skipRect() {
-  return { x: vw - 110, y: 12, w: 96, h: 34 };
+  return { x: vw - 110 - saRight, y: 12, w: 96, h: 34 };
 }
 function codexRect() {
-  return { x: 14, y: 12, w: 168, h: 34 };
+  return { x: 14 + saLeft, y: 12, w: 168, h: 34 };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan MED BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers. Explore.",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers. Explore.",
   color: "#00e5ff"
 };
 
@@ -376,7 +450,8 @@ function genLevel(n) {
 
   const lvl = { n, W, heights, oids: [], turrets: [], bullets: [], shots: [],
     drones: [], pods: [], anomalies: [], blackbox: null, beacon: null,
-    mx: 280, my: 170, delivered: 0, lost: 0, total: 0, firedShots: 0,
+    mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
+    total: 0, firedShots: 0, extraction: null, pulse: null,
     dark: r.dark, isFinale: n === 5, contamKnown: false, fragmentsHere: [] };
 
   const spots = [];
@@ -459,7 +534,7 @@ function lampRadius() { return upgrades.lamp ? 400 : 230; }
 
 function spawnShip() {
   ship = {
-    x: level.mx - 65, y: level.my + 90, vx: 0, vy: 0, ang: 0,
+    x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: 100, vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0
   };
@@ -562,9 +637,22 @@ function shipDie() {
   state = "dead"; stateT = 0;
 }
 
+/* When every Doid is accounted for (saved, lost, or contained), MERCY
+   closes her manifest and spools the jump drive — she has been holding
+   the Static off her systems the whole time, and the moment she stops
+   stationkeeping to spool, it starts to reach her. The extraction dock
+   is the sector's final exam: dock with a drifting mothership while
+   the pulses quicken. Checked every play frame so no accounting path
+   (delivery, crash, sabotage, quarantine, escape) can be missed. */
 function checkSectorClear() {
-  if (state !== "play" || level.isFinale) return;
-  if (level.delivered + level.lost < level.total) return;
+  if (state !== "play" || level.isFinale || level.extraction || mercyBreach) return;
+  if (level.delivered + level.lost + level.contained < level.total) return;
+  level.extraction = { t: 0, pulseT: 0, hold: 0 };
+  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nDOCK IN THE RECOVERY BAY BEFORE THE STATIC REACHES HER", "#ffc400");
+  blip(660, 220, 0.6, "sawtooth", 0.15);
+}
+
+function sectorClearNow() {
   score += 1000;
   if (level.firedShots === 0) score += 2000;
   bannerMsg = null;
@@ -572,6 +660,34 @@ function checkSectorClear() {
     kicker: "LOG FRAGMENT RECOVERED", title: "", body: f, color: "#00e5ff" }));
   state = "clear"; stateT = 0;
   blip(440, 1760, 0.5, "sine", 0.15);
+}
+
+function updateExtraction(dt) {
+  const e = level.extraction;
+  e.t += dt;
+  // MERCY drifts harder the longer you take
+  level.mxo = Math.sin(e.t * 0.55) * Math.min(60, 8 + e.t * 2.2);
+  level.myo = Math.sin(e.t * 1.15) * Math.min(30, 5 + e.t * 1.1);
+  // the Static surges in quickening pulses that shove your ship
+  e.pulseT += dt;
+  if (e.pulseT >= Math.max(2.8, 6.5 - e.t * 0.09)) {
+    e.pulseT = 0;
+    level.pulse = { t: 0 };
+    staticTick();
+    const { mx, my } = mercyPos();
+    const dx = ship.x - mx, dy = ship.y - my, d = Math.hypot(dx, dy) || 1;
+    if (d < 600 && !ship.landed && !ship.dead) {
+      const kick = 110 * (1 - d / 600);
+      ship.vx += dx / d * kick; ship.vy += dy / d * kick;
+      camera.shake += 8;
+      addText(ship.x, ship.y - 30, "THE STATIC SURGES", "#b388ff");
+    }
+  }
+  if (level.pulse && (level.pulse.t += dt) > 1.2) level.pulse = null;
+  if (!ship.dead && inBay(bayRects().med)) {
+    e.hold += dt;
+    if (e.hold >= 1.5) sectorClearNow();
+  } else e.hold = 0;
 }
 
 function triggerBreach() {
@@ -590,7 +706,7 @@ function resolveBreach(success) {
   } else {
     score = Math.max(0, score - 1000);
     mercyDamaged = true;
-    banner("MEDBAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", "#ff4081");
+    banner("RECOVERY BAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", "#ff4081");
     blip(300, 60, 0.6, "sawtooth", 0.2);
   }
 }
@@ -662,6 +778,7 @@ function updateMenu() {
       blip(550, 825, 0.1, "sine", 0.08);
     } else {
       goFullscreen();
+      if (window.hideA2HS) window.hideA2HS();
       resetRun();
       introIdx = 0;
       state = "intro"; stateT = 0;
@@ -679,7 +796,7 @@ function updateIntro(dt) {
   const cyc = introIdx === 3 ? 1.4 : 1.5;
   if (introBeat >= cyc) {
     introBeat = 0;
-    if (introIdx === 3) staticTick(); else heartbeat(0.35);
+    if (introIdx === 3) staticTick(); else heartbeat(0.55);
   }
   if (input.tap && stateT > 0.35) {
     if (inRect(skipRect(), input.tapX, input.tapY)) { toBriefing(0); }
@@ -743,6 +860,15 @@ function updatePlay(dt) {
         color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2 + Math.random() * 2
       });
     }
+    // friendly fire: hovering your exhaust over someone is malpractice
+    const exX = s.x - Math.sin(s.ang) * 16, exY = s.y + Math.cos(s.ang) * 16;
+    for (const o of level.oids) {
+      if ((o.state === "wait" || o.state === "walk" || o.state === "panic") &&
+          Math.abs(o.x - exX) < 26 && o.y - exY > -6 && o.y - exY < 46) {
+        o.scorch = (o.scorch || 0) + dt * 2.2;
+        if (o.scorch > 0.5) killOid(o, "torched");
+      } else if (o.scorch) o.scorch = Math.max(0, o.scorch - dt);
+    }
   }
 
   // gravity anomalies pull the ship toward their centres
@@ -790,6 +916,9 @@ function updatePlay(dt) {
     if (mercyBreach.t <= 0) resolveBreach(false);
   }
 
+  if (level.extraction && state === "play") updateExtraction(dt);
+  checkSectorClear();
+
   s.beat = Math.max(0, s.beat - dt);
   camera.x = lerp(camera.x, s.x + s.vx * 0.35, 1 - Math.pow(0.001, dt));
   camera.y = lerp(camera.y, s.y + s.vy * 0.2 - 40, 1 - Math.pow(0.001, dt));
@@ -799,6 +928,31 @@ function updateOids(dt, now) {
   const s = ship;
   for (const o of level.oids) {
     o.wave += dt;
+    if (o.state === "dying") {
+      o.deathT += dt;
+      if (o.deathType === "torched") {
+        // staggering about in flames
+        o.x += Math.sin(o.deathT * 22) * 44 * dt;
+        o.y = groundAt(o.x);
+        if (Math.random() < 0.6) particles.push({
+          x: o.x + (Math.random() - 0.5) * 8, y: o.y - 12 - Math.random() * 12,
+          vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 40,
+          t: 0.4, max: 0.5,
+          color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2.5 });
+      }
+      if (o.deathT >= 1.3) {
+        o.state = "lost";
+        level.lost++; runLost++;
+        const fam = o.role === "famous";
+        const pen = fam ? 500 : 250;
+        score = Math.max(0, score - pen);
+        addText(o.x, o.y - 40,
+          (fam ? "YOU KILLED " + FAMOUS[o.famousId].name : "MALPRACTICE") + "  -" + pen,
+          fam ? "#ffd54f" : "#ff4081");
+        explode(o.x, o.y - 8, o.deathType === "torched" ? "#ff6d00" : "#69f0ae", 18);
+      }
+      continue;
+    }
     if (o.state === "wait") {
       o.nearShip = Math.abs(s.x - o.x) < 240 && Math.abs(s.y - o.y) < 180;
       if (o.persona === "pace") {
@@ -928,6 +1082,14 @@ function updateEnemies(dt) {
         addText(dr.x, dr.y - 30, "+150", "#ff4081");
       }
     }
+    // friendly fire: a stray shot can hit the very Doid you came for
+    for (const o of level.oids) {
+      if ((o.state === "wait" || o.state === "walk" || o.state === "panic") &&
+          Math.hypot(b.x - o.x, b.y - (o.y - 12)) < 12) {
+        gone = true;
+        killOid(o, "shot");
+      }
+    }
     if (level.beacon && !level.beacon.resolved &&
         Math.hypot(b.x - level.beacon.x, b.y - (level.beacon.y - 40)) < 42) {
       gone = true;
@@ -972,16 +1134,28 @@ function contaminantAboard() {
   return ship.passengers.some(p => p.role === "saboteur" && !p.sleeper);
 }
 
-/* med bay (cyan, left) heals & delivers; red bay (right) quarantines */
+function killOid(o, how) {
+  if (o.state === "dying") return;
+  o.state = "dying"; o.deathType = how; o.deathT = 0;
+  if (how === "torched") blip(220, 60, 0.5, "sawtooth", 0.15);
+  else blip(400, 80, 0.25, "square", 0.12);
+}
+
+/* recovery bay (cyan) spans MERCY's underside and heals & delivers;
+   the red quarantine bay hangs off her starboard side */
+function mercyPos() {
+  return { mx: level.mx + (level.mxo || 0), my: level.my + (level.myo || 0) };
+}
 function bayRects() {
+  const { mx, my } = mercyPos();
   return {
-    med: { x0: level.mx - 115, x1: level.mx - 15 },
-    red: { x0: level.mx + 15,  x1: level.mx + 115 }
+    med: { x0: mx - 115, x1: mx + 115, y0: my + 24, y1: my + 134 },
+    red: { x0: mx + 150, x1: mx + 250, y0: my + 24, y1: my + 134 }
   };
 }
 function inBay(b) {
   const s = ship;
-  return s.x > b.x0 && s.x < b.x1 && s.y > level.my + 24 && s.y < level.my + 134 &&
+  return s.x > b.x0 && s.x < b.x1 && s.y > b.y0 && s.y < b.y1 &&
     Math.abs(s.vx) < 70 && Math.abs(s.vy) < 70 && !s.dead;
 }
 
@@ -1039,7 +1213,7 @@ function updateDocking(dt) {
         const sab = s.passengers.find(p => p.role === "saboteur");
         s.passengers.splice(s.passengers.indexOf(sab), 1);
         sab.state = "escaped";
-        level.lost++; // it counts against the sector tally either way
+        level.contained++; // off the manifest either way
         triggerBreach();
       }
     }
@@ -1052,7 +1226,7 @@ function updateDocking(dt) {
       s.redDockT = 0;
       s.passengers.splice(s.passengers.indexOf(sab), 1);
       sab.state = "contained";
-      level.lost++; // no longer rescuable, but neutralised
+      level.contained++; // accounted for, but not a casualty
       score += 750;
       addText(level.mx, level.my + 40, "CONTAMINANT CONTAINED +750", "#ff4081");
       explode(level.mx + 65, level.my + 60, "#ff4081", 14);
@@ -1137,7 +1311,7 @@ function resolveBeacon(how) {
 
 /* ================= render ================= */
 function zoomLevel() {
-  return clamp(Math.min(vw / 900, vh / 640), 0.55, 1);
+  return clamp(Math.min((vw - saLeft) / 900, vh / 640), 0.55, 1);
 }
 
 function render() {
@@ -1181,7 +1355,8 @@ function render() {
 
 function worldTransform() {
   const z = zoomLevel();
-  const cw = vw / z, ch = vh / z;
+  // the visible viewport starts right of the camera lozenge
+  const cw = (vw - saLeft) / z, ch = vh / z;
   let cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
   let cy = clamp(camera.y - ch / 2, -100, WORLD_H - ch);
   if (camera.shake > 0) {
@@ -1193,7 +1368,7 @@ function worldTransform() {
 
 function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
-  ctx.setTransform(dpr * z, 0, 0, dpr * z, -cx * dpr * z, -cy * dpr * z);
+  ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
 
   ctx.save();
   ctx.translate(cx * 0.35, cy * 0.35);
@@ -1350,7 +1525,7 @@ function drawWorld(now) {
 /* darkness overlay with punched lights — Nightingale's sector */
 function drawDarkness(now) {
   const { z, cx, cy } = worldTransform();
-  const toScreen = (wx, wy) => [(wx - cx) * z * dpr, (wy - cy) * z * dpr];
+  const toScreen = (wx, wy) => [(saLeft + (wx - cx) * z) * dpr, (wy - cy) * z * dpr];
   dctx.setTransform(1, 0, 0, 1, 0, 0);
   dctx.clearRect(0, 0, darkCanvas.width, darkCanvas.height);
   dctx.fillStyle = "rgba(2,3,10,0.9)";
@@ -1447,15 +1622,66 @@ function drawLandingGuide() {
   ctx.restore();
 }
 
+/* Shared neon android figure, drawn with feet at the origin.
+   Rounded head with blinking eyes, antenna with a bobble, a torso
+   wearing the medic cross, articulated arms with hands. */
+function doidFigure(p) {
+  ctx.shadowColor = p.col; ctx.shadowBlur = 10;
+  ctx.strokeStyle = p.col; ctx.lineWidth = 2;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (p.sitting) {
+    ctx.moveTo(-1.5, -6); ctx.lineTo(-5, -6); ctx.lineTo(-5, 0);
+    ctx.moveTo(1.5, -6); ctx.lineTo(5, -6); ctx.lineTo(5, 0);
+  } else {
+    ctx.moveTo(-1.5, -6); ctx.lineTo(-3.5 - p.legPh, 0);
+    ctx.moveTo(1.5, -6); ctx.lineTo(3.5 + p.legPh, 0);
+  }
+  ctx.moveTo(-4, -12); ctx.lineTo(p.armL[0], p.armL[1]);
+  ctx.moveTo(4, -12); ctx.lineTo(p.armR[0], p.armR[1]);
+  ctx.stroke();
+  ctx.fillStyle = p.col;
+  ctx.beginPath(); ctx.arc(p.armL[0], p.armL[1], 1.3, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.armR[0], p.armR[1], 1.3, 0, 7); ctx.fill();
+  // torso
+  ctx.beginPath();
+  ctx.moveTo(-4.5, -14); ctx.lineTo(4.5, -14); ctx.lineTo(3.5, -6); ctx.lineTo(-3.5, -6);
+  ctx.closePath();
+  ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
+  // the medic cross — these are healers
+  ctx.fillStyle = p.crossCol;
+  ctx.fillRect(-0.8, -12.4, 1.6, 4.2);
+  ctx.fillRect(-2.1, -11.1, 4.2, 1.6);
+  // head
+  ctx.beginPath();
+  ctx.moveTo(-3.5, -15.5);
+  ctx.lineTo(-3.5, -19); ctx.arcTo(-3.5, -21, -1.5, -21, 2);
+  ctx.lineTo(1.5, -21); ctx.arcTo(3.5, -21, 3.5, -19, 2);
+  ctx.lineTo(3.5, -15.5);
+  ctx.closePath();
+  ctx.fillStyle = p.fill; ctx.fill(); ctx.stroke();
+  // eyes (they blink)
+  ctx.fillStyle = p.col;
+  if (p.blink) { ctx.fillRect(-2.4, -18.1, 1.7, 0.9); ctx.fillRect(0.7, -18.1, 1.7, 0.9); }
+  else { ctx.fillRect(-2.3, -18.9, 1.6, 2); ctx.fillRect(0.7, -18.9, 1.6, 2); }
+  // antenna with swaying bobble
+  ctx.beginPath();
+  ctx.moveTo(0, -21); ctx.lineTo(p.sway, -25);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.sway, -26, 1.4, 0, 7); ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
 /* Each Doid has a persona — big wavers, two-arm wavers, jumpers,
    pacers, sitters — plus individual size and gait. The saboteur tell
    survives all of them: their motion keeps perfect mechanical time. */
 function drawOid(o, now) {
   const mech = o.role === "saboteur";
   const t = now + o.wave * 3;
-  const sc = 1.35 * (o.scale || 1);
+  const sc = 1.2 * (o.scale || 1);
   const osc = f => mech ? Math.sign(Math.sin(t * f)) * 0.85 : Math.sin(t * f);
-  const panic = o.state === "panic";
+  const dying = o.state === "dying";
+  const panic = o.state === "panic" || (dying && o.deathType === "torched");
   const walking = o.state === "walk";
   const pacing = o.state === "wait" && o.persona === "pace";
   const sitting = o.state === "wait" && o.persona === "sit" && !o.nearShip;
@@ -1469,57 +1695,54 @@ function drawOid(o, now) {
   if (panic) hop = Math.abs(Math.sin(t * 14)) * 3;
   const legPh = (walking || pacing || panic) ? Math.sin(t * (panic ? 16 : 10)) * 2.6 : 0;
 
+  // arm pose
+  let armL, armR;
+  if (dying && o.deathType === "shot") {
+    armL = [-1.2, -11]; armR = [1.2, -11];                // clutches the cross
+  } else if (panic || (o.state === "wait" && o.persona === "jump")) {
+    const fl = panic ? osc(12) * 2 : 0;
+    armL = [-6.5 - fl, -20]; armR = [6.5 + fl, -20];      // arms overhead
+  } else if (walking || pacing) {
+    armL = [-5 - legPh * 0.7, -7]; armR = [5 + legPh * 0.7, -7];  // stride swing
+  } else if (sitting) {
+    armL = [-5, -7]; armR = [5, -7];                       // hands on knees
+  } else if (o.persona === "wave2" || (o.persona === "sit" && o.nearShip)) {
+    armL = [-6, -19 - osc(5) * 3]; armR = [6, -19 + osc(5) * 3];  // "over here!"
+  } else {
+    armL = [-7, -8]; armR = [6, -19 + osc(5) * 3.5];       // one big wave
+  }
+
   ctx.save();
   ctx.translate(o.x, o.y - hop);
+  if (dying && o.deathType === "shot")
+    ctx.rotate(-Math.min(1, o.deathT) * Math.PI / 2);      // keels over backward
   ctx.scale(sc, sc);
-  const tint = mech && upgrades.antisepsis ? "#c6ff00" : "#69f0ae";
-  ctx.shadowColor = tint; ctx.shadowBlur = 10;
-  ctx.strokeStyle = tint; ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(0, -15, 3.5, 0, 7);                       // head
-  if (sitting) {
-    ctx.moveTo(0, -11); ctx.lineTo(0, -5);          // torso
-    ctx.moveTo(0, -5); ctx.lineTo(-5, -5); ctx.lineTo(-5, 0);  // folded legs
-    ctx.moveTo(0, -5); ctx.lineTo(5, -5); ctx.lineTo(5, 0);
-    ctx.moveTo(0, -10); ctx.lineTo(-4, -6);         // hands on knees
-    ctx.moveTo(0, -10); ctx.lineTo(4, -6);
-  } else {
-    ctx.moveTo(0, -11); ctx.lineTo(0, -4);          // torso
-    ctx.moveTo(0, -4); ctx.lineTo(-3 - legPh, 0);   // legs
-    ctx.moveTo(0, -4); ctx.lineTo(3 + legPh, 0);
-    if (panic || (o.state === "wait" && o.persona === "jump")) {
-      const fl = panic ? osc(12) * 2 : 0;           // arms straight up
-      ctx.moveTo(0, -10); ctx.lineTo(-4 - fl, -17);
-      ctx.moveTo(0, -10); ctx.lineTo(4 + fl, -17);
-    } else if (walking || pacing) {                 // arms swing with stride
-      ctx.moveTo(0, -10); ctx.lineTo(-3 - legPh * 0.7, -5);
-      ctx.moveTo(0, -10); ctx.lineTo(3 + legPh * 0.7, -5);
-    } else if (o.persona === "wave2" || (o.persona === "sit" && o.nearShip)) {
-      ctx.moveTo(0, -10); ctx.lineTo(-4, -16 - osc(5) * 3);   // both arms overhead
-      ctx.moveTo(0, -10); ctx.lineTo(4, -16 + osc(5) * 3);
-    } else {                                        // wave1: one big arm wave
-      ctx.moveTo(0, -10); ctx.lineTo(-4, -6);
-      ctx.moveTo(0, -10); ctx.lineTo(3, -14 + osc(5) * 4);
-    }
-  }
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  let tint = mech && upgrades.antisepsis ? "#c6ff00" : "#69f0ae";
+  if (dying && o.deathType === "torched") tint = "#ff9e40";
+  doidFigure({
+    col: tint,
+    fill: "rgba(10,30,24,.85)",
+    crossCol: "#ff5d7d",
+    legPh, sitting,
+    armL, armR,
+    blink: mech ? ((t * 2) % 2) < 0.12 : (((t * 0.53) + o.wave) % 3.1) < 0.12,
+    sway: mech ? 0 : osc(2.2) * 1.5
+  });
   ctx.restore();
   // famous Doids shimmer, if you watch closely
   if (o.role === "famous" && Math.random() < 0.06) {
-    particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 20,
+    particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 22,
       vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
   }
-  if (mech && upgrades.antisepsis) {
+  if (mech && upgrades.antisepsis && !dying) {
     ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = "#c6ff00";
-    ctx.fillText("?", o.x, o.y - hop - 28);
+    ctx.fillText("?", o.x, o.y - hop - 36);
   }
 }
 
 function drawMothership(now) {
-  const { mx, my } = level;
+  const { mx, my } = mercyPos();
   const bob = Math.sin(now * 1.2) * 4;
   ctx.save();
   ctx.translate(mx, my + bob);
@@ -1541,23 +1764,47 @@ function drawMothership(now) {
   ctx.fillText("A M S · M E R C Y", 0, 36);
   ctx.restore();
 
+  // extraction: the Static's pulse rings wash over MERCY
+  if (level.pulse) {
+    const p = level.pulse.t / 1.2;
+    ctx.save();
+    ctx.strokeStyle = "rgba(179,136,255," + ((1 - p) * 0.7).toFixed(2) + ")";
+    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(mx, my, 40 + p * 560, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+
   const bays = bayRects();
-  // med bay (cyan)
   ctx.save();
   ctx.setLineDash([6, 8]);
   ctx.lineWidth = 1.5;
+  // recovery bay (cyan) spans the underside
   ctx.strokeStyle = mercyBreach
     ? "rgba(255,64,129," + (0.3 + 0.3 * Math.sin(now * 6)).toFixed(2) + ")"
-    : "rgba(0,229,255," + (0.25 + 0.2 * Math.sin(now * 2)).toFixed(2) + ")";
-  ctx.strokeRect(bays.med.x0, my + 24, bays.med.x1 - bays.med.x0, 110);
+    : level.extraction
+      ? "rgba(255,196,0," + (0.4 + 0.3 * Math.sin(now * 5)).toFixed(2) + ")"
+      : "rgba(0,229,255," + (0.25 + 0.2 * Math.sin(now * 2)).toFixed(2) + ")";
+  ctx.strokeRect(bays.med.x0, bays.med.y0, bays.med.x1 - bays.med.x0, bays.med.y1 - bays.med.y0);
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(0,229,255,.6)";
-  ctx.fillText(mercyBreach ? "LOCKDOWN" : "MED BAY", (bays.med.x0 + bays.med.x1) / 2, my + 148);
-  // quarantine bay (red)
+  ctx.fillStyle = level.extraction ? "rgba(255,196,0,.8)" : "rgba(0,229,255,.6)";
+  ctx.fillText(mercyBreach ? "LOCKDOWN" : level.extraction ? "EXTRACTION DOCK" : "RECOVERY BAY",
+    (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 14);
+  // extraction dock-hold progress
+  if (level.extraction && level.extraction.hold > 0) {
+    ctx.strokeStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(mx, bays.med.y0 + 55, 22, -Math.PI / 2,
+      -Math.PI / 2 + (level.extraction.hold / 1.5) * Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([6, 8]); ctx.shadowBlur = 0;
+  }
+  // quarantine bay (red) off the starboard side
   ctx.strokeStyle = "rgba(255,23,68," + (0.35 + 0.25 * Math.sin(now * 3)).toFixed(2) + ")";
-  ctx.strokeRect(bays.red.x0, my + 24, bays.red.x1 - bays.red.x0, 110);
+  ctx.strokeRect(bays.red.x0, bays.red.y0, bays.red.x1 - bays.red.x0, bays.red.y1 - bays.red.y0);
   ctx.fillStyle = "rgba(255,23,68,.7)";
-  ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, my + 148);
+  ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
   ctx.setLineDash([]);
   ctx.restore();
 }
@@ -1605,11 +1852,12 @@ function drawBeacon(now) {
 function drawHUD(now) {
   const s = ship;
   const topPad = 14;
+  const hx = 14 + saLeft;
   ctx.font = "700 12px Menlo, monospace";
 
   const bw = Math.min(150, vw * 0.3);
-  drawBar(14, topPad, bw, 10, s.fuel / 100, "#ffc400", "FUEL");
-  drawECG(vw - bw - 14, topPad, bw, 26, s.vitals / maxVitals(), now);
+  drawBar(hx, topPad, bw, 10, s.fuel / 100, "#ffc400", "FUEL");
+  drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
@@ -1625,11 +1873,17 @@ function drawHUD(now) {
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
   const rescueLine = "DOIDS ABOARD " + s.passengers.length + "  ·  SAVED " + level.delivered + "/" + level.total;
-  ctx.fillText(rescueLine, 14, topPad + 34);
+  ctx.fillText(rescueLine, hx, topPad + 34);
+  let tallyOff = ctx.measureText(rescueLine).width;
   if (level.lost > 0) {
-    const off = ctx.measureText(rescueLine).width;
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081";
-    ctx.fillText("  ·  ✝ LOST " + level.lost, 14 + off, topPad + 34);
+    const lostStr = "  ·  ✝ LOST " + level.lost;
+    ctx.fillText(lostStr, hx + tallyOff, topPad + 34);
+    tallyOff += ctx.measureText(lostStr).width;
+  }
+  if (level.contained > 0) {
+    ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.shadowColor = "transparent";
+    ctx.fillText("  ·  ⊘ CONTAINED " + level.contained, hx + tallyOff, topPad + 34);
   }
   ctx.shadowBlur = 0;
 
@@ -1638,6 +1892,12 @@ function drawHUD(now) {
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.font = "800 14px Menlo, monospace";
     ctx.fillText("⚠ BREACH — RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
+    ctx.shadowBlur = 0;
+  } else if (level.extraction && state === "play" && Math.sin(now * 5) > -0.3) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillText("⚠ EXTRACTION — DOCK WITH MERCY", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if (level.contamKnown && contaminantAboard() && Math.sin(now * 6) > 0) {
     ctx.textAlign = "center";
@@ -1737,7 +1997,7 @@ function drawTitle(now) {
   ctx.strokeRect(r.x, r.y, r.w, r.h);
   ctx.font = "700 12px Menlo, monospace";
   ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
-  ctx.fillText("LANDING ASSIST · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + 22);
+  ctx.fillText("ASSIST · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + 22);
   ctx.shadowBlur = 0;
 
   const hr = helpRect();
@@ -1831,23 +2091,18 @@ function iDoid(cx, cy, s, phase, gold, armsUp) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(s, s);
-  const col = gold ? "#ffd54f" : "#69f0ae";
-  ctx.shadowColor = col; ctx.shadowBlur = 10;
-  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineCap = "round";
-  const w = Math.sin(performance.now() / 1000 * 5 + phase) * 3;
-  ctx.beginPath();
-  ctx.arc(0, -15, 3.5, 0, 7);
-  ctx.moveTo(0, -11); ctx.lineTo(0, -4);
-  ctx.moveTo(0, -4); ctx.lineTo(-3, 0);
-  ctx.moveTo(0, -4); ctx.lineTo(3, 0);
-  if (armsUp) {
-    ctx.moveTo(0, -10); ctx.lineTo(-4, -16 - w);
-    ctx.moveTo(0, -10); ctx.lineTo(4, -16 + w);
-  } else {
-    ctx.moveTo(0, -10); ctx.lineTo(-4, -6);
-    ctx.moveTo(0, -10); ctx.lineTo(3, -14 + w);
-  }
-  ctx.stroke();
+  const t = performance.now() / 1000 * 5 + phase;
+  const w = Math.sin(t) * 3;
+  doidFigure({
+    col: gold ? "#ffd54f" : "#69f0ae",
+    fill: "rgba(10,30,24,.85)",
+    crossCol: "#ff5d7d",
+    legPh: 0, sitting: false,
+    armL: armsUp ? [-6, -19 - w] : [-7, -8],
+    armR: [6, -19 + w],
+    blink: ((t * 0.11 + phase) % 3.1) < 0.12,
+    sway: Math.sin(t * 0.44) * 1.5
+  });
   ctx.restore();
 }
 function iStars(px, py, pw, ph, seed) {
