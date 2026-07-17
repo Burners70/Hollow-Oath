@@ -1,5 +1,9 @@
 # Hollow Oath — build-out notes
 
+> **This file is the historical build-out log.** The forward plan — the
+> prioritised, checkbox-tracked path to a paid iOS App Store release — is
+> [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md).
+
 ## Rename pass (DOIDS → Hollow Oath)
 
 Renamed the product **DOIDS → Hollow Oath** and the androids **Doids → Scions**

@@ -1,9 +1,12 @@
 # Hollow Oath
 
 An original 2D gravity-rescue game, built for iPhone Safari as a single
-self-contained HTML5 canvas game. All code, art, story, and character names are
-original; the flight-and-rescue *mechanic* is in the lineage of the classic Atari
-ST gravity games.
+self-contained HTML5 canvas game — and a love letter to the 16-bit
+gravity-lander classics. If you wore out a mouse on *Oids* (FTL Games, Atari ST,
+1987), fought gravity in *Thrust*, or fed coins to *Gravitar*, this is for you:
+the same land-gently-or-die flying, rebuilt from scratch. All code, art, story,
+and names here are original; this is an unaffiliated fan homage to a genre, not
+a remake of any of them.
 
 > **Formerly "DOIDS".** The game was renamed to **Hollow Oath** and the rescued
 > androids from "Doids" to **Scions**. See [CHANGELOG.md](CHANGELOG.md) for the
@@ -17,6 +20,9 @@ CHANGELOG.md § "Repository & URL").*
 **New developers / writers:** start with [GAME_DESIGN.md](GAME_DESIGN.md) — the full
 game definition, evolved narrative canon (the Static, Glycon), mechanics, secrets,
 scoring, code architecture, branch/deployment layout, and future ideas.
+**The forward plan is [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)** — the
+prioritised, checkbox-tracked bundles taking the game to a paid iOS App Store
+release; pick up the next unchecked bundle from there.
 Build-out history is in [ROADMAP.md](ROADMAP.md); the rename & narrative brief that
 drove the current naming is in [HOLLOW_OATH_BRIEF.md](HOLLOW_OATH_BRIEF.md).
 
@@ -55,6 +61,19 @@ Landscape is best.
   glow-forests to ruined settlements and crashed MERCY-class sisters, and a secret
   finale with two endings — plus the **Hollow Keeper** rank for pilots who break
   the oath only to uncover Glycon's secrets.
+
+## Tests
+
+Headless smoke tests live in [`tests/`](tests/) (Playwright driving the game's
+`window.__doids` debug handle):
+
+```
+cd tests && npm install && npx playwright install chromium && npm test
+```
+
+In environments with a pre-installed Chromium (e.g. Claude Code remote
+containers), skip the browser download and point at it instead:
+`PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm test`.
 
 ## Tech
 

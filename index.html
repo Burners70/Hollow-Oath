@@ -2804,7 +2804,7 @@ function drawTitle(now) {
   ctx.shadowBlur = 10;
   ctx.font = "600 13px Menlo, monospace";
   ctx.fillStyle = "#9beaf9";
-  ctx.fillText("a gravity rescue — in the spirit of the Atari ST classic", vw / 2, vh * 0.4);
+  ctx.fillText("a gravity rescue — a love letter to the 16-bit lander classics", vw / 2, vh * 0.4);
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae";
   ctx.fillText("seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.48);
   ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
@@ -3260,7 +3260,7 @@ function drawEnding(now) {
 }
 
 function drawWin() {
-  let rank = "FLIGHT SURGEON, A&M RESCUE DIVISION";
+  let rank = "FLIGHT SURGEON, MERCY RESCUE DIVISION";
   if (endingType === "answered") {
     if (runFired === 0) rank = "OATH KEEPER — PRIMUM NON NOCERE";
     // broke the no-fire oath only to crack open Glycon's secrets, never in combat

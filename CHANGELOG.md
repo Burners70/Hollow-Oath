@@ -1,5 +1,44 @@
 # Changelog
 
+## App Store roadmap added (July 2026)
+
+Added **[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)**: the prioritised,
+checkbox-tracked plan to ship Hollow Oath as a paid iOS App Store title. Fifteen
+PR-sized bundles (A–O) covering pause/save/resume, the red-cross emblem
+replacement (legal), audio & settings, performance, the Capacitor wrapper and
+compliance, haptics, Game Center, accessibility, and the narrative/replay
+elevation work (41-second clock, scan mechanic, log archive, remix mode,
+counterfeit-MERCY finale). Each bundle names its code anchors, storage keys,
+acceptance criteria, and tests so any developer can pick one up cold.
+Cross-links added from README.md, ROADMAP.md (now explicitly the historical
+log), and GAME_DESIGN.md §10. No game code changed in this pass.
+
+**A&M references scrubbed (personal project).** The default end-of-run rank in
+`index.html` is now "FLIGHT SURGEON, MERCY RESCUE DIVISION" (was "…A&M RESCUE
+DIVISION"), the doc headers no longer say "A&M internal", and the roadmap's
+suggested bundle ID is a personal reverse-DNS ID (`com.burners70.hollowoath`,
+to be confirmed before first submission). The in-fiction ship prefix **AMS**
+(AMS MERCY, AMS SOLACE) is unrelated naval-style styling and is unchanged.
+
+**Test harness bootstrapped in `tests/`.** The Playwright smoke suite the docs
+referenced previously lived only in an ephemeral session scratchpad; it is now
+committed: `tests/smoke.spec.js` (boot, all 8 sectors, finale beacon/black
+boxes, cave descent via secret lift, landing evaluator + rank flags, briefing
+render, and a fail-on-any-console-error guard on every test), plus
+`package.json`/`playwright.config.js` (with a `PLAYWRIGHT_EXECUTABLE_PATH`
+override for containers with a pre-installed Chromium). Run:
+`cd tests && npm install && npm test`. README, GAME_DESIGN §9, and the roadmap
+conventions now point at it. 6/6 passing at commit time.
+
+**Homage line loosened, nostalgia kept loud (owner decision).** The homage is
+now tiered by surface: the in-game title tagline is era-evocative without
+trademarks ("a love letter to the 16-bit lander classics", was "in the spirit
+of the Atari ST classic"); the README names the lineage outright (*Oids*,
+*Thrust*, *Gravitar*) with an explicit original-and-unaffiliated line, because
+the web is where nostalgia searchers arrive from Google; App Store metadata
+will stay trademark-free per Apple 2.3.7 (see roadmap E7/O2, where the policy
+is recorded).
+
 ## Rename: DOIDS → Hollow Oath (July 2026)
 
 The game was renamed from **DOIDS** to **Hollow Oath**, and the rescued medical

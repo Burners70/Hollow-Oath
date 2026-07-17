@@ -1,0 +1,11 @@
+{
+  "name": "hollow-oath-tests",
+  "private": true,
+  "description": "Headless smoke tests for Hollow Oath (drives the __doids debug handle)",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0"
+  }
+}
