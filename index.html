@@ -239,10 +239,23 @@ const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fi
                  ArrowDown:"shield", c:"shield", Shift:"shield" };
 window.addEventListener("keydown", e => {
   if (keyMap[e.key] !== undefined) { input[keyMap[e.key]] = true; e.preventDefault(); }
-  if (e.key === "Enter") input.tap = true;
+  if (e.key === "Enter") {
+    input.tap = true;
+    // keyboard confirm has no pointer position — aim it at CONTINUE on game over
+    if (state === "gameover") { const cr = continueRect(); input.tapX = cr.x + 1; input.tapY = cr.y + 1; }
+  }
+  if (e.key === "Escape" || e.key === "p" || e.key === "P") {
+    if (state === "play") { state = "pause"; stateT = 0; }
+    else if (state === "pause") { state = "play"; stateT = 0; }
+  }
   initAudio();
 });
 window.addEventListener("keyup", e => { if (keyMap[e.key] !== undefined) input[keyMap[e.key]] = false; });
+
+/* auto-pause when the tab/app is backgrounded — deliberate, not mid-flight */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state === "play") { snapshotRun(); state = "pause"; stateT = 0; }
+});
 
 /* ---------------- external controller (Gamepad API) ---------------- */
 const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false };
@@ -262,7 +275,11 @@ function pollPad() {
   pad.fire   = b(2) || b(5);                   // X / RB
   pad.shield = b(1) || b(4) || b(6);           // B / LB / LT
   const start = b(9), a = b(0);
-  if ((start && !padStartPrev) || (state !== "play" && a && !padAPrev)) input.tap = true;
+  if (start && !padStartPrev) {
+    if (state === "play") { state = "pause"; stateT = 0; }
+    else if (state === "pause") { state = "play"; stateT = 0; }
+    else input.tap = true;
+  } else if (state !== "play" && state !== "pause" && a && !padAPrev) input.tap = true;
   padStartPrev = start; padAPrev = a;
 }
 window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED", "#69f0ae"));
@@ -517,6 +534,32 @@ let mercyBreach = null, mercyDamaged = false;
 let endingType = null;
 let clearCards = [], revealCard = null;
 let briefChars = 0;
+let checkpoint = null;   // captured run-start snapshot, offered as CONTINUE on game over
+let savedRun = null;     // resume-from-title snapshot (doids_run), kept in sync with localStorage
+try {
+  const raw = localStorage.getItem("doids_run");
+  savedRun = raw ? JSON.parse(raw) : null;
+} catch (e) { savedRun = null; }
+function snapshotRun() {
+  savedRun = {
+    v: 1, levelIdx, score, lives, runSaved, runLost, runFired, firedAtSecret, firedAtCombat,
+    runFragments, blackboxCount, shrines: [...shrines], upgrades
+  };
+  try { localStorage.setItem("doids_run", JSON.stringify(savedRun)); } catch (e) {}
+}
+function clearRun() {
+  savedRun = null;
+  try { localStorage.removeItem("doids_run"); } catch (e) {}
+}
+function restoreRun(r) {
+  levelIdx = r.levelIdx; score = r.score; lives = r.lives;
+  runSaved = r.runSaved; runLost = r.runLost; runFired = r.runFired;
+  firedAtSecret = r.firedAtSecret; firedAtCombat = r.firedAtCombat;
+  runFragments = r.runFragments; blackboxCount = r.blackboxCount;
+  shrines = new Set(r.shrines); upgrades = r.upgrades || {};
+  mercyBreach = null; mercyDamaged = false; endingType = null;
+  clearCards = []; revealCard = null; surfaceCtx = null;
+}
 let hiscore = 0;
 try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
 let codex = new Set();
@@ -555,6 +598,23 @@ function tiltRect() {
 function storyRect() {
   const h = helpRect();
   return { x: h.x, y: h.y + 42, w: 150, h: 34 };
+}
+function resumeRect() {
+  const w = Math.min(260, vw * 0.6);
+  return { x: vw / 2 - w / 2, y: vh * 0.80, w, h: 34 };
+}
+function continueRect() {
+  const w = Math.min(300, vw * 0.72);
+  return { x: vw / 2 - w / 2, y: vh * 0.56, w, h: 40 };
+}
+function pauseRect() {
+  return { x: vw / 2 - 18, y: 2, w: 36, h: 18 };
+}
+function pauseRowRect(i) {
+  const w = Math.min(260, vw * 0.6), h = 40, gap = 14;
+  const totalH = h * 3 + gap * 2;
+  const y0 = vh / 2 - totalH / 2;
+  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -897,6 +957,8 @@ function resetRun() {
   runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; surfaceCtx = null;
+  checkpoint = null;
+  clearRun();
 }
 
 function toBriefing(n) {
@@ -908,6 +970,7 @@ function toBriefing(n) {
   particles = []; texts = [];
   mercyBreach = null; mercyDamaged = false;
   state = "brief"; stateT = 0; briefChars = 0;
+  snapshotRun();
 }
 
 let bannerMsg = null;
@@ -1114,18 +1177,21 @@ function update(dt) {
       input.tap = false; return;
     case "clear": updateClear(); return;
     case "ending":
-      if (input.tap && stateT > 1) { state = "win"; stateT = 0; saveHi(); }
+      if (input.tap && stateT > 1) { state = "win"; stateT = 0; saveHi(); clearRun(); }
       input.tap = false; return;
     case "dead":
       if (stateT > 1.6) {
-        if (lives <= 0) { state = "gameover"; stateT = 0; saveHi(); }
-        else {
+        if (lives <= 0) {
+          checkpoint = savedRun; clearRun();
+          state = "gameover"; stateT = 0; saveHi();
+        } else {
           if (level.isCave) exitCave();   // the Hollows spit you back out
           spawnShip(); state = "play"; stateT = 0; checkSectorClear();
         }
       }
       input.tap = false;
       return;
+    case "pause": updatePause(); return;
     case "play": updatePlay(dt); return;
   }
 }
@@ -1154,6 +1220,20 @@ function updateMenu() {
       resetRun();
       introIdx = 0;
       state = "intro"; stateT = 0;
+      blip(330, 660, 0.2, "sine", 0.1);
+    } else if (state === "title" && savedRun && inRect(resumeRect(), input.tapX, input.tapY)) {
+      goFullscreen();
+      if (window.hideA2HS) window.hideA2HS();
+      restoreRun(savedRun);
+      toBriefing(levelIdx);
+      blip(330, 660, 0.2, "sine", 0.1);
+    } else if (state === "gameover" && checkpoint && inRect(continueRect(), input.tapX, input.tapY)) {
+      const r = checkpoint;
+      restoreRun(r);
+      score = Math.floor(r.score * 0.75);
+      lives = 3;
+      checkpoint = null;
+      toBriefing(r.levelIdx);
       blip(330, 660, 0.2, "sine", 0.1);
     } else {
       goFullscreen();
@@ -1214,7 +1294,22 @@ function updateClear() {
   input.tap = false;
 }
 
+function updatePause() {
+  if (thrustGain) thrustGain.gain.value = 0;
+  if (input.tap && stateT > 0.25) {
+    if (inRect(pauseRowRect(0), input.tapX, input.tapY)) { state = "play"; stateT = 0; }
+    else if (inRect(pauseRowRect(1), input.tapX, input.tapY)) { toBriefing(levelIdx); }
+    else if (inRect(pauseRowRect(2), input.tapX, input.tapY)) { snapshotRun(); state = "title"; stateT = 0; }
+  }
+  input.tap = false;
+}
+
 function updatePlay(dt) {
+  if (input.tap && inRect(pauseRect(), input.tapX, input.tapY)) {
+    input.tap = false;
+    state = "pause"; stateT = 0;
+    return;
+  }
   input.tap = false;
   const s = ship;
   const now = performance.now() / 1000;
@@ -1831,17 +1926,16 @@ function render() {
   if (level) drawWorld(now);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (state === "play" || state === "dead" || state === "reveal" || state === "clear") drawHUD(now);
+  if (state === "play" || state === "dead" || state === "reveal" || state === "clear" || state === "pause") drawHUD(now);
 
   if (state === "title") drawTitle(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
+  if (state === "pause") drawPause(now);
   if (state === "ending") drawEnding(now);
-  if (state === "gameover") {
-    drawCenter("FLATLINE", "GAME OVER — " + tallyLine() + "\ntap to try again", "#ff4081");
-  }
+  if (state === "gameover") drawGameOver(now);
   if (state === "win") drawWin();
 
   if (bannerMsg && (state === "play" || state === "dead")) {
@@ -2686,6 +2780,16 @@ function drawHUD(now) {
   drawBar(hx, topPad, bw, 10, s.fuel / 100, "#ffc400", "FUEL");
   drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
 
+  if (state === "play") {
+    const pr = pauseRect();
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(pr.x, pr.y, pr.w, pr.h);
+    ctx.fillStyle = "rgba(255,255,255,.6)";
+    ctx.font = "700 12px Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("❚❚", pr.x + pr.w / 2, pr.y + pr.h - 4);
+  }
+
   ctx.textAlign = "center";
   ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
   ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
@@ -2868,6 +2972,18 @@ function drawTitle(now) {
     ctx.fillStyle = "rgba(105,240,174,.75)";
     ctx.fillText("🎮 controller connected — stick steers · A thrust · X fire · LB/B shield",
       vw / 2, vh * 0.78);
+  }
+
+  // resume pill — a run was checkpointed at a sector boundary
+  if (savedRun) {
+    const rr = resumeRect();
+    ctx.strokeStyle = "rgba(255,213,79,.85)"; ctx.shadowColor = "#ffd54f"; ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(rr.x, rr.y, rr.w, rr.h);
+    ctx.font = "700 13px Menlo, monospace";
+    ctx.fillStyle = "#ffd54f";
+    ctx.fillText("▶ RESUME — " + SECTOR_NAMES[savedRun.levelIdx], rr.x + rr.w / 2, rr.y + 22);
+    ctx.shadowBlur = 0;
   }
 }
 
@@ -3236,6 +3352,49 @@ function drawClear(now) {
     "\ntap to continue", "#69f0ae");
 }
 
+function drawPause(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.75)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
+  ctx.fillStyle = "#aef4ff";
+  ctx.font = "900 " + Math.min(38, vw * 0.08) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("PAUSED", vw / 2, vh * 0.28);
+  ctx.shadowBlur = 0;
+  const labels = ["RESUME", "RESTART SECTOR", "QUIT TO TITLE"];
+  for (let i = 0; i < 3; i++) {
+    const r = pauseRowRect(i);
+    ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = "#7fe9ff";
+    ctx.font = "700 14px Menlo, monospace";
+    ctx.fillText(labels[i], vw / 2, r.y + r.h / 2 + 5);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawGameOver(now) {
+  drawCenter("FLATLINE", "GAME OVER — " + tallyLine(), "#ff4081");
+  ctx.textAlign = "center";
+  if (checkpoint) {
+    const cr = continueRect(), nr = { x: cr.x, y: cr.y + cr.h + 14, w: cr.w, h: cr.h };
+    ctx.strokeStyle = "rgba(105,240,174,.8)"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10; ctx.lineWidth = 1.5;
+    ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
+    ctx.fillStyle = "#69f0ae"; ctx.font = "700 13px Menlo, monospace";
+    ctx.fillText("CONTINUE — " + SECTOR_NAMES[checkpoint.levelIdx] + " · 3 LIVES · -25% SCORE", cr.x + cr.w / 2, cr.y + cr.h / 2 + 5);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(255,255,255,.4)";
+    ctx.strokeRect(nr.x, nr.y, nr.w, nr.h);
+    ctx.fillStyle = "rgba(255,255,255,.65)";
+    ctx.fillText("NEW ROTATION", nr.x + nr.w / 2, nr.y + nr.h / 2 + 5);
+  } else {
+    ctx.font = "600 13px Menlo, monospace"; ctx.fillStyle = "rgba(255,255,255,.6)";
+    ctx.fillText("tap to try again", vw / 2, vh * 0.6);
+  }
+}
+
 function drawEnding(now) {
   let title, body, color;
   if (endingType === "answered") {
@@ -3300,7 +3459,8 @@ window.__doids = {
     mercyBreach, mercyDamaged,
     endingType, clearCards, revealCard, score, lives,
     shrines: [...shrines], inCave: !!(level && level.isCave),
-    input: Object.assign({}, input), ctlShown, introSeen }),
+    input: Object.assign({}, input), ctlShown, introSeen,
+    hasSave: !!savedRun, paused: state === "pause" }),
   go: toBriefing,
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,

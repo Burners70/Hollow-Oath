@@ -1,5 +1,20 @@
 # Changelog
 
+## Bundle A — pause, mid-run save & resume (July 2026)
+
+Implemented the first App Store roadmap bundle. `doids_run` now snapshots
+`levelIdx`/score/lives/upgrades/etc. at every sector boundary (`toBriefing`);
+the title screen shows a `▶ RESUME — <SECTOR>` pill when a snapshot exists,
+restoring it via a new `restoreRun()` helper. Added a `"pause"` state (❚❚ HUD
+button, `Escape`/`p`, and the gamepad Start button while flying) with a
+RESUME / RESTART SECTOR / QUIT TO TITLE menu; auto-pauses on
+`visibilitychange` so backgrounding never loses a run mid-flight. Game over
+now offers **CONTINUE** (restores the sector-start checkpoint with 3 lives
+and −25% score, via a new `checkpoint` captured just before the run snapshot
+is cleared) alongside the existing NEW ROTATION. `__doids.get()` gained
+`hasSave` and `paused`; two new smoke tests cover reload-resume and the pause
+toggle (8/8 passing).
+
 ## App Store roadmap added (July 2026)
 
 Added **[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)**: the prioritised,

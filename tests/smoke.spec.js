@@ -75,6 +75,26 @@ test("landing evaluator and rank flags are exposed", async ({ page }) => {
   expect(s.runFired).toBe(0);
 });
 
+test("run checkpoints and resumes after reload", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(3); __doids.launch(); });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("title");
+  expect(s.hasSave).toBe(true);
+});
+
+test("pause freezes play and resume returns to it", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.evaluate(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.paused).toBe(true);
+  await page.evaluate(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.paused).toBe(false);
+  expect(s.state).toBe("play");
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen
