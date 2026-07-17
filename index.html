@@ -1262,6 +1262,13 @@ function update(dt) {
     return;
   }
 
+  // thrust noise is a loop tied to whatever updatePlay last set it to; any
+  // transition away from "play" (a card, pause, game over, sector clear,
+  // the lift transit freeze…) must not leave it running behind the panel.
+  // Zeroed here every frame, then updatePlay sets the real value right back
+  // if flight is actually still live.
+  if (thrustGain) thrustGain.gain.value = 0;
+
   switch (state) {
     case "title": case "gameover": case "win": updateMenu(); return;
     case "intro": updateIntro(dt); return;
@@ -2922,9 +2929,9 @@ function drawWreckM(sc, now) {
   // the emblem, mostly dead, still on the command tower
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
   ctx.save();
-  ctx.translate(0, -36);
+  ctx.translate(0, -28);
   if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
-  drawAsclepius(26, "rgba(255,23,68," + flick + ")");
+  drawAsclepius(36, "rgba(255,23,68," + flick + ")");
   ctx.restore();
   ctx.shadowBlur = 0;
   ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
@@ -3076,13 +3083,16 @@ function drawShrine(now) {
       ctx.beginPath();
       ctx.arc(0, -34, 20, -Math.PI / 2, -Math.PI / 2 + (sh.scanT / 2) * Math.PI * 2);
       ctx.stroke();
-      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.font = "700 13px Menlo, monospace"; ctx.textAlign = "center";
       ctx.fillStyle = "#aef4ff";
-      ctx.fillText("READING THE MARKS…", 0, -84);
+      ctx.fillText("READING THE MARKS…", 0, -86);
     } else {
-      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(198,255,0,.6)";
-      ctx.fillText("something old is enshrined here — land and look closer", 0, -84);
+      ctx.font = "700 13px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(198,255,0,.85)";
+      ctx.shadowColor = "#c6ff00"; ctx.shadowBlur = 6;
+      ctx.fillText("SOMETHING OLD IS ENSHRINED HERE", 0, -96);
+      ctx.fillText("LAND AND LOOK CLOSER", 0, -80);
+      ctx.shadowBlur = 0;
     }
   }
   ctx.restore();
@@ -3168,9 +3178,9 @@ function drawMothership(now) {
   drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
   const pulse = 0.55 + 0.45 * Math.sin(now * 3);
   ctx.save();
-  ctx.translate(0, -36);
+  ctx.translate(0, -28);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
-  drawAsclepius(26, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+  drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.restore();
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillStyle = "#9beaf9";
@@ -3534,9 +3544,9 @@ function iShip(cx, cy, s, tilt, flicker) {
   ctx.fill(); ctx.stroke();
   ctx.shadowBlur = 0;
   mercyGreebles("rgba(0,229,255,.35)");
-  ctx.translate(0, -36);
+  ctx.translate(0, -28);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
-  drawAsclepius(26, "#ff2d55");
+  drawAsclepius(36, "#ff2d55");
   ctx.restore();
 }
 function iDoid(cx, cy, s, phase, gold, armsUp) {

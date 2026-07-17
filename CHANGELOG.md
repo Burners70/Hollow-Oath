@@ -1,5 +1,33 @@
 # Changelog
 
+## Audio + legibility fixes (July 2026)
+
+- **Thrust noise kept playing behind panels, on game over, everywhere.**
+  `thrustGain.gain.value` was only ever written inside `updatePlay`'s own
+  thrust check, so any transition away from `"play"` mid-thrust (opening a
+  card or the codex, pausing, dying, clearing a sector, the lift-transit
+  freeze…) left the looping thrust buffer at whatever gain it last had —
+  the noise just kept going behind the panel until thrust happened to be
+  pressed and released again in flight. Fixed by zeroing `thrustGain` once
+  at the top of every `update(dt)` tick before the state dispatch;
+  `updatePlay` still sets the real value right back the instant flight is
+  actually live, so nothing changes about how thrust sounds in play. New
+  smoke test holds thrust into a pause and asserts the gain is silenced.
+- **AMS MERCY's emblem** was riding a little high on the new command tower
+  and read small. Moved down and enlarged (`translate(0,-28)` /
+  `drawAsclepius(36,…)`, up from -36/26) across the mothership, the intro
+  screen, and the wreck.
+- **The Hollows shrine's pre-scan hint was unreadable** — 9px at 60% alpha,
+  crammed onto one line. Bumped to 13px bold at 85% alpha across two lines
+  ("SOMETHING OLD IS ENSHRINED HERE" / "LAND AND LOOK CLOSER"), matching the
+  size of the "READING THE MARKS…" label shown once you're actually scanning
+  it.
+
+Smoke suite: 13/13 green (also hardened the lift-transition test, which was
+polling on `fade > 0.95` — a ~15ms window shared by both the tail of the
+"black" phase and the head of "reveal" — to poll on the much wider
+`phase === "black"` instead).
+
 ## Bug fixes & polish pass (July 2026)
 
 **Bug fixes:**

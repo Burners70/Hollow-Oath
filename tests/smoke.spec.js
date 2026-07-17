@@ -150,9 +150,24 @@ test("stranding at 0 fuel is recoverable via the resupply signal", async ({ page
   expect(s.ship.fuel).toBeGreaterThan(0);
 });
 
+test("thrust noise stops when leaving play, even mid-thrust", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); window.initAudio(); });
+  await page.evaluate(() => { input.thrust = true; });
+  await page.waitForFunction(() => thrustGain && thrustGain.gain.value > 0, null, { timeout: 2000 });
+  // pause without ever releasing thrust — the old bug left the loop playing behind the panel.
+  // state flips synchronously in the keydown handler, but the gain is only zeroed on the next
+  // update(dt) tick, so poll rather than reading it back in the same microtask.
+  await page.evaluate(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+  expect(await page.evaluate(() => __doids.get().paused)).toBe(true);
+  await page.waitForFunction(() => thrustGain.gain.value === 0, null, { timeout: 2000 });
+  await page.evaluate(() => { input.thrust = false; });
+});
+
 test("lift transition fades out, swaps level, and fades back in", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
-  await page.waitForFunction(() => liftTransit && liftTransit.fade > 0.95, null, { timeout: 6000 });
+  // "black" is a full 0.3s window before the swap — safe to poll on, unlike
+  // fade>0.95 which the tail of "black" and the head of "reveal" both hit
+  await page.waitForFunction(() => liftTransit && liftTransit.phase === "black", null, { timeout: 6000 });
   const mid = await page.evaluate(() => __doids.get().inCave);
   expect(mid).toBe(false);   // still the surface level while the screen is black
   await page.waitForFunction(() => !liftTransit, null, { timeout: 6000 });
