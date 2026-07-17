@@ -38,6 +38,7 @@
     border-color:rgba(255,196,0,.55); color:rgba(255,196,0,.9); background:rgba(255,196,0,.07);
     box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
   #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
+  @media (orientation: portrait) { .btn { display:none; } }
 </style>
 </head>
 <body>
@@ -287,8 +288,21 @@ const ASSIST_CAPTURE = 0.22;
 const ASSIST_RATE = 4.5;
 
 function assistRect() {
-  return { x: vw / 2 - 120, y: vh * 0.78, w: 240, h: 34 };
+  return { x: vw / 2 - 250, y: vh * 0.78, w: 236, h: 34 };
 }
+function helpRect() {
+  return { x: vw / 2 + 14, y: vh * 0.78, w: 236, h: 34 };
+}
+function skipRect() {
+  return { x: vw - 110, y: 12, w: 96, h: 34 };
+}
+const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+const HELP_CARD = {
+  kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots.\n\nLand slow and upright on flat ground near a stranded Doid — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Doids to MERCY's cyan MED BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers. Explore.",
+  color: "#00e5ff"
+};
 
 function groundAt(x) {
   const h = level.heights;
@@ -354,11 +368,15 @@ function genLevel(n) {
     return 600 + rng() * (W - 900);
   };
 
+  const PERSONAS = ["wave1", "wave2", "jump", "pace", "sit"];
+  const newOid = (x, y, role) => ({ x, y, home: x, state: "wait", wave: rng() * 6,
+    role, sleeper: false, famousId: -1, carrier: false, panicT: 0, sabT: 0,
+    persona: PERSONAS[Math.floor(rng() * PERSONAS.length)],
+    scale: 0.95 + rng() * 0.3, gait: 30 + rng() * 12, nearShip: false });
   for (let i = 0; i < r.oids; i++) {
     const x = pick(280);
     const y = flatten(heights, x, 80);
-    lvl.oids.push({ x, y, home: x, state: "wait", wave: rng() * 6,
-      role: "normal", sleeper: false, famousId: -1, carrier: false, panicT: 0 });
+    lvl.oids.push(newOid(x, y, "normal"));
   }
   // one famous Doid per campaign sector
   if (n < 5 && lvl.oids.length) {
@@ -369,9 +387,9 @@ function genLevel(n) {
   for (let i = 0; i < r.sabs; i++) {
     const x = pick(260);
     const y = flatten(heights, x, 70);
-    lvl.oids.push({ x, y, home: x, state: "wait", wave: rng() * 6,
-      role: "saboteur", sleeper: n >= 2 && rng() < 0.5, famousId: -1,
-      carrier: false, panicT: 0, sabT: 0 });
+    const sab = newOid(x, y, "saboteur");
+    sab.sleeper = n >= 2 && rng() < 0.5;
+    lvl.oids.push(sab);
   }
   // two of the ordinary Doids carry log fragments
   const normals = lvl.oids.filter(o => o.role === "normal");
@@ -573,8 +591,19 @@ function update(dt) {
   }
   if (camera) camera.shake = Math.max(0, camera.shake - 60 * dt);
 
+  // portrait: hold the game and show the rotate prompt instead
+  if (vh > vw) {
+    if (thrustGain) thrustGain.gain.value = 0;
+    input.tap = false;
+    return;
+  }
+
   switch (state) {
     case "title": case "gameover": case "win": updateMenu(); return;
+    case "intro": updateIntro(); return;
+    case "help":
+      if (input.tap && stateT > 0.4) { state = "title"; stateT = 0.7; }
+      input.tap = false; return;
     case "brief": updateBrief(dt); return;
     case "reveal":
       if (input.tap && stateT > 0.4) { revealCard = null; state = "play"; }
@@ -598,19 +627,34 @@ function saveHi() {
   if (score > hiscore) { hiscore = score; try { localStorage.setItem("doids_hi", hiscore); } catch (e) {} }
 }
 
+let introIdx = 0;
 function updateMenu() {
   if (input.tap && stateT > 0.6) {
-    const r = assistRect();
-    if (state === "title" &&
-        input.tapX >= r.x && input.tapX <= r.x + r.w &&
-        input.tapY >= r.y && input.tapY <= r.y + r.h) {
+    if (state === "title" && inRect(assistRect(), input.tapX, input.tapY)) {
       assist = !assist;
       try { localStorage.setItem("doids_assist", assist ? "1" : "0"); } catch (e) {}
       blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
+    } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
+      state = "help"; stateT = 0;
+      blip(440, 660, 0.1, "sine", 0.08);
     } else {
       goFullscreen();
       resetRun();
-      toBriefing(0);
+      introIdx = 0;
+      state = "intro"; stateT = 0;
+      blip(330, 660, 0.2, "sine", 0.1);
+    }
+  }
+  input.tap = false;
+}
+
+function updateIntro() {
+  if (input.tap && stateT > 0.35) {
+    if (inRect(skipRect(), input.tapX, input.tapY)) { toBriefing(0); }
+    else {
+      introIdx++; stateT = 0;
+      blip(440, 550, 0.08, "sine", 0.07);
+      if (introIdx >= INTRO.length) toBriefing(0);
     }
   }
   input.tap = false;
@@ -723,6 +767,13 @@ function updateOids(dt, now) {
   const s = ship;
   for (const o of level.oids) {
     o.wave += dt;
+    if (o.state === "wait") {
+      o.nearShip = Math.abs(s.x - o.x) < 240 && Math.abs(s.y - o.y) < 180;
+      if (o.persona === "pace") {
+        o.x = o.home + Math.sin((now + o.wave * 3) * 0.7) * 26;
+        o.y = groundAt(o.x);
+      }
+    }
     if (o.state === "panic") {
       o.panicT -= dt;
       o.x += Math.sin(now * 7 + o.wave * 9) * 60 * dt;
@@ -1064,7 +1115,9 @@ function render() {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, vw, vh);
 
+  if (vh > vw) { drawPortraitWarning(now); return; }
   if (state === "brief") { drawBrief(now); return; }
+  if (state === "intro") { drawIntroScreen(now); return; }
 
   if (level) drawWorld(now);
 
@@ -1072,6 +1125,7 @@ function render() {
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear") drawHUD(now);
 
   if (state === "title") drawTitle(now);
+  if (state === "help") drawCardPanel(HELP_CARD, now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
   if (state === "ending") drawEnding(now);
@@ -1359,45 +1413,74 @@ function drawLandingGuide() {
   ctx.restore();
 }
 
+/* Each Doid has a persona — big wavers, two-arm wavers, jumpers,
+   pacers, sitters — plus individual size and gait. The saboteur tell
+   survives all of them: their motion keeps perfect mechanical time. */
 function drawOid(o, now) {
-  const y = o.y;
-  const isSab = o.role === "saboteur";
+  const mech = o.role === "saboteur";
+  const t = now + o.wave * 3;
+  const sc = 1.35 * (o.scale || 1);
+  const osc = f => mech ? Math.sign(Math.sin(t * f)) * 0.85 : Math.sin(t * f);
   const panic = o.state === "panic";
-  const walking = o.state === "walk" || panic;
-  // the tell: saboteurs wave in a jerky, mechanical rhythm
-  const wavePos = isSab ? Math.sign(Math.sin(now * 8 + o.wave)) * 2.2
-                        : Math.sin(now * 5 + o.wave) * 3;
-  const legPh = walking ? Math.sin(now * (panic ? 18 : 11) + o.home) * 2.5 : 0;
+  const walking = o.state === "walk";
+  const pacing = o.state === "wait" && o.persona === "pace";
+  const sitting = o.state === "wait" && o.persona === "sit" && !o.nearShip;
+  let hop = 0;
+  if (o.state === "wait" && o.persona === "jump") {
+    const cyc = 1.7, ph = ((t % cyc) + cyc) % cyc;
+    if (ph < 0.45) hop = (mech
+      ? (ph < 0.225 ? ph / 0.225 : 1 - (ph - 0.225) / 0.225)
+      : Math.sin(ph / 0.45 * Math.PI)) * 7;
+  }
+  if (panic) hop = Math.abs(Math.sin(t * 14)) * 3;
+  const legPh = (walking || pacing || panic) ? Math.sin(t * (panic ? 16 : 10)) * 2.6 : 0;
+
   ctx.save();
-  ctx.translate(o.x, y);
-  const tint = isSab && upgrades.antisepsis ? "#c6ff00" : "#69f0ae";
+  ctx.translate(o.x, o.y - hop);
+  ctx.scale(sc, sc);
+  const tint = mech && upgrades.antisepsis ? "#c6ff00" : "#69f0ae";
   ctx.shadowColor = tint; ctx.shadowBlur = 10;
   ctx.strokeStyle = tint; ctx.lineWidth = 2;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.arc(0, -14, 3.5, 0, 7);
-  ctx.moveTo(0, -10); ctx.lineTo(0, -3);
-  ctx.moveTo(0, -3); ctx.lineTo(-3 - legPh, 0);
-  ctx.moveTo(0, -3); ctx.lineTo(3 + legPh, 0);
-  if (panic) { // both arms up, running
-    ctx.moveTo(0, -9); ctx.lineTo(-4, -13);
-    ctx.moveTo(0, -9); ctx.lineTo(4, -13);
+  ctx.arc(0, -15, 3.5, 0, 7);                       // head
+  if (sitting) {
+    ctx.moveTo(0, -11); ctx.lineTo(0, -5);          // torso
+    ctx.moveTo(0, -5); ctx.lineTo(-5, -5); ctx.lineTo(-5, 0);  // folded legs
+    ctx.moveTo(0, -5); ctx.lineTo(5, -5); ctx.lineTo(5, 0);
+    ctx.moveTo(0, -10); ctx.lineTo(-4, -6);         // hands on knees
+    ctx.moveTo(0, -10); ctx.lineTo(4, -6);
   } else {
-    ctx.moveTo(0, -9); ctx.lineTo(-4, -6);
-    ctx.moveTo(0, -9);
-    ctx.lineTo(4, -11 + (o.state === "wait" ? wavePos : 0));
+    ctx.moveTo(0, -11); ctx.lineTo(0, -4);          // torso
+    ctx.moveTo(0, -4); ctx.lineTo(-3 - legPh, 0);   // legs
+    ctx.moveTo(0, -4); ctx.lineTo(3 + legPh, 0);
+    if (panic || (o.state === "wait" && o.persona === "jump")) {
+      const fl = panic ? osc(12) * 2 : 0;           // arms straight up
+      ctx.moveTo(0, -10); ctx.lineTo(-4 - fl, -17);
+      ctx.moveTo(0, -10); ctx.lineTo(4 + fl, -17);
+    } else if (walking || pacing) {                 // arms swing with stride
+      ctx.moveTo(0, -10); ctx.lineTo(-3 - legPh * 0.7, -5);
+      ctx.moveTo(0, -10); ctx.lineTo(3 + legPh * 0.7, -5);
+    } else if (o.persona === "wave2" || (o.persona === "sit" && o.nearShip)) {
+      ctx.moveTo(0, -10); ctx.lineTo(-4, -16 - osc(5) * 3);   // both arms overhead
+      ctx.moveTo(0, -10); ctx.lineTo(4, -16 + osc(5) * 3);
+    } else {                                        // wave1: one big arm wave
+      ctx.moveTo(0, -10); ctx.lineTo(-4, -6);
+      ctx.moveTo(0, -10); ctx.lineTo(3, -14 + osc(5) * 4);
+    }
   }
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
   // famous Doids shimmer, if you watch closely
-  if (o.role === "famous" && Math.random() < 0.02) {
-    particles.push({ x: o.x + (Math.random() - 0.5) * 8, y: y - 16,
-      vx: (Math.random() - 0.5) * 10, vy: -22, t: 0.8, max: 0.9, color: "#ffd54f", size: 1.5 });
+  if (o.role === "famous" && Math.random() < 0.06) {
+    particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 20,
+      vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
   }
-  if (isSab && upgrades.antisepsis) {
+  if (mech && upgrades.antisepsis) {
     ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = "#c6ff00";
-    ctx.fillText("?", o.x, y - 24);
+    ctx.fillText("?", o.x, o.y - hop - 28);
   }
 }
 
@@ -1611,6 +1694,7 @@ function drawTitle(now) {
   ctx.fillStyle = "rgba(155,234,249,.55)";
   ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.72);
 
+  // pills: landing assist toggle + flight manual
   const r = assistRect();
   const on = assist;
   ctx.strokeStyle = on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
@@ -1619,7 +1703,257 @@ function drawTitle(now) {
   ctx.strokeRect(r.x, r.y, r.w, r.h);
   ctx.font = "700 12px Menlo, monospace";
   ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
-  ctx.fillText("LANDING ASSIST · " + (on ? "ON" : "OFF"), vw / 2, r.y + 22);
+  ctx.fillText("LANDING ASSIST · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + 22);
+  ctx.shadowBlur = 0;
+
+  const hr = helpRect();
+  ctx.strokeStyle = "rgba(0,229,255,.7)";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+  ctx.strokeRect(hr.x, hr.y, hr.w, hr.h);
+  ctx.fillStyle = "#7fe9ff";
+  ctx.fillText("✦ HOW TO FLY", hr.x + hr.w / 2, hr.y + 22);
+  ctx.shadowBlur = 0;
+}
+
+/* ------- illustrated intro panels ------- */
+function iShip(cx, cy, s, tilt, flicker) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tilt || 0);
+  ctx.scale(s, s);
+  ctx.globalAlpha *= flicker === undefined ? 1 : flicker;
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.fillStyle = "rgba(0,40,60,.55)";
+  ctx.beginPath();
+  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
+  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
+  ctx.fillStyle = "#ff2d55";
+  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  ctx.restore();
+}
+function iDoid(cx, cy, s, phase, gold, armsUp) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
+  const col = gold ? "#ffd54f" : "#69f0ae";
+  ctx.shadowColor = col; ctx.shadowBlur = 10;
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineCap = "round";
+  const w = Math.sin(performance.now() / 1000 * 5 + phase) * 3;
+  ctx.beginPath();
+  ctx.arc(0, -15, 3.5, 0, 7);
+  ctx.moveTo(0, -11); ctx.lineTo(0, -4);
+  ctx.moveTo(0, -4); ctx.lineTo(-3, 0);
+  ctx.moveTo(0, -4); ctx.lineTo(3, 0);
+  if (armsUp) {
+    ctx.moveTo(0, -10); ctx.lineTo(-4, -16 - w);
+    ctx.moveTo(0, -10); ctx.lineTo(4, -16 + w);
+  } else {
+    ctx.moveTo(0, -10); ctx.lineTo(-4, -6);
+    ctx.moveTo(0, -10); ctx.lineTo(3, -14 + w);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function iStars(px, py, pw, ph, seed) {
+  const rng = mulberry32(seed);
+  ctx.fillStyle = "rgba(200,220,255,.7)";
+  for (let i = 0; i < 40; i++) {
+    ctx.globalAlpha = 0.2 + rng() * 0.6;
+    ctx.fillRect(px + rng() * pw, py + rng() * ph, 1.5, 1.5);
+  }
+  ctx.globalAlpha = 1;
+}
+function iRidge(px, py, pw, ph, seed) {
+  const rng = mulberry32(seed);
+  ctx.beginPath();
+  ctx.moveTo(px, py + ph);
+  let y = ph * 0.72;
+  for (let x = 0; x <= pw; x += pw / 14) {
+    y = clamp(y + (rng() - 0.5) * ph * 0.3, ph * 0.55, ph * 0.9);
+    ctx.lineTo(px + x, py + y);
+  }
+  ctx.lineTo(px + pw, py + ph);
+  ctx.closePath();
+  ctx.fillStyle = "#151040"; ctx.fill();
+  ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 10;
+  ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+const INTRO = [
+  { title: "THE MISSION",
+    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems. Her holds carry DOIDS — medical androids, each one programmed with a lifetime of clinical expertise.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 11);
+      iShip(px + pw / 2, py + ph * 0.45, Math.min(1.4, pw / 320), 0,
+        1);
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+      ctx.fillText("A M S · M E R C Y", px + pw / 2, py + ph * 0.45 + 58);
+      ctx.shadowBlur = 0;
+    } },
+  { title: "THE CARGO",
+    caption: "Most are standard units. A few carry something rarer — the complete minds of medicine's giants, preserved and still practising. All of them are needed where MERCY is headed.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph * 0.5, 22);
+      ctx.strokeStyle = "rgba(0,229,255,.4)"; ctx.lineWidth = 1.5;
+      ctx.strokeRect(px + pw * 0.1, py + ph * 0.25, pw * 0.8, ph * 0.55);
+      const n = 6;
+      for (let i = 0; i < n; i++) {
+        const gold = i === 4;
+        iDoid(px + pw * (0.18 + 0.64 * i / (n - 1)), py + ph * 0.72,
+          Math.min(2.2, ph / 110), i * 1.3, gold, gold);
+      }
+      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(0,229,255,.6)";
+      ctx.fillText("WARD 7 · CRYOSTASIS", px + pw / 2, py + ph * 0.2);
+    } },
+  { title: "THE ZONE",
+    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. Nobody remembers who they were built to keep out.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 33);
+      iRidge(px, py, pw, ph, 7);
+      const tx = [0.25, 0.62, 0.85];
+      for (const f of tx) {
+        const gx = px + pw * f, gy = py + ph * 0.74;
+        ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+        ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
+        ctx.fillStyle = "#3a0d24";
+        ctx.beginPath(); ctx.arc(gx, gy, 10, Math.PI, 0); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(gx + 4, gy - 8); ctx.lineTo(gx + 13, gy - 16); ctx.stroke();
+      }
+      // drone
+      ctx.save();
+      ctx.translate(px + pw * 0.45, py + ph * 0.3);
+      ctx.strokeStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(0, -9); ctx.lineTo(8, 0); ctx.lineTo(0, 9); ctx.lineTo(-8, 0);
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+      ctx.shadowBlur = 0;
+    } },
+  { title: "THE FAILURE",
+    caption: "Mid-crossing, every system aboard failed at once. Cause unknown. The recorders kept only one thing: a signal, repeating, every 41 seconds.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 44);
+      const flick = 0.45 + 0.55 * Math.abs(Math.sin(now * 7) * Math.sin(now * 2.3));
+      iShip(px + pw * 0.38, py + ph * 0.5, Math.min(1.1, pw / 380), -0.1, flick);
+      // the Static
+      const sx = px + pw * 0.82, sy = py + ph * 0.4;
+      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+      const phase = (now % 1.4) / 1.4;
+      for (let k = 0; k < 3; k++) {
+        const p = (phase + k / 3) % 1;
+        ctx.globalAlpha = (1 - p) * 0.7;
+        ctx.beginPath(); ctx.arc(sx, sy, 8 + p * ph * 0.42, 0, 7); ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "#b388ff";
+      ctx.fillText("· 41s ·", sx, sy + ph * 0.5);
+    } },
+  { title: "THE SCATTERING",
+    caption: "The Doids evacuated in pods and were thrown across the zone. MERCY flies again — barely. You fly the rescue. Bring them home. And captain… count the heartbeats.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 55);
+      iRidge(px, py, pw, ph, 9);
+      iShip(px + pw * 0.18, py + ph * 0.22, Math.min(0.7, pw / 520), 0, 1);
+      ctx.setLineDash([3, 6]);
+      ctx.strokeStyle = "rgba(255,196,0,.5)"; ctx.lineWidth = 1.5;
+      const drops = [[0.34, 0.62], [0.52, 0.7], [0.7, 0.6], [0.86, 0.68]];
+      for (const [fx, fy] of drops) {
+        ctx.beginPath();
+        ctx.moveTo(px + pw * 0.2, py + ph * 0.24);
+        ctx.quadraticCurveTo(px + pw * (fx - 0.1), py + ph * 0.2, px + pw * fx, py + ph * fy);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      drops.forEach(([fx, fy], i) =>
+        iDoid(px + pw * fx, py + ph * fy, Math.min(1.6, ph / 150), i * 2.1, false, i % 2 === 0));
+    } }
+];
+
+function drawIntroScreen(now) {
+  const pw = Math.min(660, vw - 36);
+  const ph = Math.min(vh * 0.5, 300);
+  const px = (vw - pw) / 2, py = vh * 0.09;
+  const panel = INTRO[Math.min(introIdx, INTRO.length - 1)];
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px, py, pw, ph);
+  ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+  panel.draw(px, py, pw, ph, now);
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.font = "800 16px Menlo, monospace";
+  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.fillText(panel.title, vw / 2, py + ph + 30);
+  ctx.shadowBlur = 2;
+  ctx.font = "600 13px Menlo, monospace";
+  ctx.fillStyle = "#c9e6f7";
+  const lines = wrapText(panel.caption, Math.min(600, vw - 70));
+  lines.forEach((l, i) => ctx.fillText(l, vw / 2, py + ph + 52 + i * 19));
+  ctx.shadowBlur = 0;
+
+  // page dots
+  for (let i = 0; i < INTRO.length; i++) {
+    ctx.fillStyle = i === introIdx ? "#00e5ff" : "rgba(255,255,255,.25)";
+    ctx.beginPath();
+    ctx.arc(vw / 2 + (i - (INTRO.length - 1) / 2) * 18, py + ph + 58 + lines.length * 19, 3, 0, 7);
+    ctx.fill();
+  }
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.fillText("tap ▸", vw / 2, py + ph + 76 + lines.length * 19);
+
+  const sr = skipRect();
+  ctx.strokeStyle = "rgba(255,255,255,.3)"; ctx.lineWidth = 1;
+  ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("SKIP ▸▸", sr.x + sr.w / 2, sr.y + 22);
+}
+
+/* rotate-to-landscape gate */
+function drawPortraitWarning(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(3,4,12,.92)";
+  ctx.fillRect(0, 0, vw, vh);
+  const cx = vw / 2, cy = vh * 0.4;
+  // phone glyph animating from portrait to landscape
+  const ph = (now % 2.4) / 2.4;
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const ang = ph < 0.55 ? ease(clamp(ph / 0.55, 0, 1)) * Math.PI / 2 : Math.PI / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-ang);
+  ctx.strokeStyle = "#00e5ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 16;
+  ctx.lineWidth = 3;
+  const w = 54, h = 96, r = 10;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + r, -h / 2);
+  ctx.arcTo(w / 2, -h / 2, w / 2, h / 2, r);
+  ctx.arcTo(w / 2, h / 2, -w / 2, h / 2, r);
+  ctx.arcTo(-w / 2, h / 2, -w / 2, -h / 2, r);
+  ctx.arcTo(-w / 2, -h / 2, w / 2, -h / 2, r);
+  ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10, h / 2 - 12); ctx.lineTo(10, h / 2 - 12); ctx.stroke();
+  ctx.restore();
+  ctx.shadowBlur = 8;
+  ctx.textAlign = "center";
+  ctx.font = "800 18px Menlo, monospace";
+  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff";
+  ctx.fillText("ROTATE TO LANDSCAPE", cx, vh * 0.62);
+  ctx.font = "600 12px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.7)";
+  ctx.fillText("DOIDS flies wide — turn your phone on its side", cx, vh * 0.68);
   ctx.shadowBlur = 0;
 }
 
