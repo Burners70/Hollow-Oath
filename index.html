@@ -653,7 +653,25 @@ const FAMOUS = [
   { name: "EDWARD JENNER", era: "1749–1823",
     story: "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
     upgrade: "inoculation", upgradeName: "INOCULATION",
-    upgradeDesc: "Your passengers are immunised — saboteurs aboard can no longer kill them." }
+    upgradeDesc: "Your passengers are immunised — saboteurs aboard can no longer kill them." },
+  /* the wider pool (Bundle M4) — the campaign carries the canonical seven;
+     REMIX and DAILY rotations draw 7 of everyone below as well */
+  { name: "ELIZABETH BLACKWELL", era: "1821–1910",
+    story: "Rejected by ten medical schools for being a woman, she graduated first in her class anyway — the first woman M.D. in America — and then opened the door for every one who followed.",
+    upgrade: "doors", upgradeName: "OPEN DOORS",
+    upgradeDesc: "MERCY's bay doors open wider — dock at approach speeds that would once have waved you off." },
+  { name: "RUDOLF VIRCHOW", era: "1821–1902",
+    story: "The father of cellular pathology — omnis cellula e cellula — who insisted every disease begins somewhere specific, and that medicine's job is to look until it finds where.",
+    upgrade: "pathology", upgradeName: "CELL DOCTRINE",
+    upgradeDesc: "Diagnosis comes faster — black boxes, shrines and counterfeit scans complete in two-thirds the time." },
+  { name: "ALEXANDER FLEMING", era: "1881–1955",
+    story: "He came back from holiday to a spoiled culture plate and, instead of binning it, looked closer: the mould was killing the bacteria. Penicillin began as a noticed accident.",
+    upgrade: "penicillin", upgradeName: "PENICILLIN",
+    upgradeDesc: "Your hull cultures its own repair — vitals slowly self-heal while below half." },
+  { name: "RITA LEVI-MONTALCINI", era: "1909–2012",
+    story: "Barred from her university by fascist race laws, she built a laboratory in her bedroom and kept working — and discovered nerve growth factor, how living tissue is told to grow.",
+    upgrade: "growth", upgradeName: "GROWTH FACTOR",
+    upgradeDesc: "Fuel cells grow denser — tank capacity raised to 120." }
 ];
 
 /* ---------------- world / level ---------------- */
@@ -674,6 +692,22 @@ let firedAtSecret = false, firedAtCombat = false;
 // stays whole; the rank line names it ("eyes open").
 let scannedSecret = false;
 let runFragments = 0, blackboxCount = 0;
+/* Bundle M1 — run seed plumbing. Seed 0 is the authored campaign (today's
+   exact levels, regression-tested); a non-zero seed re-rolls every
+   generator AND shuffles which famous mind waits in which sector. */
+let runSeed = 0;                       // 0 = authored campaign
+let runMode = "campaign";              // "campaign" | "remix" | "daily"
+let famousMap = null;                  // null = canonical famousId === sector
+function famousIdFor(n) { return famousMap ? famousMap[n] : n; }
+function buildFamousMap(seed) {
+  const rng = mulberry32(seed ^ 0x5f356495);
+  const pool = FAMOUS.map((_, i) => i);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  return pool.slice(0, FINALE_IDX);    // 7 sectors draw 7 of the wider pool
+}
 let shrines = new Set();   // Hollows shrines found this run
 let upgrades = {};
 let mercyBreach = null, mercyDamaged = false;
@@ -689,7 +723,8 @@ try {
 function snapshotRun() {
   savedRun = {
     v: 1, levelIdx, score, lives, runSaved, runLost, runFired, firedAtSecret, firedAtCombat,
-    scannedSecret, runFragments, blackboxCount, shrines: [...shrines], upgrades
+    scannedSecret, runFragments, blackboxCount, shrines: [...shrines], upgrades,
+    runSeed, runMode, famousMap
   };
   try { localStorage.setItem("doids_run", JSON.stringify(savedRun)); } catch (e) {}
 }
@@ -704,6 +739,7 @@ function restoreRun(r) {
   scannedSecret = r.scannedSecret || false;
   runFragments = r.runFragments; blackboxCount = r.blackboxCount;
   shrines = new Set(r.shrines); upgrades = r.upgrades || {};
+  runSeed = r.runSeed || 0; runMode = r.runMode || "campaign"; famousMap = r.famousMap || null;
   mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; surfaceCtx = null;
 }
@@ -765,6 +801,64 @@ function setHaunt(on) {
   } catch (e) {}
 }
 let titleStaticT = 0;
+/* Bundle M2/M3 — REMIX ROTATION unlocks once any run resolves the beacon;
+   the DAILY FLIGHT is one seeded attempt per UTC day for everyone */
+let veteran = false;
+try { veteran = localStorage.getItem("doids_veteran") === "1"; } catch (e) {}
+function markVeteran() {
+  veteran = true;
+  try { localStorage.setItem("doids_veteran", "1"); } catch (e) {}
+}
+function utcDateNum() {
+  const d = new Date();
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+function loadDaily() {
+  try { return JSON.parse(localStorage.getItem("doids_daily") || "null"); } catch (e) { return null; }
+}
+function dailyDoneToday() {
+  const rec = loadDaily();
+  return !!(rec && rec.done && rec.date === utcDateNum());
+}
+/* the last recorded daily that ISN'T today — "yesterday-you", the bar to beat */
+function dailyPrevScore() {
+  const rec = loadDaily();
+  return rec && rec.date !== utcDateNum() ? rec.score || 0 : 0;
+}
+function recordDaily() {
+  if (runMode !== "daily") return;
+  try {
+    const rec = loadDaily();
+    if (rec && rec.date === utcDateNum()) {
+      rec.score = Math.max(rec.score || 0, score);
+      localStorage.setItem("doids_daily", JSON.stringify(rec));
+      // when Bundle G lands, report rec.score to the daily Game Center board here
+    }
+  } catch (e) {}
+}
+function startRemix() {
+  goFullscreen();
+  if (window.hideA2HS) window.hideA2HS();
+  resetRun();
+  runMode = "remix";
+  runSeed = 1 + Math.floor(Math.random() * 2147483646);
+  famousMap = buildFamousMap(runSeed);
+  toBriefing(0);
+  blip(330, 660, 0.2, "sine", 0.1);
+}
+function startDaily() {
+  if (dailyDoneToday()) { blip(220, 160, 0.15, "sine", 0.08); return; }
+  goFullscreen();
+  if (window.hideA2HS) window.hideA2HS();
+  resetRun();
+  runMode = "daily";
+  runSeed = utcDateNum();
+  famousMap = buildFamousMap(runSeed);
+  // the attempt is spent the moment it launches — no re-rolling a bad start
+  try { localStorage.setItem("doids_daily", JSON.stringify({ date: utcDateNum(), score: 0, done: true })); } catch (e) {}
+  toBriefing(0);
+  blip(330, 660, 0.2, "sine", 0.1);
+}
 let introSeen = false;
 try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
 function markIntroSeen() {
@@ -794,6 +888,14 @@ function storyRect() {
 function resumeRect() {
   const w = Math.min(260, vw * 0.6);
   return { x: vw / 2 - w / 2, y: vh * 0.80, w, h: 34 };
+}
+function remixRect() {
+  const w = Math.min(200, vw * 0.4);
+  return { x: vw / 2 - w - 8, y: vh * 0.88, w, h: 30 };
+}
+function dailyRect() {
+  const w = Math.min(200, vw * 0.4);
+  return { x: vw / 2 + 8, y: vh * 0.88, w, h: 30 };
 }
 function continueRect() {
   const w = Math.min(300, vw * 0.72);
@@ -865,7 +967,7 @@ const LIFT_CAVE = { 1: 0, 3: 1, 5: 2 };  // which sector's lift opens which cave
 function genLevel(n) {
   const r = RECIPE[n];
   const W = n === FINALE_IDX ? 4400 : 2600 + Math.min(n, 5) * 400;
-  const rng = mulberry32(1013 * (n + 3) + 77);
+  const rng = mulberry32(1013 * (n + 3) + 77 + runSeed);
   const count = Math.floor(W / STEP) + 2;
 
   const octave = (wl, amp) => {
@@ -911,10 +1013,10 @@ function genLevel(n) {
     const y = flatten(heights, x, 80);
     lvl.oids.push(newOid(x, y, "normal"));
   }
-  // one famous Scion per campaign sector
+  // one famous Scion per campaign sector (remix shuffles who waits where)
   if (n < FINALE_IDX && lvl.oids.length) {
     const f = lvl.oids[Math.floor(rng() * lvl.oids.length)];
-    f.role = "famous"; f.famousId = n;
+    f.role = "famous"; f.famousId = famousIdFor(n);
   }
   // saboteurs are extra figures, indistinguishable at a distance
   for (let i = 0; i < r.sabs; i++) {
@@ -1038,7 +1140,7 @@ function genLevel(n) {
   }
 
   stars = [];
-  const srng = mulberry32(999 + n);
+  const srng = mulberry32(999 + n + runSeed);
   for (let i = 0; i < 220; i++)
     stars.push({ x: srng() * W, y: srng() * 900, s: srng() * 1.6 + 0.4, tw: srng() * 6 });
   return lvl;
@@ -1054,7 +1156,7 @@ function roofAt(x) {
 
 function genCave(ci) {
   const W = 1800;
-  const rng = mulberry32(5077 + ci * 131);
+  const rng = mulberry32(5077 + ci * 131 + runSeed);
   const count = Math.floor(W / STEP) + 2;
   const octave = (wl, amp) => {
     const pts = [];
@@ -1143,6 +1245,8 @@ function exitCave() {
 }
 
 function maxVitals() { return upgrades.fabrica ? 125 : 100; }
+function maxFuel() { return upgrades.growth ? 120 : 100; }          // Levi-Montalcini
+function scanRate() { return upgrades.pathology ? 1.5 : 1; }        // Virchow
 function lampRadius() {
   // the lamp itself falters while the Static surges (Bundle I2)
   return (upgrades.lamp ? 400 : 230) * (staticSurge > 0 ? 0.92 : 1);
@@ -1151,7 +1255,7 @@ function lampRadius() {
 function spawnShip() {
   ship = {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
-    fuel: 100, vitals: maxVitals(), passengers: [], landed: false, dead: false,
+    fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
     shield: false, signalT: 0
   };
@@ -1165,6 +1269,7 @@ function resetRun() {
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; surfaceCtx = null;
   checkpoint = null;
+  runSeed = 0; runMode = "campaign"; famousMap = null;
   clearRun();
 }
 
@@ -1437,13 +1542,13 @@ function update(dt) {
       input.tap = false; return;
     case "clear": updateClear(); return;
     case "ending":
-      if (input.tap && stateT > 1) { state = "win"; stateT = 0; saveHi(); clearRun(); }
+      if (input.tap && stateT > 1) { state = "win"; stateT = 0; saveHi(); recordDaily(); clearRun(); }
       input.tap = false; return;
     case "dead":
       if (stateT > 1.6) {
         if (lives <= 0) {
           checkpoint = savedRun; clearRun();
-          state = "gameover"; stateT = 0; saveHi();
+          state = "gameover"; stateT = 0; saveHi(); recordDaily();
         } else {
           if (level.isCave) exitCave();   // the Hollows spit you back out
           spawnShip(); state = "play"; stateT = 0; checkSectorClear();
@@ -1483,6 +1588,10 @@ function updateMenu() {
       introIdx = 0;
       state = "intro"; stateT = 0;
       blip(330, 660, 0.2, "sine", 0.1);
+    } else if (state === "title" && veteran && inRect(remixRect(), input.tapX, input.tapY)) {
+      startRemix();
+    } else if (state === "title" && inRect(dailyRect(), input.tapX, input.tapY)) {
+      startDaily();
     } else if (state === "title" && savedRun && inRect(resumeRect(), input.tapX, input.tapY)) {
       goFullscreen();
       if (window.hideA2HS) window.hideA2HS();
@@ -1744,6 +1853,10 @@ function updatePlay(dt) {
 
   if (level.extraction && state === "play") updateExtraction(dt);
   checkSectorClear();
+
+  // Fleming: the hull cultures its own repair while vitals sit below half
+  if (upgrades.penicillin && !s.dead && s.vitals > 0 && s.vitals < maxVitals() * 0.5)
+    s.vitals = Math.min(maxVitals() * 0.5, s.vitals + 2 * dt);
 
   s.beat = Math.max(0, s.beat - dt);
   camera.x = lerp(camera.x, s.x + s.vx * 0.35, 1 - Math.pow(0.001, dt));
@@ -2017,7 +2130,7 @@ function updateScan(dt) {
   for (const sc of level.scenery)
     if (sc !== target && sc.scanT) sc.scanT = Math.max(0, sc.scanT - dt * 2);
   if (!target) return;
-  target.scanT = (target.scanT || 0) + dt;
+  target.scanT = (target.scanT || 0) + dt * scanRate();
   if (target.scanT >= SCAN_T) revealSecret(target, false);
 }
 
@@ -2049,8 +2162,9 @@ function bayRects() {
 }
 function inBay(b) {
   const s = ship;
+  const cap = upgrades.doors ? 95 : 70;   // Blackwell: the doors open wider
   return s.x > b.x0 && s.x < b.x1 && s.y > b.y0 && s.y < b.y1 &&
-    Math.abs(s.vx) < 70 && Math.abs(s.vy) < 70 && !s.dead;
+    Math.abs(s.vx) < cap && Math.abs(s.vy) < cap && !s.dead;
 }
 
 function updateDocking(dt) {
@@ -2060,7 +2174,7 @@ function updateDocking(dt) {
 
   if (inBay(bays.med)) {
     if (!mercyBreach) {
-      s.fuel = Math.min(100, s.fuel + 30 * dt);
+      s.fuel = Math.min(maxFuel(), s.fuel + 30 * dt);
       if (!mercyDamaged) {
         const rate = upgrades.lamp ? 40 : 24; // Nightingale runs a better ward
         s.vitals = Math.min(maxVitals(), s.vitals + rate * dt);
@@ -2140,7 +2254,7 @@ function updateBlackbox(dt) {
   if (!bb || bb.found) return;
   const s = ship;
   if (s.landed && Math.abs(s.x - bb.x) < 70) {
-    bb.scanT += dt;
+    bb.scanT += dt * scanRate();
     if (bb.scanT >= 1.5) {
       bb.found = true;
       blackboxCount++;
@@ -2165,7 +2279,7 @@ function updatePods() {
     if (p.taken) continue;
     if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
       p.taken = true;
-      s.fuel = Math.min(100, s.fuel + 35);
+      s.fuel = Math.min(maxFuel(), s.fuel + 35);
       addText(p.x, p.y - 30, "FUEL +35", "#ffc400");
       blip(520, 780, 0.15, "sine", 0.1);
       goldBurst(p.x, p.y - 8);
@@ -2217,7 +2331,7 @@ function updateResupplySignal(dt) {
     if (rd.phase === "in") {
       rd.y = lerp(s.y - 320, s.y - 34, clamp(rd.t / 1.1, 0, 1));
       if (rd.t >= 1.1) {
-        s.fuel = Math.min(100, s.fuel + 40);
+        s.fuel = Math.min(maxFuel(), s.fuel + 40);
         addText(s.x, s.y - 46, "RESUPPLY +40", "#ffc400");
         goldBurst(s.x, s.y - 34);
         blip(520, 780, 0.2, "sine", 0.12);
@@ -2294,7 +2408,7 @@ function updateShrine(dt) {
   const sh = level.shrine;
   if (!sh || sh.found) return;
   if (ship.landed && Math.abs(ship.x - sh.x) < 80) {
-    sh.scanT += dt;
+    sh.scanT += dt * scanRate();
     if (sh.scanT >= 2) {
       sh.found = true;
       shrines.add(level.caveIdx);
@@ -2329,6 +2443,7 @@ function resolveBeacon(how) {
   b.resolved = true;
   endingType = how;
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
+  markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2)
   if (how === "fire") {
     score += 3000;
     explode(b.x, b.y - 40, "#b388ff", 80);
@@ -3547,7 +3662,7 @@ function drawHUD(now) {
   ctx.font = "700 12px Menlo, monospace";
 
   const bw = Math.min(150, vw * 0.3);
-  drawBar(hx, topPad, bw, 10, s.fuel / 100, "#ffc400", "FUEL");
+  drawBar(hx, topPad, bw, 10, s.fuel / maxFuel(), "#ffc400", "FUEL");
   drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
 
   if (state === "play") {
@@ -3762,6 +3877,28 @@ function drawTitle(now) {
     ctx.fillText("▶ RESUME — " + SECTOR_NAMES[savedRun.levelIdx], rr.x + rr.w / 2, rr.y + 22);
     ctx.shadowBlur = 0;
   }
+
+  // remix + daily pills (Bundle M): new rotations for pilots who finished one
+  ctx.font = "700 12px Menlo, monospace";
+  if (veteran) {
+    const xr = remixRect();
+    ctx.strokeStyle = "rgba(105,240,174,.7)"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(xr.x, xr.y, xr.w, xr.h);
+    ctx.fillStyle = "#69f0ae";
+    ctx.fillText("⟳ REMIX ROTATION", xr.x + xr.w / 2, xr.y + 20);
+    ctx.shadowBlur = 0;
+  }
+  const dr2 = dailyRect();
+  const doneToday = dailyDoneToday();
+  ctx.strokeStyle = doneToday ? "rgba(255,255,255,.3)" : "rgba(255,196,0,.7)";
+  ctx.shadowColor = doneToday ? "transparent" : "#ffc400"; ctx.shadowBlur = doneToday ? 0 : 8;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(dr2.x, dr2.y, dr2.w, dr2.h);
+  ctx.fillStyle = doneToday ? "rgba(255,255,255,.45)" : "#ffc400";
+  ctx.fillText(doneToday ? "☀ DAILY ✓ " + ((loadDaily() || {}).score || 0)
+                         : "☀ DAILY FLIGHT", dr2.x + dr2.w / 2, dr2.y + 20);
+  ctx.shadowBlur = 0;
 }
 
 /* the codex (Bundle K2): two tabs — MINDS (famous Scions recovered across
@@ -4149,6 +4286,14 @@ function drawBrief(now) {
   ctx.fillStyle = "rgba(0,229,255," + (0.5 + 0.4 * Math.sin(now * 3)).toFixed(2) + ")";
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillText("— INCOMING TRANSMISSION · AMS MERCY —", vw / 2, vh * 0.16);
+  if (runMode !== "campaign") {   // Bundle M: mark the rotation, name the bar
+    ctx.font = "700 11px Menlo, monospace";
+    ctx.fillStyle = runMode === "remix" ? "#69f0ae" : "#ffc400";
+    const prev = runMode === "daily" ? dailyPrevScore() : 0;
+    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed
+      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : ""),
+      vw / 2, vh * 0.205);
+  }
   ctx.font = "800 24px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillStyle = "#aef4ff";
   ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, vh * 0.25);
@@ -4389,9 +4534,14 @@ window.__doids = {
     perfFrameMs, perfFps, resupplyDrone, liftTransit,
     staticClock, staticSurge,
     logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage,
-    unresolvedHaunt, epilogueChars }),
+    unresolvedHaunt, epilogueChars,
+    runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday() }),
   go: toBriefing,
   setStaticClock: v => { staticClock = v; },
+  remix: startRemix,
+  daily: startDaily,
+  // M1 regression anchor: seed 0 must always produce today's exact levels
+  heightChecksum: () => level.heights.reduce((a, h) => (a * 31 + Math.round(h)) | 0, 0),
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,

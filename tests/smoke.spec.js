@@ -228,6 +228,40 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 3000 });
 });
 
+test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", async ({ page }) => {
+  await page.evaluate(() => __doids.go(1));
+  let sum = await page.evaluate(() => __doids.heightChecksum());
+  expect(sum).toBe(1827470476);   // golden checksum: authored VESALIUS RIDGE terrain
+  // remix: fresh seed, 7 famous minds drawn from the wider pool, briefing up
+  await page.evaluate(() => __doids.remix());
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.runMode).toBe("remix");
+  expect(s.runSeed).toBeGreaterThan(0);
+  expect(s.famousMap).toHaveLength(7);
+  expect(s.state).toBe("brief");
+  await page.evaluate(() => __doids.go(1));
+  const remixSum = await page.evaluate(() => __doids.heightChecksum());
+  expect(remixSum).not.toBe(1827470476);
+  // a fresh campaign run restores seed 0 and the exact authored terrain
+  await page.evaluate(() => { __doids.reset(); __doids.go(1); });
+  sum = await page.evaluate(() => __doids.heightChecksum());
+  expect(sum).toBe(1827470476);
+});
+
+test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page }) => {
+  await page.evaluate(() => __doids.daily());
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.runMode).toBe("daily");
+  expect(s.dailyDone).toBe(true);
+  expect(s.state).toBe("brief");
+  // a second attempt the same day is refused at the title
+  await page.evaluate(() => { __doids.reset(); state = "title"; });
+  await page.evaluate(() => __doids.daily());
+  s = await page.evaluate(() => __doids.get());
+  expect(s.runMode).toBe("campaign");
+  expect(s.state).toBe("title");
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen
