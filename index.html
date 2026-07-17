@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DOIDS">
+<meta name="theme-color" content="#05060f">
+<title>DOIDS — a gravity rescue</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none;
+      -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; background:#05060f; position:fixed; inset:0;
+      touch-action:none; overscroll-behavior:none; }
+  canvas { display:block; width:100%; height:100%; }
+  .btn {
+    position:fixed; width:72px; height:72px; border-radius:50%;
+    border:2px solid rgba(0,229,255,.55); color:rgba(0,229,255,.9);
+    background:rgba(0,229,255,.07);
+    box-shadow:0 0 18px rgba(0,229,255,.25), inset 0 0 12px rgba(0,229,255,.12);
+    font:700 13px/68px "Helvetica Neue", Arial, sans-serif; text-align:center;
+    letter-spacing:1px; z-index:10; touch-action:none;
+  }
+  .btn.down { background:rgba(0,229,255,.28); box-shadow:0 0 30px rgba(0,229,255,.6); }
+  #btnL   { left:calc(18px + env(safe-area-inset-left));  bottom:calc(24px + env(safe-area-inset-bottom)); }
+  #btnR   { left:calc(104px + env(safe-area-inset-left)); bottom:calc(24px + env(safe-area-inset-bottom)); }
+  #btnFire   { right:calc(104px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom));
+    border-color:rgba(255,64,129,.55); color:rgba(255,64,129,.9); background:rgba(255,64,129,.07);
+    box-shadow:0 0 18px rgba(255,64,129,.25), inset 0 0 12px rgba(255,64,129,.12); }
+  #btnFire.down { background:rgba(255,64,129,.28); box-shadow:0 0 30px rgba(255,64,129,.6); }
+  #btnThrust { right:calc(18px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom));
+    width:84px; height:84px; line-height:80px;
+    border-color:rgba(255,196,0,.55); color:rgba(255,196,0,.9); background:rgba(255,196,0,.07);
+    box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
+  #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="btn" id="btnL">&#10226;</div>
+<div class="btn" id="btnR">&#10227;</div>
+<div class="btn" id="btnFire">FIRE</div>
+<div class="btn" id="btnThrust">THRUST</div>
+<script>
+"use strict";
+/* ================================================================
+   DOIDS — a modern-glow homage to the Atari ST gravity classic.
+   Rescue the stranded Doids and ferry them to the hospital
+   mothership AMS MERCY. Optimised for iPhone touch play.
+   ================================================================ */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let vw = 0, vh = 0, dpr = 1;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  vw = window.innerWidth; vh = window.innerHeight;
+  canvas.width = vw * dpr; canvas.height = vh * dpr;
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 250));
+resize();
+
+/* ---------------- input ---------------- */
+const input = { left:false, right:false, thrust:false, fire:false, tap:false };
+
+function bindButton(id, key) {
+  const el = document.getElementById(id);
+  const down = e => { e.preventDefault(); input[key] = true; el.classList.add("down"); initAudio(); };
+  const up   = e => { e.preventDefault(); input[key] = false; el.classList.remove("down"); };
+  el.addEventListener("touchstart", down, { passive:false });
+  el.addEventListener("touchend", up, { passive:false });
+  el.addEventListener("touchcancel", up, { passive:false });
+  el.addEventListener("mousedown", down);
+  el.addEventListener("mouseup", up);
+  el.addEventListener("mouseleave", up);
+}
+bindButton("btnL", "left");
+bindButton("btnR", "right");
+bindButton("btnThrust", "thrust");
+bindButton("btnFire", "fire");
+
+canvas.addEventListener("touchstart", e => { e.preventDefault(); input.tap = true; initAudio(); }, { passive:false });
+canvas.addEventListener("mousedown", () => { input.tap = true; initAudio(); });
+document.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
+document.addEventListener("gesturestart", e => e.preventDefault());
+
+const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust" };
+window.addEventListener("keydown", e => {
+  if (keyMap[e.key] !== undefined) { input[keyMap[e.key]] = true; e.preventDefault(); }
+  if (e.key === "Enter") input.tap = true;
+  initAudio();
+});
+window.addEventListener("keyup", e => { if (keyMap[e.key] !== undefined) input[keyMap[e.key]] = false; });
+
+/* ---------------- audio (tiny synth) ---------------- */
+let AC = null, thrustNode = null, thrustGain = null;
+function initAudio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const bufferSize = AC.sampleRate * 0.5;
+    const buf = AC.createBuffer(1, bufferSize, AC.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    thrustNode = AC.createBufferSource();
+    thrustNode.buffer = buf; thrustNode.loop = true;
+    const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
+    thrustGain = AC.createGain(); thrustGain.gain.value = 0;
+    thrustNode.connect(lp); lp.connect(thrustGain); thrustGain.connect(AC.destination);
+    thrustNode.start();
+  } catch (e) { AC = null; }
+}
+function blip(freq0, freq1, dur, type, vol) {
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || "square";
+  o.frequency.setValueAtTime(freq0, AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(Math.max(freq1, 1), AC.currentTime + dur);
+  g.gain.setValueAtTime(vol || 0.12, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(); o.stop(AC.currentTime + dur + 0.02);
+}
+function boom() {
+  if (!AC) return;
+  const dur = 0.6, sz = AC.sampleRate * dur;
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const g = AC.createGain(); g.gain.value = 0.35;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+  s.connect(lp); lp.connect(g); g.connect(AC.destination); s.start();
+}
+function heartbeat() { // lub-dub, played when a Doid comes aboard
+  if (!AC) return;
+  const pulse = (t, f) => {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, AC.currentTime + t);
+    g.gain.exponentialRampToValueAtTime(0.4, AC.currentTime + t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + t + 0.16);
+    o.connect(g); g.connect(AC.destination);
+    o.start(AC.currentTime + t); o.stop(AC.currentTime + t + 0.2);
+  };
+  pulse(0, 82); pulse(0.18, 62);
+}
+
+/* ---------------- helpers ---------------- */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ---------------- world / level ---------------- */
+const GRAV = 46, THRUST = 138, ROT = 3.7, SHIP_R = 11;
+const WORLD_H = 1500, STEP = 16;
+const LEVEL_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN"];
+
+let level, ship, camera, particles, texts, stars;
+let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
+let hiscore = 0;
+try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
+
+function groundAt(x) {
+  const h = level.heights;
+  const i = clamp(Math.floor(x / STEP), 0, h.length - 2);
+  const t = clamp(x / STEP - i, 0, 1);
+  return lerp(h[i], h[i + 1], t);
+}
+
+function flatten(heights, cx, halfW, rng) {
+  const i0 = Math.max(1, Math.floor((cx - halfW) / STEP));
+  const i1 = Math.min(heights.length - 2, Math.ceil((cx + halfW) / STEP));
+  const y = heights[Math.floor(cx / STEP)];
+  for (let i = i0; i <= i1; i++) heights[i] = y;
+  // soften shoulders
+  if (i0 > 1) heights[i0 - 1] = (heights[i0 - 2] + y) / 2;
+  if (i1 < heights.length - 2) heights[i1 + 1] = (heights[i1 + 2] + y) / 2;
+  return y;
+}
+
+function genLevel(n) {
+  const W = 2600 + n * 500;
+  const rng = mulberry32(1013 * (n + 3) + 77);
+  const count = Math.floor(W / STEP) + 2;
+
+  // layered value noise terrain
+  const octave = (wl, amp) => {
+    const pts = [];
+    for (let i = 0; i <= Math.ceil(W / wl) + 1; i++) pts.push((rng() * 2 - 1) * amp);
+    return x => {
+      const p = x / wl, i = Math.floor(p), t = p - i;
+      return lerp(pts[i], pts[i + 1], (1 - Math.cos(t * Math.PI)) / 2);
+    };
+  };
+  const o1 = octave(420, 190), o2 = octave(150, 65), o3 = octave(60, 20);
+  const heights = [];
+  for (let i = 0; i < count; i++) {
+    const x = i * STEP;
+    heights.push(clamp(1100 + o1(x) + o2(x) + o3(x), 780, 1380));
+  }
+  // walls at edges
+  for (let i = 0; i < 4; i++) { heights[i] = 600; heights[count - 1 - i] = 600; }
+
+  const lvl = { n, W, heights, oids: [], turrets: [], bullets: [], shots: [],
+                mx: 280, my: 170, delivered: 0, total: 0, firedShots: 0 };
+
+  // place oids on flattened perches
+  const nOids = 3 + n * 2;
+  const nTurrets = 2 + n * 2;
+  const spots = [];
+  const pick = minDist => {
+    for (let tries = 0; tries < 60; tries++) {
+      const x = 600 + rng() * (W - 850);
+      if (spots.every(s => Math.abs(s - x) > minDist)) { spots.push(x); return x; }
+    }
+    return 600 + rng() * (W - 850);
+  };
+  for (let i = 0; i < nOids; i++) {
+    const x = pick(300);
+    const y = flatten(heights, x, 80, rng);
+    lvl.oids.push({ x, y, home: x, state: "wait", wave: rng() * 6 });
+  }
+  for (let i = 0; i < nTurrets; i++) {
+    const x = pick(220);
+    const y = flatten(heights, x, 40, rng);
+    lvl.turrets.push({ x, y, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
+  }
+  lvl.total = nOids;
+
+  stars = [];
+  const srng = mulberry32(999 + n);
+  for (let i = 0; i < 220; i++)
+    stars.push({ x: srng() * W, y: srng() * 900, s: srng() * 1.6 + 0.4, tw: srng() * 6 });
+  return lvl;
+}
+
+function spawnShip() {
+  ship = {
+    x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
+    fuel: 100, vitals: 100, aboard: 0, landed: false, dead: false,
+    fireCd: 0, dockT: 0, beat: 0
+  };
+}
+
+function startLevel(n) {
+  levelIdx = n;
+  level = genLevel(n);
+  spawnShip();
+  camera = { x: ship.x, y: ship.y, shake: 0 };
+  particles = []; texts = [];
+  state = "play"; stateT = 0;
+  addText(level.W / 2, 0, "", ""); texts = [];
+  banner(LEVEL_NAMES[n] || "SECTOR " + (n + 1), "#00e5ff");
+}
+
+let bannerMsg = null;
+function banner(str, color) { bannerMsg = { str, color, t: 2.6 }; }
+function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 1.6 }); }
+
+function explode(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 220;
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      t: 0.5 + Math.random() * 0.8, max: 1.3, color, size: 1.5 + Math.random() * 3 });
+  }
+  camera.shake = Math.min(camera.shake + 14, 26);
+  boom();
+}
+
+/* ---------------- update ---------------- */
+function shipDie() {
+  if (ship.dead) return;
+  ship.dead = true;
+  explode(ship.x, ship.y, "#ff4081", 60);
+  explode(ship.x, ship.y, "#ffc400", 40);
+  lives--;
+  state = "dead"; stateT = 0;
+}
+
+function update(dt) {
+  stateT += dt;
+  if (bannerMsg && (bannerMsg.t -= dt) <= 0) bannerMsg = null;
+
+  // particles & texts always tick
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.t -= dt; if (p.t <= 0) { particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += GRAV * 0.6 * dt;
+  }
+  for (let i = texts.length - 1; i >= 0; i--) {
+    texts[i].t -= dt; texts[i].y -= 24 * dt;
+    if (texts[i].t <= 0) texts.splice(i, 1);
+  }
+  if (camera) camera.shake = Math.max(0, camera.shake - 60 * dt);
+
+  if (state === "title" || state === "gameover" || state === "win") {
+    if (input.tap && stateT > 0.6) {
+      score = 0; lives = 3;
+      startLevel(0);
+    }
+    input.tap = false;
+    return;
+  }
+  if (state === "dead") {
+    if (stateT > 1.6) {
+      if (lives <= 0) {
+        state = "gameover"; stateT = 0;
+        if (score > hiscore) { hiscore = score; try { localStorage.setItem("doids_hi", hiscore); } catch (e) {} }
+      } else { spawnShip(); state = "play"; stateT = 0; }
+    }
+    input.tap = false;
+    updateWorld(dt, false);
+    return;
+  }
+  if (state === "clear") {
+    if (input.tap && stateT > 1.2) {
+      if (levelIdx + 1 >= 3) {
+        state = "win"; stateT = 0;
+        if (score > hiscore) { hiscore = score; try { localStorage.setItem("doids_hi", hiscore); } catch (e) {} }
+      } else startLevel(levelIdx + 1);
+    }
+    input.tap = false;
+    return;
+  }
+
+  // ---- playing ----
+  input.tap = false;
+  const s = ship;
+
+  if (input.left)  s.ang -= ROT * dt;
+  if (input.right) s.ang += ROT * dt;
+
+  const thrusting = input.thrust && s.fuel > 0;
+  if (thrustGain) thrustGain.gain.value = thrusting ? 0.14 : 0;
+  if (thrusting) {
+    s.vx += Math.sin(s.ang) * THRUST * dt;
+    s.vy -= Math.cos(s.ang) * THRUST * dt;
+    s.fuel = Math.max(0, s.fuel - 5.2 * dt);
+    s.landed = false;
+    // exhaust
+    for (let i = 0; i < 2; i++) {
+      const spread = (Math.random() - 0.5) * 0.5;
+      particles.push({
+        x: s.x - Math.sin(s.ang) * 12, y: s.y + Math.cos(s.ang) * 12,
+        vx: s.vx - Math.sin(s.ang + spread) * 160, vy: s.vy + Math.cos(s.ang + spread) * 160,
+        t: 0.25 + Math.random() * 0.2, max: 0.45,
+        color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2 + Math.random() * 2
+      });
+    }
+  }
+
+  if (!s.landed) {
+    s.vy += GRAV * dt;
+    s.x += s.vx * dt; s.y += s.vy * dt;
+  }
+
+  // world bounds
+  s.x = clamp(s.x, 40, level.W - 40);
+  if (s.y < 20) { s.y = 20; s.vy = Math.max(s.vy, 0); }
+
+  // terrain collision
+  const g = groundAt(s.x);
+  if (!s.landed && s.y + SHIP_R >= g) {
+    const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
+    const upright = Math.abs(((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI) > Math.PI - 0.5;
+    const soft = Math.abs(s.vy) < 52 && Math.abs(s.vx) < 38 && slope < 0.25 && upright;
+    const survivable = Math.abs(s.vy) < 85 && Math.abs(s.vx) < 60 && slope < 0.35 && upright;
+    if (soft) {
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+    } else if (survivable) {
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+      s.vitals -= 35; camera.shake += 10;
+      addText(s.x, s.y - 30, "HARD LANDING -35", "#ff4081");
+      blip(160, 40, 0.3, "sawtooth", 0.2);
+      if (s.vitals <= 0) shipDie();
+    } else {
+      shipDie();
+    }
+  }
+
+  updateWorld(dt, true);
+
+  // ---- oids ----
+  for (const o of level.oids) {
+    o.wave += dt;
+    if (o.state === "wait" && s.landed &&
+        Math.abs(s.x - o.x) < 150 && Math.abs((groundAt(o.x)) - (s.y + SHIP_R)) < 60) {
+      o.state = "walk";
+    }
+    if (o.state === "walk") {
+      if (!s.landed) { o.state = "wait"; continue; }
+      o.x += Math.sign(s.x - o.x) * 34 * dt;
+      o.y = groundAt(o.x);
+      if (Math.abs(s.x - o.x) < 14) {
+        o.state = "aboard"; s.aboard++;
+        score += 500;
+        addText(s.x, s.y - 34, "DOID ABOARD +500", "#69f0ae");
+        heartbeat();
+        s.beat = 1;
+      }
+    }
+  }
+
+  // ---- turrets ----
+  for (const t of level.turrets) {
+    if (!t.alive) continue;
+    const dx = s.x - t.x, dy = (s.y) - (t.y - 10);
+    const d = Math.hypot(dx, dy);
+    const target = Math.atan2(dy, dx);
+    t.ang += clamp(target - t.ang, -1.6 * dt, 1.6 * dt);
+    t.cd -= dt;
+    if (d < 500 && t.cd <= 0 && !s.dead) {
+      t.cd = 1.5 + Math.random() * 0.9;
+      level.bullets.push({ x: t.x + Math.cos(t.ang) * 14, y: t.y - 10 + Math.sin(t.ang) * 14,
+        vx: Math.cos(t.ang) * 150, vy: Math.sin(t.ang) * 150, t: 4 });
+      blip(300, 90, 0.18, "square", 0.07);
+    }
+  }
+
+  // enemy bullets
+  for (let i = level.bullets.length - 1; i >= 0; i--) {
+    const b = level.bullets[i];
+    b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    if (b.t <= 0 || b.y > groundAt(b.x)) { level.bullets.splice(i, 1); continue; }
+    if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + 3) {
+      level.bullets.splice(i, 1);
+      s.vitals -= 26; camera.shake += 8;
+      explode(b.x, b.y, "#ff4081", 10);
+      addText(s.x, s.y - 30, "-26", "#ff4081");
+      if (s.vitals <= 0) shipDie();
+    }
+  }
+
+  // player fire
+  s.fireCd -= dt;
+  if (input.fire && s.fireCd <= 0 && !s.dead) {
+    s.fireCd = 0.22;
+    level.firedShots++;
+    level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
+      vx: s.vx + Math.sin(s.ang) * 360, vy: s.vy - Math.cos(s.ang) * 360, t: 1.3 });
+    blip(880, 180, 0.12, "square", 0.09);
+  }
+  for (let i = level.shots.length - 1; i >= 0; i--) {
+    const b = level.shots[i];
+    b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    let gone = b.t <= 0 || b.y > groundAt(b.x);
+    for (const t of level.turrets) {
+      if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
+        t.alive = false; gone = true;
+        score += 250;
+        explode(t.x, t.y - 8, "#ffc400", 30);
+        addText(t.x, t.y - 40, "+250", "#ffc400");
+      }
+    }
+    if (gone) level.shots.splice(i, 1);
+  }
+
+  // ---- docking with AMS MERCY ----
+  const inBay = Math.abs(s.x - level.mx) < 80 && s.y > level.my + 24 && s.y < level.my + 130
+    && Math.abs(s.vx) < 70 && Math.abs(s.vy) < 70;
+  if (inBay && !s.dead) {
+    s.fuel = Math.min(100, s.fuel + 30 * dt);
+    s.vitals = Math.min(100, s.vitals + 24 * dt);
+    s.dockT += dt;
+    if (s.aboard > 0 && s.dockT > 0.35) {
+      s.dockT = 0;
+      s.aboard--; level.delivered++;
+      score += 300;
+      addText(level.mx, level.my + 40, "DELIVERED +300", "#69f0ae");
+      blip(520, 1040, 0.2, "sine", 0.12);
+      if (level.delivered >= level.total) {
+        score += 1000;
+        let msg = "SECTOR CLEAR  +1000";
+        if (level.firedShots === 0) {
+          score += 2000;
+          msg += "\nPRIMUM NON NOCERE — HIPPOCRATIC BONUS +2000";
+        }
+        banner(msg, "#69f0ae");
+        state = "clear"; stateT = 0;
+        blip(440, 1760, 0.5, "sine", 0.15);
+      }
+    }
+  } else s.dockT = 0;
+
+  s.beat = Math.max(0, s.beat - dt);
+
+  // camera
+  camera.x = lerp(camera.x, s.x + s.vx * 0.35, 1 - Math.pow(0.001, dt));
+  camera.y = lerp(camera.y, s.y + s.vy * 0.2 - 40, 1 - Math.pow(0.001, dt));
+}
+
+function updateWorld(dt, live) {
+  // keeps enemy bullets/turret idle animation ticking during death cam
+  if (!live) {
+    for (let i = level.bullets.length - 1; i >= 0; i--) {
+      const b = level.bullets[i];
+      b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.t <= 0 || b.y > groundAt(b.x)) level.bullets.splice(i, 1);
+    }
+  }
+}
+
+/* ---------------- render ---------------- */
+function zoomLevel() {
+  return clamp(Math.min(vw / 900, vh / 640), 0.55, 1);
+}
+
+function render() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // background
+  const bg = ctx.createLinearGradient(0, 0, 0, vh);
+  bg.addColorStop(0, "#05060f"); bg.addColorStop(0.7, "#0a0d22"); bg.addColorStop(1, "#101433");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, vw, vh);
+
+  if (!level) return;
+  const z = zoomLevel();
+  const cw = vw / z, ch = vh / z;
+  let cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
+  let cy = clamp(camera.y - ch / 2, -100, WORLD_H - ch);
+  if (camera.shake > 0) {
+    cx += (Math.random() - 0.5) * camera.shake;
+    cy += (Math.random() - 0.5) * camera.shake;
+  }
+  ctx.setTransform(dpr * z, 0, 0, dpr * z, -cx * dpr * z, -cy * dpr * z);
+
+  const now = performance.now() / 1000;
+
+  // stars (slight parallax)
+  ctx.save();
+  ctx.translate(cx * 0.35, cy * 0.35);
+  for (const st of stars) {
+    const a = 0.4 + 0.6 * Math.abs(Math.sin(now * 0.8 + st.tw));
+    ctx.fillStyle = "rgba(200,220,255," + a.toFixed(2) + ")";
+    ctx.fillRect(st.x, st.y, st.s, st.s);
+  }
+  ctx.restore();
+
+  // terrain
+  ctx.beginPath();
+  ctx.moveTo(0, WORLD_H + 100);
+  for (let i = 0; i < level.heights.length; i++) ctx.lineTo(i * STEP, level.heights[i]);
+  ctx.lineTo(level.W, WORLD_H + 100);
+  ctx.closePath();
+  const tg = ctx.createLinearGradient(0, 700, 0, WORLD_H);
+  tg.addColorStop(0, "#1b1040"); tg.addColorStop(1, "#0c0820");
+  ctx.fillStyle = tg; ctx.fill();
+  ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 12;
+  ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // mothership AMS MERCY
+  drawMothership(now);
+
+  // oids
+  for (const o of level.oids) {
+    if (o.state === "aboard") continue;
+    drawOid(o, now);
+  }
+
+  // turrets
+  for (const t of level.turrets) {
+    if (!t.alive) continue;
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+    ctx.fillStyle = "#3a0d24";
+    ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 12, Math.PI, 0); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(t.ang) * 6, -10 + Math.sin(t.ang) * 6);
+    ctx.lineTo(Math.cos(t.ang) * 18, -10 + Math.sin(t.ang) * 18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // bullets
+  ctx.shadowBlur = 8;
+  for (const b of level.bullets) {
+    ctx.shadowColor = "#ff4081"; ctx.fillStyle = "#ff8ab3";
+    ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
+  }
+  for (const b of level.shots) {
+    ctx.shadowColor = "#00e5ff"; ctx.fillStyle = "#a7f6ff";
+    ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, 7); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // particles
+  for (const p of particles) {
+    ctx.globalAlpha = clamp(p.t / p.max, 0, 1);
+    ctx.shadowColor = p.color; ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  // ship
+  if (!ship.dead) drawShip(now);
+
+  // floating text
+  ctx.textAlign = "center";
+  ctx.font = "700 13px Menlo, monospace";
+  for (const t of texts) {
+    ctx.globalAlpha = clamp(t.t, 0, 1);
+    ctx.shadowColor = t.color; ctx.shadowBlur = 8;
+    ctx.fillStyle = t.color;
+    ctx.fillText(t.str, t.x, t.y);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  // ---- HUD (screen space) ----
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawHUD(now);
+
+  if (state === "title") drawTitle(now);
+  if (state === "gameover") drawCenter("FLATLINE", "GAME OVER — tap to try again", "#ff4081", now);
+  if (state === "win") drawCenter("ALL DOIDS SAVED", "score " + score + "  ·  hi " + hiscore + "\nrank: FLIGHT SURGEON, A&M RESCUE DIVISION\ntap to play again", "#69f0ae", now);
+  if (state === "clear") drawCenter(LEVEL_NAMES[levelIdx] + " CLEAR", (level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "") + "tap for next sector", "#69f0ae", now);
+  if (bannerMsg) {
+    ctx.textAlign = "center";
+    ctx.font = "800 26px 'Helvetica Neue', Arial, sans-serif";
+    ctx.shadowColor = bannerMsg.color; ctx.shadowBlur = 18;
+    ctx.fillStyle = bannerMsg.color;
+    ctx.globalAlpha = clamp(bannerMsg.t, 0, 1);
+    const lines = bannerMsg.str.split("\n");
+    lines.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.3 + i * 32));
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  }
+}
+
+function drawShip(now) {
+  const s = ship;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.rotate(s.ang);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
+  ctx.fillStyle = "rgba(0,229,255,.12)";
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // landing glow
+  if (s.landed) {
+    ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = "rgba(105,240,174,.7)";
+    ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawOid(o, now) {
+  const y = o.y;
+  const wave = Math.sin(now * 5 + o.wave);
+  ctx.save();
+  ctx.translate(o.x, y);
+  ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10;
+  ctx.strokeStyle = "#69f0ae"; ctx.lineWidth = 2;
+  // body
+  ctx.beginPath();
+  ctx.arc(0, -14, 3.5, 0, 7);              // head
+  ctx.moveTo(0, -10); ctx.lineTo(0, -3);   // torso
+  ctx.moveTo(0, -3); ctx.lineTo(-3, 0);    // legs
+  ctx.moveTo(0, -3); ctx.lineTo(3, 0);
+  ctx.moveTo(0, -9); ctx.lineTo(-4, -6);   // left arm
+  ctx.moveTo(0, -9);                        // waving arm
+  ctx.lineTo(4, -11 + (o.state === "wait" ? wave * 3 : 0));
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawMothership(now) {
+  const { mx, my } = level;
+  const bob = Math.sin(now * 1.2) * 4;
+  ctx.save();
+  ctx.translate(mx, my + bob);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.fillStyle = "rgba(0,40,60,.55)";
+  ctx.beginPath();
+  ctx.moveTo(-90, 0); ctx.lineTo(-55, -26); ctx.lineTo(55, -26);
+  ctx.lineTo(90, 0); ctx.lineTo(55, 22); ctx.lineTo(-55, 22);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // red cross beacon — this is a hospital ship
+  const pulse = 0.55 + 0.45 * Math.sin(now * 3);
+  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
+  ctx.fillStyle = "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")";
+  ctx.fillRect(-5, -16, 10, 26); ctx.fillRect(-13, -8, 26, 10);
+  // name
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.fillStyle = "#9beaf9";
+  ctx.font = "700 10px Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("A M S · M E R C Y", 0, 36);
+  ctx.restore();
+  // docking bay guide
+  ctx.save();
+  ctx.setLineDash([6, 8]);
+  ctx.strokeStyle = "rgba(0,229,255," + (0.25 + 0.2 * Math.sin(now * 2)).toFixed(2) + ")";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(mx - 80, my + 24, 160, 106);
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+/* HUD ---------------------------------------------------------- */
+function drawHUD(now) {
+  if (state === "title") return;
+  const s = ship;
+  const topPad = 14 + (window.visualViewport ? 0 : 0);
+  ctx.font = "700 12px Menlo, monospace";
+
+  // fuel bar (left)
+  const bw = Math.min(150, vw * 0.3);
+  drawBar(14, topPad, bw, 10, s.fuel / 100, "#ffc400", "FUEL");
+
+  // ECG vitals (right) — the pulse of your ship
+  drawECG(vw - bw - 14, topPad, bw, 26, s.vitals / 100, now);
+
+  // score / level centre
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+  ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
+  ctx.font = "600 9px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.7)";
+  ctx.fillText(LEVEL_NAMES[levelIdx] + "  ·  ♥ " + lives, vw / 2, topPad + 23);
+  ctx.shadowBlur = 0;
+
+  // doids aboard / remaining
+  ctx.textAlign = "left";
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
+  ctx.fillText("DOIDS ABOARD " + s.aboard + "  ·  SAVED " + level.delivered + "/" + level.total, 14, topPad + 34);
+  ctx.shadowBlur = 0;
+
+  // low fuel / vitals warnings
+  if ((s.fuel < 20 || s.vitals < 30) && Math.sin(now * 8) > 0 && state === "play") {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillText(s.vitals < 30 ? "⚠ VITALS CRITICAL" : "⚠ LOW FUEL", vw / 2, topPad + 44);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawBar(x, y, w, h, frac, color, label) {
+  ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
+  ctx.fillRect(x + 1, y + 1, (w - 2) * clamp(frac, 0, 1), h - 2);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "left";
+  ctx.fillText(label, x, y + h + 9);
+}
+
+/* A live ECG trace as the ship's health bar. Beat rate rises as
+   vitals fall; a rescue triggers an extra strong beat. */
+function drawECG(x, y, w, h, frac, now) {
+  const color = frac > 0.55 ? "#69f0ae" : frac > 0.3 ? "#ffc400" : "#ff4081";
+  ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  const bpm = lerp(3.4, 1.2, clamp(frac, 0, 1)) + (ship.beat > 0 ? 2 : 0); // beats/sec
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h); ctx.clip();
+  ctx.beginPath();
+  const mid = y + h * 0.6;
+  for (let px = 0; px <= w; px += 2) {
+    const t = (now * 90 - (w - px)) / 90 * bpm;           // scrolling time at this pixel
+    const ph = ((t % 1) + 1) % 1;
+    let v = 0;
+    if (ph < 0.08) v = -0.2;                               // P
+    else if (ph < 0.14) v = 1.0;                           // QRS spike
+    else if (ph < 0.18) v = -0.45;
+    else if (ph < 0.3) v = 0.18;                           // T
+    v *= (frac > 0 ? 1 : 0);
+    const yy = mid - v * h * 0.55;
+    px === 0 ? ctx.moveTo(x + px, yy) : ctx.lineTo(x + px, yy);
+  }
+  ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.restore();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "right";
+  ctx.fillText("VITALS " + Math.max(0, Math.round(frac * 100)) + "%", x + w, y + h + 9);
+}
+
+function drawTitle(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.72)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  const pulse = 0.7 + 0.3 * Math.sin(now * 2);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 30 * pulse;
+  ctx.fillStyle = "#aef4ff";
+  ctx.font = "900 " + Math.min(84, vw * 0.16) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("D O I D S", vw / 2, vh * 0.34);
+  ctx.shadowBlur = 10;
+  ctx.font = "600 13px Menlo, monospace";
+  ctx.fillStyle = "#9beaf9";
+  ctx.fillText("a gravity rescue — in the spirit of the Atari ST classic", vw / 2, vh * 0.42);
+  ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae";
+  ctx.fillText("land near stranded DOIDS · ferry them to AMS MERCY", vw / 2, vh * 0.5);
+  ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
+  ctx.fillText("dock in the dashed bay to refuel & heal", vw / 2, vh * 0.56);
+  ctx.fillStyle = "rgba(255,255,255," + pulse.toFixed(2) + ")"; ctx.shadowColor = "#fff";
+  ctx.font = "800 17px Menlo, monospace";
+  ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.68);
+  ctx.shadowBlur = 0;
+  ctx.font = "600 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.55)";
+  ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.74);
+}
+
+function drawCenter(big, small, color, now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.55)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.shadowColor = color; ctx.shadowBlur = 24;
+  ctx.fillStyle = color;
+  ctx.font = "900 " + Math.min(52, vw * 0.1) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(big, vw / 2, vh * 0.4);
+  ctx.shadowBlur = 8;
+  ctx.font = "600 14px Menlo, monospace";
+  ctx.fillStyle = "#dff8ff";
+  small.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.5 + i * 22));
+  ctx.shadowBlur = 0;
+}
+
+/* ---------------- main loop ---------------- */
+level = genLevel(0);
+spawnShip();
+camera = { x: ship.x, y: ship.y, shake: 0 };
+particles = []; texts = [];
+
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min((t - last) / 1000, 0.05);
+  last = t;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
