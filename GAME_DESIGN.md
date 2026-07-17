@@ -2,7 +2,7 @@
 
 *A&M internal — everything a developer or writer needs to pick this project up.*
 
-Last updated: July 2026 · Live build: https://burners70.github.io/hollow-oath/
+Last updated: July 2026 · Live build: https://burners70.github.io/Hollow-Oath/
 
 > **Renamed from "DOIDS" → "Hollow Oath"** (androids "Doids" → **Scions**).
 > Full rename log — scope, what was deliberately kept (localStorage keys,
@@ -285,10 +285,10 @@ multi-touch slide/second-finger tests). Pattern:
   slug — it's not user-facing, so it was left as-is; see CHANGELOG.md.)
 - `claude/game-dev-next-stage-trwmua` — a dev branch.
 - `claude/test-connection-79fx9k` — the Hollow Oath rename landed here first.
-- **Repo/URL rename pending**: the repo is to be renamed `Doids` → `hollow-oath`
-  (a GitHub *Settings* action), after which the live URL becomes
-  `https://burners70.github.io/hollow-oath/`. Until then the old
-  `.../Doids/` URL is still the live one. See CHANGELOG.md § "Repository & URL".
+- **Repo renamed** `Doids` → `Hollow-Oath` (done). The repo URL and Pages base
+  are now `https://burners70.github.io/Hollow-Oath/` (GitHub redirects the old
+  `.../Doids/` path for a while). The live *content* updates once the rename
+  reaches the Pages deploy branch. See CHANGELOG.md § "Repository & URL".
 - PWA bits: `manifest.webmanifest`, apple-touch icons. **No service
   worker** — stale Home-Screen installs are plain browser cache (refresh in
   Safari or re-add the icon).

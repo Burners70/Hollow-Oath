@@ -100,7 +100,7 @@ and `firedAtCombat` flags; HOLLOW KEEPER = answered + `firedAtSecret` +
 ## 5. Decisions taken
 
 1. Title casing: **mixed case, "Hollow Oath".**
-2. Repo rename: **yes** — `Doids` → `hollow-oath` (GitHub Settings action;
+2. Repo rename: **yes** — `Doids` → `Hollow-Oath` (GitHub Settings action;
    in-repo references updated in anticipation — see CHANGELOG.md).
 3. Copy insertions (§2): used as drafted.
 4. Hollow Keeper (§3): **built.**

@@ -9,8 +9,9 @@ ST gravity games.
 > androids from "Doids" to **Scions**. See [CHANGELOG.md](CHANGELOG.md) for the
 > full rename log (what changed, what was deliberately kept, and why).
 
-**Play it live:** https://burners70.github.io/hollow-oath/
-*(this URL goes live once the GitHub repo is renamed `Doids` → `hollow-oath`; see
+**Play it live:** https://burners70.github.io/Hollow-Oath/
+*(the repo has been renamed `Doids` → `Hollow-Oath`; the live Pages site reflects
+this rename once these changes reach the Pages deploy branch — see
 CHANGELOG.md § "Repository & URL").*
 
 **New developers / writers:** start with [GAME_DESIGN.md](GAME_DESIGN.md) — the full

@@ -64,18 +64,18 @@ what he hid. It cost you the oath to do it."*
 - **Branch names** (`claude/doids-iphone-game-r4fnon`, etc.) — not user-facing;
   left as-is.
 
-### Repository & URL (action still required)
-The GitHub **repo rename is a Settings action** that can't be done from git.
-To complete the rename:
-1. GitHub → repo **Settings** → rename **`Doids` → `hollow-oath`**.
-2. GitHub Pages then serves from `https://burners70.github.io/hollow-oath/`.
-   GitHub auto-redirects the old `.../Doids/` path for a while, but don't rely on
-   it long-term — update any external links.
-3. Local clones: `git remote set-url origin <new URL>`.
+### Repository & URL
+**Done:** the GitHub repo was renamed **`Doids` → `Hollow-Oath`** (a Settings
+action; not doable from git). Live consequences:
+1. Repo is now `https://github.com/Burners70/Hollow-Oath` and Pages serves from
+   `https://burners70.github.io/Hollow-Oath/`. GitHub auto-redirects the old
+   `.../Doids/` paths for a while, but update external links.
+2. The live Pages *content* only reflects the rename once these changes land on
+   the Pages deploy branch (`claude/doids-iphone-game-r4fnon`).
+3. Local clones need `git remote set-url origin https://github.com/Burners70/Hollow-Oath.git`.
 
-In-repo references (README, GAME_DESIGN, manifest description) already point to
-the new `hollow-oath` URL in anticipation; they are correct the moment step 1 is
-done.
+In-repo references (README, GAME_DESIGN, manifest description) point to the
+`Hollow-Oath` URL and are now correct.
 
 ### Verification
 Headless Chromium (Playwright) smoke test after the changes: game boots, document
