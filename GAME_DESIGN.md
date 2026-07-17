@@ -1,18 +1,24 @@
-# DOIDS — Game Design & Narrative Document
+# Hollow Oath — Game Design & Narrative Document
 
 *A&M internal — everything a developer or writer needs to pick this project up.*
 
-Last updated: July 2026 · Live build: https://burners70.github.io/Doids/
+Last updated: July 2026 · Live build: https://burners70.github.io/Hollow-Oath/
+
+> **Renamed from "DOIDS" → "Hollow Oath"** (androids "Doids" → **Scions**).
+> Full rename log — scope, what was deliberately kept (localStorage keys,
+> internal identifiers), and why — is in [CHANGELOG.md](CHANGELOG.md); the brief
+> that drove it is [HOLLOW_OATH_BRIEF.md](HOLLOW_OATH_BRIEF.md).
 
 ---
 
-## 1. What DOIDS is
+## 1. What Hollow Oath is
 
-DOIDS is a modern-glow homage to *Oids* (Atari ST, 1987): a 2D gravity-thrust
-rescue game, built as a **single self-contained HTML file** (canvas + inline
+Hollow Oath is an original 2D gravity-thrust rescue game — in the *mechanical*
+lineage of *Oids* (Atari ST, 1987), but with wholly original code, art, story,
+and names — built as a **single self-contained HTML file** (canvas + inline
 CSS/JS, zero dependencies) targeting iPhone Safari first, desktop second. You
 fly a small rescue dart over procedurally seeded terrain, land gently near
-stranded medical androids ("Doids"), and ferry them back to the hospital
+stranded medical androids ("Scions"), and ferry them back to the hospital
 mothership **AMS MERCY** — while the game quietly teaches you to distrust
 what you rescue and, later, what you see on the ground.
 
@@ -25,12 +31,12 @@ harm) is both a scoring bonus and the closing moral choice.
 ### 2.1 Premise
 
 The hospital ship **AMS MERCY** runs mercy flights through the outer
-systems. Her holds carry **DOIDS** — medical androids, each programmed with a
+systems. Her holds carry **SCIONS** — medical androids, each programmed with a
 lifetime of clinical expertise. A few carry something rarer: the complete
 preserved minds of medicine's giants (Hippocrates, Vesalius, Nightingale,
 Semmelweis, Curie, Avicenna, Jenner), still practising.
 
-Crossing an interdicted zone, every system aboard fails at once. The Doids
+Crossing an interdicted zone, every system aboard fails at once. The Scions
 evacuate in pods and are scattered across seven sectors. MERCY flies again —
 barely. The player flies the rescue.
 
@@ -38,7 +44,7 @@ barely. The player flies the rescue.
 
 The recorders keep only one thing from the failure: a signal, repeating,
 **every 41 seconds**. Comms names it *the Static*. It doesn't jam a signal —
-it rewrites the one who answers. Rescued Doids who answer it honestly stop
+it rewrites the one who answers. Rescued Scions who answer it honestly stop
 answering triage pings; they still walk, they still wave, but the rhythm is
 wrong.
 
@@ -50,7 +56,7 @@ been, a call for help. It is a *wound*, not a weapon.
 ### 2.3 The villain: GLYCON (the medical-misinformation layer)
 
 The later campaign reveals a second, deliberate hand. Counterfeit refuelling
-points that drain tanks dry. Trees that aren't trees. Saboteur "Doids" that
+points that drain tanks dry. Trees that aren't trees. Saboteur "Scions" that
 were never rescued units at all. Every counterfeit carries the same maker's
 mark: **a coiled serpent wearing a human mask**.
 
@@ -71,7 +77,7 @@ The reveal is staged across three secret caves ("the Hollows"):
 
 1. **THE RELAY** — a hand-built transmitter boosting the Static. Not
    wreckage. Deliberate. The serpent mark scratched into the casing.
-2. **THE WORKSHOP** — racks of half-finished Doids with dull chests and no
+2. **THE WORKSHOP** — racks of half-finished Scions with dull chests and no
    hearts. The saboteurs aren't corrupted survivors; they are counterfeits,
    built to be found and carried home in good faith.
 3. **THE SHRINE** — the serpent-with-a-mask itself, and the archive match to
@@ -93,24 +99,33 @@ The reveal is staged across three secret caves ("the Hollows"):
 
 | Ending | How | Result |
 |---|---|---|
-| **THE ANSWERED CALL** | Land beside the beacon and hold ~5s | SOLACE is heard; the Static fades "like a fever breaking". +6000, +2000 more if the whole run was no-fire ("OATH KEPT"). Best rank: *Oath Keeper — Primum Non Nocere*. |
-| **SILENCE BY FIRE** | Shoot the beacon (3 hits) | The Static dies — and so does whatever was calling. +3000. Rank: *Sector Warden*. |
-| **ROTATION COMPLETE** (unresolved) | Finish sector 7 with < 3 black boxes | The finale never unlocks; the Static is still repeating on the ride home. |
+| **THE ANSWERED CALL** | Land beside the beacon and hold ~5s | SOLACE is heard; the Static fades "like a fever breaking". +6000, +2000 more if the whole run was no-fire ("OATH KEPT"). Epilogue line "The oath, kept whole." Best rank: *Oath Keeper — Primum Non Nocere*. |
+| **SILENCE BY FIRE** | Shoot the beacon (3 hits) | The Static dies — and so does whatever was calling. +3000. Epilogue line "Quiet, at a cost. The oath, hollowed." Rank: *Sector Warden*. |
+| **ROTATION COMPLETE** (unresolved) | Finish sector 7 with < 3 black boxes | The finale never unlocks; epilogue line "Left hollow. The Static answers still." |
 
-If all three shrines were found, the ending gains an epilogue: the serpent's
-mask is catalogued for good — no one will buy his cures again.
+**Rank tiers on the answered ending** (see §7 and the title's meaning):
+- **OATH KEEPER — PRIMUM NON NOCERE** — answered with *no shot fired all run*.
+- **HOLLOW KEEPER** — answered, but the no-fire oath was broken *only* to crack
+  open Glycon's secrets (a lure-tree or hollow rock), never in combat. Epilogue
+  line: "You found what he hid. It cost you the oath to do it." This makes the
+  title's tension — *chasing the hidden truth costs you the oath* — a visible,
+  named outcome. Tracked by the `firedAtSecret` / `firedAtCombat` flags.
+- **THE ONE WHO ANSWERED** — answered, but fired in combat (turrets/drones).
+
+If all three shrines were found, the ending gains a further epilogue: the
+serpent's mask is catalogued for good — no one will buy his cures again.
 
 ### 2.6 Story delivery mechanisms
 
 - **Intro panels** (5 illustrated screens, first launch only; replayable via
   the ▸ STORY pill on the title).
 - **Sector briefings** — teletyped mission transmissions before each sector.
-- **14 log fragments** — carried by certain Doids (deliver them to read) and
+- **14 log fragments** — carried by certain Scions (deliver them to read) and
   inside black boxes. Logs 1–10 tell the Static's story; 11–14 expose Glycon.
 - **7 black boxes** — one hidden per campaign sector; land nearby and hold to
   scan. ≥3 recovered unlocks the secret finale.
 - **3 shrine cards** in the Hollows (the Glycon reveal).
-- **Famous-Doid reveal cards** on delivery (name, era, true story, upgrade).
+- **Famous-Scion reveal cards** on delivery (name, era, true story, upgrade).
 - **The ECG** — the player's own health bar doubles as a narrative device
   (arrhythmia = contaminant aboard).
 
@@ -119,7 +134,7 @@ mask is catalogued for good — no one will buy his cures again.
 Eight authored sectors; each introduces exactly one new element. Terrain is
 seeded procedural heightmap (deterministic per sector).
 
-| # | Sector | Introduces | Famous Doid → upgrade |
+| # | Sector | Introduces | Famous Scion → upgrade |
 |---|---|---|---|
 | 0 | ASCLEPION | Basics: land, rescue, deliver | Hippocrates → **Gentle Touch** (hard landings do far less damage) |
 | 1 | VESALIUS RIDGE | Saboteurs + red quarantine bay; first secret lift | Vesalius → **Fabrica Hull** (max vitals 125) |
@@ -130,7 +145,7 @@ seeded procedural heightmap (deterministic per sector).
 | 6 | JENNER TERRACES | Sleeper-saboteur gauntlet (75% sleepers) | Jenner → **Inoculation** (saboteurs can no longer kill passengers) |
 | 7 | THE NULLWAVE | Secret finale: the beacon, two endings | — |
 
-Sector clear = every Doid accounted for (saved / lost / contained), then the
+Sector clear = every Scion accounted for (saved / lost / contained), then the
 **extraction dock**: MERCY spools to jump, drifts, and the Static shoves your
 ship in quickening pulses while you dock one last time.
 
@@ -139,9 +154,9 @@ ship in quickening pulses while you dock one last time.
 - **Flight**: rotate + thrust against gravity; fuel is finite. Landing needs
   slow descent, low drift, flat ground, upright ship (green/amber/red
   approach guide with reason text). Optional landing assist (auto-level).
-- **Rescue**: land near a waiting Doid; it walks over and climbs aboard
+- **Rescue**: land near a waiting Scion; it walks over and climbs aboard
   (capacity 6). Delivering to MERCY's cyan **recovery bay** heals, refuels
-  and scores; famous Doids step out last for the reveal.
+  and scores; famous Scions step out last for the reveal.
 - **Saboteurs**: indistinguishable at distance. Tells: mechanically perfect
   wave/blink rhythm, slightly-too-eager walk, a **dull thud** instead of a
   heartbeat on boarding, ECG **arrhythmia** while an active one is aboard.
@@ -156,7 +171,7 @@ ship in quickening pulses while you dock one last time.
   no-fire sector earns the **Hippocratic bonus** (+2000) and a no-fire run
   affects the best ending/rank.
 - **Friendly fire is malpractice**: your exhaust and stray shots can kill
-  the very Doids you came for (score penalties, named famous casualties).
+  the very Scions you came for (score penalties, named famous casualties).
 - **ECG health bar**: beat rate rises as vitals fall; arrhythmia is
   diagnostic information.
 
@@ -183,20 +198,22 @@ counterfeit.**
 | Lure-trees (sectors 5–7) | Sways in perfect mechanical time; in the Nullwave it's *the only tree standing* | Shoot it: hidden Glycon transmitter, +500 |
 | Hollow rock (sectors 5–7) | One rock "breathes" — its outline gently pulses | Shoot it: hidden real cache, +400 + a fuel pod |
 | Black boxes (one per campaign sector) | Faint blink, stronger when near; Curie's compass points at them | +800, a log fragment, finale progress |
-| Famous Doids | Gold shimmer particles if you watch closely | Reveal card + permanent upgrade + 1500 |
+| Famous Scions | Gold shimmer particles if you watch closely | Reveal card + permanent upgrade + 1500 |
 | Saboteurs | See §4 | Quarantine +750 / breach risk |
 
 Note the tension: unmasking lure-trees and hollow rocks costs shots, which
 breaks the Hippocratic/no-fire bonuses. Curiosity vs. the oath is a
-deliberate choice the player makes.
+deliberate choice the player makes — and, on the answered ending, a choice the
+game now *names*: breaking the oath only for secrets earns the **HOLLOW KEEPER**
+rank (§2.5), distinct from breaking it in combat.
 
 ## 7. Scoring
 
 | Event | Points |
 |---|---|
-| Doid aboard | +500 |
-| Doid delivered | +300 |
-| Famous Doid delivered | +1500 (+upgrade) |
+| Scion aboard | +500 |
+| Scion delivered | +300 |
+| Famous Scion delivered | +1500 (+upgrade) |
 | Saboteur contained (red bay) | +750 |
 | Breach resolved / failed | +750 / −1000 and healing offline |
 | Turret / drone destroyed | +250 / +150 |
@@ -205,7 +222,7 @@ deliberate choice the player makes.
 | Lure-tree / hidden cache | +500 / +400 |
 | Fake pod touched | −100 (and −18 fuel) |
 | Sector clear | +1000 (+2000 Hippocratic if no shots fired) |
-| Doid lost | −250 (famous −500); crash with passengers −250 each |
+| Scion lost | −250 (famous −500); crash with passengers −250 each |
 | Endings | fire +3000 · answered +6000 (+2000 no-fire run) |
 
 ## 8. Persistence (localStorage)
@@ -213,7 +230,7 @@ deliberate choice the player makes.
 | Key | Meaning |
 |---|---|
 | `doids_hi` | Hi-score |
-| `doids_codex` | Famous Doids recovered across all runs (title CODEX) |
+| `doids_codex` | Famous Scions recovered across all runs (title CODEX) |
 | `doids_assist` | Landing assist on/off |
 | `doids_tilt` | Gyro steering on/off |
 | `doids_intro` | Intro narrative seen (plays once; ▸ STORY replays) |
@@ -248,7 +265,11 @@ reload. Deliberate order inside the `<script>`:
 
 **Debug/test handle**: `window.__doids` exposes state plus `go(n)` (jump to
 sector), `launch()`, `warpLift()`, `warpShrine()`, `give(upgrade)`,
-`reset()`. All headless tests drive this.
+`reset()`. All headless tests drive this. `get()` now also reports
+`firedAtSecret` / `firedAtCombat` (the flags behind the HOLLOW KEEPER rank).
+Note: the `__doids` handle name and the `doids_*` localStorage keys keep the old
+prefix deliberately after the Hollow Oath rename — renaming the keys would wipe
+existing players' saved progress and codex (see CHANGELOG.md).
 
 **Testing**: Playwright + the pre-installed Chromium. Two suites were used
 during development (kept in session scratchpad, easy to recreate): a smoke
@@ -260,8 +281,14 @@ multi-touch slide/second-finger tests). Pattern:
 **Branches / deployment**:
 - `main` — current stable (this document, game, assets).
 - `claude/doids-iphone-game-r4fnon` — **GitHub Pages deploys from this
-  branch**; pushing here is deploying.
-- `claude/game-dev-next-stage-trwmua` — most recent dev branch.
+  branch**; pushing here is deploying. (Branch name keeps the old "doids"
+  slug — it's not user-facing, so it was left as-is; see CHANGELOG.md.)
+- `claude/game-dev-next-stage-trwmua` — a dev branch.
+- `claude/test-connection-79fx9k` — the Hollow Oath rename landed here first.
+- **Repo renamed** `Doids` → `Hollow-Oath` (done). The repo URL and Pages base
+  are now `https://burners70.github.io/Hollow-Oath/` (GitHub redirects the old
+  `.../Doids/` path for a while). The live *content* updates once the rename
+  reaches the Pages deploy branch. See CHANGELOG.md § "Repository & URL".
 - PWA bits: `manifest.webmanifest`, apple-touch icons. **No service
   worker** — stale Home-Screen installs are plain browser cache (refresh in
   Safari or re-add the icon).
@@ -272,7 +299,7 @@ multi-touch slide/second-finger tests). Pattern:
   so pacifist runs can also unmask Glycon.
 - A version stamp on the title screen (build/date) to make stale caches
   obvious.
-- More famous Doids per sector, randomised from a larger pool; second
+- More famous Scions per sector, randomised from a larger pool; second
   playthrough modifiers; difficulty settings.
 - Moving rescue targets; saboteur ground-behaviour tells (refusing to panic,
   standing too still).
