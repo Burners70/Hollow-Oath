@@ -104,6 +104,66 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
     fire check in `updatePlay`); this extends that idea to the ones you've
     already saved.
 
+- **The transfusion line (refuel as a thrust minigame) — proposed, not
+  built.** Today every refuel is passive: the bay drips 30/s while you sit
+  docked, pods are a flat +35 on touch, and the stranded-ship resupply drone
+  (`updateResupplySignal`) auto-delivers +40 after a 1.8 s signal hold. The
+  proposal: the *field* refuel becomes an active transfusion — the drone
+  arrives, unspools a fuel line to a hover point, and **you fly the refuelled
+  ship**: hold station inside a small capture window, in the air, while fuel
+  flows. The bay stays passive on purpose (home must stay a relief moment;
+  don't put a minigame between a hurt player and safety).
+  - **Why it's fresh vs. the core loop:** the whole game teaches *approach
+    management* — decelerate, level, settle onto ground, done. The
+    transfusion demands the one thrust skill the game never asks for:
+    **sustained hover with no landing** — feathering throttle against
+    gravity for seconds at a time, nothing to settle onto. Same verbs
+    (rotate/thrust), opposite goal (stillness in the air, not arrival on the
+    ground). That inversion is what keeps it from being "another landing".
+  - **The dial, not the pickup:** flow is continuous (~12 fuel/s) and *you
+    choose when to detach* — tap FIRE to release cleanly at any moment and
+    keep what you took. Wander outside the window and the line "occludes"
+    (flow stutters, drips stop); drift past a hard limit and it snaps — the
+    drone leaves with the remainder and must be re-signalled. Greed vs.
+    exposure becomes a live decision every second, where a pod is a binary
+    +35. Full tank on one line without a single occlusion: "CLEAN LINE
+    +250".
+  - **Exposure is the price** (same pricing philosophy as the Bundle J
+    scan): while tethered you are slow, predictable, and *the shield cannot
+    come up* — the field would sever the umbilical. Turrets keep shooting.
+    In anomaly sectors the pull works against your hover. Detaching is
+    always instant and always safe; staying on the line is the gamble.
+  - **The clock gets teeth (once):** the 41-second surge (`staticSurge`)
+    physically shoves the tethered ship — the one place the clock the player
+    has learned to *feel* becomes mechanical. A pilot who has internalised
+    the period times the transfusion between surges; one who hasn't learns
+    why the world keeps flinching. Still no damage — the surge costs you
+    line stability, not hull.
+  - **It's a transfusion, and it diagnoses:** medical language throughout —
+    the line renders as an IV with a drip-pulse; flow audio is a soft
+    metered pulse through `sfxGain` (haptics: the light tap per drip via the
+    F facade). While a contaminant is aboard the pump inherits the
+    **arrhythmia** (same 0.5/1.7 stutter as the score) — a third place the
+    player can *hear* that something wrong rides with them. And the door is
+    open for Glycon's fourth act later: a counterfeit tanker that answers
+    the signal first, drip perfectly metronomic (the one rule: mechanical
+    perfection is the counterfeit), drinking instead of pouring.
+  - **Stranded start:** at 0 fuel you can't hover, so the drone first mists
+    a primer (+8, auto) — enough to lift to the line, not enough to go
+    anywhere. Fumble the primer and you're stranded again: re-signal, small
+    score sting (−50), the drone is patient but not free.
+  - **Access:** FIELD MEDIC (`doids_easy`) widens the capture window ~1.3×
+    and softens surge shove; ASSIST auto-level applies as in normal flight.
+    Landing-guide-style always-readable UI: window brackets + a `✓/!/✕`
+    flow glyph, colours through `PAL()`.
+  - **Where it fits:** isolated to the resupply path (`updateResupplySignal`
+    → a new `updateTransfusion`, `drawResupplyDrone` grows the line), so far
+    lower risk than the pendulum carry — no touch to boarding, sabotage, or
+    scoring buckets beyond the new bonuses. Dependencies: I (surge), C
+    (audio routing), H (easy mode); pairs naturally with the pendulum carry
+    as an "advanced flight" 1.1/1.2 content update — carry risk on the way
+    out, line risk on the way back.
+
 ## Engineering notes
 
 - Landing rules in `landingEval()`; tunables at top of file

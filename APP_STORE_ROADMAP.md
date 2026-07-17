@@ -632,7 +632,13 @@ and/or App Store Connect. The game already plays at the $4.99 feature bar.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), a fourth Hollow, second-playthrough modifiers, Android/Google Play via the
-same Capacitor shell, and **the pendulum carry** — a proposed core-loop bundle
-(boarded Scions physically dangle and can be swung into terrain/turrets/walls
-on a rough carry, homaging Oids/Thrust) sequenced after H and before N; see
-ROADMAP.md § Future ideas for the full placement writeup.
+same Capacitor shell, and two proposed flight bundles with full placement
+writeups in ROADMAP.md § Future ideas:
+- **the pendulum carry** — boarded Scions physically dangle and can be swung
+  into terrain/turrets/walls on a rough carry (the Oids/Thrust homage);
+- **the transfusion line** — field refuelling becomes an active hover
+  minigame: hold station on the drone's fuel line, choose when to detach,
+  shield down while tethered, the 41-second surge shoving the tether. Inverts
+  the core skill (sustained hover vs. approach-and-settle) and reuses the
+  arrhythmia/counterfeit tell language. Pairs with the pendulum carry as an
+  "advanced flight" 1.1/1.2 content update.
