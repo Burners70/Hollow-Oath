@@ -22,12 +22,14 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 - **Each bundle = one branch / one PR.** Bundles are ordered by priority and sized to
   be independently shippable. Dependencies are stated per bundle; anything not listed
   as a dependency can be done in parallel.
-- **Testing:** the game exposes `window.__doids` (`get()`, `go(n)`, `launch()`,
-  `warpLift()`, `warpShrine()`, `give(upgrade)`, `reset()`). Headless tests drive it
-  with Playwright + the pre-installed Chromium, e.g.
-  `page.evaluate(() => __doids.go(5))` then assert on `__doids.get()`. When you add a
-  feature, extend `__doids.get()` to expose its state so it is testable, and add a
-  smoke test.
+- **Testing:** the smoke suite lives in **`tests/`** — run it with
+  `cd tests && npm install && npm test` (see `tests/playwright.config.js` for
+  the pre-installed-Chromium override). It drives the game headlessly through
+  `window.__doids` (`get()`, `go(n)`, `launch()`, `warpLift()`, `warpShrine()`,
+  `give(upgrade)`, `reset()`), e.g. `page.evaluate(() => __doids.go(5))` then
+  assert on `__doids.get()`. Copy the patterns in `tests/smoke.spec.js`. When
+  you add a feature: extend `__doids.get()` to expose its state, add a test,
+  and **run the suite before opening the PR** — it must stay green.
 - **Code anchors** in this document name functions/variables, not line numbers
   (line numbers drift). Everything named lives in `index.html`.
 

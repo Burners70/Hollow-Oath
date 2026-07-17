@@ -20,6 +20,16 @@ suggested bundle ID is a personal reverse-DNS ID (`com.burners70.hollowoath`,
 to be confirmed before first submission). The in-fiction ship prefix **AMS**
 (AMS MERCY, AMS SOLACE) is unrelated naval-style styling and is unchanged.
 
+**Test harness bootstrapped in `tests/`.** The Playwright smoke suite the docs
+referenced previously lived only in an ephemeral session scratchpad; it is now
+committed: `tests/smoke.spec.js` (boot, all 8 sectors, finale beacon/black
+boxes, cave descent via secret lift, landing evaluator + rank flags, briefing
+render, and a fail-on-any-console-error guard on every test), plus
+`package.json`/`playwright.config.js` (with a `PLAYWRIGHT_EXECUTABLE_PATH`
+override for containers with a pre-installed Chromium). Run:
+`cd tests && npm install && npm test`. README, GAME_DESIGN §9, and the roadmap
+conventions now point at it. 6/6 passing at commit time.
+
 **Homage line loosened, nostalgia kept loud (owner decision).** The homage is
 now tiered by surface: the in-game title tagline is era-evocative without
 trademarks ("a love letter to the 16-bit lander classics", was "in the spirit

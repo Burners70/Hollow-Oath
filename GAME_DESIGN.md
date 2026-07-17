@@ -271,12 +271,15 @@ Note: the `__doids` handle name and the `doids_*` localStorage keys keep the old
 prefix deliberately after the Hollow Oath rename — renaming the keys would wipe
 existing players' saved progress and codex (see CHANGELOG.md).
 
-**Testing**: Playwright + the pre-installed Chromium. Two suites were used
-during development (kept in session scratchpad, easy to recreate): a smoke
-suite (all sectors generate & run, cave round-trip, shield, fake pods, data
-counts) and a UI suite (control visibility per state, intro-once, synthetic
-multi-touch slide/second-finger tests). Pattern:
-`page.evaluate(() => __doids.go(5))` etc., assert on `__doids.get()`.
+**Testing**: the smoke suite now lives **in the repo** at `tests/`
+(Playwright; `cd tests && npm install && npm test` — see the config for the
+pre-installed-Chromium override). It covers: boot, all 8 sectors generate &
+run, finale beacon / black boxes present, cave descent via the secret lift,
+landing evaluator + rank flags, and every briefing rendering without page
+errors. Pattern: `page.evaluate(() => __doids.go(5))` etc., assert on
+`__doids.get()`. (Earlier development also used a UI suite — control
+visibility per state, intro-once, synthetic multi-touch — which lived in a
+session scratchpad and can be recreated the same way if needed.)
 
 **Branches / deployment**:
 - `main` — current stable (this document, game, assets).

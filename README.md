@@ -62,6 +62,19 @@ Landscape is best.
   finale with two endings — plus the **Hollow Keeper** rank for pilots who break
   the oath only to uncover Glycon's secrets.
 
+## Tests
+
+Headless smoke tests live in [`tests/`](tests/) (Playwright driving the game's
+`window.__doids` debug handle):
+
+```
+cd tests && npm install && npx playwright install chromium && npm test
+```
+
+In environments with a pre-installed Chromium (e.g. Claude Code remote
+containers), skip the browser download and point at it instead:
+`PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm test`.
+
 ## Tech
 
 Zero dependencies: one HTML file with inline CSS/JS, canvas rendering with glow
