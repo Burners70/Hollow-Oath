@@ -84,8 +84,16 @@ bindButton("btnR", "right");
 bindButton("btnThrust", "thrust");
 bindButton("btnFire", "fire");
 
-canvas.addEventListener("touchstart", e => { e.preventDefault(); input.tap = true; initAudio(); }, { passive:false });
-canvas.addEventListener("mousedown", () => { input.tap = true; initAudio(); });
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  input.tap = true;
+  input.tapX = e.touches[0].clientX; input.tapY = e.touches[0].clientY;
+  initAudio();
+}, { passive:false });
+canvas.addEventListener("mousedown", e => {
+  input.tap = true; input.tapX = e.clientX; input.tapY = e.clientY;
+  initAudio();
+});
 document.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
 document.addEventListener("gesturestart", e => e.preventDefault());
 
@@ -188,6 +196,14 @@ let level, ship, camera, particles, texts, stars;
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let hiscore = 0;
 try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
+let assist = true;
+try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
+const ASSIST_CAPTURE = 0.22;   // ~12.5° — auto-level engages inside this
+const ASSIST_RATE = 4.5;       // fraction of remaining tilt corrected per second
+
+function assistRect() {
+  return { x: vw / 2 - 120, y: vh * 0.78, w: 240, h: 34 };
+}
 
 function groundAt(x) {
   const h = level.heights;
@@ -324,9 +340,18 @@ function update(dt) {
 
   if (state === "title" || state === "gameover" || state === "win") {
     if (input.tap && stateT > 0.6) {
-      goFullscreen();
-      score = 0; lives = 3;
-      startLevel(0);
+      const r = assistRect();
+      if (state === "title" &&
+          input.tapX >= r.x && input.tapX <= r.x + r.w &&
+          input.tapY >= r.y && input.tapY <= r.y + r.h) {
+        assist = !assist;
+        try { localStorage.setItem("doids_assist", assist ? "1" : "0"); } catch (e) {}
+        blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
+      } else {
+        goFullscreen();
+        score = 0; lives = 3;
+        startLevel(0);
+      }
     }
     input.tap = false;
     return;
@@ -359,6 +384,15 @@ function update(dt) {
 
   if (input.left)  s.ang -= ROT * dt;
   if (input.right) s.ang += ROT * dt;
+
+  // landing assist: with no rotation input, ease a nearly-upright ship
+  // back to vertical so touch controls don't spoil a good approach
+  if (assist && !s.landed && !input.left && !input.right) {
+    const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+    if (Math.abs(tilt) < ASSIST_CAPTURE) {
+      s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
+    }
+  }
 
   const thrusting = input.thrust && s.fuel > 0;
   if (thrustGain) thrustGain.gain.value = thrusting ? 0.14 : 0;
@@ -758,7 +792,7 @@ function drawHUD(now) {
   ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
   ctx.font = "600 9px Menlo, monospace";
   ctx.fillStyle = "rgba(155,234,249,.7)";
-  ctx.fillText(LEVEL_NAMES[levelIdx] + "  ·  ♥ " + lives, vw / 2, topPad + 23);
+  ctx.fillText(LEVEL_NAMES[levelIdx] + "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : ""), vw / 2, topPad + 23);
   ctx.shadowBlur = 0;
 
   // doids aboard / remaining
@@ -847,6 +881,18 @@ function drawTitle(now) {
   ctx.font = "600 11px Menlo, monospace";
   ctx.fillStyle = "rgba(155,234,249,.55)";
   ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.74);
+
+  // landing assist toggle
+  const r = assistRect();
+  const on = assist;
+  ctx.strokeStyle = on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.35)";
+  ctx.shadowColor = on ? "#69f0ae" : "transparent"; ctx.shadowBlur = on ? 10 : 0;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+  ctx.font = "700 12px Menlo, monospace";
+  ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
+  ctx.fillText("LANDING ASSIST · " + (on ? "ON" : "OFF"), vw / 2, r.y + 22);
+  ctx.shadowBlur = 0;
 }
 
 function drawCenter(big, small, color, now) {
