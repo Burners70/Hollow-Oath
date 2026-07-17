@@ -13,9 +13,8 @@ a remake of any of them.
 > full rename log (what changed, what was deliberately kept, and why).
 
 **Play it live:** https://burners70.github.io/Hollow-Oath/
-*(the repo has been renamed `Doids` → `Hollow-Oath`; the live Pages site reflects
-this rename once these changes reach the Pages deploy branch — see
-CHANGELOG.md § "Repository & URL").*
+*(GitHub Pages deploys straight from `main` — see CHANGELOG.md § "Repository &
+URL").*
 
 **New developers / writers:** start with [GAME_DESIGN.md](GAME_DESIGN.md) — the full
 game definition, evolved narrative canon (the Static, Glycon), mechanics, secrets,

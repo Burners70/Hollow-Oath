@@ -307,16 +307,18 @@ visibility per state, intro-once, synthetic multi-touch — which lived in a
 session scratchpad and can be recreated the same way if needed.)
 
 **Branches / deployment**:
-- `main` — current stable (this document, game, assets).
-- `claude/doids-iphone-game-r4fnon` — **GitHub Pages deploys from this
-  branch**; pushing here is deploying. (Branch name keeps the old "doids"
-  slug — it's not user-facing, so it was left as-is; see CHANGELOG.md.)
+- `main` — **GitHub Pages deploys from this branch**; pushing here is
+  deploying. Also the current stable branch (this document, game, assets).
+- `claude/doids-iphone-game-r4fnon` — former Pages deploy branch (July 2026
+  and earlier); Pages was repointed to `main`, so this branch is no longer
+  live and may lag behind. (Branch name keeps the old "doids" slug — it's not
+  user-facing, so it was left as-is; see CHANGELOG.md.)
 - `claude/game-dev-next-stage-trwmua` — a dev branch.
 - `claude/test-connection-79fx9k` — the Hollow Oath rename landed here first.
 - **Repo renamed** `Doids` → `Hollow-Oath` (done). The repo URL and Pages base
   are now `https://burners70.github.io/Hollow-Oath/` (GitHub redirects the old
-  `.../Doids/` path for a while). The live *content* updates once the rename
-  reaches the Pages deploy branch. See CHANGELOG.md § "Repository & URL".
+  `.../Doids/` path for a while). Live content now updates as soon as a change
+  reaches `main`. See CHANGELOG.md § "Repository & URL".
 - PWA bits: `manifest.webmanifest`, apple-touch icons. **No service
   worker** — stale Home-Screen installs are plain browser cache (refresh in
   Safari or re-add the icon).
