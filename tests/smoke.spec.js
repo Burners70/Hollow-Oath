@@ -262,6 +262,52 @@ test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page })
   expect(s.state).toBe("title");
 });
 
+test("the counterfeit MERCY: docking springs the trap; the real bays still work (Bundle N)", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.fakeMercy).toBeTruthy();
+  expect(s.fakeMercy.dead).toBe(false);
+  const before = await page.evaluate(() => __doids.get().score);
+  // hold the ship inside the decoy's bay — after 2s the bay shows its teeth
+  await page.evaluate(() => {
+    ship.x = level.fakeMercy.x; ship.y = level.fakeMercy.y + 70;
+    ship.vx = ship.vy = 0; ship.landed = true;   // pin it for the dwell
+  });
+  await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.decoyOutcome).toBe("trapped");
+  expect(s.state).toBe("reveal");   // the log-style card
+  expect(s.score).toBeLessThanOrEqual(Math.max(0, before - 200) + 5);
+  // the real MERCY's bay is untouched by the decoy machinery
+  const realBayOk = await page.evaluate(() => {
+    const b = bayRects().med;
+    return b.x0 < level.mx && level.mx < b.x1;
+  });
+  expect(realBayOk).toBe(true);
+});
+
+test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => { t.alive = false; });
+    level.drones.forEach(d => { d.alive = false; });
+    // park the stranded Scions far away so none boards (+500) mid-scan
+    level.oids.forEach(o => { o.x = 150; o.home = 150; });
+    const f = level.fakeMercy;
+    ship.x = f.x; ship.y = __doids.ground(f.x) - 11;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;
+  });
+  const before = await page.evaluate(() => __doids.get().score);
+  await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 9000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.decoyOutcome).toBe("observed");
+  expect(s.score).toBe(before + 800);
+  expect(s.scannedSecret).toBe(true);
+  expect(s.firedAtSecret).toBe(false);   // observed, not shot — the oath holds
+  // the beacon is still there: both endings remain reachable
+  expect(s.level.beacon.resolved).toBe(false);
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen

@@ -512,7 +512,7 @@ function updateMusic(dt) {
     playMotifNote();
     const finale = level && level.isFinale;
     let base = (finale ? 18 : 9) + Math.random() * (finale ? 12 : 6);
-    if (state === "play" && contaminantAboard()) {
+    if (state === "play" && (contaminantAboard() || decoySnared())) {
       musicArrhythmiaFlip = !musicArrhythmiaFlip;
       base *= musicArrhythmiaFlip ? 0.5 : 1.7;
     }
@@ -589,7 +589,7 @@ const BRIEFS = [
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
   "Last leg before the ridge. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
-  "Triangulation complete. The source of the Static is below the nullwave ridge.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
+  "Triangulation complete. The source of the Static is below the nullwave ridge.\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
 ];
 
 const FRAGMENTS = [
@@ -1072,6 +1072,12 @@ function genLevel(n) {
     const bx = W - 420;
     const by = flatten(heights, bx, 120);
     lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false };
+    // Bundle N1 — Glycon's third act: a second, identical MERCY parked
+    // between spawn and the beacon. One difference only: the real emblem
+    // pulses like a pulse; the counterfeit's blinks in perfect mechanical
+    // unison with the fake fuel pods. Now distrust the thing you've
+    // trusted all game.
+    lvl.fakeMercy = { x: W * 0.45, y: 170, dead: false, dockT: 0, scanT: 0 };
   }
 
   // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
@@ -1284,6 +1290,7 @@ function toBriefing(n) {
   resupplyDrone = null; liftTransit = null;
   state = "brief"; stateT = 0; briefChars = 0;
   staticClock = 0; staticSurge = 0; staticGlitchT = 0;
+  decoyOutcome = null;
   snapshotRun();
   updateDroneFreq();
 }
@@ -1845,6 +1852,7 @@ function updatePlay(dt) {
   updateScan(dt);
   updateStaticClock(dt);
   if (level.isFinale) updateBeacon(dt);
+  if (level.fakeMercy) updateDecoy(dt);
 
   if (mercyBreach) {
     mercyBreach.t -= dt;
@@ -2056,6 +2064,13 @@ function updateEnemies(dt) {
       level.beacon.hp--;
       explode(level.beacon.x, level.beacon.y - 40, "#b388ff", 20);
       if (level.beacon.hp <= 0) resolveBeacon("fire");
+    }
+    // one shot into the counterfeit MERCY's hull powers it down (N3) —
+    // it costs the oath the same way any secret opened by fire does
+    const fm = level.fakeMercy;
+    if (fm && !fm.dead && Math.abs(b.x - fm.x) < 148 && b.y - fm.y > -55 && b.y - fm.y < 25) {
+      gone = true; firedAtSecret = true;
+      decoyDown(fm);
     }
     if (gone) level.shots.splice(i, 1);
   }
@@ -2428,6 +2443,58 @@ function updateShrine(dt) {
   } else sh.scanT = 0;
 }
 
+/* ---- Bundle N — the counterfeit MERCY (its own rects and update fn;
+   deliberately NOT part of bayRects(), so no docking/extraction logic can
+   ever mistake it for the real ship) ---- */
+let decoyOutcome = null;   // null | "trapped" | "observed" — feeds the ending epilogue
+function decoyBayRect() {
+  const f = level.fakeMercy;
+  return { x0: f.x - 100, x1: f.x + 100, y0: f.y + 24, y1: f.y + 130 };
+}
+function decoySnared() {
+  if (!level || !level.fakeMercy || level.fakeMercy.dead || !ship || ship.dead) return false;
+  const b = decoyBayRect();
+  return ship.x > b.x0 && ship.x < b.x1 && ship.y > b.y0 && ship.y < b.y1;
+}
+function updateDecoy(dt) {
+  const f = level.fakeMercy;
+  if (f.dead) return;
+  const s = ship;
+  if (decoySnared()) {
+    // N2 — the trap: no heal, no fuel; the bay drinks, and after two
+    // seconds it shows its teeth
+    f.dockT += dt;
+    s.fuel = Math.max(0, s.fuel - 6 * dt);
+    if (f.dockT >= 2) {
+      f.dead = true; decoyOutcome = "trapped";
+      score = Math.max(0, score - 200);
+      banner("COUNTERFEIT — THE BAY IS A MOUTH  -200", "#c6ff00");
+      staticTick(); dullThud();
+      explode(f.x, f.y + 40, "#c6ff00", 30);
+      showCard({ kicker: "GLYCON · THE THIRD ACT · -200", title: "THE BAY IS A MOUTH", subtitle: "",
+        body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
+        color: "#c6ff00" });
+    }
+  } else {
+    f.dockT = 0;
+    // N3 — the observed win: land beneath it and count the beats (the same
+    // landed scan as Bundle J), or put a single shot into the hull
+    if (s.landed && !s.dead && Math.abs(s.x - f.x) < 100) {
+      f.scanT += dt * scanRate();
+      if (f.scanT >= SCAN_T) { scannedSecret = true; decoyDown(f); }
+    } else f.scanT = Math.max(0, f.scanT - dt * 2);
+  }
+}
+function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure fails
+  f.dead = true; decoyOutcome = "observed";
+  score += 800;
+  explode(f.x, f.y - 10, "#c6ff00", 40);
+  staticTick();
+  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +800", title: "MACHINE TIME", subtitle: "",
+    body: "Her emblem pulses like a pulse. Its emblem keeps perfect time.\n\nYou counted the beats. He never learned a heartbeat.",
+    color: "#aef4ff" });
+}
+
 function updateBeacon(dt) {
   const b = level.beacon;
   if (!b || b.resolved) return;
@@ -2740,6 +2807,7 @@ function drawWorld(now) {
   }
 
   if (!level.isCave) drawMothership(now);
+  if (level.fakeMercy) drawDecoyMercy(now);
   drawLift(now);
   if (level.shrine) drawShrine(now);
 
@@ -2900,6 +2968,8 @@ function drawDarkness(now) {
   };
   if (!ship.dead) punch(ship.x, ship.y, lampRadius(), 1);
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
+  if (level.fakeMercy && !level.fakeMercy.dead)   // lit exactly like her (N1)
+    punch(level.fakeMercy.x, level.fakeMercy.y + 40, 260, 0.9);
   for (const o of level.oids) {  // stranded Scions carry tiny beacons
     if (o.state === "wait" || o.state === "walk" || o.state === "panic")
       punch(o.x, o.y - 10, 46, 0.55 + 0.3 * Math.abs(Math.sin(now * 2 + o.wave)));
@@ -3612,6 +3682,90 @@ function drawMothership(now) {
   ctx.restore();
 }
 
+/* Bundle N1 — the counterfeit MERCY. Rendered with the real ship's own
+   silhouette, greebles, bay beam and name plate. ONE difference: the real
+   emblem pulses organically (0.55 + 0.45·sin) — this one blinks in perfect
+   mechanical unison with the fake fuel pods (sin(now·π·2) > 0), the exact
+   tell the game has taught since Avicenna Shoals. */
+function drawDecoyMercy(now) {
+  const f = level.fakeMercy;
+  const bob = Math.sin(now * 1.2 + 2.1) * 4;
+  ctx.save();
+  ctx.translate(f.x, f.y + bob);
+  if (f.dead) {
+    // powered down for good: dark hull, Glycon's masked serpent flickering
+    // where the emblem hung
+    ctx.strokeStyle = "rgba(120,130,160,.35)"; ctx.lineWidth = 2.5;
+    ctx.fillStyle = "rgba(8,10,20,.8)";
+    mercyHullPath(); ctx.fill(); ctx.stroke();
+    mercyGreebles("rgba(120,130,160,.15)");
+    const flick = Math.sin(now * 2.3) > 0.9 ? 0.55 : 0.14;
+    ctx.strokeStyle = "rgba(198,255,0," + flick.toFixed(2) + ")"; ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-8, 12);
+    ctx.bezierCurveTo(-16, 0, 8, -2, 2, -12);
+    ctx.bezierCurveTo(-4, -20, 12, -22, 6, -32);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(6, -38, 6, 0, 7); ctx.stroke();
+    ctx.fillStyle = "rgba(198,255,0," + flick.toFixed(2) + ")";
+    ctx.fillRect(3, -40, 2.2, 1.4); ctx.fillRect(7.6, -40, 2.2, 1.4);
+    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(155,234,249,.22)";
+    ctx.fillText("A M S · M E R C Y", 0, 34);
+    ctx.restore();
+    return;
+  }
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.fillStyle = "rgba(0,40,60,.55)";
+  mercyHullPath();
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  mercyGreebles("rgba(0,229,255,.3)");
+  drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
+  drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
+  const alpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;   // machine time
+  ctx.save();
+  ctx.translate(0, -15);
+  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * alpha + 6;
+  drawAsclepius(36, "rgba(255,23,68," + alpha.toFixed(2) + ")");
+  ctx.restore();
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.fillStyle = "#9beaf9";
+  ctx.font = "700 10px Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("A M S · M E R C Y", 0, 34);
+  ctx.shadowBlur = 0;
+  // Avicenna's Canon of Truth unmasks this counterfeit like every other
+  if (upgrades.canon) {
+    ctx.font = "700 14px Menlo, monospace";
+    ctx.fillStyle = PAL().REVEAL;
+    ctx.fillText("?", 0, -60);
+  }
+  ctx.restore();
+  // identical bay furniture — the lie is complete down to the label
+  const b = decoyBayRect();
+  drawTractorBeam(b, "0,229,255", now, true, false);
+  ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(0,229,255,.6)";
+  ctx.fillText("RECOVERY BAY", (b.x0 + b.x1) / 2, b.y1 + 14);
+  // the observed win in progress: counting the beats from the ground
+  if (f.scanT > 0) {
+    ctx.save();
+    ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y - 44, 16, -Math.PI / 2, -Math.PI / 2 + (f.scanT / SCAN_T) * Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "#aef4ff";
+    ctx.fillText("COUNTING THE BEATS…", ship.x, ship.y - 70);
+    ctx.restore();
+  }
+}
+
 function drawBeacon(now) {
   const b = level.beacon;
   ctx.save();
@@ -3762,7 +3916,8 @@ function drawECG(x, y, w, h, frac, now) {
   ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1;
   ctx.strokeRect(x, y, w, h);
   const bpm = lerp(3.4, 1.2, clamp(frac, 0, 1)) + (ship.beat > 0 ? 2 : 0);
-  const arrhythmia = state !== "title" && contaminantAboard();
+  // the counterfeit bay reads on the ECG exactly like a contaminant (N2)
+  const arrhythmia = state !== "title" && (contaminantAboard() || decoySnared());
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h); ctx.clip();
@@ -4480,6 +4635,8 @@ function drawEnding(now) {
   }
   if (endingType !== "unresolved" && shrines.size >= SHRINES.length) {
     body += "\n\nAnd in the fleet record, appended in your hand: the serpent's mask, catalogued for good. No one will buy his cures again.";
+    if (decoyOutcome === "observed")
+      body += "\nEven his best lure — the second MERCY — failed the moment you counted her heartbeat.";
   }
   drawCardPanel({ kicker: "— TRANSMISSION ENDS —", title, subtitle: "", body, color }, now);
 }
@@ -4535,7 +4692,8 @@ window.__doids = {
     staticClock, staticSurge,
     logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage,
     unresolvedHaunt, epilogueChars,
-    runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday() }),
+    runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
+    decoyOutcome, fakeMercy: level && level.fakeMercy }),
   go: toBriefing,
   setStaticClock: v => { staticClock = v; },
   remix: startRemix,
