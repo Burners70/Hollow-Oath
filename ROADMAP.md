@@ -1,45 +1,43 @@
 # DOIDS — build-out notes
 
-Ideas captured during prototype playtesting, to shape the next iteration.
+## Implemented (v2 build-out)
 
-## 1. Progression across levels
+1. **Progression across levels** — five authored sectors, each introducing one
+   element: Asclepion (basics) → Vesalius Ridge (saboteurs) → Nightingale Basin
+   (darkness + your lamp) → Semmelweis Deep (fuel scarcity, fuel pods, drones)
+   → Curie Fields (gravity anomalies) → secret finale, The Nullwave.
+2. **Narrative / discovery** — mission transmissions before each sector,
+   10 collectible log fragments (carried by certain Doids, and inside hidden
+   black boxes) telling the story of the Static; recover ≥3 of 5 black boxes
+   to triangulate the source and unlock the finale, which has **two endings**
+   (destroy the beacon, or land and answer the call — primum non nocere).
+3. **Animated Doids** — walk cycles, waving (with a saboteur "tell" in the
+   rhythm), panic when explosions land nearby, gold shimmer on famous Doids.
+4. **Famous Doids** — one per sector (Hippocrates, Vesalius, Nightingale,
+   Semmelweis, Curie): reveal card on delivery + themed permanent upgrade.
+5. **Saboteur Doids** — indistinguishable at a distance; tells: jerky wave,
+   dull thud instead of a heartbeat on boarding, ECG arrhythmia while an
+   active one is aboard. Active ones cut fuel lines and kill passengers;
+   sleepers wait and slip into MERCY at delivery → timed breach countermission
+   (dock at the red bay within 45s). Quarantine bay contains them for +750.
 
-Build in a real sense of progression, not just "more turrets". Candidates:
-gravity strength, fuel scarcity, terrain hostility (caves/overhangs), new
-enemy types, ship upgrades earned between sectors, unlockable sectors.
+## Future ideas
 
-## 2. Discovery / narrative elements
-
-Create (narrative?) elements that reward progress with a sense of discovery —
-e.g. mission briefings from AMS MERCY, fragments of a story about why the
-Doids are stranded, hidden locations, log entries found on rescued Doids.
-
-## 3. Animate the Doids
-
-Give the Doids life: walk cycles, celebrating when boarding, panicking when
-turret fire lands nearby, huddling in groups, being beamed aboard, waving
-from the mothership windows after delivery.
-
-## 4. Famous Doids from medical history (ties into #2)
-
-Hide famous figures from medical history among the stranded Doids —
-distinct look, name reveal on rescue, extra points and/or an upgrade
-(e.g. rescuing a famous surgeon improves hull repair rate, a famous nurse
-boosts healing at the mothership). Rescue log / gallery of who you've found.
-
-## 5. Saboteur Doids (ties into #2)
-
-Unidentifiable saboteur Doids that look like normal rescues but work against
-you once aboard: losing points, draining fuel, gradually bumping off rescued
-Doids — continuing until the player completes some defined action/mission
-(e.g. an on-ship "quarantine" mini-action, delivering them to a brig bay,
-or identifying them from behavioural tells before letting them board).
+- Persistent codex / rescue-log gallery across runs (who you've found).
+- More famous Doids per sector, randomised from a larger pool.
+- Caves/overhangs (needs non-heightmap terrain), moving rescue targets.
+- Saboteur behavioural tells on the ground (wrong walk speed is in; could add
+  refusing to panic, standing too still).
+- Difficulty settings; second playthrough modifiers.
 
 ## Engineering notes
 
-- Landing rules live in `landingEval()` in `index.html` — collision and the
-  landing guide share it. Tunables: soft limits (vy 52 / vx 38 / slope 0.25 /
-  tilt 0.5 rad), survivable limits (85 / 60 / 0.35).
-- Landing assist tunables: `ASSIST_CAPTURE` (capture window) and
-  `ASSIST_RATE` (correction speed).
-- `window.__doids()` exposes ship/level/state for headless testing.
+- Landing rules in `landingEval()`; tunables at top of file
+  (`ASSIST_CAPTURE`, `ASSIST_RATE`, soft/survivable limits inside).
+- Sector recipes in `RECIPE[]`; story text in `BRIEFS`/`FRAGMENTS`/`FAMOUS`.
+- Bays: `bayRects()` — med bay (left, heal/refuel/deliver) and red quarantine
+  bay (right, contain saboteurs, resolve breaches).
+- Darkness overlay: offscreen canvas punched with radial lights
+  (`drawDarkness`); lamp radius via `lampRadius()`.
+- `window.__doids` exposes state + `go(n)`/`launch()` for headless testing
+  (see scratchpad smoke tests).
