@@ -295,8 +295,13 @@ multi-touch slide/second-finger tests). Pattern:
 
 ## 10. Future ideas (unbuilt)
 
+> **Most of these are now formally planned.** The prioritised, implementable
+> version of this list — bundled into PR-sized workstreams with code anchors and
+> acceptance criteria, targeting a paid iOS App Store release — is
+> [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). Check items off there.
+
 - Non-violent way to expose lure-trees/hollow rocks (scan instead of shoot)
-  so pacifist runs can also unmask Glycon.
+  so pacifist runs can also unmask Glycon. *(→ roadmap Bundle J)*
 - A version stamp on the title screen (build/date) to make stale caches
   obvious.
 - More famous Scions per sector, randomised from a larger pool; second

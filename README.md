@@ -17,6 +17,9 @@ CHANGELOG.md § "Repository & URL").*
 **New developers / writers:** start with [GAME_DESIGN.md](GAME_DESIGN.md) — the full
 game definition, evolved narrative canon (the Static, Glycon), mechanics, secrets,
 scoring, code architecture, branch/deployment layout, and future ideas.
+**The forward plan is [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)** — the
+prioritised, checkbox-tracked bundles taking the game to a paid iOS App Store
+release; pick up the next unchecked bundle from there.
 Build-out history is in [ROADMAP.md](ROADMAP.md); the rename & narrative brief that
 drove the current naming is in [HOLLOW_OATH_BRIEF.md](HOLLOW_OATH_BRIEF.md).
 

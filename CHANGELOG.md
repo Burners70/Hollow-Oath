@@ -1,5 +1,18 @@
 # Changelog
 
+## App Store roadmap added (July 2026)
+
+Added **[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)**: the prioritised,
+checkbox-tracked plan to ship Hollow Oath as a paid iOS App Store title. Fifteen
+PR-sized bundles (A–O) covering pause/save/resume, the red-cross emblem
+replacement (legal), audio & settings, performance, the Capacitor wrapper and
+compliance, haptics, Game Center, accessibility, and the narrative/replay
+elevation work (41-second clock, scan mechanic, log archive, remix mode,
+counterfeit-MERCY finale). Each bundle names its code anchors, storage keys,
+acceptance criteria, and tests so any developer can pick one up cold.
+Cross-links added from README.md, ROADMAP.md (now explicitly the historical
+log), and GAME_DESIGN.md §10. No game code changed in this pass.
+
 ## Rename: DOIDS → Hollow Oath (July 2026)
 
 The game was renamed from **DOIDS** to **Hollow Oath**, and the rescued medical
