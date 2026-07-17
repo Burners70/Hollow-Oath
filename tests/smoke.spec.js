@@ -160,6 +160,24 @@ test("the 41-second clock runs only from sector 4 on and surges on period (Bundl
   expect(s.staticSurge).toBeLessThanOrEqual(0.6);
 });
 
+test("a landed 6s scan unmasks a lure-tree without breaking the oath (Bundle J)", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });
+  // clear the guns so the scan test can't be shot mid-hold
+  await page.evaluate(() => {
+    level.turrets.forEach(t => { t.alive = false; });
+    level.drones.forEach(d => { d.alive = false; });
+  });
+  const warped = await page.evaluate(() => __doids.warpScenery("fake"));
+  expect(warped).toBe(true);
+  await page.waitForFunction(() => __doids.get().scannedSecret, null, { timeout: 9000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.scannedSecret).toBe(true);
+  expect(s.runFired).toBe(0);
+  expect(s.firedAtSecret).toBe(false);   // the oath flag stays clean
+  const treeDead = await page.evaluate(() => level.scenery.some(c => c.fake && c.dead));
+  expect(treeDead).toBe(true);
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen
