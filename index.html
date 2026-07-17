@@ -1099,7 +1099,13 @@ function enterCave(L) {
 function exitCave() {
   if (!surfaceCtx) return;
   level = surfaceCtx.level;
-  ship.x = surfaceCtx.x; ship.y = surfaceCtx.y;
+  ship.x = surfaceCtx.x;
+  // Land ON the pad, not in it: surfaceCtx.y was captured mid-lift-transit,
+  // after the descent animation had already sunk the ship ~40px into the
+  // pad, so restoring it verbatim left the ship embedded below ground on
+  // the way back up (it then "snapped" to the surface on the first thrust).
+  // Recompute from the restored surface heightmap instead.
+  ship.y = groundAt(ship.x) - SHIP_R;
   ship.vx = 0; ship.vy = 0; ship.ang = 0; ship.landed = true;
   if (level.lift) { level.lift.holdT = 0; level.lift.armed = false; }
   camera.x = ship.x; camera.y = ship.y; camera.shake = 10;

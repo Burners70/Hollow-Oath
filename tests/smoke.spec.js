@@ -198,6 +198,25 @@ test("thrust noise stops when leaving play, even mid-thrust", async ({ page }) =
   await page.evaluate(() => { input.thrust = false; });
 });
 
+test("riding the lift back up lands the ship ON the pad, not below ground", async ({ page }) => {
+  // regression: exitCave used to restore the mid-transit Y captured after
+  // the descent animation had sunk the ship ~40px into the pad, leaving the
+  // ship embedded in terrain on return (it snapped to the surface on thrust)
+  await page.evaluate(() => { __doids.go(3); __doids.launch(); __doids.warpLift(); });
+  await page.waitForFunction(() => __doids.get().inCave && !liftTransit, null, { timeout: 8000 });
+  // the return lift spawns un-armed (you must leave the pad once) — step off, then back on
+  await page.evaluate(() => { ship.x = 600; });
+  await page.waitForTimeout(120);
+  await page.evaluate(() => __doids.warpLift());
+  await page.waitForFunction(() => !__doids.get().inCave && !liftTransit, null, { timeout: 8000 });
+  const r = await page.evaluate(() => {
+    const s = __doids.get();
+    return { y: s.ship.y, rest: __doids.ground(s.ship.x) - 11, landed: s.ship.landed };
+  });
+  expect(r.landed).toBe(true);
+  expect(Math.abs(r.y - r.rest)).toBeLessThan(0.75);   // resting exactly on the surface
+});
+
 test("lift transition fades out, swaps level, and fades back in", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
   // "black" is a full 0.3s window before the swap — safe to poll on, unlike

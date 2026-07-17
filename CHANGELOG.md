@@ -1,5 +1,16 @@
 # Changelog
 
+## Lift-return bugfix (July 2026)
+
+- **Riding a lift back up out of the Hollows left the ship embedded ~40px
+  below the surface** (most visible returning from the sector-3 cave), then
+  "snapping" to the ground on the first thrust. Cause: `enterCave()` captures
+  `surfaceCtx` mid-transit, *after* the descent animation has already sunk
+  the ship into the pad, and `exitCave()` restored that contaminated Y
+  verbatim. `exitCave()` now recomputes the resting height from the restored
+  surface heightmap (`groundAt(x) - SHIP_R`). New regression test rides the
+  sector-3 lift down and back and asserts the ship rests exactly on the pad.
+
 ## Bundle H — Accessibility & difficulty (July 2026)
 
 - **H1 Colorblind mode is live** (`doids_cb`): the four *semantic* colours —
