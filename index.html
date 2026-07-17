@@ -419,6 +419,18 @@ function dullThud() { // what boards when there is no heartbeat
   o.connect(g); g.connect(sfxGain);
   o.start(); o.stop(AC.currentTime + 0.35);
 }
+function hydraulic(descending) { // the lift — a filtered hiss under a pitch sweep
+  if (!AC) return;
+  const dur = 0.5, sz = AC.sampleRate * dur;
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz) * 0.6;
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500;
+  const g = AC.createGain(); g.gain.value = 0.18;
+  s.connect(lp); lp.connect(g); g.connect(sfxGain); s.start();
+  blip(descending ? 260 : 90, descending ? 70 : 260, 0.55, "sawtooth", 0.1);
+}
 
 /* ---------------- generative ambient score ---------------- */
 const PENTATONIC = [220.00, 261.63, 293.66, 329.63, 392.00];
@@ -592,6 +604,8 @@ const WORLD_H = 1500, STEP = 16;
 const CAPACITY = 6;
 
 let level, ship, camera, particles, texts, stars;
+let resupplyDrone = null;   // the graceful bail-out for a ship stranded at 0 fuel
+let liftTransit = null;     // in-progress lift descent/ascent animation
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
 // why a no-fire run ended: firedAtSecret = shot a lure-tree / hollow rock
@@ -1026,7 +1040,7 @@ function spawnShip() {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: 100, vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
-    shield: false
+    shield: false, signalT: 0
   };
 }
 
@@ -1049,6 +1063,7 @@ function toBriefing(n) {
   camera = { x: ship.x, y: ship.y, shake: 0 };
   particles = []; texts = [];
   mercyBreach = null; mercyDamaged = false;
+  resupplyDrone = null; liftTransit = null;
   state = "brief"; stateT = 0; briefChars = 0;
   snapshotRun();
   updateDroneFreq();
@@ -1427,6 +1442,7 @@ function updateSettings() {
 }
 
 function updatePlay(dt) {
+  if (liftTransit) { updateLiftTransit(dt); return; }
   if (input.tap && inRect(pauseRect(), input.tapX, input.tapY)) {
     input.tap = false;
     state = "pause"; stateT = 0;
@@ -1492,8 +1508,8 @@ function updatePlay(dt) {
     s.x += s.vx * dt; s.y += s.vy * dt;
   }
 
-  s.x = clamp(s.x, 40, level.W - 40);
-  if (s.y < 20) { s.y = 20; s.vy = Math.max(s.vy, 0); }
+  s.x = clamp(s.x, BOUND_X, level.W - BOUND_X);
+  if (s.y < BOUND_Y) { s.y = BOUND_Y; s.vy = Math.max(s.vy, 0); }
 
   // cave roofs are unforgiving — unless the field is up
   if (level.roof && !s.dead && !s.landed) {
@@ -1538,6 +1554,7 @@ function updatePlay(dt) {
   updateDocking(dt);
   updateBlackbox(dt);
   updatePods();
+  updateResupplySignal(dt);
   updateLift(dt);
   updateShrine(dt);
   if (level.isFinale) updateBeacon(dt);
@@ -1810,8 +1827,11 @@ function mercyPos() {
 function bayRects() {
   const { mx, my } = mercyPos();
   return {
-    med: { x0: mx - 115, x1: mx + 115, y0: my + 24, y1: my + 134 },
-    red: { x0: mx + 150, x1: mx + 250, y0: my + 24, y1: my + 134 }
+    // recovery bay hangs under the hull, dead centre
+    med: { x0: mx - 100, x1: mx + 100, y0: my + 24, y1: my + 130 },
+    // quarantine comes off the starboard side, level with the hull itself —
+    // kept apart, not underneath, on purpose
+    red: { x0: mx + 172, x1: mx + 260, y0: my - 34, y1: my + 30 }
   };
 }
 function inBay(b) {
@@ -1953,6 +1973,50 @@ function updatePods() {
   }
 }
 
+/* A ship landed at 0 fuel has no way to move again — thrust and shield both
+   require fuel>0, and nothing else can reach it. Holding THRUST while
+   stranded is otherwise a dead input (thrusting itself needs fuel), so it
+   doubles as the "signal for resupply" charge — no new button, no conflict
+   with normal flight. A small drone drops just enough fuel to reach a real
+   pod or MERCY; it's also just handy any time you're grounded and running on
+   fumes, not only at the hard 0. */
+const SIGNAL_HOLD_T = 1.8;
+function updateResupplySignal(dt) {
+  const s = ship;
+  const stranded = s.landed && s.fuel <= 0 && !s.dead;
+  if (stranded && !resupplyDrone && (input.thrust || pad.thrust)) {
+    s.signalT += dt;
+    if (Math.random() < dt * 8) particles.push({
+      x: s.x + (Math.random() - 0.5) * 16, y: s.y - 6,
+      vx: (Math.random() - 0.5) * 20, vy: -26, t: 0.3, max: 0.4,
+      color: "#ffc400", size: 1.6 });
+  } else if (!resupplyDrone) {
+    s.signalT = Math.max(0, s.signalT - dt * 2.5);
+  }
+  if (s.signalT >= SIGNAL_HOLD_T && !resupplyDrone) {
+    s.signalT = 0;
+    resupplyDrone = { x: s.x, y: s.y - 320, phase: "in", t: 0 };
+    blip(180, 420, 0.4, "sine", 0.12);
+  }
+  if (resupplyDrone) {
+    const rd = resupplyDrone;
+    rd.t += dt; rd.x = s.x;
+    if (rd.phase === "in") {
+      rd.y = lerp(s.y - 320, s.y - 34, clamp(rd.t / 1.1, 0, 1));
+      if (rd.t >= 1.1) {
+        s.fuel = Math.min(100, s.fuel + 40);
+        addText(s.x, s.y - 46, "RESUPPLY +40", "#ffc400");
+        goldBurst(s.x, s.y - 34);
+        blip(520, 780, 0.2, "sine", 0.12);
+        rd.phase = "out"; rd.t = 0;
+      }
+    } else {
+      rd.y = lerp(s.y - 34, s.y - 320, clamp(rd.t / 0.8, 0, 1));
+      if (rd.t >= 0.8) resupplyDrone = null;
+    }
+  }
+}
+
 /* ---- the secret lifts and what waits below ---- */
 function updateLift(dt) {
   const L = level.lift;
@@ -1968,9 +2032,48 @@ function updateLift(dt) {
     addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
     blip(180, 120, 0.3, "sine", 0.1);
   }
-  if (L.holdT >= 2.4) {
-    if (level.isCave) exitCave();
-    else enterCave(L);
+  if (L.holdT >= 2.4 && !liftTransit) {
+    startLiftTransit(level.isCave ? "up" : "down", L);
+  }
+}
+
+/* the lift used to cut straight to the new level; now it plays out a
+   continuous descent/ascent across the cut — sink (or rise) out of view on
+   the departure screen, fade to black, swap levels, then fade in with the
+   same motion completing on the arrival screen. `sign` is the one thing that
+   differs between directions: +1 sinks (down), -1 rises (up), and every
+   phase just walks ship.y by 40 world px in that direction. */
+const LIFT_SINK_T = 0.6, LIFT_FADE_T = 0.3, LIFT_SETTLE_T = 0.6, LIFT_OFFSET = 40;
+function startLiftTransit(dir, L) {
+  liftTransit = { dir, L, phase: "sink", t: 0, fade: 0, startY: ship.y, swapped: false };
+  ship.vx = 0; ship.vy = 0;
+  hydraulic(dir === "down");
+}
+function updateLiftTransit(dt) {
+  const lt = liftTransit;
+  const sign = lt.dir === "down" ? 1 : -1;
+  lt.t += dt;
+  if (lt.phase === "sink") {
+    const p = clamp(lt.t / LIFT_SINK_T, 0, 1);
+    ship.y = lt.startY + sign * p * LIFT_OFFSET;
+    if (p >= 1) { lt.phase = "black"; lt.t = 0; }
+  } else if (lt.phase === "black") {
+    lt.fade = clamp(lt.t / LIFT_FADE_T, 0, 1);
+    if (lt.fade >= 1 && !lt.swapped) {
+      lt.swapped = true;
+      if (lt.dir === "down") enterCave(lt.L); else exitCave();
+      lt.restY = ship.y;
+      ship.y = lt.restY - sign * LIFT_OFFSET;
+      lt.t = 0; lt.phase = "reveal";
+      hydraulic(lt.dir === "down");
+    }
+  } else if (lt.phase === "reveal") {
+    lt.fade = 1 - clamp(lt.t / LIFT_FADE_T, 0, 1);
+    if (lt.t >= LIFT_FADE_T) { lt.t = 0; lt.phase = "settle"; }
+  } else if (lt.phase === "settle") {
+    const p = clamp(lt.t / LIFT_SETTLE_T, 0, 1);
+    ship.y = (lt.restY - sign * LIFT_OFFSET) + sign * p * LIFT_OFFSET;
+    if (p >= 1) { ship.y = lt.restY; liftTransit = null; }
   }
 }
 
@@ -2119,6 +2222,12 @@ function render() {
     bannerMsg.str.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.26 + i * 28));
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   }
+
+  if (liftTransit && liftTransit.fade > 0) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "rgba(3,4,10," + liftTransit.fade.toFixed(2) + ")";
+    ctx.fillRect(0, 0, vw, vh);
+  }
 }
 
 function worldTransform() {
@@ -2192,6 +2301,35 @@ function getTiles(lvl, cacheKey, arr, xLo, xHi, padAbove, padBelow, closeAt, gra
   return out;
 }
 
+/* the zone's containment field — the hard edges updatePlay clamps ship.x/y
+   to (see the `clamp(s.x, 40, level.W - 40)` / `s.y < 20` checks) were
+   previously invisible walls. Render them as a field that brightens as the
+   ship nears it, framed as the interdicted zone's own automated defences. */
+const BOUND_X = 40, BOUND_Y = 20, BOUND_GLOW = "#4fd6ff";
+function drawBoundaryField(now) {
+  const s = ship;
+  const pulse = 0.7 + 0.3 * Math.sin(now * 2);
+  ctx.setLineDash([4, 10]);
+  for (const wx of [BOUND_X, level.W - BOUND_X]) {
+    const a = clamp(1 - Math.abs(s.x - wx) / 380, 0.06, 0.6) * pulse;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.beginPath();
+    ctx.moveTo(wx, -250); ctx.lineTo(wx, WORLD_H + 50);
+    glowStroke(BOUND_GLOW, 2);
+    ctx.restore();
+  }
+  const ca = clamp(1 - Math.abs((s.y - SHIP_R) - BOUND_Y) / 260, 0.04, 0.45) * pulse;
+  ctx.save();
+  ctx.globalAlpha = ca;
+  ctx.setLineDash([10, 14]);
+  ctx.beginPath();
+  ctx.moveTo(0, BOUND_Y); ctx.lineTo(level.W, BOUND_Y);
+  glowStroke(BOUND_GLOW, 2);
+  ctx.restore();
+  ctx.setLineDash([]);
+}
+
 function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
@@ -2220,6 +2358,7 @@ function drawWorld(now) {
       ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
   }
 
+  drawBoundaryField(now);
   drawScenery(now);
 
   // anomalies
@@ -2362,6 +2501,7 @@ function drawWorld(now) {
 
   if (!ship.dead) drawShip(now);
   if (!ship.dead && !ship.landed && state === "play") drawLandingGuide();
+  if (resupplyDrone) drawResupplyDrone(now);
 
   ctx.textAlign = "center";
   ctx.font = "700 13px Menlo, monospace";
@@ -2444,6 +2584,21 @@ function drawShip(now) {
     ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
     ctx.shadowBlur = 0;
   }
+  // stranded at zero fuel — hold THRUST to call a resupply drone
+  if (s.landed && s.fuel <= 0 && !s.dead && !resupplyDrone) {
+    ctx.textAlign = "center";
+    ctx.font = "700 10px Menlo, monospace";
+    ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 8;
+    ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
+    ctx.shadowBlur = 0;
+    if (s.signalT > 0) {
+      const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
+      ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+      glowStroke("#ffc400", 2.4);
+    }
+  }
   // Curie's compass to the nearest unrecovered black box
   if (upgrades.radiosense && level.blackbox && !level.blackbox.found) {
     const dx = level.blackbox.x - s.x, dy = level.blackbox.y - s.y;
@@ -2458,6 +2613,28 @@ function drawShip(now) {
     ctx.moveTo(24, 0); ctx.lineTo(34, 0);
     ctx.lineTo(30, -4); ctx.moveTo(34, 0); ctx.lineTo(30, 4);
     ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* a small resupply drone, dropped in when a stranded ship signals for it */
+function drawResupplyDrone(now) {
+  const rd = resupplyDrone;
+  ctx.save();
+  ctx.translate(rd.x, rd.y);
+  ctx.rotate(Math.sin(now * 6) * 0.15);
+  ctx.fillStyle = "rgba(255,196,0,.18)";
+  ctx.beginPath();
+  ctx.moveTo(0, -8); ctx.lineTo(10, 4); ctx.lineTo(0, 10); ctx.lineTo(-10, 4);
+  ctx.closePath(); ctx.fill();
+  glowStroke("#ffc400", 1.8);
+  ctx.restore();
+  if (rd.phase === "in") {
+    ctx.save();
+    ctx.globalAlpha = 0.3 + 0.15 * Math.sin(now * 8);
+    ctx.beginPath();
+    ctx.moveTo(rd.x, rd.y + 9); ctx.lineTo(rd.x, rd.y + 70);
+    glowStroke("#ffc400", 1.6);
     ctx.restore();
   }
 }
@@ -2735,23 +2912,24 @@ function drawWreckM(sc, now) {
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
   ctx.fillStyle = "rgba(8,12,26,.85)";
   ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
-  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
-  ctx.closePath(); ctx.fill();
+  mercyHullPath();
+  ctx.fill();
   glowStroke("rgba(0,229,255,.3)", 2.5);
-  // hull breach
+  // hull breach, right through where the command tower met the spine
   ctx.beginPath();
-  ctx.moveTo(20, -26); ctx.lineTo(34, -8); ctx.lineTo(24, 4); ctx.lineTo(40, 22);
+  ctx.moveTo(20, -22); ctx.lineTo(34, -4); ctx.lineTo(24, 8); ctx.lineTo(40, 20);
   glowStroke("rgba(150,140,200,.4)", 1.6);
-  // the emblem, mostly dead
+  // the emblem, mostly dead, still on the command tower
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
+  ctx.save();
+  ctx.translate(0, -36);
   if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
-  drawAsclepius(30, "rgba(255,23,68," + flick + ")");
+  drawAsclepius(26, "rgba(255,23,68," + flick + ")");
+  ctx.restore();
   ctx.shadowBlur = 0;
   ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(155,234,249,.3)";
-  ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 38);
+  ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
   ctx.restore();
   if (Math.random() < 0.006) particles.push({
     x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
@@ -2809,6 +2987,13 @@ function drawLift(now) {
   } else {
     const glint = Math.sin(now * 0.43 + L.x) > 0.988 ? 0.4 : 0;
     const a = 0.13 + glint;
+    // a subtly thicker plate of ground under the pad — visible if you look,
+    // not blatant if you don't
+    const thickG = ctx.createLinearGradient(0, 2, 0, 11);
+    thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25).toFixed(2) + ")");
+    thickG.addColorStop(1, "rgba(179,136,255,0)");
+    ctx.fillStyle = thickG;
+    ctx.fillRect(-44, 2, 88, 9);
     ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -2903,6 +3088,70 @@ function drawShrine(now) {
   ctx.restore();
 }
 
+/* AMS MERCY's silhouette, shared by the mothership, the intro panel, and
+   the crashed MERCY-class wreck: a lozenge hull with a dorsal command
+   tower (where the emblem sits) instead of the old flat hexagon. Draws
+   centred at the local origin; caller fills/strokes. */
+function mercyHullPath() {
+  ctx.beginPath();
+  ctx.moveTo(-145, 0);
+  ctx.lineTo(-95, -22); ctx.lineTo(-40, -22);
+  ctx.lineTo(-26, -50); ctx.lineTo(26, -50); ctx.lineTo(40, -22);
+  ctx.lineTo(95, -22); ctx.lineTo(145, 0);
+  ctx.lineTo(95, 20); ctx.lineTo(-95, 20);
+  ctx.closePath();
+}
+/* panel-seam greebles along the hull flanks — cheap surface detail */
+function mercyGreebles(color) {
+  ctx.strokeStyle = color; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const gx of [-110, -95, -60, 60, 95, 110]) { ctx.moveTo(gx, -20); ctx.lineTo(gx, 18); }
+  ctx.stroke();
+}
+
+/* a converging beam in place of a flat dashed rect — `vertical` runs the
+   beam top-to-bottom (recovery, hanging under the hull) or left-to-right
+   (quarantine, off the side); `pull` reverses the scan-line direction so
+   quarantine reads as containing/drawing in rather than dispensing. */
+function drawTractorBeam(b, colorRGB, now, vertical, pull) {
+  ctx.save();
+  ctx.beginPath();
+  if (vertical) {
+    const midx = (b.x0 + b.x1) / 2, topW = (b.x1 - b.x0) * 0.45;
+    ctx.moveTo(midx - topW / 2, b.y0); ctx.lineTo(midx + topW / 2, b.y0);
+    ctx.lineTo(b.x1, b.y1); ctx.lineTo(b.x0, b.y1);
+  } else {
+    const midy = (b.y0 + b.y1) / 2, nearH = (b.y1 - b.y0) * 0.45;
+    ctx.moveTo(b.x0, midy - nearH / 2); ctx.lineTo(b.x0, midy + nearH / 2);
+    ctx.lineTo(b.x1, b.y1); ctx.lineTo(b.x1, b.y0);
+  }
+  ctx.closePath();
+  const grad = vertical ? ctx.createLinearGradient(0, b.y0, 0, b.y1) : ctx.createLinearGradient(b.x0, 0, b.x1, 0);
+  grad.addColorStop(0, "rgba(" + colorRGB + ",.22)");
+  grad.addColorStop(1, "rgba(" + colorRGB + ",.03)");
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = "rgba(" + colorRGB + ",.4)"; ctx.lineWidth = 1.2; ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    let p = (now * 0.5 + i / 3) % 1;
+    if (pull) p = 1 - p;
+    ctx.globalAlpha = (1 - Math.abs(p - 0.5) * 2) * 0.6;
+    ctx.strokeStyle = "rgba(" + colorRGB + ",.7)";
+    ctx.beginPath();
+    if (vertical) {
+      const y = lerp(b.y0, b.y1, p), w = lerp((b.x1 - b.x0) * 0.45, b.x1 - b.x0, p);
+      const midx = (b.x0 + b.x1) / 2;
+      ctx.moveTo(midx - w / 2, y); ctx.lineTo(midx + w / 2, y);
+    } else {
+      const x = lerp(b.x0, b.x1, p), h = lerp((b.y1 - b.y0) * 0.45, b.y1 - b.y0, p);
+      const midy = (b.y0 + b.y1) / 2;
+      ctx.moveTo(x, midy - h / 2); ctx.lineTo(x, midy + h / 2);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
 function drawMothership(now) {
   const { mx, my } = mercyPos();
   const bob = Math.sin(now * 1.2) * 4;
@@ -2911,18 +3160,23 @@ function drawMothership(now) {
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
-  ctx.beginPath();
-  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
-  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  mercyHullPath();
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  mercyGreebles("rgba(0,229,255,.3)");
+  drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
+  drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
   const pulse = 0.55 + 0.45 * Math.sin(now * 3);
+  ctx.save();
+  ctx.translate(0, -36);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
-  drawAsclepius(30, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+  drawAsclepius(26, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+  ctx.restore();
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillStyle = "#9beaf9";
   ctx.font = "700 10px Menlo, monospace";
   ctx.textAlign = "center";
-  ctx.fillText("A M S · M E R C Y", 0, 36);
+  ctx.fillText("A M S · M E R C Y", 0, 34);
   ctx.restore();
 
   // extraction: the Static's pulse rings wash over MERCY
@@ -2938,15 +3192,10 @@ function drawMothership(now) {
 
   const bays = bayRects();
   ctx.save();
-  ctx.setLineDash([6, 8]);
   ctx.lineWidth = 1.5;
-  // recovery bay (cyan) spans the underside
-  ctx.strokeStyle = mercyBreach
-    ? "rgba(255,64,129," + (0.3 + 0.3 * Math.sin(now * 6)).toFixed(2) + ")"
-    : level.extraction
-      ? "rgba(255,196,0," + (0.4 + 0.3 * Math.sin(now * 5)).toFixed(2) + ")"
-      : "rgba(0,229,255," + (0.25 + 0.2 * Math.sin(now * 2)).toFixed(2) + ")";
-  ctx.strokeRect(bays.med.x0, bays.med.y0, bays.med.x1 - bays.med.x0, bays.med.y1 - bays.med.y0);
+  // recovery bay: a beam hanging under the hull, dispensing outward
+  const medRGB = mercyBreach ? "255,64,129" : level.extraction ? "255,196,0" : "0,229,255";
+  drawTractorBeam(bays.med, medRGB, now, true, false);
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = level.extraction ? "rgba(255,196,0,.8)" : "rgba(0,229,255,.6)";
   ctx.fillText(mercyBreach ? "LOCKDOWN" : level.extraction ? "EXTRACTION DOCK" : "RECOVERY BAY",
@@ -2954,19 +3203,16 @@ function drawMothership(now) {
   // extraction dock-hold progress
   if (level.extraction && level.extraction.hold > 0) {
     ctx.strokeStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
-    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.arc(mx, bays.med.y0 + 55, 22, -Math.PI / 2,
       -Math.PI / 2 + (level.extraction.hold / 1.5) * Math.PI * 2);
     ctx.stroke();
-    ctx.setLineDash([6, 8]); ctx.shadowBlur = 0;
+    ctx.shadowBlur = 0;
   }
-  // quarantine bay (red) off the starboard side
-  ctx.strokeStyle = "rgba(255,23,68," + (0.35 + 0.25 * Math.sin(now * 3)).toFixed(2) + ")";
-  ctx.strokeRect(bays.red.x0, bays.red.y0, bays.red.x1 - bays.red.x0, bays.red.y1 - bays.red.y0);
+  // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
+  drawTractorBeam(bays.red, "255,23,68", now, false, true);
   ctx.fillStyle = "rgba(255,23,68,.7)";
   ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
-  ctx.setLineDash([]);
   ctx.restore();
 }
 
@@ -3284,12 +3530,13 @@ function iShip(cx, cy, s, tilt, flicker) {
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
-  ctx.beginPath();
-  ctx.moveTo(-130, 0); ctx.lineTo(-80, -26); ctx.lineTo(80, -26);
-  ctx.lineTo(130, 0); ctx.lineTo(80, 22); ctx.lineTo(-80, 22);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  mercyHullPath();
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  mercyGreebles("rgba(0,229,255,.35)");
+  ctx.translate(0, -36);
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
-  drawAsclepius(30, "#ff2d55");
+  drawAsclepius(26, "#ff2d55");
   ctx.restore();
 }
 function iDoid(cx, cy, s, phase, gold, armsUp) {
@@ -3735,12 +3982,14 @@ window.__doids = {
     sound, music, haptics, assist, tilt, colorblind,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
-    perfFrameMs, perfFps }),
+    perfFrameMs, perfFps, resupplyDrone, liftTransit }),
   go: toBriefing,
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
   give: k => { upgrades[k] = true; },
+  strand: () => { ship.x = level.W / 2; ship.y = groundAt(ship.x) - SHIP_R;
+    ship.landed = true; ship.vx = ship.vy = 0; ship.fuel = 0; },
   warpLift: () => { const L = level.lift; if (L) { ship.x = L.x; ship.y = L.y - SHIP_R;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   warpShrine: () => { const sh = level.shrine; if (sh) { ship.x = sh.x; ship.y = groundAt(sh.x) - SHIP_R;

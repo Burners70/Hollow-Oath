@@ -136,3 +136,27 @@ test("every sector briefing renders", async ({ page }) => {
     await page.waitForTimeout(60);
   }
 });
+
+test("stranding at 0 fuel is recoverable via the resupply signal", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.ship.fuel).toBe(0);
+  expect(s.ship.landed).toBe(true);
+  await page.evaluate(() => { input.thrust = true; });
+  await page.waitForFunction(() => __doids.get().resupplyDrone !== null, null, { timeout: 4000 });
+  await page.waitForFunction(() => __doids.get().resupplyDrone === null, null, { timeout: 4000 });
+  await page.evaluate(() => { input.thrust = false; });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.ship.fuel).toBeGreaterThan(0);
+});
+
+test("lift transition fades out, swaps level, and fades back in", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  await page.waitForFunction(() => liftTransit && liftTransit.fade > 0.95, null, { timeout: 6000 });
+  const mid = await page.evaluate(() => __doids.get().inCave);
+  expect(mid).toBe(false);   // still the surface level while the screen is black
+  await page.waitForFunction(() => !liftTransit, null, { timeout: 6000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.inCave).toBe(true);
+  expect(s.state).toBe("play");
+});

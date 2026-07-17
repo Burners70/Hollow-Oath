@@ -71,6 +71,38 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 - Saboteur behavioural tells on the ground (wrong walk speed is in; could add
   refusing to panic, standing too still).
 - Difficulty settings; second playthrough modifiers.
+- **The pendulum carry (the classic Oids/Thrust homage) — proposed, not
+  built.** Today a boarded Scion just vanishes into `s.passengers` (an
+  abstract array, `CAPACITY` 6) the moment `o.state` flips to `"aboard"` in
+  `updateOids` — no physical risk between pickup and delivery. The pendulum
+  mechanic makes the *carry itself* the tension, not just the landing:
+  - **Where it fits:** this is a core-loop change, not a bolt-on — it touches
+    every sector, the saboteur-kill logic in `updateSabotage`, the breach/
+    quarantine flow, and scoring (a dropped Scion should just increment
+    `runLost`, same bucket as existing losses, so ranks/achievements don't
+    need new categories). Score it as its own bundle, sequenced **after H**
+    (so FIELD MEDIC can dampen it) and **before N** (the counterfeit MERCY
+    finale shouldn't be the first thing to teach a new failure mode).
+    Depends on B1's boundary-field work being in — you need to be able to
+    *see* the wall you might swing a passenger into for the risk to feel fair.
+  - **How:** only the most recently boarded Scion physically dangles (a short
+    tether below the ship, rendered in `drawWorld` right after `drawShip`);
+    earlier pickups are already "stowed" and ride safely, which keeps the
+    physics to one lagging bob instead of simulating `CAPACITY` of them.
+    The bob's offset from the ship is a simple damped spring driven by the
+    ship's lateral acceleration and `s.ang` change rate — hard turns and
+    thrust changes swing it out. If the swung position intersects terrain,
+    a turret, scenery, or now-visible boundary field, the Scion is lost
+    (`killOid`-style, same as other loss paths). Below a tuned amplitude
+    threshold nothing happens — the tension is proportional to how roughly
+    you fly, not a hair-trigger.
+  - **The tell:** give it the same "always readable" treatment as the
+    landing guide — an amber warning once swing amplitude crosses a safe
+    threshold, so losing a passenger reads as "I flew badly" rather than
+    "I got surprised." Fits the game's own "primum non nocere" throughline:
+    the ship's own exhaust can already kill a waiting Scion (the friendly-
+    fire check in `updatePlay`); this extends that idea to the ones you've
+    already saved.
 
 ## Engineering notes
 

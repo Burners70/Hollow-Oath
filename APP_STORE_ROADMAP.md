@@ -587,4 +587,7 @@ D ──┴────────────────┘
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), a fourth Hollow, second-playthrough modifiers, Android/Google Play via the
-same Capacitor shell.
+same Capacitor shell, and **the pendulum carry** — a proposed core-loop bundle
+(boarded Scions physically dangle and can be swung into terrain/turrets/walls
+on a rough carry, homaging Oids/Thrust) sequenced after H and before N; see
+ROADMAP.md § Future ideas for the full placement writeup.

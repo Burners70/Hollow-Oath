@@ -1,5 +1,59 @@
 # Changelog
 
+## Bug fixes & polish pass (July 2026)
+
+**Bug fixes:**
+- **Fuel-out-while-landed softlock.** A ship that landed with an empty tank
+  away from MERCY or a fuel pod had no way to move again — both thrust and
+  shield require `fuel>0`, and nothing else could reach it; the run was
+  permanently stuck with no death trigger. Fixed with a graceful bail-out:
+  holding THRUST while stranded (fuel<=0, landed) — otherwise a dead input in
+  that exact state — charges a "signal for resupply" call (`OUT OF FUEL —
+  HOLD THRUST TO SIGNAL`, a ring showing charge progress). A small drone
+  drops in and delivers +40 fuel, enough to reach a real pod or MERCY. It's
+  also just handy any time you're grounded and running low, not only at the
+  hard zero.
+- **Invisible walls.** `s.x` was hard-clamped to `[40, level.W-40]` and `s.y`
+  floored at `20` with zero visual indication — you'd just stop with no
+  explanation. Both are now rendered as a pulsing "containment field" (framed
+  as the interdicted zone's own automated defences) that brightens as the
+  ship approaches and fades when it's far away.
+
+**Additional changes:**
+- **Lift transitions now play out instead of cutting.** Descending/ascending
+  a secret lift used to swap levels instantly. Now the ship sinks (or rises)
+  out of view on the departure screen, the screen fades to black, the level
+  swaps, and it fades back in with the same motion completing (settling onto
+  the new pad) — with a hydraulic hiss-and-whine sound cue on each leg.
+- **Subtle lift floor cue.** Surface lifts get a faint violet gradient
+  "thickening" of the ground plate under the hairline seams — visible if you
+  look, easy to miss if you don't, alongside the existing rare glint.
+- **Quarantine bay moved off to the side.** It used to hang under MERCY right
+  next to the recovery bay, in the same row. It now comes off the starboard
+  side of the hull, level with the ship itself, reinforcing that
+  quarantine ≠ delivery.
+- **Both bays redesigned as tractor beams.** Dashed rectangles replaced with
+  a converging beam (soft gradient fill + animated scan lines) — recovery's
+  beam scans outward (dispensing), quarantine's scans inward (containing).
+- **AMS MERCY redesigned.** The flat hexagon hull gained a raised dorsal
+  command tower (where the emblem now sits), tapered bow/stern, panel-seam
+  greebles, and soft engine glow at both tips (`mercyHullPath()`/
+  `mercyGreebles()`, shared by the mothership, the intro-screen ship, and the
+  crashed MERCY-class wreck, which got the matching hull + a repositioned
+  emblem and hull breach).
+- **Pendulum carry — proposed, not built.** Wrote up where/how the classic
+  Oids/Thrust pendulum-carry mechanic (a boarded passenger physically
+  dangling and swingable into hazards) could fit into the roadmap — see
+  ROADMAP.md § Future ideas and APP_STORE_ROADMAP.md's post-launch
+  candidates.
+
+Smoke suite still 10/10 green (`__doids.strand()` added for testing the
+softlock fix; `resupplyDrone`/`liftTransit` exposed via `__doids.get()`).
+Verified visually via Playwright screenshots: the resupply drone end-to-end,
+the boundary field at both edges, the full lift transition (black frame +
+arrival), the lift floor cue, and the new MERCY silhouette across the
+mothership, intro screen, and a wreck.
+
 ## Bundle D — performance pass (July 2026)
 
 Implemented the fourth App Store roadmap bundle (App Review runs on real
