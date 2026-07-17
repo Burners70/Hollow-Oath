@@ -167,18 +167,30 @@ function boom() {
   const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
   s.connect(lp); lp.connect(g); g.connect(AC.destination); s.start();
 }
-function heartbeat() { // lub-dub, played when a Doid comes aboard
+function heartbeat(vol) { // lub-dub, played when a Doid comes aboard
   if (!AC) return;
+  const V = vol || 1;
   const pulse = (t, f) => {
     const o = AC.createOscillator(), g = AC.createGain();
     o.type = "sine"; o.frequency.value = f;
     g.gain.setValueAtTime(0.0001, AC.currentTime + t);
-    g.gain.exponentialRampToValueAtTime(0.4, AC.currentTime + t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.4 * V, AC.currentTime + t + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + t + 0.16);
     o.connect(g); g.connect(AC.destination);
     o.start(AC.currentTime + t); o.stop(AC.currentTime + t + 0.2);
   };
   pulse(0, 82); pulse(0.18, 62);
+}
+function staticTick() { // the Static — a dry burst where a heartbeat should be
+  if (!AC) return;
+  const dur = 0.12, sz = AC.sampleRate * dur;
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 2;
+  const g = AC.createGain(); g.gain.value = 0.08;
+  s.connect(bp); bp.connect(g); g.connect(AC.destination); s.start();
 }
 function dullThud() { // what boards when there is no heartbeat
   if (!AC) return;
@@ -282,6 +294,11 @@ let clearCards = [], revealCard = null;
 let briefChars = 0;
 let hiscore = 0;
 try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
+let codex = new Set();
+try { codex = new Set(JSON.parse(localStorage.getItem("doids_codex") || "[]")); } catch (e) {}
+function saveCodex() {
+  try { localStorage.setItem("doids_codex", JSON.stringify([...codex])); } catch (e) {}
+}
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
 const ASSIST_CAPTURE = 0.22;
@@ -295,6 +312,9 @@ function helpRect() {
 }
 function skipRect() {
   return { x: vw - 110, y: 12, w: 96, h: 34 };
+}
+function codexRect() {
+  return { x: 14, y: 12, w: 168, h: 34 };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -600,8 +620,8 @@ function update(dt) {
 
   switch (state) {
     case "title": case "gameover": case "win": updateMenu(); return;
-    case "intro": updateIntro(); return;
-    case "help":
+    case "intro": updateIntro(dt); return;
+    case "help": case "codex":
       if (input.tap && stateT > 0.4) { state = "title"; stateT = 0.7; }
       input.tap = false; return;
     case "brief": updateBrief(dt); return;
@@ -637,6 +657,9 @@ function updateMenu() {
     } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
       state = "help"; stateT = 0;
       blip(440, 660, 0.1, "sine", 0.08);
+    } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
+      state = "codex"; stateT = 0;
+      blip(550, 825, 0.1, "sine", 0.08);
     } else {
       goFullscreen();
       resetRun();
@@ -648,7 +671,16 @@ function updateMenu() {
   input.tap = false;
 }
 
-function updateIntro() {
+let introBeat = 0;
+function updateIntro(dt) {
+  // a slow heartbeat under the story — except the failure panel,
+  // where the Static answers instead
+  introBeat += dt;
+  const cyc = introIdx === 3 ? 1.4 : 1.5;
+  if (introBeat >= cyc) {
+    introBeat = 0;
+    if (introIdx === 3) staticTick(); else heartbeat(0.35);
+  }
   if (input.tap && stateT > 0.35) {
     if (inRect(skipRect(), input.tapX, input.tapY)) { toBriefing(0); }
     else {
@@ -985,6 +1017,7 @@ function updateDocking(dt) {
       if (p.role === "famous") {
         const f = FAMOUS[p.famousId];
         upgrades[f.upgrade] = true;
+        codex.add(p.famousId); saveCodex();
         if (f.upgrade === "fabrica") s.vitals = Math.min(maxVitals(), s.vitals + 25);
         score += 1500;
         goldBurst(level.mx, level.my + 40);
@@ -1126,6 +1159,7 @@ function render() {
 
   if (state === "title") drawTitle(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
+  if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
   if (state === "ending") drawEnding(now);
@@ -1713,6 +1747,65 @@ function drawTitle(now) {
   ctx.fillStyle = "#7fe9ff";
   ctx.fillText("✦ HOW TO FLY", hr.x + hr.w / 2, hr.y + 22);
   ctx.shadowBlur = 0;
+
+  // codex pill — the minds recovered across all runs
+  const cr = codexRect();
+  const any = codex.size > 0;
+  ctx.strokeStyle = any ? "rgba(255,213,79,.75)" : "rgba(255,255,255,.3)";
+  ctx.shadowColor = any ? "#ffd54f" : "transparent"; ctx.shadowBlur = any ? 10 : 0;
+  ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
+  ctx.fillStyle = any ? "#ffd54f" : "rgba(255,255,255,.45)";
+  ctx.fillText("⚕ CODEX " + codex.size + "/" + FAMOUS.length, cr.x + cr.w / 2, cr.y + 22);
+  ctx.shadowBlur = 0;
+}
+
+/* the codex: famous Doids recovered across every run */
+function drawCodex(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.82)";
+  ctx.fillRect(0, 0, vw, vh);
+  const w = Math.min(640, vw - 36);
+  const rowH = Math.min(50, (vh - 132) / FAMOUS.length);
+  const h = 66 + rowH * FAMOUS.length + 30;
+  const x = (vw - w) / 2, y = Math.max(10, (vh - h) / 2);
+  ctx.fillStyle = "rgba(8,10,26,.94)";
+  ctx.strokeStyle = "#ffd54f"; ctx.shadowColor = "#ffd54f"; ctx.shadowBlur = 16;
+  ctx.lineWidth = 2;
+  ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+  ctx.shadowBlur = 4;
+  ctx.textAlign = "center";
+  ctx.font = "800 15px Menlo, monospace";
+  ctx.fillStyle = "#ffd54f";
+  ctx.fillText("MEDICAL CODEX", vw / 2, y + 24);
+  ctx.font = "600 10px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length + " · all runs", vw / 2, y + 40);
+  for (let i = 0; i < FAMOUS.length; i++) {
+    const ry = y + 54 + i * rowH;
+    const found = codex.has(i);
+    if (i > 0) {
+      ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 16, ry); ctx.lineTo(x + w - 16, ry); ctx.stroke();
+    }
+    iDoid(x + 34, ry + rowH * 0.78, Math.min(1.7, rowH / 28), i * 1.3, found, found);
+    ctx.textAlign = "left";
+    ctx.font = "700 13px Menlo, monospace";
+    ctx.fillStyle = found ? "#ffe9a8" : "rgba(255,255,255,.3)";
+    ctx.shadowColor = found ? "#ffd54f" : "transparent"; ctx.shadowBlur = found ? 6 : 0;
+    ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", x + 60, ry + rowH * 0.52);
+    ctx.shadowBlur = 0;
+    ctx.font = "600 10px Menlo, monospace";
+    ctx.fillStyle = found ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
+    ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", x + 60, ry + rowH * 0.82);
+    ctx.textAlign = "right";
+    ctx.font = "700 11px Menlo, monospace";
+    ctx.fillStyle = found ? "#69f0ae" : "rgba(255,255,255,.25)";
+    ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", x + w - 18, ry + rowH * 0.62);
+  }
+  ctx.textAlign = "center";
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.fillText("tap to close", vw / 2, y + h - 11);
 }
 
 /* ------- illustrated intro panels ------- */
