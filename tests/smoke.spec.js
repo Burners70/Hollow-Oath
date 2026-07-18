@@ -549,3 +549,50 @@ test("caps-lock letter keys still fly the ship", async ({ page }) => {
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keyup", { key: "X" })));
   expect(await page.evaluate(() => __doids.get().input.fire)).toBe(false);
 });
+
+test("Game Center facade traces auth, rank achievements and the score report (Bundle G)", async ({ page }) => {
+  let s = await page.evaluate(() => __doids.get());
+  // web build: no native bridge, but the intent trace is live from boot
+  expect(s.cloudNative).toBe(false);
+  expect(s.gcReports.map(r => r.method)).toContain("authenticate");
+  // fly the answered ending without a single shot (same path as the L2 test)
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 3000 });
+  // the ending card holds for 1s before a tap advances to the win screen
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "win", null, { timeout: 3000 });
+  s = await page.evaluate(() => __doids.get());
+  const achievements = s.gcReports
+    .filter(r => r.method === "reportAchievement").map(r => r.achievementId);
+  // answered with runFired === 0 and runLost === 0 → G3's rank mirror
+  expect(achievements).toContain("hollowoath.oath_keeper");
+  expect(achievements).toContain("hollowoath.spotless_rotation");
+  // saveHi posted the campaign score to the all-time board
+  const scores = s.gcReports.filter(r => r.method === "submitScore");
+  expect(scores.length).toBeGreaterThan(0);
+  expect(scores[scores.length - 1].leaderboardId).toBe("hollowoath.score.alltime");
+  expect(scores[scores.length - 1].value).toBeGreaterThan(0);
+});
+
+test("FIELD MEDIC runs stay off the Game Center boards (H3 gate)", async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem("doids_easy", "1"));
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 3000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "win", null, { timeout: 3000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.easyMode).toBe(true);
+  // achievements still earnable on easy mode; the boards are not
+  expect(s.gcReports.filter(r => r.method === "submitScore")).toHaveLength(0);
+  expect(s.gcReports.filter(r => r.method === "reportAchievement").length).toBeGreaterThan(0);
+});

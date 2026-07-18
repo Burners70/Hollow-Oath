@@ -1,5 +1,47 @@
 # Changelog
 
+## Bundles E + G: the native wrapper and Game Center (July 2026)
+
+The Mac-gated work, written so the Mac session is a checklist
+(`app/MAC_SETUP.md`). Owner decisions locked in: bundle ID
+`com.burners70.hollowoath` (permanent), iOS 16+ floor, E+G in one pass,
+1024 icon upscaled from `icon-512.png`.
+
+- **E1 Capacitor scaffold** in `app/`: `package.json` (core/ios/haptics/app/
+  status-bar + two local plugins), `capacitor.config.ts`, `sync.sh` (root →
+  `www/`, root files stay the source of truth), `setup-mac.sh` one-shot
+  bootstrap.
+- **E2 native shell config** as an idempotent script (`configure-ios.sh`):
+  landscape-only, status bar hidden, `UIRequiresFullScreen`, black webview
+  background, iOS 16.0 target; plus a native `appStateChange` hook in
+  `index.html` backing A4's auto-pause inside the wrapper.
+- **E4 iCloud save sync**: `hollow-icloud-kv` Swift plugin
+  (`NSUbiquitousKeyValueStore`, ~40 lines) + a web-no-op `cloud` facade —
+  every persistence write mirrors up (`doids_run/hi/codex/logs/
+  shrines_seen/veteran`), `syncFromCloud()` merges on launch (max hi-score,
+  union sets, cloud run only if local has none), RESET PROGRESS wipes the
+  cloud copy too.
+- **E5 privacy manifest**: no tracking, no collection, UserDefaults/CA92.1
+  only.
+- **E6 icon & launch screen**: single-size 1024 AppIcon + black Menlo
+  wordmark storyboard.
+- **B5 (found during E6): the icon PNGs still wore the red cross** — the
+  Geneva-Conventions emblem Bundle B removed from the game. All three web
+  icons and the new 1024 master now carry the staff-and-serpent
+  (drawAsclepius's exact bezier geometry, same `#ff2d55`).
+- **G Game Center**: `hollow-game-connect` Swift plugin (silent auth, never
+  blocks play) behind a fail-silent `gc` facade; all-time + daily
+  leaderboards from `saveHi()`/`recordDaily()` with FIELD MEDIC runs kept
+  off both (H3); all nine achievements wired (`reportRunAchievements()`
+  mirrors `drawWin`'s rank branches; FIRST DO NO HARM in `sectorClearNow`,
+  THE FULL CODEX at the codex save).
+
+Smoke suite now **34 tests**, all green (added: Game Center trace on the
+answered-ending win path; easy-mode board gate). Still needing the Mac
+itself: `setup-mac.sh` + signing, App Store Connect Game Center records,
+E8 device matrix, F3 haptics restraint pass.
+
+
 ## Polish pass 2: remaining review items (July 2026)
 
 Follow-on to the six owner fixes — the rest of the release-readiness review's

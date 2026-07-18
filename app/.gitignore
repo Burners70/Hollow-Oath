@@ -1,0 +1,13 @@
+# generated — the web game is copied in by sync.sh
+www/
+
+node_modules/
+
+# generated inside the Xcode project by `cap sync`
+ios/App/Pods/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/capacitor-cordova-ios-plugins/
+ios/App/output/
+ios/DerivedData/
+*.xcuserdatad/

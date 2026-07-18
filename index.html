@@ -275,6 +275,21 @@ window.addEventListener("keyup", e => { if (keyFor(e) !== undefined) input[keyFo
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state === "play") { snapshotRun(); state = "pause"; stateT = 0; }
 });
+/* E2/A4 — inside the wrapper the iOS lifecycle backs the same auto-pause.
+   WKWebView does fire visibilitychange on backgrounding, but the App
+   plugin's appStateChange is the definitive native signal — belt and
+   braces around a mid-run save. */
+if (NATIVE) {
+  try {
+    const A = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (A && A.addListener)
+      A.addListener("appStateChange", st => {
+        if (st && st.isActive === false && state === "play") {
+          snapshotRun(); state = "pause"; stateT = 0;
+        }
+      });
+  } catch (e) {}
+}
 
 /* ---------------- external controller (Gamepad API) ---------------- */
 const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false };
@@ -566,6 +581,87 @@ const haptic = (() => {
   };
 })();
 
+/* ---------------- iCloud save-sync facade (Bundle E4) ----------------
+   Web build: no-op. Native: bridges to the local hollow-icloud-kv plugin
+   (app/plugins/icloud-kv — NSUbiquitousKeyValueStore). Persistence writes
+   mirror through cloud.set/remove; syncFromCloud() merges on launch. */
+const cloud = (() => {
+  const plugin = () => {
+    const C = window.Capacitor;
+    return (C && C.isNativePlatform && C.isNativePlatform() &&
+            C.Plugins && C.Plugins.ICloudKV) || null;
+  };
+  const swallow = p => { if (p && p.catch) p.catch(() => {}); };
+  return {
+    native: () => !!plugin(),
+    set: (key, value) => {
+      const P = plugin(); if (!P) return;
+      try { swallow(P.set({ key, value: String(value) })); } catch (e) {}
+    },
+    remove: key => {
+      const P = plugin(); if (!P) return;
+      try { swallow(P.remove({ key })); } catch (e) {}
+    },
+    get: async key => {
+      const P = plugin(); if (!P) return null;
+      try {
+        const r = await P.get({ key });
+        return r && r.value != null ? String(r.value) : null;
+      } catch (e) { return null; }
+    }
+  };
+})();
+
+/* ---------------- Game Center facade (Bundle G4) ----------------
+   Web build: records intent in a bounded trace (asserted by the smoke
+   suite) and does nothing else. Native: bridges to the local
+   hollow-game-connect plugin. Fail-silent everywhere — Game Center never
+   blocks or interrupts play (G1). Board/achievement IDs must match the
+   App Store Connect records (setup table in app/MAC_SETUP.md). */
+const GC_BOARD_ALLTIME = "hollowoath.score.alltime";
+const GC_BOARD_DAILY = "hollowoath.score.daily";
+const GC_ACH = {
+  oathKeeper: "hollowoath.oath_keeper",             // answered, runFired === 0
+  hollowKeeper: "hollowoath.hollow_keeper",         // answered, fired only at secrets
+  oneWhoAnswered: "hollowoath.the_one_who_answered",// answered, any fire
+  sectorWarden: "hollowoath.sector_warden",         // fire ending
+  glyconUnmasked: "hollowoath.glycon_unmasked",     // all 3 shrines in one run
+  archivist: "hollowoath.archivist",                // all 14 log fragments in one run
+  spotless: "hollowoath.spotless_rotation",         // campaign complete, no Scion lost
+  noHarm: "hollowoath.first_do_no_harm",            // any sector cleared, 0 shots
+  fullCodex: "hollowoath.the_full_codex"            // every famous mind, across runs
+};
+const gc = (() => {
+  const plugin = () => {
+    const C = window.Capacitor;
+    return (C && C.isNativePlatform && C.isNativePlatform() &&
+            C.Plugins && C.Plugins.GameConnect) || null;
+  };
+  const reports = [];
+  const call = (method, args) => {
+    reports.push(Object.assign({ method }, args));
+    if (reports.length > 60) reports.shift();
+    const P = plugin(); if (!P) return;
+    try {
+      const p = P[method](args);
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  };
+  const done = new Set();   // achievements are one-way; report each once per session
+  return {
+    auth: () => call("authenticate", {}),
+    score: (value, leaderboardId) =>
+      call("submitScore", { value: Math.max(0, Math.round(value)), leaderboardId }),
+    achieve: achievementId => {
+      if (!achievementId || done.has(achievementId)) return;
+      done.add(achievementId);
+      call("reportAchievement", { achievementId });
+    },
+    reports
+  };
+})();
+gc.auth();   // silent sign-in at launch; auth continues in the background (G1)
+
 /* ---------------- helpers ---------------- */
 function mulberry32(a) {
   return function () {
@@ -756,10 +852,12 @@ function snapshotRun() {
     runSeed, runMode, famousMap
   };
   try { localStorage.setItem("doids_run", JSON.stringify(savedRun)); } catch (e) {}
+  cloud.set("doids_run", JSON.stringify(savedRun));   // E4 mirror
 }
 function clearRun() {
   savedRun = null;
   try { localStorage.removeItem("doids_run"); } catch (e) {}
+  cloud.remove("doids_run");   // E4 mirror
 }
 function restoreRun(r) {
   levelIdx = r.levelIdx; score = r.score; lives = r.lives;
@@ -779,6 +877,7 @@ let codex = new Set();
 try { codex = new Set(JSON.parse(localStorage.getItem("doids_codex") || "[]")); } catch (e) {}
 function saveCodex() {
   try { localStorage.setItem("doids_codex", JSON.stringify([...codex])); } catch (e) {}
+  cloud.set("doids_codex", JSON.stringify([...codex]));   // E4 mirror
 }
 /* Bundle K1 — the Static's story is re-readable: every log fragment and
    shrine card ever recovered persists across runs, into the codex ARCHIVE */
@@ -786,11 +885,13 @@ let logsSeen = new Set();
 try { logsSeen = new Set(JSON.parse(localStorage.getItem("doids_logs") || "[]")); } catch (e) {}
 function saveLogs() {
   try { localStorage.setItem("doids_logs", JSON.stringify([...logsSeen])); } catch (e) {}
+  cloud.set("doids_logs", JSON.stringify([...logsSeen]));   // E4 mirror
 }
 let shrinesSeen = new Set();
 try { shrinesSeen = new Set(JSON.parse(localStorage.getItem("doids_shrines_seen") || "[]")); } catch (e) {}
 function saveShrinesSeen() {
   try { localStorage.setItem("doids_shrines_seen", JSON.stringify([...shrinesSeen])); } catch (e) {}
+  cloud.set("doids_shrines_seen", JSON.stringify([...shrinesSeen]));   // E4 mirror
 }
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
@@ -846,7 +947,48 @@ try { veteran = localStorage.getItem("doids_veteran") === "1"; } catch (e) {}
 function markVeteran() {
   veteran = true;
   try { localStorage.setItem("doids_veteran", "1"); } catch (e) {}
+  cloud.set("doids_veteran", "1");   // E4 mirror
 }
+
+/* Bundle E4 — on a native launch, fold the iCloud copy into local state:
+   the larger hi-score, the union of the codex/log/shrine sets, veteran if
+   either side is, and the cloud run snapshot only when this device has
+   none. Fire-and-forget: the title reads all of these live every frame,
+   so a merge that lands a beat late simply appears. */
+async function syncFromCloud() {
+  if (!cloud.native()) return;
+  try {
+    const [cHi, cCodex, cLogs, cShrines, cVet, cRun] = await Promise.all([
+      cloud.get("doids_hi"), cloud.get("doids_codex"), cloud.get("doids_logs"),
+      cloud.get("doids_shrines_seen"), cloud.get("doids_veteran"), cloud.get("doids_run")]);
+    if (cHi && +cHi > hiscore) {
+      hiscore = +cHi;
+      try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
+    } else if (hiscore > 0) cloud.set("doids_hi", hiscore);
+    const union = (set, raw, save) => {
+      if (!raw) return;
+      try {
+        const before = set.size;
+        for (const v of JSON.parse(raw)) set.add(v);
+        if (set.size > before) save();   // save() pushes the union back up too
+      } catch (e) {}
+    };
+    union(codex, cCodex, saveCodex);
+    union(logsSeen, cLogs, saveLogs);
+    union(shrinesSeen, cShrines, saveShrinesSeen);
+    if (cVet === "1" && !veteran) markVeteran();
+    if (cRun && !savedRun) {
+      try {
+        const parsed = JSON.parse(cRun);
+        if (validRun(parsed)) {
+          savedRun = parsed;
+          try { localStorage.setItem("doids_run", cRun); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
+syncFromCloud();
 function utcDateNum() {
   const d = new Date();
   return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
@@ -870,7 +1012,8 @@ function recordDaily() {
     if (rec && rec.date === utcDateNum()) {
       rec.score = Math.max(rec.score || 0, score);
       localStorage.setItem("doids_daily", JSON.stringify(rec));
-      // when Bundle G lands, report rec.score to the daily Game Center board here
+      // G2/M3 — the daily board; FIELD MEDIC runs stay off the boards (H3)
+      if (!easyMode) gc.score(rec.score, GC_BOARD_DAILY);
     }
   } catch (e) {}
 }
@@ -1540,7 +1683,7 @@ function checkSectorClear() {
 
 function sectorClearNow() {
   score += 1000;
-  if (level.firedShots === 0) score += 2000;
+  if (level.firedShots === 0) { score += 2000; gc.achieve(GC_ACH.noHarm); }   // G3
   if (dailyMod("stopwatch") && sectorT < 90) { score += 500; level.stopwatchBeat = true; }
   bannerMsg = null;
   clearCards = level.fragmentsHere.map(f => ({
@@ -1667,7 +1810,11 @@ function update(dt) {
       input.tap = false; return;
     case "clear": updateClear(); return;
     case "ending":
-      if (input.tap && stateT > 1) { state = "win"; stateT = 0; saveHi(); recordDaily(); clearRun(); }
+      if (input.tap && stateT > 1) {
+        state = "win"; stateT = 0;
+        reportRunAchievements();   // G3 — before saveHi so the trace reads rank → score
+        saveHi(); recordDaily(); clearRun();
+      }
       input.tap = false; return;
     case "dead":
       if (stateT > 1.6) {
@@ -1688,8 +1835,30 @@ function update(dt) {
   }
 }
 
+/* Bundle G3 — the rank system IS the achievement list. Reported at the
+   ending → win transition, mirroring drawWin's rank branches exactly so
+   the on-screen rank and the Game Center record can never disagree. */
+function reportRunAchievements() {
+  if (endingType === "answered") {
+    if (runFired === 0) gc.achieve(GC_ACH.oathKeeper);
+    else if (firedAtSecret && !firedAtCombat) gc.achieve(GC_ACH.hollowKeeper);
+    else gc.achieve(GC_ACH.oneWhoAnswered);
+  } else if (endingType === "fire") gc.achieve(GC_ACH.sectorWarden);
+  if (shrines.size >= SHRINES.length) gc.achieve(GC_ACH.glyconUnmasked);
+  if (runFragments >= FRAGMENTS.length) gc.achieve(GC_ACH.archivist);
+  if (runLost === 0) gc.achieve(GC_ACH.spotless);
+}
+
 function saveHi() {
-  if (score > hiscore) { hiscore = score; try { localStorage.setItem("doids_hi", hiscore); } catch (e) {} }
+  if (score > hiscore) {
+    hiscore = score;
+    try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
+    cloud.set("doids_hi", hiscore);   // E4 mirror
+  }
+  // G2 — the all-time board. FIELD MEDIC runs stay off it (H3: report only
+  // when easy mode is off); the daily flight posts to its own board in
+  // recordDaily() instead.
+  if (!easyMode && runMode !== "daily") gc.score(score, GC_BOARD_ALLTIME);
 }
 
 let introIdx = 0;
@@ -1834,7 +2003,10 @@ function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
     "doids_intro"];
-  for (const k of wipe) { try { localStorage.removeItem(k); } catch (e) {} }
+  for (const k of wipe) {
+    try { localStorage.removeItem(k); } catch (e) {}
+    cloud.remove(k);   // E4 — a wipe means the cloud copy too
+  }
   hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set();
   savedRun = null; checkpoint = null; veteran = false; introSeen = false;
   unresolvedHaunt = false;
@@ -2394,6 +2566,7 @@ function updateDocking(dt) {
         const f = FAMOUS[p.famousId];
         upgrades[f.upgrade] = true;
         codex.add(p.famousId); saveCodex();
+        if (codex.size >= FAMOUS.length) gc.achieve(GC_ACH.fullCodex);   // G3 — across runs
         if (f.upgrade === "fabrica") s.vitals = Math.min(maxVitals(), s.vitals + 25);
         score += 1500;
         goldBurst(level.mx, level.my + 40);
@@ -5134,7 +5307,8 @@ window.__doids = {
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
     rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect() },
-    decoyOutcome, fakeMercy: level && level.fakeMercy }),
+    decoyOutcome, fakeMercy: level && level.fakeMercy,
+    gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
   go: toBriefing,
   setStaticClock: v => { staticClock = v; },
   remix: startRemix,
