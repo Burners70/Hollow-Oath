@@ -1,0 +1,25 @@
+{
+  "name": "hollow-oath-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native iOS wrapper for Hollow Oath (Capacitor). The web game at the repo root is the source of truth — app/www is a generated copy; never edit it (APP_STORE_ROADMAP.md, Bundle E1).",
+  "scripts": {
+    "copy": "./sync.sh",
+    "sync": "./sync.sh && npx cap sync ios",
+    "open": "npx cap open ios",
+    "setup": "./setup-mac.sh"
+  },
+  "dependencies": {
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0",
+    "hollow-game-connect": "file:plugins/game-connect",
+    "hollow-icloud-kv": "file:plugins/icloud-kv"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "typescript": "^5.4.0"
+  }
+}

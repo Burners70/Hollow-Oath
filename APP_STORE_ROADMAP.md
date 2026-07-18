@@ -166,6 +166,12 @@ mask*. Sector 0 is already ASCLEPION. **Priority: 2. Dependencies: none.**
 - [x] **B4. Visual check.** Screenshot title, sector 0 with a waiting Scion, MERCY
   close-up, a wreck, and intro panel 1 (Playwright `page.screenshot`) and eyeball
   that the emblem reads at all five scales.
+- [x] **B5. The icons wore it too (found July 2026, fixed).** The B2 sweep covered
+  canvas draw calls but not the PNG icons — `icon-512.png`, `icon-192.png` and
+  `apple-touch-icon.png` still carried the red cross, and E6 would have shipped
+  it as the App Store icon. All three (plus the new 1024 master) now wear the
+  staff-and-serpent in the same `#ff2d55`, drawn with `drawAsclepius`'s exact
+  bezier geometry.
 
 ---
 
@@ -262,36 +268,52 @@ to reject thin web wrappers, so the wrapper must add genuinely native capabiliti
 **Priority: 5. Dependencies: A (pause/save gives the wrapper something to sync);
 F should land in the same release.**
 
-- [ ] **E1. Capacitor scaffold in `app/`.**
+- [x] **E1. Capacitor scaffold in `app/`.**
   `app/package.json` with `@capacitor/core`, `@capacitor/ios`, `@capacitor/haptics`,
   `@capacitor/app`, `@capacitor/status-bar`. `capacitor.config.ts` with
-  `appId: "com.burners70.hollowoath"` (a personal reverse-DNS ID — confirm the
-  final value with the owner before first submission; it is permanent), `appName:
-  "Hollow Oath"`, `webDir: "www"`. A `sync.sh` (or npm script) that copies
+  `appId: "com.burners70.hollowoath"` (**owner-confirmed July 2026** — permanent),
+  `appName: "Hollow Oath"`, `webDir: "www"`. A `sync.sh` (or npm script) that copies
   `index.html`, `manifest.webmanifest`, and the three PNGs from the repo root into
   `app/www/`. The root files remain the source of truth; never edit `app/www/`.
-- [ ] **E2. Native shell config.** In the generated Xcode project: landscape-only
+  *(Landed. `app/setup-mac.sh` is the one-shot bootstrap — it runs `npm install`,
+  `sync.sh`, `npx cap add ios` and the E2 config script. See app/MAC_SETUP.md.)*
+- [x] **E2. Native shell config.** In the generated Xcode project: landscape-only
   (`UISupportedInterfaceOrientations` = landscape left/right only), status bar
   hidden, `UIRequiresFullScreen`, black background behind the webview, and the
   webview's `contentInsetAdjustmentBehavior` left to Capacitor's default (the game
   already handles safe-area insets via `env(safe-area-inset-*)`).
+  *(Landed as `app/configure-ios.sh` — idempotent PlistBuddy/pbxproj edits applied
+  after `cap add ios`, plus the iOS 16.0 floor (owner decision) and the native
+  `appStateChange` auto-pause hook in `index.html`. Verify once in Xcode on the
+  first Mac build.)*
 - [x] **E3. In-app web/native switches.** In `index.html`, detect the wrapper via
   `window.Capacitor?.isNativePlatform?.()`. When native: suppress the A2HS banner
   entirely (the IIFE that manages `#a2hs`), skip `goFullscreen()` (meaningless in
   a wrapper), and skip the `beforeinstallprompt` path. *(Landed as the `NATIVE`
   const — verify inside the real wrapper when E1/E2 are scaffolded on a Mac.)*
-- [ ] **E4. iCloud save sync.** Mirror `doids_run`, `doids_hi`, `doids_codex` (and
+- [x] **E4. iCloud save sync.** Mirror `doids_run`, `doids_hi`, `doids_codex` (and
   Bundle K's `doids_logs`) to iCloud key-value storage via a small Capacitor
   plugin (community `capacitor-icloud-kv` or a ~40-line Swift plugin using
   `NSUbiquitousKeyValueStore`). Read-back strategy: on launch, take the larger of
   local vs. cloud hi-score, the union of codex/log sets, and the cloud run
   snapshot only if local has none.
-- [ ] **E5. Privacy manifest & nutrition label.** `PrivacyInfo.xcprivacy` declaring
+  *(Landed: the ~40-line Swift plugin (`app/plugins/icloud-kv`), a web-no-op
+  `cloud` facade in `index.html` mirroring every persistence write — plus
+  `doids_shrines_seen` and `doids_veteran` — and `syncFromCloud()` implementing
+  exactly that merge. Needs a two-device round-trip test with E8.)*
+- [x] **E5. Privacy manifest & nutrition label.** `PrivacyInfo.xcprivacy` declaring
   no tracking, no data collection; App Store Connect privacy answers = "Data Not
   Collected". (No analytics SDK. Keep it that way — it is a selling point.)
-- [ ] **E6. Icons & launch screen.** Generate the full AppIcon set from
+  *(Landed at `app/ios-config/PrivacyInfo.xcprivacy` (UserDefaults/CA92.1 is the
+  only required-reason API); installed by `configure-ios.sh`. The App Store
+  Connect answers themselves happen at O6.)*
+- [x] **E6. Icons & launch screen.** Generate the full AppIcon set from
   `icon-512.png` (needs a 1024×1024 master — ask the owner or upscale carefully),
   plus a plain black launch storyboard with the title wordmark.
+  *(Landed: `app/resources/icon-1024.png` (owner-approved upscale; swap in a true
+  master any time — configure-ios.sh re-installs it), single-size AppIcon set,
+  and a black Menlo-wordmark `LaunchScreen.storyboard`. The upscale pass also
+  caught a Bundle B escapee — see B5.)*
 - [x] **E7. IP-sensitive copy check — RESOLVED (owner decision, July 2026).**
   Nostalgia is part of the sell: the homage stays loud, tiered by surface so it
   is both discoverable and trademark-safe.
@@ -306,11 +328,11 @@ F should land in the same release.**
     Evoke the era generically and link the homepage, which carries the named
     lineage. Details in O2.
   At submission (O6), verify all three tiers still hold.
-- [ ] **E8. Device test matrix.** Run on the oldest iOS you claim (suggest iOS 15+,
-  which bounds hardware at ~iPhone 6s/SE1 — consider iOS 16+ to keep the perf
-  floor at A11): touch controls, gyro permission flow, pause-on-background,
-  resume, silent-switch behaviour (game audio should respect the ringer switch —
-  WKWebView default — confirm and document).
+- [ ] **E8. Device test matrix.** Run on the oldest iOS you claim (~~suggest iOS
+  15+~~ **iOS 16+, owner decision July 2026** — perf floor at A11): touch
+  controls, gyro permission flow, pause-on-background, resume, silent-switch
+  behaviour (game audio should respect the ringer switch — WKWebView default —
+  confirm and document). *(Checklist table ready in app/MAC_SETUP.md §7.)*
 
 ---
 
@@ -343,9 +365,9 @@ with E). Dependencies: E (native bridge), C4 (settings toggle).**
   bay has you. No-ops on web.)*
 - [ ] **F3. Restraint pass.** Play a full sector; if haptics fire more than ~once
   per 5 s of normal flight, cut the least meaningful call sites. Haptics carry
-  meaning here only if they stay rare. *(Needs a real iPhone — do with E8.
-  First candidates to cut if too chatty: the intro-screen heartbeat and the
-  boarding lub-dub for ordinary Scions.)*
+  meaning here only if they stay rare. *(Needs a real iPhone — do with E8;
+  scripted into app/MAC_SETUP.md §8. First candidates to cut if too chatty: the
+  intro-screen heartbeat and the boarding lub-dub for ordinary Scions.)*
 
 ---
 
@@ -354,11 +376,17 @@ with E). Dependencies: E (native bridge), C4 (settings toggle).**
 **Why:** Retention + expected furniture for a paid arcade game. The rank system is
 already a finished achievement list. **Priority: 7. Dependencies: E.**
 
-- [ ] **G1. Plugin + auth.** Community `capacitor-game-connect` (or a small Swift
+- [x] **G1. Plugin + auth.** Community `capacitor-game-connect` (or a small Swift
   plugin). Authenticate on launch, silently; never block play on Game Center.
-- [ ] **G2. Leaderboards.** `score` (all-time). Report from `saveHi()`. (A daily
+  *(Landed as the small Swift plugin — `app/plugins/game-connect`, GameKit —
+  with `gc.auth()` fired once at boot; the auth sheet only appears if iOS
+  insists, and every call is fail-silent.)*
+- [x] **G2. Leaderboards.** `score` (all-time). Report from `saveHi()`. (A daily
   board arrives with Bundle M's daily seed.)
-- [ ] **G3. Achievements** (IDs ↔ existing flags — all already tracked in code):
+  *(Landed: `hollowoath.score.alltime` from `saveHi()`, `hollowoath.score.daily`
+  from `recordDaily()`; FIELD MEDIC runs post to neither (H3's gate). The App
+  Store Connect records themselves are a table in app/MAC_SETUP.md §5.)*
+- [x] **G3. Achievements** (IDs ↔ existing flags — all already tracked in code):
   - OATH KEEPER — answered ending, `runFired === 0`
   - HOLLOW KEEPER — answered, `firedAtSecret && !firedAtCombat`
   - THE ONE WHO ANSWERED — answered ending, any fire
@@ -370,8 +398,14 @@ already a finished achievement list. **Priority: 7. Dependencies: E.**
   - THE FULL CODEX — `codex.size === FAMOUS.length` (across runs)
   - Report at the ending/win screens and codex save; wrap in the same
     fail-silent style as localStorage.
-- [ ] **G4. Web no-op.** All Game Center calls go through one `gc` facade that is
-  a no-op outside the wrapper (same pattern as F1).
+  *(Landed: `reportRunAchievements()` mirrors `drawWin`'s rank branches at the
+  ending → win transition; FIRST DO NO HARM fires in `sectorClearNow()`, THE
+  FULL CODEX at the codex save. IDs live in `GC_ACH` and must match the App
+  Store Connect records — table in app/MAC_SETUP.md §5.)*
+- [x] **G4. Web no-op.** All Game Center calls go through one `gc` facade that is
+  a no-op outside the wrapper (same pattern as F1). *(On the web the facade also
+  keeps a bounded intent trace, exposed as `gcReports` on `__doids.get()` — the
+  smoke suite asserts the rank/score wiring against it.)*
 
 ---
 
@@ -681,10 +715,16 @@ D ──┴────────────────┘
       P (1.1 — THE PENDULUM) → Q (1.2 — THE DEEP HOLLOWS)   → both free
 ```
 
-**Status (July 2026):** A–D and **H–N are all shipped** on the web build, plus
-the web-safe slices of E (E3, E7) and F (F1/F2 — no-ops until the wrapper
-exists). Everything left — E1/E2/E4–E8, F3, G, O — needs a Mac with Xcode
-and/or App Store Connect. The game already plays at the $4.99 feature bar.
+**Status (July 2026, updated):** A–D and **H–N are all shipped** on the web
+build, plus the web-safe slices of E (E3, E7) and F (F1/F2 — no-ops until the
+wrapper exists). **The Mac-gated code is now written too**: E1/E2/E4/E5/E6 and
+all of G live in `app/` (Capacitor scaffold, config scripts, two local Swift
+plugins) and in `index.html` (`cloud` + `gc` facades, wired and smoke-tested);
+the owner's bundle ID `com.burners70.hollowoath` and the iOS 16+ floor are
+locked. What's left needs hands on the Mac itself: run `app/setup-mac.sh`,
+sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5), then the
+on-device passes — E8 (matrix in §7), F3 (§8) — and Bundle O. The game already
+plays at the $4.99 feature bar.
 **P and Q are specced and locked** (owner decision, July 2026) as the free
 1.1 and 1.2 post-launch updates — see their bundle sections above and
 [PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
