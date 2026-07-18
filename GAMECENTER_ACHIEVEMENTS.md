@@ -21,7 +21,7 @@ earned, but App Store Connect still requires both descriptions.
 | `hollowoath.oath_keeper` | OATH KEEPER | No | Earn the pacifist ending. | Completed the game without firing a shot. |
 | `hollowoath.hollow_keeper` | HOLLOW KEEPER | **Yes** | Some oaths bend without breaking. | Answered the call — every shot spent on secrets, never in anger. |
 | `hollowoath.the_one_who_answered` | THE ONE WHO ANSWERED | No | Something out there is calling. Answer it. | Reached the beacon and answered the call. |
-| `hollowoath.sector_warden` | SECTOR WARDEN | No | Not every call has to be answered. | Silenced the Static by fire. |
+| `hollowoath.sector_warden` | SECTOR WARDEN | No | The Static can be answered — or silenced. | Silenced the Static by fire. |
 | `hollowoath.glycon_unmasked` | GLYCON UNMASKED | **Yes** | Someone is feeding the Static. Dig deeper — three times over. | Unmasked the puppet god — all three shrines found in a single rotation. |
 | `hollowoath.archivist` | ARCHIVIST | No | Every voice on the record, in one rotation. | Recovered all 14 log fragments in a single run. |
 | `hollowoath.spotless_rotation` | SPOTLESS ROTATION | No | Bring them all home. | Completed the campaign without losing a single Scion. |
