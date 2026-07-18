@@ -54,7 +54,12 @@ wins worth landing before the store screenshots are taken.
 
 ## 3. Bugs found (fix before launch screenshots)
 
-### 3.1 HIGH — Title pills overlap; a mis-tap burns the daily attempt
+> **Update (July 2026):** §3.1 and §3.2 are **fixed** on this branch as part of
+> the six-fix polish pass (see CHANGELOG.md), along with owner-requested changes
+> to lift feel, early-sector turret fairness, fail→menu flow, daily-flight
+> modifiers, and the shield-button placement. §3.3–§3.6 remain open.
+
+### 3.1 ~~HIGH~~ FIXED — Title pills overlap; a mis-tap burns the daily attempt
 
 `resumeRect()` sits at `y = vh*0.80, h = 34`; `remixRect()`/`dailyRect()` sit
 at `y = vh*0.88, h = 30`. They overlap whenever `0.08*vh < 34` → **every
@@ -72,7 +77,7 @@ spacing), and hit-test RESUME first while a save exists. One smoke test:
 assert `resumeRect` intersects neither `remixRect` nor `dailyRect` at
 390/375/320 heights.
 
-### 3.2 MEDIUM — Title wordmark collides with the STORY pill on narrow screens
+### 3.2 ~~MEDIUM~~ FIXED — Title wordmark collides with the STORY pill on narrow screens
 
 At ≤ ~600 px wide (SE/8 landscape, 568×320 tested) the 60 px "Hollow Oath"
 wordmark overlaps the STORY pill and the top pill row generally. Cap the font

@@ -40,7 +40,9 @@
     border-color:rgba(255,196,0,.55); color:rgba(255,196,0,.9); background:rgba(255,196,0,.07);
     box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
   #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
-  #btnShield { right:calc(130px + env(safe-area-inset-right)); bottom:calc(122px + env(safe-area-inset-bottom));
+  /* nestled directly above the FIRE/THRUST pair (one thumb serves all
+     three) rather than floating off on its own */
+  #btnShield { right:calc(64px + env(safe-area-inset-right)); bottom:calc(116px + env(safe-area-inset-bottom));
     width:64px; height:64px; line-height:60px; font-size:11px;
     border-color:rgba(105,240,174,.55); color:rgba(105,240,174,.9); background:rgba(105,240,174,.07);
     box-shadow:0 0 18px rgba(105,240,174,.25), inset 0 0 12px rgba(105,240,174,.12); }
@@ -750,6 +752,7 @@ function restoreRun(r) {
   runFragments = r.runFragments; blackboxCount = r.blackboxCount;
   shrines = new Set(r.shrines); upgrades = r.upgrades || {};
   runSeed = r.runSeed || 0; runMode = r.runMode || "campaign"; famousMap = r.famousMap || null;
+  rollDailyMods();
   mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; surfaceCtx = null;
 }
@@ -846,6 +849,28 @@ function recordDaily() {
     }
   } catch (e) {}
 }
+/* The daily flight carries teeth beyond a fresh seed: two modifiers drawn
+   deterministically from the day's number — the same two for every pilot on
+   Earth, so the daily is a shared *condition*, not just a shared map. */
+const DAILY_MODS = [
+  { id: "rationed",  name: "RATIONED TANK",     desc: "fuel cells run at 70% capacity" },
+  { id: "surge",     name: "SURGE FRONT",       desc: "the 41-second clock runs in every sector" },
+  { id: "crowded",   name: "CROWDED SKY",       desc: "two extra hunter drones per sector" },
+  { id: "sleepers",  name: "SLEEPER CELL",      desc: "every saboteur is a sleeper — listen closely" },
+  { id: "dark",      name: "BLACKOUT ROTATION", desc: "every sector is dark; fly by lamp" },
+  { id: "stopwatch", name: "STOPWATCH",         desc: "clear each sector under 90s for +500" }
+];
+let dailyMods = [];
+function rollDailyMods() {
+  if (runMode !== "daily") { dailyMods = []; return; }
+  const rng = mulberry32(runSeed ^ 0x9e3779b9);
+  const pool = DAILY_MODS.slice();
+  dailyMods = [];
+  for (let k = 0; k < 2; k++)
+    dailyMods.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+}
+const dailyMod = id => dailyMods.some(m => m.id === id);
+
 function startRemix() {
   goFullscreen();
   if (window.hideA2HS) window.hideA2HS();
@@ -864,6 +889,7 @@ function startDaily() {
   runMode = "daily";
   runSeed = utcDateNum();
   famousMap = buildFamousMap(runSeed);
+  rollDailyMods();
   // the attempt is spent the moment it launches — no re-rolling a bad start
   try { localStorage.setItem("doids_daily", JSON.stringify({ date: utcDateNum(), score: 0, done: true })); } catch (e) {}
   toBriefing(0);
@@ -895,17 +921,21 @@ function storyRect() {
   const h = helpRect();
   return { x: h.x, y: h.y + 42, w: 150, h: 34 };
 }
+/* the three lower title pills are laid out from one place so they can
+   never collide (on phone-height viewports they used to overlap — and the
+   old remix/daily-first hit order could burn the daily attempt on a tap
+   meant for RESUME). DAILY centres itself while REMIX is still locked. */
 function resumeRect() {
   const w = Math.min(260, vw * 0.6);
-  return { x: vw / 2 - w / 2, y: vh * 0.80, w, h: 34 };
+  return { x: vw / 2 - w / 2, y: vh * 0.74, w, h: 34 };
 }
 function remixRect() {
   const w = Math.min(200, vw * 0.4);
-  return { x: vw / 2 - w - 8, y: vh * 0.88, w, h: 30 };
+  return { x: vw / 2 - w - 8, y: vh * 0.86, w, h: 30 };
 }
 function dailyRect() {
   const w = Math.min(200, vw * 0.4);
-  return { x: vw / 2 + 8, y: vh * 0.88, w, h: 30 };
+  return { x: veteran ? vw / 2 + 8 : vw / 2 - w / 2, y: vh * 0.86, w, h: 30 };
 }
 function continueRect() {
   const w = Math.min(300, vw * 0.72);
@@ -1002,7 +1032,8 @@ function genLevel(n) {
     blackbox: null, beacon: null, lift: null, shrine: null, roof: null,
     mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
     total: 0, firedShots: 0, extraction: null, pulse: null, isCave: false,
-    dark: r.dark, isFinale: n === FINALE_IDX, contamKnown: false, fragmentsHere: [] };
+    dark: r.dark || dailyMod("dark"), isFinale: n === FINALE_IDX,
+    contamKnown: false, fragmentsHere: [] };
 
   const spots = [];
   const pick = minDist => {
@@ -1029,11 +1060,13 @@ function genLevel(n) {
     f.role = "famous"; f.famousId = famousIdFor(n);
   }
   // saboteurs are extra figures, indistinguishable at a distance
-  for (let i = 0; i < r.sabs; i++) {
+  const nSabs = r.sabs + (dailyMod("sleepers") && r.sabs ? 1 : 0);
+  for (let i = 0; i < nSabs; i++) {
     const x = pick(260);
     const y = flatten(heights, x, 70);
     const sab = newOid(x, y, "saboteur");
-    sab.sleeper = n >= 2 && rng() < (n === 6 ? 0.75 : 0.5); // the terraces crawl with sleepers
+    sab.sleeper = dailyMod("sleepers") ||
+      (n >= 2 && rng() < (n === 6 ? 0.75 : 0.5)); // the terraces crawl with sleepers
     lvl.oids.push(sab);
   }
   // two of the ordinary Scions carry log fragments
@@ -1048,7 +1081,33 @@ function genLevel(n) {
     const y = flatten(heights, x, 40);
     lvl.turrets.push({ x, y, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
   }
-  for (let i = 0; i < r.drones; i++) {
+  // Early-sector fairness pass: no Scion may wait inside interlocking turret
+  // cover. A rescue that can't be flown without firing (or a shield the
+  // player hasn't learned yet) breaks the oath's own teaching — save it for
+  // the later sectors. Any extra turrets crowding a Scion get re-sited.
+  if (n <= 2) {
+    const COVER_R = 380, MAX_COVER = 1;
+    const coverers = (o, skip) => lvl.turrets.filter(t =>
+      t !== skip && Math.hypot(t.x - o.x, t.y - o.y) < COVER_R);
+    for (const o of lvl.oids) {
+      let guard = 0;
+      while (coverers(o).length > MAX_COVER && guard++ < 12) {
+        const t = coverers(o)[0];
+        // a fair new spot: never lands on top of anyone, and only enters an
+        // oid's reach if that oid currently has no other turret covering it
+        let nx = t.x, ok = false;
+        for (let tries = 0; tries < 60 && !ok; tries++) {
+          nx = 600 + rng() * (W - 900);
+          ok = lvl.oids.every(q =>
+            Math.abs(q.x - nx) > COVER_R + 40 ||
+            (Math.abs(q.x - nx) > 120 && coverers(q, t).length === 0));
+        }
+        if (ok) { t.x = nx; t.y = flatten(heights, nx, 40); }
+        else lvl.turrets.splice(lvl.turrets.indexOf(t), 1);   // retire it — never ship the pocket
+      }
+    }
+  }
+  for (let i = 0; i < r.drones + (dailyMod("crowded") ? 2 : 0); i++) {
     lvl.drones.push({ x: 900 + rng() * (W - 1200), y: 400 + rng() * 250,
       vx: 0, vy: 0, alive: true, bob: rng() * 6 });
   }
@@ -1261,7 +1320,10 @@ function exitCave() {
 }
 
 function maxVitals() { return upgrades.fabrica ? 125 : 100; }
-function maxFuel() { return upgrades.growth ? 120 : 100; }          // Levi-Montalcini
+function maxFuel() {                                                // Levi-Montalcini
+  const base = upgrades.growth ? 120 : 100;
+  return dailyMod("rationed") ? Math.round(base * 0.7) : base;
+}
 function scanRate() { return upgrades.pathology ? 1.5 : 1; }        // Virchow
 function lampRadius() {
   // the lamp itself falters while the Static surges (Bundle I2)
@@ -1286,13 +1348,16 @@ function resetRun() {
   clearCards = []; revealCard = null; surfaceCtx = null;
   checkpoint = null;
   runSeed = 0; runMode = "campaign"; famousMap = null;
+  rollDailyMods();
   clearRun();
 }
 
+let sectorT = 0;   // sector flight time — the daily STOPWATCH reads it
 function toBriefing(n) {
   levelIdx = n;
   surfaceCtx = null;
   level = genLevel(n);
+  sectorT = 0;
   spawnShip();
   camera = { x: ship.x, y: ship.y, shake: 0 };
   particles = []; texts = [];
@@ -1316,7 +1381,7 @@ let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
-  if (!(levelIdx >= 4 || level.isCave)) return;
+  if (!(levelIdx >= 4 || level.isCave || dailyMod("surge"))) return;
   staticClock += dt;
   if (staticClock < STATIC_PERIOD) return;
   staticClock -= STATIC_PERIOD;
@@ -1445,6 +1510,7 @@ function checkSectorClear() {
 function sectorClearNow() {
   score += 1000;
   if (level.firedShots === 0) score += 2000;
+  if (dailyMod("stopwatch") && sectorT < 90) { score += 500; level.stopwatchBeat = true; }
   bannerMsg = null;
   clearCards = level.fragmentsHere.map(f => ({
     kicker: "LOG FRAGMENT RECOVERED", title: "", body: f, color: "#00e5ff" }));
@@ -1616,24 +1682,39 @@ function updateMenu() {
       introIdx = 0;
       state = "intro"; stateT = 0;
       blip(330, 660, 0.2, "sine", 0.1);
-    } else if (state === "title" && veteran && inRect(remixRect(), input.tapX, input.tapY)) {
-      startRemix();
-    } else if (state === "title" && inRect(dailyRect(), input.tapX, input.tapY)) {
-      startDaily();
     } else if (state === "title" && savedRun && inRect(resumeRect(), input.tapX, input.tapY)) {
       goFullscreen();
       if (window.hideA2HS) window.hideA2HS();
       restoreRun(savedRun);
       toBriefing(levelIdx);
       blip(330, 660, 0.2, "sine", 0.1);
-    } else if (state === "gameover" && checkpoint && inRect(continueRect(), input.tapX, input.tapY)) {
-      const r = checkpoint;
-      restoreRun(r);
-      score = Math.floor(r.score * 0.75);
-      lives = startLives();
-      checkpoint = null;
-      toBriefing(r.levelIdx);
-      blip(330, 660, 0.2, "sine", 0.1);
+    } else if (state === "title" && veteran && inRect(remixRect(), input.tapX, input.tapY)) {
+      startRemix();
+    } else if (state === "title" && inRect(dailyRect(), input.tapX, input.tapY)) {
+      startDaily();
+    } else if (state === "gameover") {
+      if (checkpoint && inRect(continueRect(), input.tapX, input.tapY)) {
+        const r = checkpoint;
+        restoreRun(r);
+        score = Math.floor(r.score * 0.75);
+        lives = startLives();
+        checkpoint = null;
+        toBriefing(r.levelIdx);
+        blip(330, 660, 0.2, "sine", 0.1);
+      } else {
+        // every fail path leads home to the menu — and the run survives it:
+        // the checkpoint is written back (continue penalty applied) so the
+        // title's RESUME pill still offers the rotation.
+        if (checkpoint) {
+          restoreRun(checkpoint);
+          score = Math.floor(checkpoint.score * 0.75);
+          lives = startLives();
+          snapshotRun();
+          checkpoint = null;
+        }
+        state = "title"; stateT = 0;
+        blip(300, 200, 0.12, "sine", 0.08);
+      }
     } else {
       goFullscreen();
       if (window.hideA2HS) window.hideA2HS();
@@ -1671,8 +1752,17 @@ function updateIntro(dt) {
   input.tap = false;
 }
 
+/* the daily's two modifiers arrive inside the transmission itself — the
+   conditions are part of the tasking, not HUD furniture */
+function briefText() {
+  let t = BRIEFS[levelIdx];
+  if (runMode === "daily" && dailyMods.length)
+    t = "TODAY'S CONDITIONS — " +
+      dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n" + t;
+  return t;
+}
 function updateBrief(dt) {
-  const full = BRIEFS[levelIdx].length;
+  const full = briefText().length;
   briefChars = Math.min(full, briefChars + dt * 55);
   if (input.tap && stateT > 0.5) {
     if (briefChars < full) briefChars = full;
@@ -1863,6 +1953,7 @@ function updatePlay(dt) {
     } else { shipDie(); return; }
   }
 
+  sectorT += dt;
   updateOids(dt, now);
   updateEnemies(dt);
   updateSabotage(dt);
@@ -2500,14 +2591,28 @@ function updateLift(dt) {
 
 /* the lift used to cut straight to the new level; now it plays out a
    continuous descent/ascent across the cut — sink (or rise) out of view on
-   the departure screen, fade to black, swap levels, then fade in with the
-   same motion completing on the arrival screen. `sign` is the one thing that
+   the departure screen, fade to black, hold a breath in the dark (travel
+   chevrons + destination line), swap levels, then fade in with the same
+   motion completing on the arrival screen. `sign` is the one thing that
    differs between directions: +1 sinks (down), -1 rises (up), and every
-   phase just walks ship.y by 40 world px in that direction. */
-const LIFT_SINK_T = 0.6, LIFT_FADE_T = 0.3, LIFT_SETTLE_T = 0.6, LIFT_OFFSET = 40;
+   phase just walks ship.y by 40 world px in that direction. Motion is
+   smoothstepped (no linear jolts), the pad breathes dust while the plate
+   moves, and arrival lands with a soft thunk instead of a cut. */
+const LIFT_SINK_T = 0.7, LIFT_FADE_T = 0.45, LIFT_HOLD_T = 0.5, LIFT_SETTLE_T = 0.7, LIFT_OFFSET = 40;
+const liftEase = p => p * p * (3 - 2 * p);
+function liftDust(x, padY) {
+  for (const dx of [-44, 44]) {
+    particles.push({ x: x + dx + (Math.random() - 0.5) * 10, y: padY,
+      vx: (Math.random() - 0.5) * 26 + dx * 0.25, vy: -14 - Math.random() * 30,
+      t: 0.4 + Math.random() * 0.3, max: 0.7,
+      color: Math.random() < 0.6 ? "#b388ff" : "#8a86a8", size: 1.5 + Math.random() });
+  }
+}
 function startLiftTransit(dir, L) {
   liftTransit = { dir, L, phase: "sink", t: 0, fade: 0, startY: ship.y, swapped: false };
   ship.vx = 0; ship.vy = 0;
+  camera.shake += 3;
+  haptic.light();
   hydraulic(dir === "down");
 }
 function updateLiftTransit(dt) {
@@ -2515,26 +2620,44 @@ function updateLiftTransit(dt) {
   const sign = lt.dir === "down" ? 1 : -1;
   lt.t += dt;
   if (lt.phase === "sink") {
-    const p = clamp(lt.t / LIFT_SINK_T, 0, 1);
+    const p = liftEase(clamp(lt.t / LIFT_SINK_T, 0, 1));
     ship.y = lt.startY + sign * p * LIFT_OFFSET;
-    if (p >= 1) { lt.phase = "black"; lt.t = 0; }
+    if (Math.random() < dt * 22) liftDust(ship.x, lt.startY + SHIP_R + 2);
+    if (lt.t >= LIFT_SINK_T) { lt.phase = "black"; lt.t = 0; }
   } else if (lt.phase === "black") {
-    lt.fade = clamp(lt.t / LIFT_FADE_T, 0, 1);
-    if (lt.fade >= 1 && !lt.swapped) {
+    lt.fade = liftEase(clamp(lt.t / LIFT_FADE_T, 0, 1));
+    if (lt.t >= LIFT_FADE_T) { lt.phase = "hold"; lt.t = 0; lt.fade = 1; }
+  } else if (lt.phase === "hold") {
+    lt.fade = 1;
+    if (!lt.swapped) {
       lt.swapped = true;
       if (lt.dir === "down") enterCave(lt.L); else exitCave();
       lt.restY = ship.y;
       ship.y = lt.restY - sign * LIFT_OFFSET;
-      lt.t = 0; lt.phase = "reveal";
       hydraulic(lt.dir === "down");
     }
+    if (lt.t >= LIFT_HOLD_T) { lt.phase = "reveal"; lt.t = 0; }
   } else if (lt.phase === "reveal") {
-    lt.fade = 1 - clamp(lt.t / LIFT_FADE_T, 0, 1);
-    if (lt.t >= LIFT_FADE_T) { lt.t = 0; lt.phase = "settle"; }
+    lt.fade = 1 - liftEase(clamp(lt.t / LIFT_FADE_T, 0, 1));
+    if (lt.t >= LIFT_FADE_T) { lt.t = 0; lt.fade = 0; lt.phase = "settle"; }
   } else if (lt.phase === "settle") {
-    const p = clamp(lt.t / LIFT_SETTLE_T, 0, 1);
+    const p = liftEase(clamp(lt.t / LIFT_SETTLE_T, 0, 1));
     ship.y = (lt.restY - sign * LIFT_OFFSET) + sign * p * LIFT_OFFSET;
-    if (p >= 1) { ship.y = lt.restY; liftTransit = null; }
+    if (Math.random() < dt * 22) liftDust(ship.x, lt.restY + SHIP_R + 2);
+    if (lt.t >= LIFT_SETTLE_T) {
+      ship.y = lt.restY;
+      liftTransit = null;
+      // arrival is a beat, not a cut: a soft thunk and a breath of dust
+      camera.shake += 4;
+      haptic.light();
+      blip(140, 90, 0.22, "sine", 0.12);
+      for (let i = 0; i < 14; i++) {
+        particles.push({ x: ship.x + (Math.random() - 0.5) * 56, y: ship.y + SHIP_R,
+          vx: (Math.random() - 0.5) * 70, vy: -18 - Math.random() * 45,
+          t: 0.5 + Math.random() * 0.4, max: 0.9,
+          color: Math.random() < 0.6 ? "#b388ff" : "#8a86a8", size: 1.6 });
+      }
+    }
   }
 }
 
@@ -2777,6 +2900,27 @@ function render() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "rgba(3,4,10," + liftTransit.fade.toFixed(2) + ")";
     ctx.fillRect(0, 0, vw, vh);
+    // the held beat in the dark: where you're going, and the ride itself
+    if (liftTransit.fade > 0.9) {
+      const down = liftTransit.dir === "down";
+      ctx.textAlign = "center";
+      ctx.font = "700 13px Menlo, monospace";
+      ctx.fillStyle = "rgba(179,136,255,.85)";
+      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
+      ctx.fillText(down ? "▼ DESCENDING — THE HOLLOWS"
+                        : "▲ ASCENDING — " + SECTOR_NAMES[levelIdx], vw / 2, vh / 2 - 34);
+      ctx.strokeStyle = "rgba(179,136,255,.8)"; ctx.lineWidth = 2; ctx.lineCap = "round";
+      for (let k = 0; k < 3; k++) {
+        const ph = (now * 0.8 + k / 3) % 1;
+        const yy = down ? vh / 2 - 6 + ph * 46 : vh / 2 + 40 - ph * 46;
+        ctx.globalAlpha = Math.sin(ph * Math.PI);
+        ctx.beginPath();
+        if (down) { ctx.moveTo(vw / 2 - 10, yy); ctx.lineTo(vw / 2, yy + 8); ctx.lineTo(vw / 2 + 10, yy); }
+        else { ctx.moveTo(vw / 2 - 10, yy + 8); ctx.lineTo(vw / 2, yy); ctx.lineTo(vw / 2 + 10, yy + 8); }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
   }
 }
 
@@ -4022,6 +4166,8 @@ function drawHUD(now) {
   let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
     "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
+  if (dailyMod("stopwatch") && !level.isCave)
+    mid += "  ·  ⏱ " + (sectorT < 90 ? Math.ceil(90 - sectorT) : "—");
   // the sector label itself glitches for a beat when the Static fires (I2)
   if (staticGlitchT > 0)
     mid = mid.replace(/[A-Z0-9]/g, c => Math.random() < 0.2 ? "▓▒░#%"[Math.floor(Math.random() * 5)] : c);
@@ -4142,7 +4288,8 @@ function drawTitle(now) {
   const pulse = 0.7 + 0.3 * Math.sin(now * 2);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 30 * pulse;
   ctx.fillStyle = "#aef4ff";
-  ctx.font = "900 " + Math.min(60, vw * 0.12) + "px 'Helvetica Neue', Arial, sans-serif";
+  // narrow screens shrink the wordmark so it clears the corner pills
+  ctx.font = "900 " + Math.min(60, vw * (vw < 640 ? 0.085 : 0.12)) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("Hollow Oath", vw / 2, vh * 0.32);
   ctx.shadowBlur = 10;
   ctx.font = "600 13px Menlo, monospace";
@@ -4203,7 +4350,7 @@ function drawTitle(now) {
     ctx.font = "600 11px Menlo, monospace";
     ctx.fillStyle = "rgba(105,240,174,.75)";
     ctx.fillText("🎮 controller connected — stick steers · A thrust · X fire · LB/B shield",
-      vw / 2, vh * 0.78);
+      vw / 2, vh * 0.60);
   }
 
   // resume pill — a run was checkpointed at a sector boundary
@@ -4641,10 +4788,10 @@ function drawBrief(now) {
   const briefPx = bodyFontPx(14), briefLH = briefPx + 8;
   ctx.font = "600 " + briefPx + "px Menlo, monospace";
   ctx.fillStyle = "#c9f3dd";
-  const shown = BRIEFS[levelIdx].slice(0, Math.floor(briefChars));
+  const shown = briefText().slice(0, Math.floor(briefChars));
   const lines = wrapText(shown, Math.min(560, vw - 60));
   lines.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.34 + i * briefLH));
-  if (briefChars >= BRIEFS[levelIdx].length) {
+  if (briefChars >= briefText().length) {
     ctx.font = "800 15px Menlo, monospace";
     ctx.fillStyle = "rgba(255,255,255," + (0.6 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
     ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.34 + lines.length * briefLH + 40);
@@ -4701,7 +4848,8 @@ function tallyLine() {
 
 function drawClear(now) {
   if (clearCards.length > 0) { drawCardPanel(clearCards[0], now); return; }
-  const hip = level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "";
+  const hip = (level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "") +
+    (level.stopwatchBeat ? "⏱ STOPWATCH BEAT +500\n" : "");
   const boxNote = level.blackbox && !level.blackbox.found ? "\n(a signal source went unfound in this sector)" : "";
   drawCenter(SECTOR_NAMES[levelIdx] + " CLEAR",
     hip + "saved " + level.delivered + "/" + level.total +
@@ -4794,10 +4942,10 @@ function drawGameOver(now) {
     ctx.strokeRect(nr.x, nr.y, nr.w, nr.h);
     ctx.fillStyle = "rgba(255,255,255,.65)";
     ctx.font = "700 13px Menlo, monospace";
-    ctx.fillText("NEW ROTATION", nr.x + nr.w / 2, nr.y + nr.h / 2 + 5);
+    ctx.fillText("MAIN MENU", nr.x + nr.w / 2, nr.y + nr.h / 2 + 5);
   } else {
     ctx.font = "600 13px Menlo, monospace"; ctx.fillStyle = "rgba(255,255,255,.6)";
-    ctx.fillText("tap to try again", vw / 2, vh * 0.6);
+    ctx.fillText("tap to return to the menu", vw / 2, vh * 0.6);
   }
 }
 
@@ -4878,6 +5026,8 @@ window.__doids = {
     logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage,
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
+    dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
+    rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect() },
     decoyOutcome, fakeMercy: level && level.fakeMercy }),
   go: toBriefing,
   setStaticClock: v => { staticClock = v; },

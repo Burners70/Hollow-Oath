@@ -1,5 +1,45 @@
 # Changelog
 
+## Polish pass: six owner fixes (July 2026)
+
+Post-review fixes on `claude/game-release-readiness-review-fq4o3n`, following
+the release-readiness review (see RELEASE_READINESS_REVIEW.md):
+
+1. **Lift transitions made graceful.** `startLiftTransit`/`updateLiftTransit`
+   now smoothstep every phase (no linear jolts), the pad breathes dust while
+   the plate moves, a new **hold** phase holds a beat in the dark showing the
+   destination line + travelling chevrons, and arrival lands with a soft
+   thunk (camera nudge, dust burst, low blip, haptic) instead of a cut.
+2. **Early-sector turret fairness.** `genLevel` gains a pass (sectors 0–2)
+   that guarantees no waiting Scion sits inside more than one turret's cover
+   (380 px): crowding turrets are re-sited to a fair spot, or retired if none
+   exists. Fixes the Vesalius Ridge Scion pocketed between three turrets that
+   forced a shot before the shield is taught. (Golden terrain checksum
+   updated: `1827470476` → `204786080`.)
+3. **All fail paths return to the menu.** Game over's second option is now
+   **MAIN MENU** (was "NEW ROTATION"); a tap anywhere off the CONTINUE box
+   also returns to the title, and the run is written back as a RESUME save
+   (continue penalty applied) so it is never lost on a fail.
+4. **Main-menu layout fixed.** The three lower pills are laid out from one
+   place so they can't collide on phone-height viewports (the old overlap
+   could burn the daily attempt on a tap meant for RESUME); RESUME sits on
+   its own row, REMIX + DAILY pair below, and DAILY centres itself while
+   REMIX is still locked. Wordmark shrinks on narrow screens.
+5. **Daily flight has teeth.** Two deterministic **daily modifiers** (same
+   for every pilot, seeded from the day) drawn from a pool of six —
+   RATIONED TANK (70% fuel), SURGE FRONT (41 s clock everywhere), CROWDED
+   SKY (+2 drones/sector), SLEEPER CELL (every saboteur a sleeper, +1),
+   BLACKOUT ROTATION (all sectors dark), STOPWATCH (clear each under 90 s
+   for +500). Shown in the briefing as "TODAY'S CONDITIONS"; STOPWATCH adds
+   a HUD countdown and a clear-screen bonus line.
+6. **Shield button regrouped.** Moved from its lone float up-and-right to
+   nestle directly above the FIRE/THRUST pair (one thumb serves all three).
+
+Smoke suite extended to 28 tests (turret fairness, daily modifiers, title
+pill non-overlap, fail→menu with save survival); all green. **No change to
+the campaign's authored feel beyond the turret fairness re-siting.**
+
+
 ## Decision: Bundles P & Q locked as the 1.1 and 1.2 updates (July 2026)
 
 Owner decision. The two specced post-launch bundles are no longer

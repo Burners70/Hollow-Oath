@@ -231,7 +231,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
 test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", async ({ page }) => {
   await page.evaluate(() => __doids.go(1));
   let sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1827470476);   // golden checksum: authored VESALIUS RIDGE terrain
+  expect(sum).toBe(204786080);   // golden checksum: authored VESALIUS RIDGE terrain
   // remix: fresh seed, 7 famous minds drawn from the wider pool, briefing up
   await page.evaluate(() => __doids.remix());
   let s = await page.evaluate(() => __doids.get());
@@ -241,11 +241,11 @@ test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", as
   expect(s.state).toBe("brief");
   await page.evaluate(() => __doids.go(1));
   const remixSum = await page.evaluate(() => __doids.heightChecksum());
-  expect(remixSum).not.toBe(1827470476);
+  expect(remixSum).not.toBe(204786080);
   // a fresh campaign run restores seed 0 and the exact authored terrain
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
   sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1827470476);
+  expect(sum).toBe(204786080);
 });
 
 test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page }) => {
@@ -417,4 +417,52 @@ test("lift transition fades out, swaps level, and fades back in", async ({ page 
   const s = await page.evaluate(() => __doids.get());
   expect(s.inCave).toBe(true);
   expect(s.state).toBe("play");
+});
+
+test("early sectors never pocket a Scion under interlocking turret cover", async ({ page }) => {
+  for (const n of [0, 1, 2]) {
+    await page.evaluate(n => __doids.go(n), n);
+    const maxCover = await page.evaluate(() => {
+      const g = __doids.get();
+      return Math.max(...g.level.oids.map(o =>
+        g.level.turrets.filter(t => Math.hypot(t.x - o.x, t.y - o.y) < 380).length));
+    });
+    expect(maxCover, "sector " + n).toBeLessThanOrEqual(1);
+  }
+});
+
+test("the daily flight rolls exactly two distinct modifiers; other modes roll none", async ({ page }) => {
+  await page.evaluate(() => __doids.daily());
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.dailyMods).toHaveLength(2);
+  expect(new Set(s.dailyMods).size).toBe(2);
+  await page.evaluate(() => { __doids.reset(); __doids.go(0); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.dailyMods).toEqual([]);
+  expect(s.maxFuel).toBe(100);   // no modifier bleed into the campaign
+});
+
+test("title pills never overlap on a phone-height viewport", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 } });
+  const page = await ctx.newPage();
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  const r = await page.evaluate(() => __doids.get().rects);
+  const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  expect(overlap(r.resume, r.daily)).toBe(false);
+  expect(overlap(r.resume, r.remix)).toBe(false);
+  await ctx.close();
+});
+
+test("game over returns to the main menu and the run survives as a RESUME save", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(2); __doids.launch(); });
+  await page.evaluate(() => { lives = 1; shipDie(); });
+  await page.waitForFunction(() => __doids.get().state === "gameover", null, { timeout: 5000 });
+  // tap anywhere that isn't the CONTINUE box → back to the title, not a new run
+  await page.waitForTimeout(800);
+  await page.evaluate(() => { input.tap = true; input.tapX = 5; input.tapY = 5; });
+  await page.waitForFunction(() => __doids.get().state === "title", null, { timeout: 3000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.hasSave).toBe(true);   // the checkpoint was written back (penalty applied)
+  expect(s.levelIdx).toBe(2);
 });
