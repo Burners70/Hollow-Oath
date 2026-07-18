@@ -1,5 +1,41 @@
 # Changelog
 
+## Polish pass 2: remaining review items (July 2026)
+
+Follow-on to the six owner fixes — the rest of the release-readiness review's
+open bugs and the cheap QoL/perception wins:
+
+- **§3.3 Settings fit + two new rows.** Settings is now a two-column grid
+  (`settingsRowRect`) that fits a 320-high landscape viewport, with room for
+  **REDUCED FLASH** and **RESET PROGRESS**; footer carries the build stamp and
+  the no-ads/no-tracking line.
+- **§3.4 HUD scrim.** A soft top-of-screen gradient behind the HUD band keeps
+  the fuel bar / tally / score legible when MERCY or scenery renders through
+  them on a high-camera spawn.
+- **§3.5 Save validation.** `validRun()` gates the `doids_run` snapshot on
+  schema version + field sanity before it becomes a RESUME pill; a corrupt or
+  foreign snapshot is discarded, not restored into NaN state.
+- **§3.6 Caps Lock.** Letter keys (`x`/`z`/`c`) now map case-insensitively, so
+  an active Caps Lock no longer kills fire/thrust/shield.
+- **RESET PROGRESS** (double-tap-to-confirm): wipes scores, codex, saves,
+  veteran/daily/intro state; **keeps** the player's audio/assist/difficulty
+  settings.
+- **REDUCED FLASH** (`doids_flash`): softens the Static's high-frequency
+  strobing — window flicker, ECG jitter, HUD label glitch — for
+  photosensitive players; diagnostic meaning stays, amplitude drops.
+- **Version stamp** bottom-right on the title (`BUILD_TAG`).
+- **Music ducks** in pause and settings (was only briefings/cards).
+- **Landing-guide onboarding line** added to the first briefing.
+- **Darkness lights cached as sprites** (`darkPunchSprite`) — no more building
+  ~15 radial gradients per frame on Nightingale.
+- **Soft title heartbeat** on returning to the menu from a run (sound-gated,
+  no haptic) — the phone-as-ECG signature from the first screen.
+
+Smoke suite now **32 tests**, all green (added: reduced-flash persistence +
+reset-keeps-settings, corrupt-save rejection, settings-fit at 320 h,
+caps-lock flight). Review report updated (§3.1–§3.6 all marked fixed).
+
+
 ## Polish pass: six owner fixes (July 2026)
 
 Post-review fixes on `claude/game-release-readiness-review-fq4o3n`, following

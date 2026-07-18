@@ -252,8 +252,12 @@ function goFullscreen() {
 
 const keyMap = { ArrowLeft:"left", ArrowRight:"right", ArrowUp:"thrust", " ":"fire", x:"fire", z:"thrust",
                  ArrowDown:"shield", c:"shield", Shift:"shield" };
+// letter keys work regardless of Caps Lock (an active Caps Lock used to kill
+// fire/thrust/shield entirely)
+const keyFor = e => keyMap[e.key] !== undefined ? keyMap[e.key]
+  : (e.key.length === 1 ? keyMap[e.key.toLowerCase()] : undefined);
 window.addEventListener("keydown", e => {
-  if (keyMap[e.key] !== undefined) { input[keyMap[e.key]] = true; e.preventDefault(); }
+  if (keyFor(e) !== undefined) { input[keyFor(e)] = true; e.preventDefault(); }
   if (e.key === "Enter") {
     input.tap = true;
     // keyboard confirm has no pointer position — aim it at CONTINUE on game over
@@ -265,7 +269,7 @@ window.addEventListener("keydown", e => {
   }
   initAudio();
 });
-window.addEventListener("keyup", e => { if (keyMap[e.key] !== undefined) input[keyMap[e.key]] = false; });
+window.addEventListener("keyup", e => { if (keyFor(e) !== undefined) input[keyFor(e)] = false; });
 
 /* auto-pause when the tab/app is backgrounded — deliberate, not mid-flight */
 document.addEventListener("visibilitychange", () => {
@@ -412,9 +416,10 @@ function boom() {
   o.connect(og); og.connect(sfxGain);
   o.start(); o.stop(AC.currentTime + dur * 0.7 + 0.02);
 }
-function heartbeat(vol) { // lub-dub, played when a Scion comes aboard
+function heartbeat(vol, noHaptic) { // lub-dub, played when a Scion comes aboard
   // F2: the phone beats too — medium lub, light dub, same timings as the audio
-  haptic.pattern([{ delay: 0, style: "medium" }, { delay: 180, style: "light" }]);
+  // (suppressed when it's used purely as a menu cue)
+  if (!noHaptic) haptic.pattern([{ delay: 0, style: "medium" }, { delay: 180, style: "light" }]);
   if (!AC) return;
   const V = vol || 1;
   const pulse = (t, f) => {
@@ -515,7 +520,8 @@ function playMotifNote() {
 function updateMusic(dt) {
   if (!AC || !musicGain) return;
   const ducked = state === "brief" || state === "reveal" || state === "clear" ||
-    state === "ending" || state === "epilogue" || state === "help" || state === "codex";
+    state === "ending" || state === "epilogue" || state === "help" || state === "codex" ||
+    state === "pause" || state === "settings";
   const target = music ? (ducked ? 0.4 : 1) : 0;
   musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt);
   musicNoteT += dt;
@@ -594,7 +600,7 @@ const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 
 const BRIEFS = [
-  "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nEnd transmission.",
+  "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
   "Captain — some stranded units on the ridge have stopped answering triage pings.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
   "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.",
@@ -728,9 +734,20 @@ let clearCards = [], revealCard = null;
 let briefChars = 0;
 let checkpoint = null;   // captured run-start snapshot, offered as CONTINUE on game over
 let savedRun = null;     // resume-from-title snapshot (doids_run), kept in sync with localStorage
+/* a snapshot from a corrupt write, an older schema, or (once E4 lands) a
+   foreign device must never restore into NaN state or a "RESUME — undefined"
+   pill — validate the shape before trusting it */
+function validRun(r) {
+  return !!r && r.v === 1 &&
+    Number.isInteger(r.levelIdx) && r.levelIdx >= 0 && r.levelIdx <= FINALE_IDX &&
+    typeof r.score === "number" && Number.isFinite(r.score) &&
+    Number.isInteger(r.lives);
+}
 try {
   const raw = localStorage.getItem("doids_run");
-  savedRun = raw ? JSON.parse(raw) : null;
+  const parsed = raw ? JSON.parse(raw) : null;
+  savedRun = validRun(parsed) ? parsed : null;
+  if (raw && !savedRun) localStorage.removeItem("doids_run");
 } catch (e) { savedRun = null; }
 function snapshotRun() {
   savedRun = {
@@ -802,6 +819,14 @@ function startLives() { return easyMode ? 5 : 3; }
 let bigText = false;
 try { bigText = localStorage.getItem("doids_bigtext") === "1"; } catch (e) {}
 function bodyFontPx(base) { return base + (bigText ? 2 : 0); }
+/* Accessibility: a REDUCED FLASH toggle softens the Static's high-frequency
+   strobing — window flicker, the ECG jitter and the HUD label glitch — for
+   photosensitive players. Diagnostic meaning stays; only the amplitude drops. */
+let reducedFlash = false;
+try { reducedFlash = localStorage.getItem("doids_flash") === "1"; } catch (e) {}
+/* a visible build stamp so stale Home-Screen caches / TestFlight builds are
+   diagnosable at a glance (GAME_DESIGN §10 idea) */
+const BUILD_TAG = "v1.0 · b2026-07";
 /* Bundle L1 — an unresolved ending follows the player home: the title
    screen ticks faintly on the Static's own period until a run resolves it */
 let unresolvedHaunt = false;
@@ -950,11 +975,17 @@ function pauseRowRect(i) {
   const y0 = vh / 2 - totalH / 2;
   return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
+/* two-column grid so all ten rows fit even a 320-high landscape viewport
+   (the old single column of 8 already clipped its hints at vh ≤ 375, and
+   REDUCED FLASH + RESET PROGRESS would have run right off the screen). */
+const SETTINGS_ROWS = 10;
 function settingsRowRect(i) {
-  const w = Math.min(280, vw * 0.7), h = 32, gap = 6;
-  const totalH = h * 8 + gap * 7;
-  const y0 = vh / 2 - totalH / 2 + 12;
-  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
+  const cols = 2, rows = Math.ceil(SETTINGS_ROWS / cols);
+  const cw = Math.min(240, vw * 0.42), h = 30, gapX = 12, gapY = 7;
+  const totalW = cw * cols + gapX, totalH = h * rows + gapY * (rows - 1);
+  const x0 = vw / 2 - totalW / 2, y0 = vh / 2 - totalH / 2 + 14;
+  const col = i % cols, row = (i - col) / cols;
+  return { x: x0 + col * (cw + gapX), y: y0 + row * (h + gapY), w: cw, h };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -1796,14 +1827,27 @@ function updatePause() {
   input.tap = false;
 }
 
+/* wipe run progress, codex and saves — but keep the player's chosen prefs
+   (audio/assist/difficulty). Double-tap-to-confirm on the settings row. */
+let resetArmed = false;
+function resetProgress() {
+  const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
+    "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
+    "doids_intro"];
+  for (const k of wipe) { try { localStorage.removeItem(k); } catch (e) {} }
+  hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set();
+  savedRun = null; checkpoint = null; veteran = false; introSeen = false;
+  unresolvedHaunt = false;
+}
 let settingsReturnState = "title";
 function updateSettings() {
   if (input.tap && stateT > 0.3) {
     let hit = false;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < SETTINGS_ROWS; i++) {
       if (i === 4) continue;   // TILT is handled synchronously in canvasTap()
       if (inRect(settingsRowRect(i), input.tapX, input.tapY)) {
         hit = true;
+        if (i !== 9) resetArmed = false;   // any other tap disarms the wipe
         if (i === 0) {
           sound = !sound;
           try { localStorage.setItem("doids_snd", sound ? "1" : "0"); } catch (e) {}
@@ -1836,10 +1880,22 @@ function updateSettings() {
           bigText = !bigText;
           try { localStorage.setItem("doids_bigtext", bigText ? "1" : "0"); } catch (e) {}
           blip(440, 660, 0.1, "sine", 0.08);
+        } else if (i === 8) {
+          reducedFlash = !reducedFlash;
+          try { localStorage.setItem("doids_flash", reducedFlash ? "1" : "0"); } catch (e) {}
+          blip(440, 660, 0.1, "sine", 0.08);
+        } else if (i === 9) {
+          if (resetArmed) {
+            resetProgress(); resetArmed = false;
+            blip(200, 80, 0.4, "sawtooth", 0.14);
+          } else {
+            resetArmed = true;
+            blip(300, 200, 0.15, "sine", 0.1);
+          }
         }
       }
     }
-    if (!hit) { state = settingsReturnState || "title"; stateT = 0; }
+    if (!hit) { resetArmed = false; state = settingsReturnState || "title"; stateT = 0; }
   }
   input.tap = false;
 }
@@ -3211,6 +3267,24 @@ function drawWorld(now) {
   if (level.dark) drawDarkness(now);
 }
 
+/* cached soft-disc sprites for the darkness punches, bucketed by radius so
+   the animating lamp/oid lights don't spawn a new canvas every frame */
+const darkSpriteCache = new Map();
+function darkPunchSprite(rr) {
+  const key = Math.max(8, Math.round(rr / 8) * 8);
+  let c = darkSpriteCache.get(key);
+  if (c) return c;
+  c = document.createElement("canvas");
+  c.width = c.height = key * 2;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(key, key, 0, key, key, key);
+  grad.addColorStop(0, "rgba(0,0,0,1)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grad; g.fillRect(0, 0, key * 2, key * 2);
+  darkSpriteCache.set(key, c);
+  return c;
+}
+
 /* darkness overlay with punched lights — Nightingale's sector */
 function drawDarkness(now) {
   const { z, cx, cy } = worldTransform();
@@ -3223,11 +3297,13 @@ function drawDarkness(now) {
   const punch = (wx, wy, r, strength) => {
     const [sx, sy] = toScreen(wx, wy);
     const rr = r * z * dpr;
-    const gr = dctx.createRadialGradient(sx, sy, 0, sx, sy, rr);
-    gr.addColorStop(0, "rgba(0,0,0," + strength + ")");
-    gr.addColorStop(1, "rgba(0,0,0,0)");
-    dctx.fillStyle = gr;
-    dctx.beginPath(); dctx.arc(sx, sy, rr, 0, 7); dctx.fill();
+    // a pre-rendered soft disc (bucketed by radius) drawn at globalAlpha =
+    // strength, instead of building a fresh radial gradient every light every
+    // frame — up to ~15/frame on Nightingale with Scions + MERCY + boxes
+    const sp = darkPunchSprite(rr);
+    dctx.globalAlpha = clamp(strength, 0, 1);
+    dctx.drawImage(sp, sx - rr, sy - rr, rr * 2, rr * 2);
+    dctx.globalAlpha = 1;
   };
   if (!ship.dead) punch(ship.x, ship.y, lampRadius(), 1);
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
@@ -3663,7 +3739,8 @@ function drawBuilding(sc, now, ruined) {
     if (!lit) continue;
     let a = ruined ? 0.12 + 0.25 * Math.abs(Math.sin(now * 3.7 + sc.ph)) : 0.5;
     if (!ruined && idx === sc.flick) a = 0.15 + 0.4 * Math.abs(Math.sin(now * 5 + sc.ph));
-    if (staticSurge > 0) a *= 0.15 + 0.3 * Math.random();   // the surge dims every window (I2)
+    // the surge dims every window (I2) — softened under REDUCED FLASH
+    if (staticSurge > 0) a *= reducedFlash ? (0.6 + 0.2 * Math.random()) : (0.15 + 0.3 * Math.random());
     const wx = -w / 2 + cw * (c + 0.7), wy = -h + ch * (r + 0.7);
     if (ruined && wy < -h * 0.75) continue;
     ctx.fillStyle = "rgba(255,196,0," + a.toFixed(2) + ")";
@@ -4142,6 +4219,14 @@ function drawHUD(now) {
   const s = ship;
   const topPad = 14;
   const hx = 14 + saLeft;
+  // a soft scrim behind the top HUD band so the fuel bar / tally / score
+  // stay legible when MERCY's hull or scenery renders straight through them
+  // at a high-camera spawn (the first frame a reviewer sees)
+  const scrim = ctx.createLinearGradient(0, 0, 0, 62);
+  scrim.addColorStop(0, "rgba(3,4,12,.55)");
+  scrim.addColorStop(1, "rgba(3,4,12,0)");
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, 0, vw, 62);
   ctx.font = "700 12px Menlo, monospace";
 
   const bw = Math.min(150, vw * 0.3);
@@ -4168,9 +4253,11 @@ function drawHUD(now) {
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
   if (dailyMod("stopwatch") && !level.isCave)
     mid += "  ·  ⏱ " + (sectorT < 90 ? Math.ceil(90 - sectorT) : "—");
-  // the sector label itself glitches for a beat when the Static fires (I2)
+  // the sector label itself glitches for a beat when the Static fires (I2);
+  // REDUCED FLASH keeps the corruption sparse instead of a full scramble
   if (staticGlitchT > 0)
-    mid = mid.replace(/[A-Z0-9]/g, c => Math.random() < 0.2 ? "▓▒░#%"[Math.floor(Math.random() * 5)] : c);
+    mid = mid.replace(/[A-Z0-9]/g, c =>
+      Math.random() < (reducedFlash ? 0.06 : 0.2) ? "▓▒░#%"[Math.floor(Math.random() * 5)] : c);
   ctx.fillText(mid, vw / 2, topPad + 23);
   ctx.shadowBlur = 0;
 
@@ -4267,7 +4354,7 @@ function drawECG(x, y, w, h, frac, now) {
     v *= (frac > 0 ? 1 : 0);
     let yy = mid - v * h * 0.55;
     // the Static's surge rides the trace itself (Bundle I2)
-    if (staticSurge > 0) yy += (Math.random() * 2 - 1) * Math.min(1, staticSurge) * 1.4;
+    if (staticSurge > 0) yy += (Math.random() * 2 - 1) * Math.min(1, staticSurge) * (reducedFlash ? 0.5 : 1.4);
     px === 0 ? ctx.moveTo(x + px, yy) : ctx.lineTo(x + px, yy);
   }
   ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.lineWidth = 1.6;
@@ -4308,6 +4395,13 @@ function drawTitle(now) {
   ctx.font = "600 11px Menlo, monospace";
   ctx.fillStyle = "rgba(155,234,249,.55)";
   ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.72);
+
+  // build stamp, bottom-right — makes stale caches obvious at a glance
+  ctx.textAlign = "right";
+  ctx.font = "600 9px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.3)";
+  ctx.fillText(BUILD_TAG, vw - 12 - saRight, vh - 10);
+  ctx.textAlign = "center";
 
   // settings pill (sound, music, assist, tilt, ...)
   const r = settingsRect();
@@ -4897,25 +4991,36 @@ function drawSettings(now) {
   const rows = [
     ["SOUND", sound], ["MUSIC", music], ["HAPTICS", haptics],
     ["ASSIST", assist], ["TILT", tilt], ["COLORBLIND", colorblind],
-    ["FIELD MEDIC", easyMode], ["BIG TEXT", bigText]
+    ["FIELD MEDIC", easyMode], ["BIG TEXT", bigText],
+    ["REDUCED FLASH", reducedFlash], ["RESET PROGRESS", null]
   ];
   for (let i = 0; i < rows.length; i++) {
     const [label, on] = rows[i];
     const r = settingsRowRect(i);
-    ctx.strokeStyle = on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
-    ctx.shadowColor = on ? "#69f0ae" : "transparent"; ctx.shadowBlur = on ? 8 : 0;
+    const isReset = i === 9;
+    const stroke = isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
+      : on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
+    ctx.strokeStyle = stroke;
+    ctx.shadowColor = isReset ? (resetArmed ? "#ff4081" : "transparent") : (on ? "#69f0ae" : "transparent");
+    ctx.shadowBlur = (isReset ? resetArmed : on) ? 8 : 0;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = on ? "#69f0ae" : "rgba(255,255,255,.5)";
-    ctx.font = "700 13px Menlo, monospace";
-    ctx.fillText(label + " · " + (on ? "ON" : "OFF"), r.x + r.w / 2, r.y + r.h / 2 + 5);
+    ctx.fillStyle = isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
+      : on ? "#69f0ae" : "rgba(255,255,255,.5)";
+    ctx.font = "700 12px Menlo, monospace";
+    const txt = isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
+      : label + " · " + (on ? "ON" : "OFF");
+    ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
+  const footY = settingsRowRect(9).y + settingsRowRect(9).h + 14;
   ctx.font = "600 10px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255,.4)";
-  ctx.fillText("field medic: gentler landings, 5 lives, next run — for pilots who want the story",
-    vw / 2, settingsRowRect(7).y + settingsRowRect(7).h + 16);
-  ctx.fillText("tap outside a row to close", vw / 2, settingsRowRect(7).y + settingsRowRect(7).h + 30);
+  ctx.fillText("field medic: gentler, 5 lives, next run · reset wipes scores & codex, keeps settings",
+    vw / 2, footY);
+  ctx.fillStyle = "rgba(255,255,255,.3)";
+  ctx.fillText("Hollow Oath · " + BUILD_TAG + " · no ads, no tracking · tap outside to close",
+    vw / 2, footY + 14);
 }
 
 function drawGameOver(now) {
@@ -5018,7 +5123,8 @@ window.__doids = {
     shrines: [...shrines], inCave: !!(level && level.isCave),
     input: Object.assign({}, input), ctlShown, introSeen,
     hasSave: !!savedRun, paused: state === "pause",
-    sound, music, haptics, assist, tilt, colorblind, easyMode, bigText,
+    sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
+    resetArmed, settingsRows: SETTINGS_ROWS, buildTag: BUILD_TAG,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
     perfFrameMs, perfFps, resupplyDrone, liftTransit,
@@ -5064,12 +5170,19 @@ camera = { x: ship.x, y: ship.y, shake: 0 };
 particles = []; texts = [];
 
 let last = performance.now();
+let prevState = state;
 function frame(t) {
   const rawMs = t - last;
   const dt = Math.min(rawMs / 1000, 0.05);
   last = t;
   if (PERF) { perfFrameMs = rawMs; perfFps = rawMs > 0 ? 1000 / rawMs : 0; }
   update(dt);
+  // returning to the title after a run gets one soft, quiet heartbeat — the
+  // phone-as-ECG signature is true from the first screen (sound-gated, no
+  // haptic buzz on a menu)
+  if (state === "title" && prevState !== "title" &&
+      (prevState === "gameover" || prevState === "pause")) heartbeat(0.3, true);
+  prevState = state;
   render();
   requestAnimationFrame(frame);
 }

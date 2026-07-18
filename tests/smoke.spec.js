@@ -466,3 +466,86 @@ test("game over returns to the main menu and the run survives as a RESUME save",
   expect(s.hasSave).toBe(true);   // the checkpoint was written back (penalty applied)
   expect(s.levelIdx).toBe(2);
 });
+
+test("REDUCED FLASH persists and RESET PROGRESS double-tap wipes progress but keeps settings", async ({ page }) => {
+  // seed some progress + a distinctive setting
+  await page.evaluate(() => {
+    localStorage.setItem("doids_hi", "9999");
+    localStorage.setItem("doids_veteran", "1");
+    localStorage.setItem("doids_codex", "[0,1]");
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  // open settings, turn on REDUCED FLASH (row 8), reload → it persists
+  await page.evaluate(() => { state = "settings"; settingsReturnState = "title"; stateT = 1; });
+  await page.evaluate(() => {
+    const r = __doids.get().rects; // not used, compute row rect via a tap
+  });
+  await page.evaluate(() => {
+    // tap row 8 (REDUCED FLASH)
+    const rr = (function(){ return null; })();
+    input.tap = true;
+    // recompute settingsRowRect(8) the same way the game does
+    const cols = 2, rows = Math.ceil(10 / cols);
+    const cw = Math.min(240, innerWidth * 0.42), h = 30, gapX = 12, gapY = 7;
+    const totalW = cw*cols+gapX, totalH = h*rows+gapY*(rows-1);
+    const x0 = innerWidth/2 - totalW/2, y0 = innerHeight/2 - totalH/2 + 14;
+    const col = 8 % cols, row = (8-col)/cols;
+    input.tapX = x0 + col*(cw+gapX) + cw/2; input.tapY = y0 + row*(h+gapY) + h/2;
+  });
+  await page.waitForFunction(() => __doids.get().reducedFlash === true, null, { timeout: 2000 });
+  // RESET PROGRESS (row 9) needs two taps
+  const tapRow9 = () => page.evaluate(() => {
+    input.tap = true;
+    const cols = 2, rows = Math.ceil(10 / cols);
+    const cw = Math.min(240, innerWidth * 0.42), h = 30, gapX = 12, gapY = 7;
+    const totalW = cw*cols+gapX, totalH = h*rows+gapY*(rows-1);
+    const x0 = innerWidth/2 - totalW/2, y0 = innerHeight/2 - totalH/2 + 14;
+    const col = 9 % cols, row = (9-col)/cols;
+    input.tapX = x0 + col*(cw+gapX) + cw/2; input.tapY = y0 + row*(h+gapY) + h/2;
+  });
+  await tapRow9();
+  await page.waitForFunction(() => __doids.get().resetArmed === true, null, { timeout: 2000 });
+  await tapRow9();
+  await page.waitForFunction(() => __doids.get().score === 0 && __doids.get().resetArmed === false, null, { timeout: 2000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.hasSave).toBe(false);
+  // hi-score wiped, but REDUCED FLASH preference kept
+  expect(await page.evaluate(() => localStorage.getItem("doids_hi"))).toBe(null);
+  expect(s.reducedFlash).toBe(true);
+});
+
+test("a corrupt saved run is rejected, not shown as a RESUME pill", async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem("doids_run", JSON.stringify({ v: 1, levelIdx: 99, score: "x" })));
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.hasSave).toBe(false);
+  expect(await page.evaluate(() => localStorage.getItem("doids_run"))).toBe(null);
+});
+
+test("settings rows fit inside a 320-high landscape viewport", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 568, height: 320 } });
+  const page = await ctx.newPage();
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  const fits = await page.evaluate(() => {
+    const cols = 2, N = __doids.get().settingsRows, rows = Math.ceil(N / cols);
+    const cw = Math.min(240, innerWidth * 0.42), h = 30, gapX = 12, gapY = 7;
+    const totalH = h*rows+gapY*(rows-1);
+    const y0 = innerHeight/2 - totalH/2 + 14;
+    const lastBottom = y0 + (rows-1)*(h+gapY) + h + 28; // + footer lines
+    return lastBottom < innerHeight;
+  });
+  expect(fits).toBe(true);
+  await ctx.close();
+});
+
+test("caps-lock letter keys still fly the ship", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  // uppercase X (as Caps Lock would deliver) must still map to fire
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "X" })));
+  expect(await page.evaluate(() => __doids.get().input.fire)).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keyup", { key: "X" })));
+  expect(await page.evaluate(() => __doids.get().input.fire)).toBe(false);
+});

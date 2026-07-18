@@ -54,10 +54,15 @@ wins worth landing before the store screenshots are taken.
 
 ## 3. Bugs found (fix before launch screenshots)
 
-> **Update (July 2026):** §3.1 and §3.2 are **fixed** on this branch as part of
-> the six-fix polish pass (see CHANGELOG.md), along with owner-requested changes
-> to lift feel, early-sector turret fairness, fail→menu flow, daily-flight
-> modifiers, and the shield-button placement. §3.3–§3.6 remain open.
+> **Update (July 2026):** **all of §3.1–§3.6 are now fixed** on this branch, plus
+> the six owner-requested changes (lift feel, turret fairness, fail→menu, menu
+> layout, daily modifiers, shield button) and most of the §5/§6 QoL/perception
+> items — version stamp, RESET PROGRESS row, music-duck in pause/settings,
+> REDUCED FLASH accessibility toggle, landing-guide onboarding line, HUD scrim,
+> darkness-sprite caching, a settings credits/no-tracking footer, and a soft
+> title heartbeat on returning from a run. See CHANGELOG.md. The only items left
+> open are the ones that need a Mac/device or the store itself (§4, plus §6.2
+> screenshots and §6.6 store copy).
 
 ### 3.1 ~~HIGH~~ FIXED — Title pills overlap; a mis-tap burns the daily attempt
 
@@ -84,14 +89,14 @@ wordmark overlaps the STORY pill and the top pill row generally. Cap the font
 by width more aggressively (`Math.min(60, vw*0.12)` still yields 60 at 568) or
 drop the title baseline to `vh*0.36` when `vw < 620`.
 
-### 3.3 MEDIUM — Settings panel hints clip at vh ≤ 375
+### 3.3 ~~MEDIUM~~ FIXED — Settings panel hints clip at vh ≤ 375
 
 `settingsRowRect` stacks 8×32 px rows + gaps centered at `vh/2`; the two hint
 lines below row 7 land at `y ≈ vh + 4` on a 375-高 viewport (iPhone 8/SE2
 landscape — the FIELD MEDIC explainer is the one that clips). Shrink row
 height/gap when `vh < 380`, or fold the two hints into one line.
 
-### 3.4 LOW — HUD text collides with MERCY at some spawns
+### 3.4 ~~LOW~~ FIXED — HUD text collides with MERCY at some spawns
 
 In sectors where the camera opens high (seen on Avicenna Shoals), MERCY's hull
 and the RED BAY label render straight through the FUEL bar and the
@@ -99,7 +104,7 @@ SCIONS ABOARD tally for the first seconds. A subtle dark strip behind the HUD
 band (or spawning the camera 40 px lower) would keep the opening frame clean —
 this is the frame reviewers and screenshot-takers see first.
 
-### 3.5 LOW — `doids_run` snapshot is restored without validation
+### 3.5 ~~LOW~~ FIXED — `doids_run` snapshot is restored without validation
 
 `restoreRun()` trusts every field; a truncated/corrupt snapshot (or a future
 schema change) yields `RESUME — undefined` on the pill and NaN state after
@@ -109,7 +114,7 @@ r.levelIdx <= FINALE_IDX` (and `typeof r.score === "number"`) before showing
 the pill; discard otherwise. Matters more once E4 syncs snapshots through
 iCloud between devices/app versions.
 
-### 3.6 LOW — Caps Lock breaks keyboard flight
+### 3.6 ~~LOW~~ FIXED — Caps Lock breaks keyboard flight
 
 `keyMap` binds lowercase `x`/`z`/`c` only; with Caps Lock on, fire/thrust/
 shield keys go dead (Shift is SHIELD, so Shift+X is also unmapped). Add the
