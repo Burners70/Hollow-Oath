@@ -71,8 +71,14 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 - Saboteur behavioural tells on the ground (wrong walk speed is in; could add
   refusing to panic, standing too still).
 - Difficulty settings; second playthrough modifiers.
-- **The pendulum carry (the classic Oids/Thrust homage) — proposed, not
-  built.** Today a boarded Scion just vanishes into `s.passengers` (an
+- ~~**The pendulum carry (the classic Oids/Thrust homage)**~~ —
+  **superseded (July 2026)** by [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
+  (Bundle P: the pendulum sling — relic recovery from the Hollows, fully
+  decoupled from Scion pickup, per owner direction). The original
+  core-loop writeup below is kept for the reasoning trail; its damage
+  model (proportional to rough flying, always-readable warning) and its
+  loss-accounting rule survive in the new spec. Original proposal: today
+  a boarded Scion just vanishes into `s.passengers` (an
   abstract array, `CAPACITY` 6) the moment `o.state` flips to `"aboard"` in
   `updateOids` — no physical risk between pickup and delivery. The pendulum
   mechanic makes the *carry itself* the tension, not just the landing:

@@ -1,5 +1,33 @@
 # Changelog
 
+## Proposal: the pendulum sling — Bundle P specced, not built (July 2026)
+
+Wrote the full design + implementation spec for the classic Oids/Thrust
+**pendulum** element — redesigned per owner direction to be **decoupled from
+Scion pickup** and to live in the secret Hollows as a whole new story
+element: each cave hides one towable **relic** of Glycon's (THE FIRST CALL —
+SOLACE's original recorder core; THE LAST HEART — the one genuine heart in
+the counterfeit workshop; THE MASK — the idol's human face), slung beneath
+the ship on real pendulum physics and carried out through roof, darkness and
+lift to MERCY without slamming it into rock. Patient transport as a flight
+skill — *primum non nocere*, made kinetic.
+
+- Spec: [PENDULUM_SPEC.md](PENDULUM_SPEC.md) — gameplay/narrative/goal
+  rationale, three handling characters (heavy → fragile → wild), tether
+  physics model, tell language (mini-ECG, `✓/!/✕`, each relic found by its
+  rhythm — or its total silence), scoring (deliver +1200, GENTLE HANDS
+  +500, all three +2000, broken −400), draft card copy, ending hooks,
+  checklist P1–P10 with code anchors, persistence, tests.
+- **Recommendation: free 1.1 content update, not launch** — everything
+  still blocking submission is Mac-side, and the mechanic's feel pass
+  needs real hardware; free (not paid) preserves the "complete game, no
+  IAP" store positioning and buys a re-feature moment.
+- Supersedes the earlier "pendulum carry" core-loop proposal (now struck
+  through in ROADMAP.md § Future ideas, reasoning trail kept); pointers
+  updated in GAME_DESIGN.md §10 and APP_STORE_ROADMAP.md's post-launch
+  candidates. **No code changed.**
+
+
 ## The transfusion line — field refuel as a hover minigame (July 2026)
 
 The stranded-ship resupply drone no longer drops +40 in your lap. It now

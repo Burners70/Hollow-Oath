@@ -386,5 +386,11 @@ session scratchpad and can be recreated the same way if needed.)
 - A fourth cave / a Glycon confrontation beyond the shrines *(the counterfeit
   MERCY — Bundle N — is now that confrontation's first act)*; a third finale
   branch if GLYCON UNMASKED.
+- **The pendulum sling — specced, not built.** The Oids/Thrust pendulum
+  homage, decoupled from Scion pickup: each Hollow hides a towable relic
+  (THE FIRST CALL, THE LAST HEART, THE MASK) slung beneath the ship on
+  swinging pendulum physics, carried out through cave roof and darkness to
+  MERCY. Full design + implementation spec: [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
+  (Bundle P; recommended as the free 1.1 content update).
 - Sound design pass for the Hollows (drips, echo); haptics on iOS *(call
   sites wired — Bundle F1/F2; needs the native wrapper)*.

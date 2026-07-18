@@ -634,8 +634,13 @@ Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), a fourth Hollow, second-playthrough modifiers, Android/Google Play via the
 same Capacitor shell, and two proposed flight bundles with full placement
 writeups in ROADMAP.md § Future ideas:
-- **the pendulum carry** — boarded Scions physically dangle and can be swung
-  into terrain/turrets/walls on a rough carry (the Oids/Thrust homage);
+- **the pendulum sling (Bundle P)** — the Oids/Thrust pendulum homage,
+  redesigned (July 2026) as relic recovery from the Hollows: tow what
+  Glycon kept below on a swinging sling, decoupled from Scion pickup.
+  Full spec (design, copy, checklist P1–P10, launch-vs-update
+  recommendation: **free 1.1 update**) in
+  [PENDULUM_SPEC.md](PENDULUM_SPEC.md). Supersedes the earlier
+  "pendulum carry" core-loop proposal (struck through in ROADMAP.md);
 - ~~**the transfusion line**~~ — **shipped (July 2026), ahead of schedule**:
   field refuelling is now an active hover minigame — hold station on the
   drone's fuel line, choose when to detach (CLEAN LINE +250 for a full tank
