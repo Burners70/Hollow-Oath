@@ -1324,6 +1324,13 @@ function updateStaticClock(dt) {
   // a "wrong" double-tick, distinct from the heartbeat's lub-dub (F2)
   haptic.pattern([{ delay: 0, style: "light" }, { delay: 40, style: "light" }]);
   staticGlitchT = 0.12;
+  // the one place the clock has mechanical teeth: the surge rocks a ship
+  // hanging on the transfusion line (line stability, not hull)
+  if (tethered() && !ship.landed) {
+    ship.vx += (Math.random() < 0.5 ? -1 : 1) * 55;
+    camera.shake += 6;
+    addText(ship.x, ship.y - 40, "THE SURGE ROCKS THE LINE", "#b388ff");
+  }
   if (level.isFinale && level.beacon && !level.beacon.resolved) {
     // the beacon surges on the same phase, but strong — the closer you fly
     // to SOLACE, the harder the world flinches with her (I3)
@@ -2035,7 +2042,8 @@ function updateEnemies(dt) {
   }
 
   s.fireCd -= dt;
-  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead) {
+  // while the transfusion line is caught, FIRE means "detach", never "shoot"
+  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead && !tethered()) {
     s.fireCd = 0.22;
     acctLevel().firedShots++; runFired++;
     level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
@@ -2338,14 +2346,36 @@ function updatePods() {
   }
 }
 
-/* A ship landed at 0 fuel has no way to move again — thrust and shield both
-   require fuel>0, and nothing else can reach it. Holding THRUST while
-   stranded is otherwise a dead input (thrusting itself needs fuel), so it
-   doubles as the "signal for resupply" charge — no new button, no conflict
-   with normal flight. A small drone drops just enough fuel to reach a real
-   pod or MERCY; it's also just handy any time you're grounded and running on
-   fumes, not only at the hard 0. */
+/* THE TRANSFUSION LINE — field refuelling as an active hover minigame.
+   A ship landed at 0 fuel has no way to move again (thrust and shield both
+   require fuel>0), so holding THRUST while stranded doubles as the "signal
+   for resupply" charge — no new button. But the drone no longer drops fuel
+   in your lap: it arrives, mists a small PRIMER onto the tank, unspools a
+   fuel line to a hover point overhead, and the rest is on you — hold
+   station inside the capture window, in the air, while fuel flows. The one
+   thrust skill the rest of the game never asks for: sustained hover with
+   nothing to settle onto.
+   - Flow is continuous; TAP FIRE to detach cleanly at any moment and keep
+     what you took. Full tank with no occlusion: CLEAN LINE +250.
+   - Drift outside the window: the line occludes (flow stops, drip
+     stutters). Drift past the snap radius: the line parts, -50, the drone
+     leaves with the remainder — signal again if you need it.
+   - While the line is attached the SHIELD cannot come up (the field would
+     sever the umbilical) and FIRE means "detach", so you are slow, soft,
+     and honest — exposure is the price, same as the landed scan.
+   - The pump speaks the game's diagnostic language: a drip per beat,
+     arrhythmic while a contaminant rides along, and the 41-second surge
+     physically rocks the tethered ship (see updateStaticClock). */
 const SIGNAL_HOLD_T = 1.8;
+const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 130;
+function xfuseWindowR() { return easyMode ? 44 : 34; }   // FIELD MEDIC widens the window
+function capturePoint(rd) { return { x: rd.x, y: rd.y + 55 }; }
+/* "tethered" = the line has caught the ship at least once and is still out —
+   from then until release, FIRE detaches instead of shooting */
+function tethered() {
+  return !!(resupplyDrone && resupplyDrone.phase === "line" &&
+            resupplyDrone.everAttached && !ship.dead);
+}
 function updateResupplySignal(dt) {
   const s = ship;
   const stranded = s.landed && s.fuel <= 0 && !s.dead;
@@ -2360,26 +2390,92 @@ function updateResupplySignal(dt) {
   }
   if (s.signalT >= SIGNAL_HOLD_T && !resupplyDrone) {
     s.signalT = 0;
-    resupplyDrone = { x: s.x, y: s.y - 320, phase: "in", t: 0 };
+    resupplyDrone = { x: s.x, y: s.y - 320, hoverY: s.y - 130, phase: "in", t: 0,
+      given: 0, occluded: false, attachedNow: false, everAttached: false,
+      dripT: 0, dripFlip: false, firePrev: true };
     blip(180, 420, 0.4, "sine", 0.12);
   }
-  if (resupplyDrone) {
-    const rd = resupplyDrone;
-    rd.t += dt; rd.x = s.x;
-    if (rd.phase === "in") {
-      rd.y = lerp(s.y - 320, s.y - 34, clamp(rd.t / 1.1, 0, 1));
-      if (rd.t >= 1.1) {
-        s.fuel = Math.min(maxFuel(), s.fuel + 40);
-        addText(s.x, s.y - 46, "RESUPPLY +40", "#ffc400");
-        goldBurst(s.x, s.y - 34);
-        blip(520, 780, 0.2, "sine", 0.12);
-        rd.phase = "out"; rd.t = 0;
+  if (!resupplyDrone) return;
+  const rd = resupplyDrone;
+  rd.t += dt;
+  if (rd.phase === "in") {
+    rd.y = lerp(rd.hoverY - 190, rd.hoverY, clamp(rd.t / 1.1, 0, 1));
+    if (rd.t >= 1.1) {
+      rd.phase = "line"; rd.t = 0;
+      if (s.fuel < XFUSE_PRIMER) {   // just enough to reach the line, not to leave
+        s.fuel = XFUSE_PRIMER;
+        addText(s.x, s.y - 46, "PRIMER MIST — FLY TO THE LINE", "#ffc400");
+        goldBurst(s.x, s.y - 20);
       }
-    } else {
-      rd.y = lerp(s.y - 34, s.y - 320, clamp(rd.t / 0.8, 0, 1));
-      if (rd.t >= 0.8) resupplyDrone = null;
+      blip(520, 780, 0.2, "sine", 0.1);
     }
+  } else if (rd.phase === "line") {
+    updateTransfusion(dt, rd);
+  } else {   // out
+    rd.y -= 260 * dt;
+    if (rd.t >= 1.2) resupplyDrone = null;
   }
+}
+function updateTransfusion(dt, rd) {
+  const s = ship;
+  const cp = capturePoint(rd);
+  const d = Math.hypot(s.x - cp.x, s.y - cp.y);
+  const wasAttached = rd.attachedNow;
+  rd.attachedNow = !s.dead && !s.landed && d < xfuseWindowR();
+  // FIRE = detach, the whole time the line is out and caught (edge-triggered)
+  const fire = input.fire || pad.fire;
+  if (rd.everAttached && fire && !rd.firePrev) {
+    rd.firePrev = fire;
+    finishTransfusion(rd, false);
+    return;
+  }
+  rd.firePrev = fire;
+  if (rd.attachedNow) {
+    rd.everAttached = true;
+    s.shield = false;   // the field would sever the umbilical
+    if (!wasAttached) { blip(300, 460, 0.12, "sine", 0.09); haptic.light(); }
+    if (s.fuel >= maxFuel()) { finishTransfusion(rd, true); return; }
+    s.fuel = Math.min(maxFuel(), s.fuel + XFUSE_RATE * dt);
+    rd.given += XFUSE_RATE * dt;
+    // the drip — and while a contaminant rides along, the pump inherits
+    // the arrhythmia (same 0.5/1.7 stutter as the score and the ECG)
+    rd.dripT += dt;
+    let step = 0.34;
+    if (contaminantAboard()) step *= rd.dripFlip ? 0.5 : 1.7;
+    if (rd.dripT >= step) {
+      rd.dripT = 0; rd.dripFlip = !rd.dripFlip;
+      blip(660, 590, 0.05, "sine", 0.045);
+      haptic.light();
+    }
+  } else if (rd.everAttached) {
+    if (d >= XFUSE_SNAP_R) {   // wandered too far — the line parts
+      score = Math.max(0, score - 50);
+      banner("LINE SEVERED — REMAINDER LOST  -50\nSIGNAL AGAIN IF YOU NEED IT", "#ff4081");
+      blip(500, 90, 0.3, "sawtooth", 0.14);
+      haptic.medium();
+      s.fireCd = Math.max(s.fireCd, 0.5);   // a held FIRE shouldn't snap into a shot
+      rd.phase = "out"; rd.t = 0;
+      return;
+    }
+    if (d >= xfuseWindowR()) rd.occluded = true;   // stuttering, no flow
+  }
+  if (rd.t >= XFUSE_PATIENCE) {
+    banner("TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED", "#ffc400");
+    rd.phase = "out"; rd.t = 0;
+  }
+}
+function finishTransfusion(rd, full) {
+  if (full && !rd.occluded) {
+    score += 250;
+    addText(ship.x, ship.y - 40, "CLEAN LINE +250", "#69f0ae");
+    blip(520, 1040, 0.3, "sine", 0.12);
+  } else {
+    addText(ship.x, ship.y - 40, "LINE RELEASED — FUEL +" + Math.round(rd.given), "#ffc400");
+    blip(420, 300, 0.15, "sine", 0.1);
+  }
+  haptic.light();
+  ship.fireCd = Math.max(ship.fireCd, 0.5);   // the detach tap never becomes a shot
+  rd.phase = "out"; rd.t = 0;
 }
 
 /* ---- the secret lifts and what waits below ---- */
@@ -2993,6 +3089,8 @@ function drawDarkness(now) {
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
   if (level.fakeMercy && !level.fakeMercy.dead)   // lit exactly like her (N1)
     punch(level.fakeMercy.x, level.fakeMercy.y + 40, 260, 0.9);
+  if (resupplyDrone)   // the transfusion drone carries its own work light
+    punch(resupplyDrone.x, resupplyDrone.y + 30, 110, 0.6);
   for (const o of level.oids) {  // stranded Scions carry tiny beacons
     if (o.state === "wait" || o.state === "walk" || o.state === "panic")
       punch(o.x, o.y - 10, 46, 0.55 + 0.3 * Math.abs(Math.sin(now * 2 + o.wave)));
@@ -3074,11 +3172,13 @@ function drawShip(now) {
   }
 }
 
-/* a small resupply drone, dropped in when a stranded ship signals for it */
+/* the transfusion drone: descends on signal, then holds station with a fuel
+   line out — the whole minigame reads from here (window, flow, occlusion) */
 function drawResupplyDrone(now) {
   const rd = resupplyDrone;
+  const bobY = rd.phase === "line" ? rd.y + Math.sin(now * 1.7) * 3 : rd.y;
   ctx.save();
-  ctx.translate(rd.x, rd.y);
+  ctx.translate(rd.x, bobY);
   ctx.rotate(Math.sin(now * 6) * 0.15);
   ctx.fillStyle = "rgba(255,196,0,.18)";
   ctx.beginPath();
@@ -3090,9 +3190,71 @@ function drawResupplyDrone(now) {
     ctx.save();
     ctx.globalAlpha = 0.3 + 0.15 * Math.sin(now * 8);
     ctx.beginPath();
-    ctx.moveTo(rd.x, rd.y + 9); ctx.lineTo(rd.x, rd.y + 70);
+    ctx.moveTo(rd.x, bobY + 9); ctx.lineTo(rd.x, bobY + 70);
     glowStroke("#ffc400", 1.6);
     ctx.restore();
+  }
+  if (rd.phase !== "line") return;
+
+  const s = ship;
+  const P = PAL();
+  const cp = capturePoint(rd);
+  const d = Math.hypot(s.x - cp.x, s.y - cp.y);
+  const wr = xfuseWindowR();
+  const connected = rd.everAttached && !s.dead && d < XFUSE_SNAP_R;
+  const nearSnap = connected && d >= XFUSE_SNAP_R * 0.72;
+  const lineCol = rd.attachedNow ? P.SAFE : nearSnap ? P.DANGER
+    : connected ? P.WARN : "rgba(255,196,0,.55)";
+
+  // the line itself — to the ship once caught, to the capture point until then
+  const ex = connected ? s.x : cp.x, ey = connected ? s.y - 4 : cp.y;
+  const midX = (rd.x + ex) / 2, midY = Math.max(bobY + 9, ey) + 16;   // sag
+  ctx.save();
+  if (connected && !rd.attachedNow) ctx.setLineDash([4, 5]);   // occluded: stuttering
+  ctx.beginPath();
+  ctx.moveTo(rd.x, bobY + 9);
+  ctx.quadraticCurveTo(midX, midY, ex, ey);
+  glowStroke(lineCol, 1.6);
+  ctx.setLineDash([]);
+  // drips travelling down the line while fuel flows
+  if (rd.attachedNow) {
+    for (let k = 0; k < 3; k++) {
+      const p = (now * 0.9 + k / 3) % 1;
+      const q = 1 - p;
+      const qx = q * q * rd.x + 2 * q * p * midX + p * p * ex;
+      const qy = q * q * (bobY + 9) + 2 * q * p * midY + p * p * ey;
+      drawGlow(qx, qy, 5, "#ffc400", 0.8);
+      ctx.fillStyle = "#ffd54f";
+      ctx.fillRect(qx - 1.2, qy - 1.2, 2.4, 2.4);
+    }
+  }
+  ctx.restore();
+
+  // the capture window — dashed ring, same always-readable language as the
+  // landing guide (colour + a ✓/!/✕ glyph)
+  ctx.save();
+  ctx.setLineDash([5, 7]);
+  ctx.globalAlpha = rd.attachedNow ? 0.9 : 0.55 + 0.25 * Math.abs(Math.sin(now * 2));
+  ctx.beginPath(); ctx.arc(cp.x, cp.y, wr, 0, 7);
+  glowStroke(rd.attachedNow ? P.SAFE : connected ? lineCol : "rgba(255,196,0,.7)", 1.4);
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // status line sits above the drone, clear of the ship's landing guide
+  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  const ly = bobY - 18;
+  if (rd.attachedNow) {
+    ctx.fillStyle = P.SAFE;
+    ctx.fillText("✓ TRANSFUSING +" + Math.round(rd.given) + " — TAP FIRE TO DETACH", rd.x, ly);
+  } else if (nearSnap) {
+    ctx.fillStyle = P.DANGER;
+    ctx.fillText("✕ LINE AT LIMIT — IT WILL PART", rd.x, ly);
+  } else if (connected) {
+    ctx.fillStyle = P.WARN;
+    ctx.fillText("! LINE OCCLUDED — HOLD STATION", rd.x, ly);
+  } else {
+    ctx.fillStyle = "rgba(255,196,0,.85)";
+    ctx.fillText("TRANSFUSION LINE — HOVER INSIDE THE RING", rd.x, ly);
   }
 }
 

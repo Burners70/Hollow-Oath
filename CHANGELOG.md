@@ -1,5 +1,37 @@
 # Changelog
 
+## The transfusion line — field refuel as a hover minigame (July 2026)
+
+The stranded-ship resupply drone no longer drops +40 in your lap. It now
+arrives, mists a **primer** (+10 — enough to reach the line, not to leave),
+and unspools a **transfusion line** to a hover point overhead. The rest is
+the one thrust skill the game never asked for: **sustained hover** inside a
+capture window while fuel flows at 12/s.
+
+- **Detach is a choice:** TAP FIRE releases cleanly at any moment and keeps
+  what you took; while the line is caught, FIRE never shoots (and a detach
+  tap can't accidentally become a shot — pacifist runs are safe). A full
+  tank with zero occlusions earns **CLEAN LINE +250**.
+- **Exposure is the price:** the shield is forced down while attached (the
+  field would sever the umbilical), turrets keep shooting, and the
+  41-second surge physically rocks a tethered ship — the one place the
+  clock has mechanical teeth. Drift out of the window and the line
+  *occludes* (flow stops); drift past the snap radius and it parts: −50,
+  remainder lost, signal again.
+- **It diagnoses:** the pump drips on a beat (audio + a light haptic tap),
+  and goes **arrhythmic while a contaminant is aboard** — the same 0.5/1.7
+  stutter as the score and the ECG. A third place to hear the lie.
+- **Always readable:** dashed capture ring, sagging line (taut green when
+  flowing, stuttering dashes when occluded, red near the limit), drips
+  travelling down the line, and `✓ / ! / ✕` status through the colorblind-
+  safe `PAL()` palette. FIELD MEDIC widens the window ~1.3×.
+- MERCY's recovery bay stays passive on purpose — no minigame between a
+  hurt player and safety. Design writeup: ROADMAP.md § Future ideas.
+
+Smoke suite: 24/24 green (strand→primer→line, and a full
+hover→flow→shield-lockout→clean-detach cycle).
+
+
 ## Bundles I–N + haptics wiring (July 2026)
 
 One pass took the roadmap's whole no-Xcode tail. Per bundle:

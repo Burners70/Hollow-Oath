@@ -104,11 +104,12 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
     fire check in `updatePlay`); this extends that idea to the ones you've
     already saved.
 
-- **The transfusion line (refuel as a thrust minigame) — proposed, not
-  built.** Today every refuel is passive: the bay drips 30/s while you sit
-  docked, pods are a flat +35 on touch, and the stranded-ship resupply drone
-  (`updateResupplySignal`) auto-delivers +40 after a 1.8 s signal hold. The
-  proposal: the *field* refuel becomes an active transfusion — the drone
+- **The transfusion line (refuel as a thrust minigame) — SHIPPED (July
+  2026).** Built as designed below (see CHANGELOG.md for the landed
+  details; deviations: the −50 sting applies to a line *snap* rather than a
+  fumbled primer — failed primers just cost the re-signal time — and the
+  counterfeit tanker stays future work). Original writeup, kept for the
+  reasoning trail: the *field* refuel becomes an active transfusion — the drone
   arrives, unspools a fuel line to a hover point, and **you fly the refuelled
   ship**: hold station inside a small capture window, in the air, while fuel
   flows. The bay stays passive on purpose (home must stay a relief moment;

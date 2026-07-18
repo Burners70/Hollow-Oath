@@ -195,7 +195,16 @@ ship in quickening pulses while you dock one last time.
   = +750.
 - **Force field** (SHIELD, hold): drains fuel ~7/s; deflects turret fire,
   destroys drones harmlessly on contact, turns bad landings into bounces,
-  and saves you from cave ceilings.
+  and saves you from cave ceilings. It cannot come up while the transfusion
+  line is attached.
+- **The transfusion line**: stranded at 0 fuel, hold THRUST to signal — a
+  drone arrives, mists a +10 primer, and unspools a fuel line to a hover
+  point. Hold station inside the capture window (the one sustained-hover
+  skill in the game) while fuel flows at 12/s; TAP FIRE to detach cleanly
+  anytime and keep what you took. Full tank with no occlusion = CLEAN LINE
+  +250; drift past the snap radius and the line parts (−50, remainder
+  lost). The pump's drip goes arrhythmic with a contaminant aboard, and the
+  41-second surge rocks the tether. MERCY's bay refuel stays passive.
 - **Enemies**: tracking turrets, homing drones. You *can* shoot back — but a
   no-fire sector earns the **Hippocratic bonus** (+2000) and a no-fire run
   affects the best ending/rank.
@@ -253,6 +262,8 @@ rank (§2.5), distinct from breaking it in combat.
 | Fake pod touched | −100 (and −18 fuel) |
 | Counterfeit MERCY identified (scan or one shot) | +800 |
 | Counterfeit MERCY docked (the trap) | −200 (and fuel drain) |
+| Transfusion CLEAN LINE (full tank, no occlusion) | +250 |
+| Transfusion line snapped (drifted past the limit) | −50 (remainder lost) |
 | Sector clear | +1000 (+2000 Hippocratic if no shots fired) |
 | Scion lost | −250 (famous −500); crash with passengers −250 each |
 | Endings | fire +3000 · answered +6000 (+2000 no-fire run) |

@@ -320,17 +320,58 @@ test("every sector briefing renders", async ({ page }) => {
   }
 });
 
-test("stranding at 0 fuel is recoverable via the resupply signal", async ({ page }) => {
+test("stranding at 0 fuel: the signal brings a drone, a primer, and a line", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
   let s = await page.evaluate(() => __doids.get());
   expect(s.ship.fuel).toBe(0);
   expect(s.ship.landed).toBe(true);
   await page.evaluate(() => { input.thrust = true; });
   await page.waitForFunction(() => __doids.get().resupplyDrone !== null, null, { timeout: 4000 });
-  await page.waitForFunction(() => __doids.get().resupplyDrone === null, null, { timeout: 4000 });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).phase === "line", null, { timeout: 4000 });
   await page.evaluate(() => { input.thrust = false; });
   s = await page.evaluate(() => __doids.get());
-  expect(s.ship.fuel).toBeGreaterThan(0);
+  expect(s.ship.fuel).toBeGreaterThan(6);   // the primer mist — enough to reach the line
+});
+
+test("the transfusion line: hover to flow, shield forced down, FIRE detaches cleanly", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => { t.alive = false; });
+    level.drones.forEach(d => { d.alive = false; });
+    __doids.strand();
+    input.thrust = true;
+  });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).phase === "line", null, { timeout: 6000 });
+  await page.evaluate(() => { input.thrust = false; });
+  // simulate holding the hover: pin the ship inside the capture window
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      if (!resupplyDrone) return;
+      const cp = capturePoint(resupplyDrone);
+      ship.x = cp.x; ship.y = cp.y; ship.vx = ship.vy = 0; ship.landed = false;
+    }, 30);
+  });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).attachedNow === true, null, { timeout: 4000 });
+  const f0 = await page.evaluate(() => __doids.get().ship.fuel);
+  await page.waitForFunction(f => __doids.get().ship.fuel > f + 6, f0, { timeout: 4000 });
+  // the umbilical forces the shield down
+  await page.evaluate(() => { input.shield = true; });
+  await page.waitForTimeout(150);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.ship.shield).toBe(false);
+  // tap FIRE: it detaches instead of shooting
+  await page.evaluate(() => { clearInterval(window.__pin); input.shield = false; input.fire = true; });
+  await page.waitForTimeout(120);
+  await page.evaluate(() => {
+    input.fire = false;
+    // set the ship down so the post-detach free-fall can't muddy the test
+    ship.y = __doids.ground(ship.x) - 11; ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;
+  });
+  await page.waitForFunction(() => __doids.get().resupplyDrone === null, null, { timeout: 4000 });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.ship.fuel).toBeGreaterThan(f0 + 6);   // the flow was kept on release
+  expect(s.runFired).toBe(0);                    // the detach tap never became a shot
+  expect(s.state).toBe("play");
 });
 
 test("thrust noise stops when leaving play, even mid-thrust", async ({ page }) => {

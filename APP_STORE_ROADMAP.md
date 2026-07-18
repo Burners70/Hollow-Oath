@@ -636,9 +636,10 @@ same Capacitor shell, and two proposed flight bundles with full placement
 writeups in ROADMAP.md § Future ideas:
 - **the pendulum carry** — boarded Scions physically dangle and can be swung
   into terrain/turrets/walls on a rough carry (the Oids/Thrust homage);
-- **the transfusion line** — field refuelling becomes an active hover
-  minigame: hold station on the drone's fuel line, choose when to detach,
-  shield down while tethered, the 41-second surge shoving the tether. Inverts
-  the core skill (sustained hover vs. approach-and-settle) and reuses the
-  arrhythmia/counterfeit tell language. Pairs with the pendulum carry as an
-  "advanced flight" 1.1/1.2 content update.
+- ~~**the transfusion line**~~ — **shipped (July 2026), ahead of schedule**:
+  field refuelling is now an active hover minigame — hold station on the
+  drone's fuel line, choose when to detach (CLEAN LINE +250 for a full tank
+  with no occlusion), shield forced down while tethered, FIRE means detach,
+  the 41-second surge rocks the tether, and the pump goes arrhythmic with a
+  contaminant aboard. The counterfeit tanker (Glycon's fourth act) remains a
+  future hook. See ROADMAP.md § Future ideas for the design writeup.
