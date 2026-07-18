@@ -34,6 +34,11 @@ set_bool UIViewControllerBasedStatusBarAppearance false
 set_bool UIRequiresFullScreen true
 echo "✓ Info.plist: landscape-only, status bar hidden, requires full screen (E2)"
 
+# --- E5: export compliance — no encryption beyond HTTPS (exempt), so
+# TestFlight builds skip the manual compliance question on every upload ----
+set_bool ITSAppUsesNonExemptEncryption false
+echo "✓ Info.plist: ITSAppUsesNonExemptEncryption = false (E5)"
+
 # --- iOS 16 floor (owner decision, July 2026 — perf floor at A11+) --------
 perl -pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "$PBX"
 [ -f ios/App/Podfile ] && perl -pi -e "s/platform :ios, '[0-9.]+'/platform :ios, '16.0'/" ios/App/Podfile

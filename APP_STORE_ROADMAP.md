@@ -401,7 +401,9 @@ already a finished achievement list. **Priority: 7. Dependencies: E.**
   *(Landed: `reportRunAchievements()` mirrors `drawWin`'s rank branches at the
   ending → win transition; FIRST DO NO HARM fires in `sectorClearNow()`, THE
   FULL CODEX at the codex save. IDs live in `GC_ACH` and must match the App
-  Store Connect records — table in app/MAC_SETUP.md §5.)*
+  Store Connect records — table in app/MAC_SETUP.md §5. The 1024×1024
+  achievement images and the earned/pre-earned ASC description copy are in
+  `assets/gamecenter/achievements/` + [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md).)*
 - [x] **G4. Web no-op.** All Game Center calls go through one `gc` facade that is
   a no-op outside the wrapper (same pattern as F1). *(On the web the facade also
   keeps a bounded intent trace, exposed as `gcReports` on `__doids.get()` — the

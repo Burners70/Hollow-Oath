@@ -1,5 +1,24 @@
 # Changelog
 
+## Game Center achievement art & App Store Connect copy (July 2026)
+
+The asset half of G3, ready to paste into App Store Connect
+(*Services → Game Center → Achievements*):
+
+- **Nine 1024×1024 achievement images** in
+  `assets/gamecenter/achievements/` — one per launch achievement, composed
+  for Game Center's circular crop (meaning inside the centre circle, the
+  outer ring survives the crop). SVG sources in `svg/`, regenerable via
+  `generate.py` (headless Chromium render).
+- **`GAMECENTER_ACHIEVEMENTS.md`** — the full ASC metadata table: ID, name,
+  hidden flag, and the earned/pre-earned description copy (earned = past
+  tense, what you did; pre-earned = a hint that never spoils — the SECTOR
+  WARDEN hint was reworked to stay oblique about the ending).
+- Housekeeping in the same pass: `configure-ios.sh` now also sets
+  `ITSAppUsesNonExemptEncryption = false` (the game uses no encryption
+  beyond HTTPS — exempt), so TestFlight builds skip the manual
+  export-compliance question on every upload.
+
 ## Bundles E + G: the native wrapper and Game Center (July 2026)
 
 The Mac-gated work, written so the Mac session is a checklist
