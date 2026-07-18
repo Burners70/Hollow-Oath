@@ -641,6 +641,12 @@ writeups in ROADMAP.md § Future ideas:
   recommendation: **free 1.1 update**) in
   [PENDULUM_SPEC.md](PENDULUM_SPEC.md). Supersedes the earlier
   "pendulum carry" core-loop proposal (struck through in ROADMAP.md);
+- **the deep Hollows (Bundle Q)** — René Laennec as a hidden famous Scion
+  (AUSCULTATION lift-sense, the Radiosense pattern for lifts), the ROTATION
+  CHART (return to cleared sectors, cached as-left), and three new caves
+  with new discoveries (THE WARD, THE MINT, THE LISTENING POST). Full spec
+  (checklist Q1–Q10, recommendation: **free 1.2 update, after P**) in
+  [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md);
 - ~~**the transfusion line**~~ — **shipped (July 2026), ahead of schedule**:
   field refuelling is now an active hover minigame — hold station on the
   drone's fuel line, choose when to detach (CLEAN LINE +250 for a full tank

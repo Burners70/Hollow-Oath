@@ -392,5 +392,14 @@ session scratchpad and can be recreated the same way if needed.)
   swinging pendulum physics, carried out through cave roof and darkness to
   MERCY. Full design + implementation spec: [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
   (Bundle P; recommended as the free 1.1 content update).
+- **The deep Hollows — specced, not built.** A twelfth famous Scion, René
+  Laennec (the stethoscope), stranded inside a new Hollow and found by his
+  knocking; his **AUSCULTATION** upgrade makes unfound lift pads ring when
+  near (the Radiosense pattern applied to lifts — unaided tells unchanged),
+  and his chart unlocks the **ROTATION CHART**: return travel to cleared
+  sectors that persist as you left them. Three new caves (THE WARD, THE
+  MINT, THE LISTENING POST) with new discoveries. Full spec:
+  [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) (Bundle Q;
+  recommended as the free 1.2 update, after P).
 - Sound design pass for the Hollows (drips, echo); haptics on iOS *(call
   sites wired — Bundle F1/F2; needs the native wrapper)*.

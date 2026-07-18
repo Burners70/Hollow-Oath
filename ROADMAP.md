@@ -65,6 +65,11 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 
 ## Future ideas
 
+- **The deep Hollows (Bundle Q) — specced (July 2026), not built.**
+  Laennec as a hidden famous Scion (AUSCULTATION lift-sense), the
+  ROTATION CHART (return to cleared sectors, cached as-left), three new
+  caves with new discoveries. Spec:
+  [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
 - Persistent codex / rescue-log gallery across runs (who you've found).
 - More famous Scions per sector, randomised from a larger pool.
 - Caves/overhangs (needs non-heightmap terrain), moving rescue targets.
