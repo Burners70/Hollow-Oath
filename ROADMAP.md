@@ -65,7 +65,8 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 
 ## Future ideas
 
-- **The deep Hollows (Bundle Q) — specced (July 2026), not built.**
+- **The deep Hollows (Bundle Q) — specced (July 2026), not built; locked
+  as the free 1.2 update (after Bundle P's 1.1) in APP_STORE_ROADMAP.md.**
   Laennec as a hidden famous Scion (AUSCULTATION lift-sense), the
   ROTATION CHART (return to cleared sectors, cached as-left), three new
   caves with new discoveries. Spec:
@@ -79,7 +80,8 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 - ~~**The pendulum carry (the classic Oids/Thrust homage)**~~ —
   **superseded (July 2026)** by [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
   (Bundle P: the pendulum sling — relic recovery from the Hollows, fully
-  decoupled from Scion pickup, per owner direction). The original
+  decoupled from Scion pickup, per owner direction; **locked as the free
+  1.1 update** in APP_STORE_ROADMAP.md). The original
   core-loop writeup below is kept for the reasoning trail; its damage
   model (proportional to rough flying, always-readable warning) and its
   loss-accounting rule survive in the new spec. Original proposal: today

@@ -57,6 +57,8 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | M | Remix mode & daily seed | Replay value / price point | No |
 | N | Counterfeit MERCY finale | Glycon's third act | No |
 | O | Store listing & submission | Shipping | **Yes (last)** |
+| P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
+| Q | The deep Hollows | **Locked: free update 1.2** | No (post-launch) |
 
 Minimum viable paid release = **A + B + C + D + E + F + O**. Everything else raises
 the ceiling (and the defensible price).
@@ -613,6 +615,58 @@ merged; G/H strongly recommended.**
 
 ---
 
+## Bundle P — The pendulum sling (update 1.1)
+
+**Why:** The Oids/Thrust pendulum homage, decoupled from Scion pickup (owner
+direction, July 2026): each Hollow hides one towable relic of Glycon's
+(THE FIRST CALL, THE LAST HEART, THE MASK), slung beneath the ship on real
+pendulum physics and carried out through roof and darkness to MERCY —
+patient transport as a flight skill. **Locked (owner decision, July 2026):
+ships as the free 1.1 content update, "1.1 — THE PENDULUM", not in the
+launch build.** Full spec, rationale and draft copy:
+[PENDULUM_SPEC.md](PENDULUM_SPEC.md). **Priority: first post-launch.
+Dependencies: all shipped (I, J, K, H, D, F1); the P10 feel pass needs the
+E wrapper on a real device.**
+
+- [ ] **P·impl. Implement per the spec checklist** — work through
+  PENDULUM_SPEC.md §7, items P1–P9, checking off there (one source of
+  truth; don't mirror the list here).
+- [ ] **P·feel. P10 device feel pass** — `SLING_L`, damping, the 30% tug;
+  the three handling characters must feel different before they feel
+  hard. Do alongside F3.
+- [ ] **P·ship. Release 1.1** — What's-New copy per the E7 trademark
+  tiers (generic in-store, named homage on the site), review-refresh
+  prompt consideration, and the $2.99 → $4.99 price move case if launch
+  priced low (O1).
+
+---
+
+## Bundle Q — The deep Hollows (update 1.2)
+
+**Why:** The lifts stay hard to find (a virtue, named by the owner) — the
+aid is priced instead: René Laennec joins as a twelfth famous Scion hidden
+inside a new Hollow, found by his knocking. AUSCULTATION makes unfound
+lift pads ring when near (the Radiosense pattern applied to lifts); his
+chart unlocks the ROTATION CHART (return travel to cleared sectors,
+cached as-left); three new caves with new discoveries (THE WARD, THE
+MINT, THE LISTENING POST). **Locked (owner decision, July 2026): ships as
+the free 1.2 content update, "1.2 — THE DEEP HOLLOWS", after P's 1.1.**
+Full spec: [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+**Priority: second post-launch. Dependencies: P shipped and stable (the
+level cache lands best on a settled base); J, K, I, M, A all shipped.**
+
+- [ ] **Q·impl. Implement per the spec checklist** — work through
+  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there.
+- [ ] **Q·guard. Regression gate** — the Q5 level cache touches
+  `toBriefing`; the full smoke suite plus the M1 heightmap checksum must
+  stay green, and remix/daily must never draw Laennec onto a surface
+  sector (Q10 assertions).
+- [ ] **Q·ship. Release 1.2** — What's-New copy, same trademark tiers;
+  add EVERY HOLLOW HEARD and GENTLE HANDS (P) to the live G3 achievement
+  set if Game Center shipped.
+
+---
+
 ## Suggested sequencing
 
 ```
@@ -622,31 +676,27 @@ C ──┤                │
 D ──┴────────────────┘
       then, in any order alongside E–G:
       H, I, J, K, L   → price floor $2.99
-      then M, N       → price point $4.99, "1.1 content update" if post-launch
+      then M, N       → price point $4.99 at launch
+      after launch:
+      P (1.1 — THE PENDULUM) → Q (1.2 — THE DEEP HOLLOWS)   → both free
 ```
 
 **Status (July 2026):** A–D and **H–N are all shipped** on the web build, plus
 the web-safe slices of E (E3, E7) and F (F1/F2 — no-ops until the wrapper
 exists). Everything left — E1/E2/E4–E8, F3, G, O — needs a Mac with Xcode
 and/or App Store Connect. The game already plays at the $4.99 feature bar.
+**P and Q are specced and locked** (owner decision, July 2026) as the free
+1.1 and 1.2 post-launch updates — see their bundle sections above and
+[PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
+[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
-grows), a fourth Hollow, second-playthrough modifiers, Android/Google Play via the
-same Capacitor shell, and two proposed flight bundles with full placement
-writeups in ROADMAP.md § Future ideas:
-- **the pendulum sling (Bundle P)** — the Oids/Thrust pendulum homage,
-  redesigned (July 2026) as relic recovery from the Hollows: tow what
-  Glycon kept below on a swinging sling, decoupled from Scion pickup.
-  Full spec (design, copy, checklist P1–P10, launch-vs-update
-  recommendation: **free 1.1 update**) in
-  [PENDULUM_SPEC.md](PENDULUM_SPEC.md). Supersedes the earlier
-  "pendulum carry" core-loop proposal (struck through in ROADMAP.md);
-- **the deep Hollows (Bundle Q)** — René Laennec as a hidden famous Scion
-  (AUSCULTATION lift-sense, the Radiosense pattern for lifts), the ROTATION
-  CHART (return to cleared sectors, cached as-left), and three new caves
-  with new discoveries (THE WARD, THE MINT, THE LISTENING POST). Full spec
-  (checklist Q1–Q10, recommendation: **free 1.2 update, after P**) in
-  [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md);
+grows), second-playthrough modifiers, Android/Google Play via the
+same Capacitor shell, a second wave of relics in Q's new caves, and the
+counterfeit tanker (Glycon's fourth act, seeded by the transfusion line).
+Formerly-listed candidates now promoted to locked bundles: ~~the pendulum
+sling~~ → **Bundle P (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
+**Bundle Q (1.2)**.
 - ~~**the transfusion line**~~ — **shipped (July 2026), ahead of schedule**:
   field refuelling is now an active hover minigame — hold station on the
   drone's fuel line, choose when to detach (CLEAN LINE +250 for a full tank

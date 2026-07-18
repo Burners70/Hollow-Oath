@@ -1,5 +1,24 @@
 # Changelog
 
+## Decision: Bundles P & Q locked as the 1.1 and 1.2 updates (July 2026)
+
+Owner decision. The two specced post-launch bundles are no longer
+candidates — they are the committed, free post-launch release plan:
+
+- **Bundle P — the pendulum sling → "1.1 — THE PENDULUM"** (free).
+- **Bundle Q — the deep Hollows → "1.2 — THE DEEP HOLLOWS"** (free,
+  after 1.1 — the Q5 level cache lands on a stable shipped base).
+
+APP_STORE_ROADMAP.md now carries both as proper bundle sections (P·impl /
+P·feel / P·ship, Q·impl / Q·guard / Q·ship) with rows in the
+bundle-order table and the sequencing diagram; the implementation
+checklists stay in the specs (single source of truth). Decision stamps
+added to PENDULUM_SPEC.md §10 and HOLLOWS_EXPANSION_SPEC.md §11
+(recommendation text kept as the reasoning trail), and the
+"post-launch candidates" list updated — the pendulum sling and the
+fourth-Hollow ideas are promoted out of it. **No code changed.**
+
+
 ## Proposal: the deep Hollows — Bundle Q specced, not built (July 2026)
 
 Second spec of the pass, sibling to Bundle P. The secret lifts stay as

@@ -306,6 +306,11 @@ assertions.
 
 ## 11. Launch vs. update — recommendation
 
+> **DECIDED (owner, July 2026): locked as the free 1.2 content update —
+> "1.2 — THE DEEP HOLLOWS", after Bundle P's 1.1.** Tracked as Bundle Q
+> in [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). The reasoning below is
+> kept as the record of the recommendation the decision followed.
+
 **Free content update, after Bundle P.** Same reasoning as P (nothing
 here unblocks submission; the store positioning is "complete game, no
 IAP"; updates are the retention and featuring lever) — plus Q is the

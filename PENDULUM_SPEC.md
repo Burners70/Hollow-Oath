@@ -319,6 +319,11 @@ which is why P10 is a real device pass, not a checkbox.
 
 ## 10. Launch vs. update — recommendation
 
+> **DECIDED (owner, July 2026): locked as the free 1.1 content update —
+> "1.1 — THE PENDULUM".** Tracked as Bundle P in
+> [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). The reasoning below is
+> kept as the record of the recommendation the decision followed.
+
 **Ship it as the free 1.1 content update, not in the launch build.**
 
 - **It doesn't gate launch, so don't let it delay launch.** Everything
