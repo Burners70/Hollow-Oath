@@ -386,5 +386,21 @@ session scratchpad and can be recreated the same way if needed.)
 - A fourth cave / a Glycon confrontation beyond the shrines *(the counterfeit
   MERCY — Bundle N — is now that confrontation's first act)*; a third finale
   branch if GLYCON UNMASKED.
+- **The pendulum sling — specced, not built.** The Oids/Thrust pendulum
+  homage, decoupled from Scion pickup: each Hollow hides a towable relic
+  (THE FIRST CALL, THE LAST HEART, THE MASK) slung beneath the ship on
+  swinging pendulum physics, carried out through cave roof and darkness to
+  MERCY. Full design + implementation spec: [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
+  (Bundle P; **locked as the free 1.1 content update** — owner decision,
+  July 2026).
+- **The deep Hollows — specced, not built.** A twelfth famous Scion, René
+  Laennec (the stethoscope), stranded inside a new Hollow and found by his
+  knocking; his **AUSCULTATION** upgrade makes unfound lift pads ring when
+  near (the Radiosense pattern applied to lifts — unaided tells unchanged),
+  and his chart unlocks the **ROTATION CHART**: return travel to cleared
+  sectors that persist as you left them. Three new caves (THE WARD, THE
+  MINT, THE LISTENING POST) with new discoveries. Full spec:
+  [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) (Bundle Q;
+  **locked as the free 1.2 update, after P** — owner decision, July 2026).
 - Sound design pass for the Hollows (drips, echo); haptics on iOS *(call
   sites wired — Bundle F1/F2; needs the native wrapper)*.

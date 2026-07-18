@@ -1,5 +1,84 @@
 # Changelog
 
+## Decision: Bundles P & Q locked as the 1.1 and 1.2 updates (July 2026)
+
+Owner decision. The two specced post-launch bundles are no longer
+candidates — they are the committed, free post-launch release plan:
+
+- **Bundle P — the pendulum sling → "1.1 — THE PENDULUM"** (free).
+- **Bundle Q — the deep Hollows → "1.2 — THE DEEP HOLLOWS"** (free,
+  after 1.1 — the Q5 level cache lands on a stable shipped base).
+
+APP_STORE_ROADMAP.md now carries both as proper bundle sections (P·impl /
+P·feel / P·ship, Q·impl / Q·guard / Q·ship) with rows in the
+bundle-order table and the sequencing diagram; the implementation
+checklists stay in the specs (single source of truth). Decision stamps
+added to PENDULUM_SPEC.md §10 and HOLLOWS_EXPANSION_SPEC.md §11
+(recommendation text kept as the reasoning trail), and the
+"post-launch candidates" list updated — the pendulum sling and the
+fourth-Hollow ideas are promoted out of it. **No code changed.**
+
+
+## Proposal: the deep Hollows — Bundle Q specced, not built (July 2026)
+
+Second spec of the pass, sibling to Bundle P. The secret lifts stay as
+hard to find as ever — the owner named that difficulty a virtue, so the
+aid is priced instead of the secret deleted, on the Radiosense precedent
+(an earned rescue converts into a finding aid):
+
+- **RENÉ LAENNEC** (the stethoscope — listening as diagnosis, the game's
+  own core skill made canon) joins as a twelfth famous Scion, hidden
+  *inside* a new Hollow under Jenner Terraces and found by his knocking —
+  human-irregular, warm, the tell grammar inverted against Glycon's
+  perfect unison. Excluded from the remix pool; he is seeded content,
+  like the shrines.
+- His **AUSCULTATION** upgrade makes unfound lift pads ring softly and
+  mark themselves within ~240 px (no compass, no HUD arrow — weaker than
+  Radiosense on purpose); his wall chart unlocks the **ROTATION CHART**:
+  return travel from the briefing screen to any cleared sector, cached
+  **as you left it** (dead turrets stay dead, found secrets stay found,
+  lost Scions stay lost; no clear bonus or extraction can re-fire).
+- **Three new Hollows** under sectors 2/4/6 — THE WARD (the muster roll
+  + four WARD NOTES for the archive), THE MINT (bend Glycon's amulet
+  press: every remaining counterfeit's unison blink drifts out of true),
+  THE LISTENING POST (Laennec). All six hollows in one run = EVERY
+  HOLLOW HEARD.
+- Spec: [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) —
+  rationale, mechanics, draft copy, checklist Q1–Q10 with code anchors,
+  save-schema seams, tests. **Recommendation: free 1.2 update, after
+  Bundle P's 1.1** (larger and riskier of the two; lands best on a
+  stable shipped base). Pointers updated in GAME_DESIGN.md §10,
+  APP_STORE_ROADMAP.md and ROADMAP.md. **No code changed.**
+
+
+## Proposal: the pendulum sling — Bundle P specced, not built (July 2026)
+
+Wrote the full design + implementation spec for the classic Oids/Thrust
+**pendulum** element — redesigned per owner direction to be **decoupled from
+Scion pickup** and to live in the secret Hollows as a whole new story
+element: each cave hides one towable **relic** of Glycon's (THE FIRST CALL —
+SOLACE's original recorder core; THE LAST HEART — the one genuine heart in
+the counterfeit workshop; THE MASK — the idol's human face), slung beneath
+the ship on real pendulum physics and carried out through roof, darkness and
+lift to MERCY without slamming it into rock. Patient transport as a flight
+skill — *primum non nocere*, made kinetic.
+
+- Spec: [PENDULUM_SPEC.md](PENDULUM_SPEC.md) — gameplay/narrative/goal
+  rationale, three handling characters (heavy → fragile → wild), tether
+  physics model, tell language (mini-ECG, `✓/!/✕`, each relic found by its
+  rhythm — or its total silence), scoring (deliver +1200, GENTLE HANDS
+  +500, all three +2000, broken −400), draft card copy, ending hooks,
+  checklist P1–P10 with code anchors, persistence, tests.
+- **Recommendation: free 1.1 content update, not launch** — everything
+  still blocking submission is Mac-side, and the mechanic's feel pass
+  needs real hardware; free (not paid) preserves the "complete game, no
+  IAP" store positioning and buys a re-feature moment.
+- Supersedes the earlier "pendulum carry" core-loop proposal (now struck
+  through in ROADMAP.md § Future ideas, reasoning trail kept); pointers
+  updated in GAME_DESIGN.md §10 and APP_STORE_ROADMAP.md's post-launch
+  candidates. **No code changed.**
+
+
 ## The transfusion line — field refuel as a hover minigame (July 2026)
 
 The stranded-ship resupply drone no longer drops +40 in your lap. It now

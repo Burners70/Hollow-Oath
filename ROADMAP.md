@@ -65,14 +65,27 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 
 ## Future ideas
 
+- **The deep Hollows (Bundle Q) — specced (July 2026), not built; locked
+  as the free 1.2 update (after Bundle P's 1.1) in APP_STORE_ROADMAP.md.**
+  Laennec as a hidden famous Scion (AUSCULTATION lift-sense), the
+  ROTATION CHART (return to cleared sectors, cached as-left), three new
+  caves with new discoveries. Spec:
+  [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
 - Persistent codex / rescue-log gallery across runs (who you've found).
 - More famous Scions per sector, randomised from a larger pool.
 - Caves/overhangs (needs non-heightmap terrain), moving rescue targets.
 - Saboteur behavioural tells on the ground (wrong walk speed is in; could add
   refusing to panic, standing too still).
 - Difficulty settings; second playthrough modifiers.
-- **The pendulum carry (the classic Oids/Thrust homage) — proposed, not
-  built.** Today a boarded Scion just vanishes into `s.passengers` (an
+- ~~**The pendulum carry (the classic Oids/Thrust homage)**~~ —
+  **superseded (July 2026)** by [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
+  (Bundle P: the pendulum sling — relic recovery from the Hollows, fully
+  decoupled from Scion pickup, per owner direction; **locked as the free
+  1.1 update** in APP_STORE_ROADMAP.md). The original
+  core-loop writeup below is kept for the reasoning trail; its damage
+  model (proportional to rough flying, always-readable warning) and its
+  loss-accounting rule survive in the new spec. Original proposal: today
+  a boarded Scion just vanishes into `s.passengers` (an
   abstract array, `CAPACITY` 6) the moment `o.state` flips to `"aboard"` in
   `updateOids` — no physical risk between pickup and delivery. The pendulum
   mechanic makes the *carry itself* the tension, not just the landing:
