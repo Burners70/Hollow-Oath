@@ -988,3 +988,117 @@ test("T6: the Basin opens at dusk and night falls once to full dark", async ({ p
   expect(fin.staged).toBe(false);
   expect(fin.da).toBeUndefined();
 });
+
+test("U1: the lift pad rings hollow once per touchdown and re-arms on lift-off", async ({ page }) => {
+  // sector 1 hides a lift; settle on its plate and the pad rings once
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  await page.waitForFunction(
+    () => { const L = __doids.get().level.lift; return !!L && L.rung === true; },
+    null, { timeout: 4000 });
+  // lift clear of the plate — near goes false and the ring re-arms
+  await page.evaluate(() => { ship.landed = false; ship.y -= 400; ship.vy = -60; });
+  await page.waitForFunction(
+    () => __doids.get().level.lift.rung === false, null, { timeout: 4000 });
+  expect(await page.evaluate(() => __doids.get().level.lift.rung)).toBe(false);
+});
+
+test("U3: the HUD legend opens from the title and from pause, and returns", async ({ page }) => {
+  await page.waitForTimeout(700);   // clear the title just-arrived guard
+  const lr = await page.evaluate(() => window.legendRect());
+  await page.mouse.click(lr.x + lr.w / 2, lr.y + lr.h / 2);
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("legend");
+  // page through to the end → back to the title
+  await page.waitForTimeout(450);   // clear the card's stateT > 0.4 tap guard
+  const pages = await page.evaluate(() => LEGEND_CARD.pages || 1);
+  for (let p = 0; p < pages; p++) {
+    await page.evaluate(() => { input.tap = true; });
+    await page.waitForTimeout(80);
+  }
+  expect(await page.evaluate(() => __doids.get().state)).toBe("title");
+  // now from a live run's pause screen, via the legend link
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  await page.waitForTimeout(300);   // clear the pause stateT > 0.25 guard
+  expect(await page.evaluate(() => __doids.get().state)).toBe("pause");
+  await page.evaluate(() => {
+    const r = pauseLegendRect();
+    input.tap = true; input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+  });
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("legend");
+  // Escape returns to pause — where it was opened from, not the title
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("pause");
+});
+
+test("U4: the pause button clears the score and the FUEL/ECG bars at 320-high", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 568, height: 320 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", e => errs.push(e.message));
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(60);
+  const geo = await page.evaluate(() => {
+    const pr = pauseRect();
+    const bw = Math.min(150, vw * 0.3);
+    const ecgLeft = vw - bw - 14 - saRight;   // drawECG x (top-right)
+    const fuelRight = 14 + saLeft + bw;         // drawBar x + w (top-left)
+    const scoreHalf = 24;                       // ~6 chars of 12px monospace, centred
+    const scoreLeft = vw / 2 - scoreHalf, scoreRight = vw / 2 + scoreHalf;
+    return {
+      clearsEcg: pr.x + pr.w <= ecgLeft,
+      clearsFuel: pr.x >= fuelRight,
+      clearsScore: pr.x >= scoreRight || pr.x + pr.w <= scoreLeft,
+      inViewport: pr.x >= 0 && pr.x + pr.w <= vw && pr.y >= 0 && pr.y + pr.h <= vh,
+    };
+  });
+  expect(geo.clearsEcg).toBe(true);
+  expect(geo.clearsFuel).toBe(true);
+  expect(geo.clearsScore).toBe(true);
+  expect(geo.inViewport).toBe(true);
+  expect(errs).toEqual([]);
+  await ctx.close();
+});
+
+test("U2: the field refueller costs points, delivers less each time, never soft-locks", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(1); __doids.launch();
+    level.turrets.forEach(t => { t.alive = false; });
+    level.drones.forEach(d => { d.alive = false; });
+    level.oids = []; level.pods = [];   // isolate scoring to the refuel line only
+    score = 5000;            // a tally for the crutch to drain
+    __doids.strand();
+    input.thrust = true;     // stranded-hold signals for resupply
+  });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).phase === "line", null, { timeout: 6000 });
+  await page.evaluate(() => { input.thrust = false; });
+  // the first fill's ceiling: ~full, but never below the safety floor and never
+  // above the tank — and refuels is still 0 until the line actually catches
+  const cap1 = await page.evaluate(() => resupplyDrone.cap);
+  const mf = await page.evaluate(() => __doids.get().maxFuel);
+  expect(cap1).toBeGreaterThanOrEqual(35);
+  expect(cap1).toBeLessThanOrEqual(mf);
+  expect(await page.evaluate(() => __doids.get().runRefuels)).toBe(0);
+  // pin the ship in the capture window so the line flows to the cap
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      if (!resupplyDrone) return;
+      const cp = capturePoint(resupplyDrone);
+      ship.x = cp.x; ship.y = cp.y; ship.vx = ship.vy = 0; ship.landed = false;
+    }, 30);
+  });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).phase === "out", null, { timeout: 15000 });
+  await page.evaluate(() => clearInterval(window.__pin));
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.score).toBeLessThan(5000);       // the crutch cost points, it did not pay them
+  expect(s.score).toBeGreaterThanOrEqual(0);// the charge floors at 0 — no soft-lock
+  expect(s.runRefuels).toBe(1);             // exactly one field resupply counted
+  // the NEXT resupply must cap lower than this one (diminishing supply)
+  const cap2 = await page.evaluate(() =>
+    Math.max(35, Math.round(__doids.get().maxFuel * Math.pow(0.9, __doids.get().runRefuels))));
+  expect(cap2).toBeLessThanOrEqual(cap1);
+});

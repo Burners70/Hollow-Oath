@@ -32,7 +32,7 @@ top-level web asset dir, add it there too or the iOS build 404s.
 ## How to work efficiently in this repo (read before touching files)
 
 The old ~5,400-line `index.html` was split into concern-based files under `js/`
-(plus `css/game.css`). An audio tweak now loads a ~190-line file, not the whole
+(plus `css/game.css`). An audio tweak now loads a ~440-line file, not the whole
 game. To make a change:
 
 1. **Pick the file** from the map below (or `Grep` across `js/` for a
@@ -49,12 +49,12 @@ Load order is the order below; it is significant (see "no build step").
 
 | File | Lines | Covers |
 |------|-------|--------|
-| `js/input.js`    | ~284  | Header notes, Capacitor/`NATIVE` detection, canvas + `resize()`; touch multi-touch tracker + on-screen buttons + `canvasTap`; keyboard (`keyMap`) + gamepad (`pollPad`); tilt/gyro steering |
-| `js/audio.js`    | ~189  | WebAudio graph, `blip`/`boom`/`heartbeat`/`staticTick`/`hydraulic`, generative ambient music drone |
+| `js/input.js`    | ~300  | Header notes, Capacitor/`NATIVE` detection, canvas + `resize()`; touch multi-touch tracker + on-screen buttons + `canvasTap`; keyboard (`keyMap`) + gamepad (`pollPad`); tilt/gyro steering |
+| `js/audio.js`    | ~436  | WebAudio graph, `blip`/`boom`/`heartbeat`/`staticTick`/`hydraulic`/`ringHollow`, generative ambient music drone |
 | `js/platform.js` | ~110  | Haptics facade (F1), iCloud `cloud` save-sync (E4), Game Center `gc` (G4); runs `gc.auth()` at load |
-| `js/world.js`    | ~883  | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; `resetRun`/`toBriefing` state flow |
-| `js/update.js`   | ~1489 | The 41-second Static clock; landing rules + extraction/MERCY; `update(dt)` dispatch; rank system; per-screen + gameplay updates (`updatePlay`, oids, enemies, sabotage, scan/reveal, docking, blackbox, transfusion, lifts, counterfeit MERCY, epilogue) |
-| `js/render.js`   | ~2306 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
+| `js/world.js`    | ~1016 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; `resetRun`/`toBriefing` state flow |
+| `js/update.js`   | ~1884 | The 41-second Static clock; landing rules + extraction/MERCY; `update(dt)` dispatch; rank system; per-screen + gameplay updates (`updatePlay`, oids, enemies, sabotage, scan/reveal, docking, blackbox, transfusion, lifts, counterfeit MERCY, epilogue) |
+| `js/render.js`   | ~2883 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
 | `js/main.js`     | ~25   | Bootstrap (`genLevel(0)`, `spawnShip`, …) + the `frame()`/`requestAnimationFrame` loop — must load last |
 
 ## localStorage keys (all prefixed `doids_`)

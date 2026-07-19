@@ -283,6 +283,28 @@ function hydraulic(descending) { // the lift — a filtered hiss under a pitch s
   s.connect(lp); lp.connect(g); g.connect(sfxGain); s.start();
   blip(descending ? 260 : 90, descending ? 70 : 260, 0.55, "sawtooth", 0.1);
 }
+/* U1 — the pad rings hollow the instant the ship settles on a lift plate: a
+   resonant struck-tube tone, two detuned partials ~an octave apart under a
+   gentle lowpass (like hydraulic), decaying long so it reads as empty space
+   underneath. Routed through sfxGain so the SOUND setting gates it. */
+function ringHollow() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  lp.connect(g); g.connect(sfxGain);
+  const o1 = AC.createOscillator(); o1.type = "sine";
+  o1.frequency.value = rjit(196, 0.02);
+  const o2 = AC.createOscillator(); o2.type = "triangle";
+  o2.frequency.value = rjit(392 * 1.008, 0.02);   // ~octave up, slightly detuned
+  const g2 = AC.createGain(); g2.gain.value = 0.4;   // the upper partial sits quieter
+  o1.connect(lp); o2.connect(g2); g2.connect(lp);
+  o1.start(t); o2.start(t);
+  o1.stop(t + 0.95); o2.stop(t + 0.95);
+}
 
 /* ---------------- generative ambient score ---------------- */
 const PENTATONIC = [220.00, 261.63, 293.66, 329.63, 392.00];
@@ -390,7 +412,7 @@ function updateMusic(dt) {
   if (!AC || !musicGain) return;
   const ducked = state === "brief" || state === "reveal" || state === "clear" ||
     state === "ending" || state === "epilogue" || state === "help" || state === "codex" ||
-    state === "pause" || state === "settings" || state === "confirm";
+    state === "pause" || state === "settings" || state === "confirm" || state === "legend";
   const target = music ? (ducked ? 0.4 : 1) : 0;
   musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt);
   musicNoteT += dt;

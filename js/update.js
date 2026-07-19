@@ -405,6 +405,14 @@ function update(dt) {
         } else { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
       }
       input.tap = false; return;
+    case "legend":
+      // U3 — page through the HUD legend, then return where it was opened from
+      if (input.tap && stateT > 0.4) {
+        if ((LEGEND_CARD.pages || 1) > 1 && (LEGEND_CARD.page || 0) < LEGEND_CARD.pages - 1) {
+          LEGEND_CARD.page++; blip(440, 550, 0.06, "sine", 0.06);
+        } else { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
+      }
+      input.tap = false; return;
     case "codex": updateCodex(); return;
     case "brief": updateBrief(dt); return;
     case "reveal":
@@ -491,6 +499,9 @@ function updateMenu() {
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
       state = "help"; stateT = 0; HELP_CARD.page = 0;
+      blip(440, 660, 0.1, "sine", 0.08);
+    } else if (state === "title" && inRect(legendRect(), input.tapX, input.tapY)) {
+      state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "title";
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
       state = "codex"; stateT = 0;
@@ -613,9 +624,14 @@ function updatePause() {
       settingsReturnState = "pause"; state = "settings"; stateT = 0;
     }
     else if (inRect(pauseRowRect(3), input.tapX, input.tapY)) { snapshotRun(); state = "title"; stateT = 0; }
+    else if (inRect(pauseLegendRect(), input.tapX, input.tapY)) {
+      state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "pause";
+      blip(440, 660, 0.1, "sine", 0.08);
+    }
   }
   input.tap = false;
 }
+let legendReturnState = "title";
 
 /* wipe run progress, codex and saves — but keep the player's chosen prefs
    (audio/assist/difficulty). Double-tap-to-confirm on the settings row. */
@@ -1475,6 +1491,14 @@ function updatePods() {
      physically rocks the tethered ship (see updateStaticClock). */
 const SIGNAL_HOLD_T = 1.8;
 const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 130;
+/* U2 — field refuelling is a priced, diminishing lifeline, not a reward.
+   XFUSE_COST is points charged per unit of fuel the line delivers; XFUSE_FLOOR
+   is the smallest tank the drone will ever leave you with (≥ primer + enough to
+   limp to the next pad) so the crutch, even the RATIONED TANK daily mod plus
+   this penalty, can never soft-lock a run. Each resupply caps lower than the
+   last: maxFuel × 0.9^refuels, floored at XFUSE_FLOOR. */
+const XFUSE_COST = 4, XFUSE_FLOOR = 35;
+function xfuseCap() { return Math.max(XFUSE_FLOOR, Math.round(maxFuel() * Math.pow(0.9, runRefuels))); }
 function xfuseWindowR() { return easyMode ? 44 : 34; }   // FIELD MEDIC widens the window
 function capturePoint(rd) { return { x: rd.x, y: rd.y + 55 }; }
 /* the resupply drone flies a real errand — out from MERCY and back to dock —
@@ -1521,6 +1545,10 @@ function updateResupplySignal(dt) {
     // fly out from MERCY to the hover point above you (the wait is the distance)
     if (droneFlyTo(rd, rd.hoverX, rd.hoverY, dt)) {
       rd.phase = "line"; rd.t = 0;
+      // U2 — this fill's ceiling, set once the line is out: less each time, but
+      // never below the floor that keeps a stranded ship able to leave
+      rd.cap = xfuseCap();
+      rd.charged = 0;
       if (s.fuel < XFUSE_PRIMER) {   // just enough to reach the line, not to leave
         s.fuel = XFUSE_PRIMER;
         addText(s.x, s.y - 46, "PRIMER MIST — FLY TO THE LINE", "#ffc400");
@@ -1553,12 +1581,23 @@ function updateTransfusion(dt, rd) {
   }
   rd.firePrev = fire;
   if (rd.attachedNow) {
+    // U2 — the first time the line catches, this counts as one field resupply
+    // (so the NEXT one carries less). Counted here, not at signal, so a window
+    // that closes before you fly to the line never burns an allowance.
+    if (!rd.everAttached) runRefuels++;
     rd.everAttached = true;
     s.shield = false;   // the field would sever the umbilical
     if (!wasAttached) { blip(300, 460, 0.12, "sine", 0.09); haptic.light(); }
-    if (s.fuel >= maxFuel()) { finishTransfusion(rd, true); return; }
-    s.fuel = Math.min(maxFuel(), s.fuel + XFUSE_RATE * dt);
-    rd.given += XFUSE_RATE * dt;
+    if (s.fuel >= rd.cap) { finishTransfusion(rd, true); return; }
+    // fill to THIS fill's ceiling — and charge the tally for every unit taken
+    const before = s.fuel;
+    s.fuel = Math.min(rd.cap, s.fuel + XFUSE_RATE * dt);
+    const delivered = s.fuel - before;
+    rd.given += delivered;
+    const prevCost = Math.floor(rd.charged);
+    rd.charged += delivered * XFUSE_COST;
+    const dCost = Math.floor(rd.charged) - prevCost;
+    if (dCost > 0) score = Math.max(0, score - dCost);
     // the drip — and while a contaminant rides along, the pump inherits
     // the arrhythmia (same 0.5/1.7 stutter as the score and the ECG)
     rd.dripT += dt;
@@ -1568,6 +1607,8 @@ function updateTransfusion(dt, rd) {
       rd.dripT = 0; rd.dripFlip = !rd.dripFlip;
       blip(660, 590, 0.05, "sine", 0.045);
       haptic.light();
+      // U2 — the running toll: points visibly draining as the tank climbs
+      if (rd.charged >= 1) addText(s.x, s.y - 40, "-" + Math.round(rd.charged), "#ff4081");
     }
   } else if (rd.everAttached) {
     if (d >= XFUSE_SNAP_R) {   // wandered too far — the line parts
@@ -1587,12 +1628,15 @@ function updateTransfusion(dt, rd) {
   }
 }
 function finishTransfusion(rd, full) {
+  // U2 — the line is no longer a reward. The tally has already drained by
+  // XFUSE_COST per unit during the fill; releasing just reports the toll.
+  const toll = Math.round(rd.charged || 0);
   if (full && !rd.occluded) {
-    score += 250;
-    addText(ship.x, ship.y - 40, "CLEAN LINE +250", "#69f0ae");
+    addText(ship.x, ship.y - 40, "TANK TOPPED — RESUPPLY COST -" + toll, "#ffc400");
     blip(520, 1040, 0.3, "sine", 0.12);
   } else {
-    addText(ship.x, ship.y - 40, "LINE RELEASED — FUEL +" + Math.round(rd.given), "#ffc400");
+    addText(ship.x, ship.y - 40, "LINE RELEASED — FUEL +" + Math.round(rd.given) +
+      "  ·  -" + toll, "#ffc400");
     blip(420, 300, 0.15, "sine", 0.1);
   }
   haptic.light();
@@ -1607,7 +1651,11 @@ function updateLift(dt) {
   if (mercyBreach || level.extraction) { L.holdT = 0; return; }
   const near = ship.landed && !ship.dead &&
     Math.abs(ship.x - L.x) < 46 && Math.abs((ship.y + SHIP_R) - L.y) < 24;
-  if (!near) { L.holdT = 0; L.armed = true; return; }
+  if (!near) { L.holdT = 0; L.armed = true; L.rung = false; return; }
+  // U1 — a distinct hollow ring the moment the ship first settles on the plate,
+  // before the hold-to-descend hint. Guarded so it fires once per touchdown and
+  // re-arms when the ship lifts off the pad (near goes false above).
+  if (!L.rung) { L.rung = true; ringHollow(); }
   if (!L.armed) return;   // must lift off the pad once before it cycles again
   L.holdT += dt;
   if (L.holdT > 0.6 && !L.hinted) {
