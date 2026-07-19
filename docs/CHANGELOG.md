@@ -1,5 +1,51 @@
 # Changelog
 
+## Copy pass: cut "MERCY ACTUAL", fix name/term leaks and a location ambiguity
+
+Owner-requested: "MERCY ACTUAL" read oddly as a message source and, on
+reflection, the military-radio "ACTUAL" (the real command station, as
+opposed to a subordinate relaying) was an accidental hint at the finale's
+counterfeit-MERCY twist sitting in the very first briefing, sector 0 — cut
+to plain "MERCY" (the only occurrence, `BRIEFS[0]`).
+
+That prompted a full comprehension/continuity pass over every player-facing
+string (index.html's copy, cross-checked against COPY_DECK.md), which
+surfaced three real bugs beyond the requested fix — all now corrected in
+both the game and the deck:
+
+- **The villain's name leaked around the story's own gating.** Two floating
+  texts (`"COUNTERFEIT — GLYCON'S LURE"` on a fake pod, `"— GLYCON
+  TRANSMITTER"` on a lure-tree reveal) and one card kicker (`"GLYCON · THE
+  THIRD ACT"` on the counterfeit-MERCY trap) all named GLYCON directly and
+  fire in the ordinary campaign path starting sector 5 and in the finale —
+  but the name is otherwise earned *only* through the optional hidden
+  Hollows shrine or a late log fragment (both of which the game's own
+  fragment-drip (`grantFragment`) correctly serves in strict order, so
+  that part was never the problem). Worse, sector 6's own briefing still
+  says "archive is still matching it" a full sector *after* the UI had
+  already asserted the name as fact. Renamed to `SOMEBODY'S LURE`,
+  `COUNTERFEIT TRANSMITTER`, and dropped the kicker's `GLYCON ·` prefix —
+  none of which need the name to land, and the shrine/ending reveals (which
+  *are* correctly gated on `shrines.size`) are untouched.
+- **"Vector" had no antecedent.** The July 2026 rename (roadmap S6) swapped
+  "saboteur" for "Vector" throughout player-facing copy, but no line ever
+  told the player what a Vector *was* — the term could appear (a boarding
+  kill, the Antisepsis upgrade card) before any in-fiction introduction.
+  `BRIEFS[1]` (Vesalius Ridge, where they're first encountered) now adds
+  one clause: "Comms has a name for them now: Vectors. Carriers, not
+  survivors." — enough to anchor the term without spelling out the
+  mechanic, ahead of every other place it's used.
+- **A location-name ambiguity.** `BRIEFS[6]`'s "Last leg before the ridge"
+  risked reading as a callback to Vesalius Ridge (five sectors past)
+  instead of the finale's nullwave ridge, named explicitly one briefing
+  later. Changed to "Last leg before the nullwave."
+- Also cleaned up a smaller ambiguity in the hollow-rock cache pickup text
+  ("stashed away from the serpent" → "someone didn't want this found") —
+  the true rod-of-Asclepius serpent is on screen from sector 0, so "the
+  serpent" alone risked reading as the wrong one before Glycon's mark is
+  established (the exact emblem-duality risk GAME_DESIGN.md §2.4 already
+  flags for writers).
+
 ## July 2026 owner-playtest feedback → Bundles R, S, T + the copy deck
 
 The owner's phone-playtest feedback structured into three new roadmap bundles
