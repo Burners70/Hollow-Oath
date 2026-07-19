@@ -161,8 +161,15 @@ function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gra
   const i0 = Math.max(0, Math.floor(sx0 / STEP)), i1 = Math.min(arr.length - 1, Math.ceil(sx1 / STEP));
   let lo = Infinity, hi = -Infinity;
   for (let i = i0; i <= i1; i++) { const v = arr[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
-  const top = lo - padAbove, bottom = hi + padBelow;
-  const closeY = closeAt === "bottom" ? bottom + 100 : top - 20;
+  const top = lo - padAbove;
+  // Terrain (closeAt "bottom") fills to the world floor, not to a fixed pad below
+  // the LOCAL surface: a tile of high ground (a plateau, or the raised map edges)
+  // otherwise stops its fill above the screen bottom and the sky shows THROUGH the
+  // ground at the bottom of the view. +30 puts the closing edge just past the
+  // deepest the camera can ever show (cy + ch ≤ WORLD_H). Cave roofs ("top") keep
+  // their local band — their gap would be at the top, not the bottom.
+  const bottom = closeAt === "bottom" ? WORLD_H + 30 : hi + padBelow;
+  const closeY = closeAt === "bottom" ? bottom : top - 20;
   const sc = dpr;
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.ceil((x1 - x0) * sc));
@@ -2827,7 +2834,7 @@ function drawEnding(now) {
   if (endingType === "answered") {
     title = "THE ANSWERED CALL";
     color = "#aef4ff";
-    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard. The Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
     else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
   } else if (endingType === "fire") {

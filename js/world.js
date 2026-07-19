@@ -32,15 +32,17 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 
+// Prose flows and wraps to the panel width — no deliberate mid-message line
+// breaks (owner steer). Keep it as running sentences; drawBrief handles wrapping.
 const BRIEFS = [
-  "MERCY to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
-  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\nAnd captain… the dark out here listens back.",
-  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\nProve a unit false — the salvage teams will take it from there. But prove it.",
-  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
-  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
-  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
-  "Triangulation complete. The source of the Static is below the nullwave ridge.\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
+  "MERCY to rescue flight. Routine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay. The approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift. End transmission.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors. If a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
+  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark. And captain… the dark out here listens back.",
+  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them. And captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them. Prove a unit false — the salvage teams will take it from there. But prove it.",
+  "Radiation cells distort gravity across the fields. Fly wide of the purple rings. One more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
+  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths. Somebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient. And if you won't fire on a lie — land beside it and look at it long enough.",
+  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit. Archive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Triangulation complete. The source of the Static is below the nullwave ridge. One more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain. Fleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere. Your call, captain."
 ];
 
 const FRAGMENTS = [
@@ -72,7 +74,7 @@ const SHRINES = [
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · SHRINE",
     title: "GLYCON",
-    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\"An oath you never test is easy to keep.\"",
+    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\n\"An oath you never test is easy to keep.\"",
     color: "#ff5ce1" }
 ];
 
