@@ -775,10 +775,14 @@ function drawOid(o, now) {
     sway: mech ? 0 : osc(2.2) * 1.5
   });
   ctx.restore();
-  // famous Scions shimmer, if you watch closely
-  if (o.role === "famous" && Math.random() < 0.06) {
-    particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 22,
-      vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
+  // famous Scions shimmer, if you watch closely — a fine gold sparkle drifting
+  // off the whole figure, not fat bubbles rising from the head
+  if (o.role === "famous" && Math.random() < 0.05) {
+    particles.push({
+      x: o.x + (Math.random() - 0.5) * 22,
+      y: o.y - 4 - Math.random() * 26,                 // spread up the body
+      vx: (Math.random() - 0.5) * 6, vy: -6 - Math.random() * 6,   // a slow lift
+      t: 0.6, max: 0.6, color: "#ffe082", size: 0.8 + Math.random() * 0.8 });
   }
   // a permanent "?" over a counterfeit you have CATALOGUED with the S5 scan —
   // the only identification cue, and only after you've earned and used the scan
@@ -1267,40 +1271,52 @@ function drawHangar(now, active) {
   const h = hangarRect();
   ctx.save();
   const col = active ? "255,196,0" : "0,229,255";
-  const a = active ? 0.9 : 0.35;
-  // the pocket: a wide, deep mouth under her hull — draw it roughly the size of
-  // the actual capture band so the player can see exactly where to hold
-  const top = h.cy - 26, bh = 78;
-  ctx.strokeStyle = "rgba(" + col + "," + a + ")"; ctx.lineWidth = 2;
-  ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = active ? 12 : 5;
-  ctx.strokeRect(h.x0, top, h.x1 - h.x0, bh);
-  // a faint fill so the mouth reads as an opening, not just an outline
-  ctx.globalAlpha = active ? 0.12 : 0.05;
-  ctx.fillStyle = "rgba(" + col + ",1)"; ctx.fillRect(h.x0, top, h.x1 - h.x0, bh);
-  ctx.globalAlpha = 1;
-  // approach lights: a run of dashes converging on the mouth, always readable
-  const n = 7;
-  for (let i = 0; i < n; i++) {
-    const ph = (now * 1.4 + i / n) % 1;
-    ctx.globalAlpha = active ? (0.3 + 0.6 * ph) : 0.25;
-    const lx = h.x0 + (i + 0.5) / n * (h.x1 - h.x0);
-    ctx.beginPath(); ctx.moveTo(lx, top + bh + 4); ctx.lineTo(lx, top + bh + 10); ctx.stroke();
+  const a = active ? 1 : 0.4;
+  // the OPENED BAY: a dark recess set into her belly. Drawn over the hull fill
+  // (drawMothership already laid the hull), so it reads as a large zone opened
+  // in the side of the ship — not a box floating half over her. Its top tucks
+  // up inside the hull; its mouth sits just past her belly line.
+  const top = h.cy - 22, bot = h.cy + 24;
+  ctx.fillStyle = "rgba(3,7,16," + (active ? 0.96 : 0.55) + ")";
+  ctx.fillRect(h.x0, top, h.x1 - h.x0, bot - top);
+  // interior back-wall shading lines, so the recess reads as depth, not a hole
+  ctx.strokeStyle = "rgba(" + col + "," + (active ? 0.18 : 0.1) + ")"; ctx.lineWidth = 1;
+  for (let gx = h.x0 + 16; gx < h.x1 - 8; gx += 16) {
+    ctx.beginPath(); ctx.moveTo(gx, top + 3); ctx.lineTo(gx, h.cy - 2); ctx.stroke();
   }
-  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-  // the hover-hold progress ring while you sit in the slot (in the air) — gone
-  // the instant the hold completes and she captures you for the jump
+  // the bright bay-door frame, with the retracted doors folded back at the mouth
+  ctx.strokeStyle = "rgba(" + col + "," + a + ")"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = active ? 14 : 5;
+  ctx.strokeRect(h.x0, top, h.x1 - h.x0, bot - top);
+  ctx.lineWidth = 4; ctx.beginPath();
+  ctx.moveTo(h.x0, bot); ctx.lineTo(h.x0 - 11, bot + 9);
+  ctx.moveTo(h.x1, bot); ctx.lineTo(h.x1 + 11, bot + 9);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // interior guide chevrons pointing UP into her — the way in
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const ph = (now * 1.2 + i / 3) % 1;
+    ctx.globalAlpha = active ? (0.25 + 0.6 * (1 - ph)) : 0.2;
+    const yy = bot - 8 - ph * (bot - top - 12);
+    ctx.beginPath();
+    ctx.moveTo(h.cx - 11, yy + 6); ctx.lineTo(h.cx, yy); ctx.lineTo(h.cx + 11, yy + 6);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // hover-hold progress ring, inside the bay — gone the instant she captures you
   if (active && level.extraction && level.extraction.hold > 0 && !level.extraction.done) {
     ctx.strokeStyle = "rgba(" + col + ",1)"; ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = 10;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(h.cx, h.cy, 26, -Math.PI / 2,
+    ctx.arc(h.cx, h.cy, 20, -Math.PI / 2,
       -Math.PI / 2 + Math.min(1, level.extraction.hold / 1.2) * Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
   }
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
-  ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, h.cy + 34);
+  ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 20);
   ctx.restore();
 }
 

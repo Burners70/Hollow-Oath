@@ -185,16 +185,18 @@ function sectorClearNow() {
 const HANGAR_HOLD = 1.2;
 function hangarRect() {
   const { mx, my } = mercyPos();
-  const halfW = SHIP_R * 7;   // nearly her full underside — a forgiving mouth
-  return { x0: mx - halfW, x1: mx + halfW, cx: mx, cy: my + 18 };
+  const halfW = 62;   // a wide bay across her belly (her underside is ~190 wide)
+  // centred just inside her belly line, so holding here reads as being INSIDE
+  // her, not hovering below an overlaid box
+  return { x0: mx - halfW, x1: mx + halfW, cx: mx, cy: my + 6 };
 }
 function inHangar() {
   const h = hangarRect();
-  // a generous rectangular pocket under her hull — full-slot wide and a deep
-  // vertical band — so gentle station-keeping holds you without frantic thrust
+  // a generous band, but centred on the opened bay so you're clearly tucked up
+  // into her hull — gentle station-keeping holds it without frantic thrust
   return !ship.dead && !ship.landed &&
-    ship.x > h.x0 && ship.x < h.x1 &&
-    ship.y > h.cy - 26 && ship.y < h.cy + 52;
+    ship.x > h.x0 + 4 && ship.x < h.x1 - 4 &&
+    ship.y > h.cy - 22 && ship.y < h.cy + 30;
 }
 function updateExtraction(dt) {
   const e = level.extraction;
