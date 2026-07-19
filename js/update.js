@@ -88,13 +88,16 @@ function landingEval() {
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance
   const vyMax = (upgrades.gentle ? 62 : 52) * tol;
   const vxMax = 38 * tol, slopeMax = 0.25 * tol;
-  const soft = Math.abs(s.vy) < vyMax && Math.abs(s.vx) < vxMax && slope < slopeMax && upright;
-  const survivable = Math.abs(s.vy) < (upgrades.gentle ? 100 : 85) * tol &&
+  // only DOWNWARD speed can make a landing hard — rising (vy < 0) is never
+  // "too fast" (s.vy < vyMax is trivially true while ascending), so there is no
+  // rising-too-fast state and no message for it
+  const soft = s.vy < vyMax && Math.abs(s.vx) < vxMax && slope < slopeMax && upright;
+  const survivable = s.vy < (upgrades.gentle ? 100 : 85) * tol &&
     Math.abs(s.vx) < 60 * tol && slope < 0.35 * tol && upright;
   let reason = "";
   if (!upright) reason = "LEVEL THE SHIP";
   else if (slope >= slopeMax) reason = "GROUND TOO STEEP";
-  else if (Math.abs(s.vy) >= vyMax) reason = s.vy < 0 ? "RISING TOO FAST" : "DESCENDING TOO FAST";
+  else if (s.vy >= vyMax) reason = "DESCENDING TOO FAST";
   else if (Math.abs(s.vx) >= vxMax) reason = "DRIFTING SIDEWAYS";
   return { soft, survivable, reason };
 }
@@ -705,7 +708,9 @@ function updatePlay(dt) {
   if (steer === 0) steer = gyroSteerVal();
   if (steer) s.ang += ROT * dt * steer;
 
-  if (assist && !s.landed && !steer) {
+  // landing assist auto-levels the ship — but only on the way DOWN, so it never
+  // fights your attitude while you're thrusting up and away
+  if (assist && !s.landed && !steer && s.vy > 0) {
     const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     if (Math.abs(tilt) < ASSIST_CAPTURE) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
   }
