@@ -73,7 +73,7 @@ const SHRINES = [
   { kicker: "THE HOLLOWS · SHRINE",
     title: "GLYCON",
     body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\"An oath you never test is easy to keep.\"",
-    color: "#c6ff00" }
+    color: "#ff5ce1" }
 ];
 
 const FAMOUS = [
@@ -244,7 +244,7 @@ try { colorblind = localStorage.getItem("doids_cb") === "1"; } catch (e) {}
    Used by the landing guide, the ECG ramp, the antisepsis tint and the
    canon "?" counterfeit marks. */
 const PALETTES = {
-  normal: { SAFE: "#69f0ae", WARN: "#ffc400", DANGER: "#ff4081", REVEAL: "#c6ff00" },
+  normal: { SAFE: "#69f0ae", WARN: "#ffc400", DANGER: "#ff4081", REVEAL: "#ff5ce1" },
   cb:     { SAFE: "#40c4ff", WARN: "#ffab40", DANGER: "#ffffff", REVEAL: "#ff6bff" }
 };
 function PAL() { return colorblind ? PALETTES.cb : PALETTES.normal; }
@@ -256,7 +256,9 @@ function startLives() { return easyMode ? 5 : 3; }
 /* Bundle H4 — larger body text on cards, briefings and intro captions */
 let bigText = false;
 try { bigText = localStorage.getItem("doids_bigtext") === "1"; } catch (e) {}
-function bodyFontPx(base) { return base + (bigText ? 2 : 0); }
+/* R8 — card/brief body copy gets a +1 base bump for arm's-length phone
+   reading; the BIG TEXT accessibility toggle still stacks its +2 on top. */
+function bodyFontPx(base) { return base + 1 + (bigText ? 2 : 0); }
 /* Accessibility: a REDUCED FLASH toggle softens the Static's high-frequency
    strobing — window flicker, the ECG jitter and the HUD label glitch — for
    photosensitive players. Diagnostic meaning stays; only the amplitude drops. */
@@ -430,24 +432,37 @@ function storyRect() {
    never collide (on phone-height viewports they used to overlap — and the
    old remix/daily-first hit order could burn the daily attempt on a tap
    meant for RESUME). DAILY centres itself while REMIX is still locked. */
+/* R5 — the explicit primary CTA. Tap-anywhere no longer launches a run; only
+   this pill (or Enter / gamepad A aimed at it) does. When a run can be
+   resumed, START drops below the RESUME pill so the two read as a stack —
+   resume-first for a checkpointed run, start-new below it. */
+function startRect() {
+  const w = Math.min(300, vw * 0.6), h = 40;
+  const y = savedRun ? vh * 0.60 + 44 : vh * 0.63;
+  return { x: vw / 2 - w / 2, y, w, h };
+}
 function resumeRect() {
-  const w = Math.min(260, vw * 0.6);
-  return { x: vw / 2 - w / 2, y: vh * 0.74, w, h: 34 };
+  const w = Math.min(300, vw * 0.6), h = 34;
+  return { x: vw / 2 - w / 2, y: startRect().y - h - 10, w, h };
 }
 function remixRect() {
   const w = Math.min(200, vw * 0.4);
-  return { x: vw / 2 - w - 8, y: vh * 0.86, w, h: 30 };
+  return { x: vw / 2 - w - 8, y: vh * 0.87, w, h: 30 };
 }
 function dailyRect() {
   const w = Math.min(200, vw * 0.4);
-  return { x: veteran ? vw / 2 + 8 : vw / 2 - w / 2, y: vh * 0.86, w, h: 30 };
+  return { x: veteran ? vw / 2 + 8 : vw / 2 - w / 2, y: vh * 0.87, w, h: 30 };
 }
 function continueRect() {
   const w = Math.min(300, vw * 0.72);
   return { x: vw / 2 - w / 2, y: vh * 0.56, w, h: 54 };
 }
+/* R4 — a real button, not a hairline under the score. HIG-minimum tap
+   target (48×30), moved clear of the score readout to just left of the ECG
+   bar, drawn at a legible stroke/glyph in drawHUD. */
 function pauseRect() {
-  return { x: vw / 2 - 18, y: 2, w: 36, h: 18 };
+  const bw = Math.min(150, vw * 0.3);
+  return { x: vw - bw - 14 - saRight - 54, y: 12, w: 48, h: 30 };
 }
 function pauseRowRect(i) {
   const w = Math.min(260, vw * 0.6), h = 40, gap = 14;

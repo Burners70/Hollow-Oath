@@ -38,8 +38,10 @@ function updateStaticClock(dt) {
 }
 
 let bannerMsg = null;
-function banner(str, color) { bannerMsg = { str, color, t: 2.6 }; }
-function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 1.6 }); }
+/* R8 — in-flight copy lingers longer for a phone held at arm's length; the
+   banner keeps its last-second alpha fade (see render), the float slows. */
+function banner(str, color) { bannerMsg = { str, color, t: 4.2 }; }
+function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 2.6 }); }
 
 function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
 
@@ -227,7 +229,7 @@ function update(dt) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.vy += GRAV * 0.6 * dt;
   }
   for (let i = texts.length - 1; i >= 0; i--) {
-    texts[i].t -= dt; texts[i].y -= 24 * dt;
+    texts[i].t -= dt; texts[i].y -= 16 * dt;
     if (texts[i].t <= 0) texts.splice(i, 1);
   }
   if (camera) camera.shake = Math.max(0, camera.shake - 60 * dt);
@@ -256,12 +258,21 @@ function update(dt) {
     case "title": case "gameover": case "win": updateMenu(); return;
     case "intro": updateIntro(dt); return;
     case "help":
-      if (input.tap && stateT > 0.4) { state = "title"; stateT = 0.7; }
+      // R1 — page through a paginated help card before it dismisses
+      if (input.tap && stateT > 0.4) {
+        if ((HELP_CARD.pages || 1) > 1 && (HELP_CARD.page || 0) < HELP_CARD.pages - 1) {
+          HELP_CARD.page++; blip(440, 550, 0.06, "sine", 0.06);
+        } else { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+      }
       input.tap = false; return;
     case "codex": updateCodex(); return;
     case "brief": updateBrief(dt); return;
     case "reveal":
-      if (input.tap && stateT > 0.4) { revealCard = null; state = "play"; }
+      if (input.tap && stateT > 0.4) {
+        if (revealCard && (revealCard.pages || 1) > 1 && (revealCard.page || 0) < revealCard.pages - 1) {
+          revealCard.page++; blip(440, 550, 0.06, "sine", 0.06);
+        } else { revealCard = null; state = "play"; }
+      }
       input.tap = false; return;
     case "clear": updateClear(); return;
     case "ending":
@@ -317,17 +328,32 @@ function saveHi() {
 }
 
 let introIdx = 0;
+/* R5 — a fresh run now starts only from the explicit START pill (or Enter /
+   gamepad A aimed at it), never from a stray tap on the title. */
+function startFreshRun() {
+  goFullscreen();
+  if (window.hideA2HS) window.hideA2HS();
+  resetRun();
+  if (introSeen) {
+    toBriefing(0);   // veterans launch straight into the tasking
+  } else {
+    introIdx = 0;
+    state = "intro"; stateT = 0;
+  }
+  blip(330, 660, 0.2, "sine", 0.1);
+}
+
 function updateMenu() {
   if (input.tap && stateT > 0.6) {
     if (state === "title" && inRect(settingsRect(), input.tapX, input.tapY)) {
       settingsReturnState = "title"; state = "settings"; stateT = 0;
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
-      state = "help"; stateT = 0;
+      state = "help"; stateT = 0; HELP_CARD.page = 0;
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
       state = "codex"; stateT = 0;
-      codexTab = 0; archivePage = 0;
+      codexTab = 0; archivePage = 0; mindsPage = 0; codexCard = null;
       blip(550, 825, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(storyRect(), input.tapX, input.tapY)) {
       // rewatch the opening narrative (it flows into a new run)
@@ -347,6 +373,8 @@ function updateMenu() {
       startRemix();
     } else if (state === "title" && inRect(dailyRect(), input.tapX, input.tapY)) {
       startDaily();
+    } else if (state === "title" && inRect(startRect(), input.tapX, input.tapY)) {
+      startFreshRun();
     } else if (state === "gameover") {
       if (checkpoint && inRect(continueRect(), input.tapX, input.tapY)) {
         const r = checkpoint;
@@ -370,18 +398,11 @@ function updateMenu() {
         state = "title"; stateT = 0;
         blip(300, 200, 0.12, "sine", 0.08);
       }
-    } else {
-      goFullscreen();
-      if (window.hideA2HS) window.hideA2HS();
-      resetRun();
-      if (introSeen) {
-        toBriefing(0);   // veterans launch straight into the tasking
-      } else {
-        introIdx = 0;
-        state = "intro"; stateT = 0;
-      }
-      blip(330, 660, 0.2, "sine", 0.1);
+    } else if (state === "win") {
+      // the win screen keeps tap-anywhere-to-launch; the title does not
+      startFreshRun();
     }
+    // a title tap that hit no pill now does nothing (R5)
   }
   input.tap = false;
 }
@@ -919,11 +940,11 @@ function revealSecret(sc, viaFire) {
   if (viaFire) firedAtSecret = true; else scannedSecret = true;
   if (sc.fake) {
     score += 500;
-    explode(sc.x, sc.y - 24, "#c6ff00", 26);
+    explode(sc.x, sc.y - 24, PAL().REVEAL, 26);
     staticTick();
     addText(sc.x, sc.y - 56,
       (viaFire ? "LURE-TREE DESTROYED" : "LURE-TREE READ FOR WHAT IT IS") +
-      " — COUNTERFEIT TRANSMITTER +500", "#c6ff00");
+      " — COUNTERFEIT TRANSMITTER +500", PAL().REVEAL);
   } else {
     score += 400;
     explode(sc.x, sc.y - 8, "#ffc400", 20);
@@ -1113,10 +1134,10 @@ function updatePods() {
       p.taken = true;
       s.fuel = Math.max(0, s.fuel - 18);
       score = Math.max(0, score - 100);
-      addText(p.x, p.y - 30, "COUNTERFEIT — SOMEBODY'S LURE  -100", "#c6ff00");
+      addText(p.x, p.y - 30, "COUNTERFEIT — SOMEBODY'S LURE  -100", PAL().REVEAL);
       addText(p.x, p.y - 46, "FUEL DRAINED -18", "#ff4081");
       staticTick();
-      explode(p.x, p.y - 8, "#c6ff00", 14);
+      explode(p.x, p.y - 8, PAL().REVEAL, 14);
     }
   }
 }
@@ -1394,12 +1415,12 @@ function updateDecoy(dt) {
     if (f.dockT >= 2) {
       f.dead = true; decoyOutcome = "trapped";
       score = Math.max(0, score - 200);
-      banner("COUNTERFEIT — THE BAY IS A MOUTH  -200", "#c6ff00");
+      banner("COUNTERFEIT — THE BAY IS A MOUTH  -200", PAL().REVEAL);
       staticTick(); dullThud();
-      explode(f.x, f.y + 40, "#c6ff00", 30);
+      explode(f.x, f.y + 40, PAL().REVEAL, 30);
       showCard({ kicker: "THE THIRD ACT · -200", title: "THE BAY IS A MOUTH", subtitle: "",
         body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
-        color: "#c6ff00" });
+        color: PAL().REVEAL });
     }
   } else {
     f.dockT = 0;
@@ -1414,7 +1435,7 @@ function updateDecoy(dt) {
 function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure fails
   f.dead = true; decoyOutcome = "observed";
   score += 800;
-  explode(f.x, f.y - 10, "#c6ff00", 40);
+  explode(f.x, f.y - 10, PAL().REVEAL, 40);
   staticTick();
   showCard({ kicker: "COUNTERFEIT IDENTIFIED · +800", title: "MACHINE TIME", subtitle: "",
     body: "Her emblem pulses like a pulse. Its emblem keeps perfect time.\n\nYou counted the beats. He never learned a heartbeat.",

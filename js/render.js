@@ -1048,7 +1048,7 @@ function drawShrine(now) {
   const sh = level.shrine;
   ctx.save();
   ctx.translate(sh.x, sh.y);
-  const col = sh.found ? "#69f0ae" : "#c6ff00";
+  const col = sh.found ? "#69f0ae" : PAL().REVEAL;
   ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
   ctx.lineWidth = 2;
   // plinth
@@ -1375,12 +1375,14 @@ function drawHUD(now) {
 
   if (state === "play") {
     const pr = pauseRect();
-    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(pr.x, pr.y, pr.w, pr.h);
-    ctx.fillStyle = "rgba(255,255,255,.6)";
-    ctx.font = "700 12px Menlo, monospace";
+    ctx.fillStyle = "rgba(180,240,255,.85)";
+    ctx.font = "700 14px Menlo, monospace";
     ctx.textAlign = "center";
-    ctx.fillText("❚❚", pr.x + pr.w / 2, pr.y + pr.h - 4);
+    ctx.fillText("❚❚", pr.x + pr.w / 2, pr.y + pr.h / 2 + 6);
+    ctx.shadowBlur = 0;
   }
 
   ctx.textAlign = "center";
@@ -1525,22 +1527,29 @@ function drawTitle(now) {
   ctx.fillStyle = unresolvedHaunt ? "#b388ff" : "#69f0ae";
   ctx.shadowColor = unresolvedHaunt ? "#b388ff" : "#69f0ae";
   ctx.fillText(unresolvedHaunt ? "the Static answers still — every 41 seconds"
-                               : "seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.48);
+                               : "seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.47);
   ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
   ctx.fillText("not every Scion you rescue is what it seems", vw / 2, vh * 0.54);
-  ctx.fillStyle = "rgba(255,255,255," + pulse.toFixed(2) + ")"; ctx.shadowColor = "#fff";
-  ctx.font = "800 17px Menlo, monospace";
-  ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.66);
+  // R5 — the primary call to action is an explicit pill now (tap-anywhere no
+  // longer launches). Drawn as the pulsing focus of the screen.
+  const sr = startRect();
+  ctx.strokeStyle = "rgba(255,255,255," + (0.55 + 0.35 * Math.sin(now * 2)).toFixed(2) + ")";
+  ctx.shadowColor = "#fff"; ctx.shadowBlur = 14; ctx.lineWidth = 2;
+  ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
+  ctx.font = "800 16px Menlo, monospace";
+  ctx.fillStyle = "#eaf6ff";
+  ctx.fillText("▶ START NEW FLIGHT", sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
   ctx.shadowBlur = 0;
-  ctx.font = "600 11px Menlo, monospace";
-  ctx.fillStyle = "rgba(155,234,249,.55)";
-  ctx.fillText("hi score " + hiscore, vw / 2, vh * 0.72);
 
-  // build stamp, bottom-right — makes stale caches obvious at a glance
+  // build stamp + hi score along the bottom edge, out of the CTA's way
   ctx.textAlign = "right";
   ctx.font = "600 9px Menlo, monospace";
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText(BUILD_TAG, vw - 12 - saRight, vh - 10);
+  ctx.textAlign = "left";
+  ctx.font = "600 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(155,234,249,.55)";
+  ctx.fillText("hi score " + hiscore, 12 + saLeft, vh - 10);
   ctx.textAlign = "center";
 
   // settings pill (sound, music, assist, tilt, ...)
@@ -1584,7 +1593,7 @@ function drawTitle(now) {
     ctx.font = "600 11px Menlo, monospace";
     ctx.fillStyle = "rgba(105,240,174,.75)";
     ctx.fillText("🎮 controller connected — stick steers · A thrust · X fire · LB/B shield",
-      vw / 2, vh * 0.60);
+      vw / 2, vh * 0.575);
   }
 
   // resume pill — a run was checkpointed at a sector boundary
@@ -1625,8 +1634,12 @@ function drawTitle(now) {
 /* the codex (Bundle K2): two tabs — MINDS (famous Scions recovered across
    every run) and ARCHIVE (every log fragment and shrine card ever read,
    re-readable forever; the Static's story stops evaporating) */
-let codexTab = 0, archivePage = 0;
+let codexTab = 0, archivePage = 0, mindsPage = 0;
 const ARCHIVE_PER_PAGE = 4;
+const MINDS_PER_PAGE = 6;
+/* R7 — the reveal card opened by tapping a codex entry. Drawn over the codex
+   via drawCardPanel; any tap closes it back to the codex, not the title. */
+let codexCard = null;
 function codexPanelRect() {
   const w = Math.min(640, vw - 36);
   const h = Math.min(vh - 20, 470);
@@ -1636,6 +1649,45 @@ function codexTabRect(i) {
   const p = codexPanelRect();
   const w = 132;
   return { x: p.x + p.w / 2 + (i === 0 ? -w - 8 : 8), y: p.y + 32, w, h: 26 };
+}
+function mindRowH() {
+  const p = codexPanelRect();
+  return Math.max(34, Math.min(46, (p.h - 130) / MINDS_PER_PAGE));
+}
+function codexMindRowRect(k) {
+  const p = codexPanelRect();
+  return { x: p.x + 14, y: p.y + 84 + k * mindRowH(), w: p.w - 28, h: mindRowH() };
+}
+function codexArchiveSlotRect(k) {
+  const p = codexPanelRect();
+  const slotH = (p.h - 118) / ARCHIVE_PER_PAGE;
+  return { x: p.x + 16, y: p.y + 84 + k * slotH, w: p.w - 32, h: slotH };
+}
+/* explicit page arrows (R7) — replace ARCHIVE's old left/right half-tap
+   paging, which now conflicts with tapping an entry open */
+function codexArrowRect(dir) {   // dir: -1 previous, +1 next
+  const p = codexPanelRect();
+  const w = 40, h = 30, m = 14;
+  return { x: dir < 0 ? p.x + m : p.x + p.w - m - w, y: p.y + p.h - h - 6, w, h };
+}
+function drawCodexArrows() {
+  [-1, 1].forEach(d => {
+    const r = codexArrowRect(d);
+    ctx.strokeStyle = "rgba(255,213,79,.6)"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = "#ffd54f"; ctx.textAlign = "center";
+    ctx.font = "700 16px Menlo, monospace";
+    ctx.fillText(d < 0 ? "‹" : "›", r.x + r.w / 2, r.y + r.h / 2 + 6);
+  });
+}
+function archiveCardFor(idx) {
+  if (idx < FRAGMENTS.length) {
+    return { kicker: "SIGNAL ARCHIVE · LOG " + String(idx + 1).padStart(2, "0"),
+      title: "", subtitle: "",
+      body: FRAGMENTS[idx].replace(/^LOG \d+ \/\/ /, ""), color: "#b388ff", page: 0 };
+  }
+  const c = SHRINES[idx - FRAGMENTS.length];
+  return { kicker: c.kicker, title: c.title, subtitle: "", body: c.body, color: c.color, page: 0 };
 }
 function archiveEntries() {
   const out = [];
@@ -1659,19 +1711,62 @@ function archiveEntries() {
   return out;
 }
 function updateCodex() {
+  // a reveal card is open on top of the codex — any tap pages it or closes
+  // it back to the codex (never straight to the title)
+  if (codexCard) {
+    if (input.tap && stateT > 0.2) {
+      if ((codexCard.pages || 1) > 1 && (codexCard.page || 0) < codexCard.pages - 1) {
+        codexCard.page++; blip(440, 550, 0.06, "sine", 0.06);
+      } else { codexCard = null; blip(400, 300, 0.06, "sine", 0.06); }
+    }
+    input.tap = false;
+    return;
+  }
   if (input.tap && stateT > 0.35) {
     const p = codexPanelRect();
-    if (inRect(codexTabRect(0), input.tapX, input.tapY)) {
+    const px = input.tapX, py = input.tapY;
+    if (inRect(codexTabRect(0), px, py)) {
       codexTab = 0; blip(500, 750, 0.08, "sine", 0.07);
-    } else if (inRect(codexTabRect(1), input.tapX, input.tapY)) {
+    } else if (inRect(codexTabRect(1), px, py)) {
       codexTab = 1; blip(500, 750, 0.08, "sine", 0.07);
-    } else if (!inRect(p, input.tapX, input.tapY)) {
-      state = "title"; stateT = 0.7;
-    } else if (codexTab === 1) {
-      // page by tapping the panel's left / right half
-      const pages = Math.ceil(archiveEntries().length / ARCHIVE_PER_PAGE);
-      archivePage = (archivePage + (input.tapX < p.x + p.w / 2 ? pages - 1 : 1)) % pages;
-      blip(440, 550, 0.06, "sine", 0.06);
+    } else {
+      const entries = archiveEntries();
+      const pages = codexTab === 0 ? Math.ceil(FAMOUS.length / MINDS_PER_PAGE)
+                                   : Math.ceil(entries.length / ARCHIVE_PER_PAGE);
+      let handled = false;
+      if (pages > 1 && inRect(codexArrowRect(-1), px, py)) {
+        if (codexTab === 0) mindsPage = (mindsPage + pages - 1) % pages;
+        else archivePage = (archivePage + pages - 1) % pages;
+        blip(440, 550, 0.06, "sine", 0.06); handled = true;
+      } else if (pages > 1 && inRect(codexArrowRect(1), px, py)) {
+        if (codexTab === 0) mindsPage = (mindsPage + 1) % pages;
+        else archivePage = (archivePage + 1) % pages;
+        blip(440, 550, 0.06, "sine", 0.06); handled = true;
+      } else if (codexTab === 0) {
+        const start = mindsPage * MINDS_PER_PAGE;
+        for (let k = 0; k < MINDS_PER_PAGE; k++) {
+          const i = start + k;
+          if (i >= FAMOUS.length) break;
+          if (codex.has(i) && inRect(codexMindRowRect(k), px, py)) {
+            const f = FAMOUS[i];
+            codexCard = { kicker: "FROM THE CODEX", title: f.name, subtitle: f.era,
+              body: f.story + "\n\n★ " + f.upgradeName + " — " + f.upgradeDesc,
+              color: "#ffd54f", page: 0 };
+            blip(550, 825, 0.08, "sine", 0.07); handled = true; break;
+          }
+        }
+      } else {
+        const start = archivePage * ARCHIVE_PER_PAGE;
+        for (let k = 0; k < ARCHIVE_PER_PAGE; k++) {
+          const idx = start + k;
+          if (idx >= entries.length) break;
+          if (entries[idx].on && inRect(codexArchiveSlotRect(k), px, py)) {
+            codexCard = archiveCardFor(idx);
+            blip(550, 825, 0.08, "sine", 0.07); handled = true; break;
+          }
+        }
+      }
+      if (!handled && !inRect(p, px, py)) { state = "title"; stateT = 0.7; }
     }
   }
   input.tap = false;
@@ -1705,36 +1800,47 @@ function drawCodex(now) {
   ctx.textAlign = "center";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-  ctx.fillText(codexTab === 1 ? "tap left / right to page · tap outside to close"
+  const entryCount = codexTab === 0 ? codex.size : (logsSeen.size + shrinesSeen.size);
+  ctx.fillText(entryCount > 0 ? "tap an entry to read · tap outside to close"
                               : "tap outside to close", vw / 2, p.y + p.h - 10);
+  // R7 — a tapped entry opens its reveal card on top of the codex
+  if (codexCard) drawCardPanel(codexCard, now);
 }
 function drawCodexMinds(p) {
+  const pages = Math.ceil(FAMOUS.length / MINDS_PER_PAGE);
+  mindsPage = clamp(mindsPage, 0, pages - 1);
   ctx.font = "600 10px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255,.55)";
-  ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length + " · all runs", vw / 2, p.y + 74);
-  const rowH = Math.min(46, (p.h - 118) / FAMOUS.length);
-  for (let i = 0; i < FAMOUS.length; i++) {
-    const ry = p.y + 82 + i * rowH;
+  ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length +
+    (pages > 1 ? " · page " + (mindsPage + 1) + "/" + pages : "") + " · all runs", vw / 2, p.y + 74);
+  const rowH = mindRowH();
+  const start = mindsPage * MINDS_PER_PAGE;
+  for (let k = 0; k < MINDS_PER_PAGE; k++) {
+    const i = start + k;
+    if (i >= FAMOUS.length) break;
+    const ry = p.y + 84 + k * rowH;
     const found = codex.has(i);
-    if (i > 0) {
+    if (k > 0) {
       ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(p.x + 16, ry); ctx.lineTo(p.x + p.w - 16, ry); ctx.stroke();
     }
-    iDoid(p.x + 34, ry + rowH * 0.78, Math.min(1.7, rowH / 28), i * 1.3, found, found);
+    iDoid(p.x + 34, ry + rowH * 0.66, Math.min(1.7, rowH / 28), i * 1.3, found, found);
     ctx.textAlign = "left";
     ctx.font = "700 12px Menlo, monospace";
     ctx.fillStyle = found ? "#ffe9a8" : "rgba(255,255,255,.3)";
     ctx.shadowColor = found ? "#ffd54f" : "transparent"; ctx.shadowBlur = found ? 6 : 0;
-    ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", p.x + 60, ry + rowH * 0.52);
+    // name and era on fixed baselines ≥14px apart, independent of row height
+    ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", p.x + 60, ry + 16);
     ctx.shadowBlur = 0;
     ctx.font = "600 10px Menlo, monospace";
     ctx.fillStyle = found ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
-    ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", p.x + 60, ry + rowH * 0.82);
+    ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", p.x + 60, ry + 31);
     ctx.textAlign = "right";
     ctx.font = "700 11px Menlo, monospace";
     ctx.fillStyle = found ? "#69f0ae" : "rgba(255,255,255,.25)";
-    ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", p.x + p.w - 18, ry + rowH * 0.62);
+    ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", p.x + p.w - 18, ry + 22);
   }
+  if (pages > 1) drawCodexArrows();
   ctx.textAlign = "center";
 }
 function drawCodexArchive(p) {
@@ -1746,6 +1852,7 @@ function drawCodexArchive(p) {
   ctx.fillText("the signal record · " + logsSeen.size + "/" + FRAGMENTS.length + " logs · " +
     shrinesSeen.size + "/" + SHRINES.length + " shrines · page " + (archivePage + 1) + "/" + pages,
     vw / 2, p.y + 74);
+  if (pages > 1) drawCodexArrows();
   const slotH = (p.h - 118) / ARCHIVE_PER_PAGE;
   const maxLines = Math.max(1, Math.floor((slotH - 22) / 14));
   const items = entries.slice(archivePage * ARCHIVE_PER_PAGE, (archivePage + 1) * ARCHIVE_PER_PAGE);
@@ -2033,6 +2140,26 @@ function drawBrief(now) {
   ctx.shadowBlur = 0;
 }
 
+/* R1 — split wrapped body lines into screen-fitting pages, preferring to
+   break on paragraph boundaries (blank lines) within each page. */
+function paginateLines(lines, maxLines) {
+  const pages = [];
+  let i = 0;
+  while (i < lines.length) {
+    let end = Math.min(i + maxLines, lines.length);
+    if (end < lines.length) {
+      // pull the break back to the last paragraph boundary inside the page
+      for (let j = end; j > i + 1; j--) {
+        if (lines[j - 1] === "") { end = j; break; }
+      }
+    }
+    pages.push(lines.slice(i, end));
+    i = end;
+    while (lines[i] === "") i++;   // drop the blank separator at a page seam
+  }
+  return pages.length ? pages : [[]];
+}
+
 function drawCardPanel(card, now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(5,6,15,.7)";
@@ -2042,7 +2169,21 @@ function drawCardPanel(card, now) {
   ctx.font = "600 " + bodyPx + "px Menlo, monospace";
   const bodyLines = wrapText(card.body, w - 60);
   const titleH = (card.title ? 34 : 0) + (card.subtitle ? 18 : 0);
-  const h = 86 + titleH + bodyLines.length * bodyLH;
+  // R1 — a long body (the HOW TO FLY card) used to run off the bottom of a
+  // landscape phone, hiding the last paragraphs and the tap line. Paginate
+  // whenever the full card would exceed the viewport.
+  const maxH = vh - 40;
+  const fullH = 86 + titleH + bodyLines.length * bodyLH;
+  let pageLines = bodyLines, pageCount = 1, page = 0;
+  if (fullH > maxH) {
+    const maxLines = Math.max(1, Math.floor((maxH - 86 - titleH) / bodyLH));
+    const pages = paginateLines(bodyLines, maxLines);
+    pageCount = pages.length;
+    page = clamp(card.page || 0, 0, pageCount - 1);
+    pageLines = pages[page];
+  }
+  card.pages = pageCount;   // let the tap handlers know whether more remain
+  const h = 86 + titleH + pageLines.length * bodyLH;
   const x = (vw - w) / 2, y = Math.max(20, (vh - h) / 2);
   ctx.fillStyle = "rgba(8,10,26,.92)";
   ctx.strokeStyle = card.color; ctx.shadowColor = card.color; ctx.shadowBlur = 18;
@@ -2069,10 +2210,14 @@ function drawCardPanel(card, now) {
   cy += 28;
   ctx.font = "600 " + bodyPx + "px Menlo, monospace";
   ctx.fillStyle = "#d9e8ff";
-  bodyLines.forEach((l, i) => ctx.fillText(l, vw / 2, cy + i * bodyLH));
+  pageLines.forEach((l, i) => ctx.fillText(l, vw / 2, cy + i * bodyLH));
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-  ctx.fillText("tap to continue", vw / 2, y + h - 14);
+  const foot = pageCount > 1
+    ? (page + 1) + "/" + pageCount + (page < pageCount - 1 ? " · tap for more" : " · tap to continue")
+    : "tap to continue";
+  card._footY = y + h - 14;   // exposed for the R1 on-screen-fit smoke test
+  ctx.fillText(foot, vw / 2, card._footY);
   ctx.shadowBlur = 0;
 }
 
@@ -2098,8 +2243,13 @@ function drawPause(now) {
   ctx.textAlign = "center";
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
   ctx.fillStyle = "#aef4ff";
-  ctx.font = "900 " + Math.min(38, vw * 0.08) + "px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("PAUSED", vw / 2, vh * 0.28);
+  // R2 — derive the heading position (and size) from the first row so PAUSED
+  // can never land inside the RESUME button on a short landscape viewport
+  const topRow = pauseRowRect(0);
+  const headY = topRow.y - 26;
+  ctx.font = "900 " + Math.min(38, vw * 0.08, (topRow.y - 10) * 0.9) +
+    "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("PAUSED", vw / 2, headY);
   ctx.shadowBlur = 0;
   const labels = ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
   for (let i = 0; i < 4; i++) {
@@ -2269,14 +2419,19 @@ window.__doids = {
     musicGainValue: musicGain ? musicGain.gain.value : null,
     perfFrameMs, perfFps, resupplyDrone, liftTransit,
     staticClock, staticSurge,
-    logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage,
+    logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage, mindsPage,
+    codexCardOpen: !!codexCard,
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
-    rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect() },
+    rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect() },
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
   go: toBriefing,
+  // R9 — the body tint a Scion renders with. A saboteur (mech) only differs
+  // from a true Scion once ANTISEPSIS is earned; before that no colour tell
+  // may leak (see S7). Exposed so a test can assert the parity.
+  oidTint: mech => mech && upgrades.antisepsis ? PAL().REVEAL : "#69f0ae",
   setStaticClock: v => { staticClock = v; },
   remix: startRemix,
   daily: startDaily,

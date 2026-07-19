@@ -198,7 +198,9 @@ test("recovered logs persist across reload and the codex ARCHIVE pages (Bundle K
   s = await page.evaluate(() => __doids.get());
   expect(s.codexTab).toBe(1);
   const panel = await page.evaluate(() => window.codexPanelRect());
-  await page.mouse.click(panel.x + panel.w * 0.75, panel.y + panel.h * 0.6);
+  // R7 — paging is via the explicit › arrow now, not a half-panel tap
+  const nextArrow = await page.evaluate(() => window.codexArrowRect(1));
+  await page.mouse.click(nextArrow.x + nextArrow.w / 2, nextArrow.y + nextArrow.h / 2);
   await page.waitForTimeout(120);
   s = await page.evaluate(() => __doids.get());
   expect(s.archivePage).toBe(1);
@@ -576,6 +578,126 @@ test("Game Center facade traces auth, rank achievements and the score report (Bu
   expect(scores.length).toBeGreaterThan(0);
   expect(scores[scores.length - 1].leaderboardId).toBe("hollowoath.score.alltime");
   expect(scores[scores.length - 1].value).toBeGreaterThan(0);
+});
+
+test("R5: the title launches only from the START pill, not a stray tap", async ({ page }) => {
+  await page.waitForTimeout(700);   // clear the title's stateT > 0.6 guard
+  // a tap on empty title space no longer starts a run
+  await page.evaluate(() => { input.tap = true; input.tapX = 4; input.tapY = innerHeight / 2; });
+  await page.waitForTimeout(60);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("title");
+  // the explicit START pill does
+  await page.evaluate(() => {
+    const sr = startRect();
+    input.tap = true; input.tapX = sr.x + sr.w / 2; input.tapY = sr.y + sr.h / 2;
+  });
+  await page.waitForTimeout(60);
+  const s = await page.evaluate(() => __doids.get());
+  expect(["intro", "brief", "play"]).toContain(s.state);   // a run has begun
+});
+
+test("R5: Enter aims the synthetic tap at the START pill", async ({ page }) => {
+  await page.waitForTimeout(700);
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
+  await page.waitForTimeout(60);
+  const s = await page.evaluate(() => __doids.get());
+  expect(["intro", "brief", "play"]).toContain(s.state);
+});
+
+test("R1: the HOW TO FLY card paginates and never runs off a 320-high phone", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 568, height: 320 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", e => errs.push(e.message));
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.waitForTimeout(700);
+  const hr = await page.evaluate(() => window.helpRect());
+  await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("help");
+  const pages = await page.evaluate(() => HELP_CARD.pages);
+  expect(pages).toBeGreaterThan(1);   // the six-paragraph card must split
+  await page.waitForTimeout(450);     // clear the card's stateT > 0.4 tap guard
+  // walk every page; the footer must stay on-screen the whole way
+  for (let p = 0; p < pages; p++) {
+    const foot = await page.evaluate(() => HELP_CARD._footY);
+    expect(foot).toBeLessThan(320);
+    await page.evaluate(() => { input.tap = true; });
+    await page.waitForTimeout(80);
+  }
+  // after the last page the card dismisses back to the title
+  expect(await page.evaluate(() => __doids.get().state)).toBe("title");
+  expect(errs).toEqual([]);
+  await ctx.close();
+});
+
+test("R2: pause can't be reached from the title or an overlay; heading clears the rows", async ({ page }) => {
+  // Escape/p from the title must never open the pause screen
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" })));
+  await page.waitForTimeout(40);
+  expect(await page.evaluate(() => __doids.get().state)).not.toBe("pause");
+  // Escape backs out of the HOW TO FLY overlay like a tap-outside
+  await page.waitForTimeout(700);
+  const hr = await page.evaluate(() => window.helpRect());
+  await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("help");
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  await page.waitForTimeout(60);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("title");
+  // the PAUSED heading is derived to sit above the first row on any viewport
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  await page.waitForTimeout(40);
+  const clears = await page.evaluate(() => {
+    const top = pauseRowRect(0);
+    return (top.y - 26) < top.y;   // heading baseline is above the first button
+  });
+  expect(clears).toBe(true);
+});
+
+test("R7: a codex mind is clickable and opens its reveal card", async ({ page }) => {
+  // record two famous minds so a MINDS row is tappable
+  await page.evaluate(() => { localStorage.setItem("doids_codex", "[0,1]"); });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.waitForTimeout(700);
+  const pill = await page.evaluate(() => window.codexRect());
+  await page.mouse.click(pill.x + pill.w / 2, pill.y + pill.h / 2);
+  await page.waitForTimeout(450);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("codex");
+  // tap the first (found) mind row → a reveal card opens over the codex
+  await page.evaluate(() => {
+    const r = codexMindRowRect(0);
+    input.tap = true; input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+  });
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => __doids.get().codexCardOpen)).toBe(true);
+  // any tap closes it back to the codex, not the title
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForTimeout(80);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.codexCardOpen).toBe(false);
+  expect(s.state).toBe("codex");
+});
+
+test("R9: no colour tell leaks a saboteur before ANTISEPSIS", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  // before the upgrade, a saboteur (mech) renders exactly like a true Scion
+  let cols = await page.evaluate(() => ({
+    mech: __doids.oidTint(true), scion: __doids.oidTint(false)
+  }));
+  expect(cols.mech).toBe(cols.scion);
+  expect(cols.mech).toBe("#69f0ae");
+  // ANTISEPSIS earns the magenta reveal tint — distinct from the Scion green
+  await page.evaluate(() => __doids.give("antisepsis"));
+  cols = await page.evaluate(() => ({
+    mech: __doids.oidTint(true), scion: __doids.oidTint(false)
+  }));
+  expect(cols.mech).toBe("#ff5ce1");
+  expect(cols.mech).not.toBe(cols.scion);
 });
 
 test("FIELD MEDIC runs stay off the Game Center boards (H3 gate)", async ({ page }) => {

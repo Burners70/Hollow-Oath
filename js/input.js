@@ -177,12 +177,23 @@ window.addEventListener("keydown", e => {
   if (keyFor(e) !== undefined) { input[keyFor(e)] = true; e.preventDefault(); }
   if (e.key === "Enter") {
     input.tap = true;
-    // keyboard confirm has no pointer position — aim it at CONTINUE on game over
+    // keyboard confirm has no pointer position — aim it at the primary button
     if (state === "gameover") { const cr = continueRect(); input.tapX = cr.x + 1; input.tapY = cr.y + 1; }
+    else if (state === "title") { const sr = startRect(); input.tapX = sr.x + 1; input.tapY = sr.y + 1; }
   }
   if (e.key === "Escape" || e.key === "p" || e.key === "P") {
     if (state === "play") { state = "pause"; stateT = 0; }
     else if (state === "pause") { state = "play"; stateT = 0; }
+    // R2 — Escape also backs out of the overlay screens, like tapping outside;
+    // pause is only ever entered from a live run, so it can't leak in here
+    else if (e.key === "Escape") {
+      if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+      else if (state === "codex") {
+        if (codexCard) codexCard = null; else { state = "title"; stateT = 0.7; }
+      } else if (state === "settings") {
+        resetArmed = false; state = settingsReturnState || "title"; stateT = 0;
+      }
+    }
   }
   initAudio();
 });
@@ -230,7 +241,11 @@ function pollPad() {
     if (state === "play") { state = "pause"; stateT = 0; }
     else if (state === "pause") { state = "play"; stateT = 0; }
     else input.tap = true;
-  } else if (state !== "play" && state !== "pause" && a && !padAPrev) input.tap = true;
+  } else if (state !== "play" && state !== "pause" && a && !padAPrev) {
+    input.tap = true;
+    // gamepad A on the title aims at the START pill (R5), matching Enter
+    if (state === "title") { const sr = startRect(); input.tapX = sr.x + 1; input.tapY = sr.y + 1; }
+  }
   padStartPrev = start; padAPrev = a;
 }
 window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED", "#69f0ae"));

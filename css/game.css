@@ -25,10 +25,11 @@
     border-color:rgba(255,196,0,.55); color:rgba(255,196,0,.9); background:rgba(255,196,0,.07);
     box-shadow:0 0 18px rgba(255,196,0,.25), inset 0 0 12px rgba(255,196,0,.12); }
   #btnThrust.down { background:rgba(255,196,0,.28); box-shadow:0 0 30px rgba(255,196,0,.6); }
-  /* nestled directly above the FIRE/THRUST pair (one thumb serves all
-     three) rather than floating off on its own */
-  #btnShield { right:calc(64px + env(safe-area-inset-right)); bottom:calc(116px + env(safe-area-inset-bottom));
-    width:64px; height:64px; line-height:60px; font-size:11px;
+  /* R3 — tightened into the FIRE/THRUST arc: SHIELD nestles above-between the
+     pair so a resting thumb can roll between all three (the tracker's 14px
+     hit margin makes the adjacency forgiving) rather than a full thumb-stretch */
+  #btnShield { right:calc(88px + env(safe-area-inset-right)); bottom:calc(98px + env(safe-area-inset-bottom));
+    width:68px; height:68px; line-height:64px; font-size:11px;
     border-color:rgba(105,240,174,.55); color:rgba(105,240,174,.9); background:rgba(105,240,174,.07);
     box-shadow:0 0 18px rgba(105,240,174,.25), inset 0 0 12px rgba(105,240,174,.12); }
   #btnShield.down { background:rgba(105,240,174,.28); box-shadow:0 0 30px rgba(105,240,174,.6); }

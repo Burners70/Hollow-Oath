@@ -35,7 +35,7 @@ Pending copy decisions that will touch lines below:
 | Hook (green) | `seven sectors · something is repeating every 41 seconds` |
 | Hook, haunted variant (violet, after an unresolved ending) | `the Static answers still — every 41 seconds` |
 | Warning (yellow) | `not every Scion you rescue is what it seems` |
-| Launch prompt | `TAP TO LAUNCH` *(becomes the `▶ START NEW FLIGHT` pill — R5)* |
+| Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5) |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
 | Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |
@@ -86,6 +86,10 @@ Pending copy decisions that will touch lines below:
 > 🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields.
 > Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be
 > switched on in SETTINGS.
+
+On a short landscape phone this card paginates (R1): the footer reads
+`<page>/<pages> · tap for more` and, on the last page, `<page>/<pages> · tap to
+continue`. Short cards show a single `tap to continue` as before.
 
 ## 4. Sector briefings (`BRIEFS[0..7]`)
 
@@ -312,8 +316,11 @@ PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
   "the minds recovered · <n>/11 · all runs" · `UNIDENTIFIED` / "somewhere out
   there" / "not yet rescued" · `★ <UPGRADE>` · "the signal record · <n>/14
   logs · <n>/3 shrines · page <n>/<n>" · `LOG 07` + "— signal not yet
-  recovered —" · `THE HOLLOWS · I/II/III` + "— not yet descended —" · "tap
-  left / right to page · tap outside to close" *(R7 changes paging hint)*.
+  recovered —" · `THE HOLLOWS · I/II/III` + "— not yet descended —" · footer
+  "tap an entry to read · tap outside to close" (or "tap outside to close"
+  when nothing is unlocked yet). Paging is via `‹` / `›` corner arrows; tapping
+  a recovered entry opens its reveal card (`FROM THE CODEX` for a mind, the
+  full log / shrine card for the archive) — any tap there returns to the codex (R7).
   [S8 adds locked row: `MANIFEST DISCREPANCY // — file remains open —`]
 - **Daily modifiers** (`DAILY_MODS`, shown inside the briefing as "TODAY'S
   CONDITIONS — …"): `RATIONED TANK` "fuel cells run at 70% capacity" ·
