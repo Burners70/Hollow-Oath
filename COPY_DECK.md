@@ -10,9 +10,12 @@ truth, this deck is the review surface. Each section names its code anchor
 **Any PR that changes a player-facing string must update this deck in the same
 PR** (see APP_STORE_ROADMAP.md § How to work on this).
 
-Pending copy decisions that will touch many lines below:
-- **S6 (roadmap):** possible rename of "saboteur" in player-facing copy —
-  recommended replacement: **VECTOR**. Affected lines are marked `[S6]`.
+**LOCKED (owner decision, July 2026 — roadmap S6):** the player-facing term
+for the counterfeit "Scions" is **Vectors**, singular **Vector** — applied
+throughout this deck and in `index.html`. Code identifiers stay `"saboteur"`
+(the `role` value, variable names) — same rule as the `doids_` prefix.
+
+Pending copy decisions that will touch lines below:
 - **T6 (roadmap):** BRIEFS[2] (Nightingale Basin) gets a scarier rewrite when
   staged nightfall lands. Marked `[T6]`.
 - **S4/S5 (roadmap):** new extraction-hangar and catalogue-scan strings will be
@@ -28,7 +31,7 @@ Pending copy decisions that will touch many lines below:
 | Tagline (cyan) | `a gravity rescue — a love letter to the 16-bit lander classics` |
 | Hook (green) | `seven sectors · something is repeating every 41 seconds` |
 | Hook, haunted variant (violet, after an unresolved ending) | `the Static answers still — every 41 seconds` |
-| Warning (yellow) | `not every Scion you rescue is what it seems` [S6] |
+| Warning (yellow) | `not every Scion you rescue is what it seems` |
 | Launch prompt | `TAP TO LAUNCH` *(becomes the `▶ START NEW FLIGHT` pill — R5)* |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
@@ -91,7 +94,7 @@ Pending copy decisions that will touch many lines below:
 1. **VESALIUS RIDGE** — "Captain — some stranded units on the ridge have
    stopped answering triage pings. / If a rescue feels wrong — the wave wrong,
    the heartbeat missing — trust your instincts. The red quarantine bay is
-   open. Do NOT bring contaminated units into the recovery bay." [S6]
+   open. Do NOT bring contaminated units into the recovery bay."
 2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin. Visibility near
    zero. / Your lamp is your lifeline — and theirs. Listen for them in the
    dark." [T6 — rewrite pending; draft: *"Dust occlusion across the basin —
@@ -169,9 +172,9 @@ Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
    open on purpose. / Scratched into the casing: a coiled serpent wearing a
    human mask."
 2. **THE HOLLOWS · WORKSHOP — THEY WERE NEVER RESCUED** — "Racks of
-   half-finished Scions. Dull chests. No hearts to tick. / The saboteurs were
+   half-finished Scions. Dull chests. No hearts to tick. / The Vectors were
    never rescued units. Not corrupted. Hollow. Built empty, and dressed to be
-   carried home in good faith. / The same serpent mark on every chassis." [S6]
+   carried home in good faith. / The same serpent mark on every chassis."
 3. **THE HOLLOWS · SHRINE — GLYCON** — "A shrine to a serpent with a human
    face. / Old Earth archive match: GLYCON — the puppet god of Alexander of
    Abonoteichus, a second-century charlatan who sold fake plague cures while
@@ -193,10 +196,10 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | HIPPOCRATES OF KOS | c. 460–370 BC | "The physician of Kos, whose oath still binds medicine twenty-four centuries on: first, do no harm." | **GENTLE TOUCH** — "Hard landings now do far less damage to your hull." |
 | ANDREAS VESALIUS | 1514–1564 | "He looked inside the body for himself and rewrote anatomy — his Fabrica corrected a thousand years of guesswork." | **FABRICA HULL** — "Maximum vitals raised to 125." |
 | FLORENCE NIGHTINGALE | 1820–1910 | "The Lady with the Lamp — she proved with statistics that sanitation saves more soldiers than surgery." | **THE LAMP** — "Your light reaches much further in the dark." |
-| IGNAZ SEMMELWEIS | 1818–1865 | "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades." | **ANTISEPSIS** — "Saboteurs are now revealed by a sickly tint. You can see the contamination." [S6] |
+| IGNAZ SEMMELWEIS | 1818–1865 | "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades." | **ANTISEPSIS** — "Vectors are now revealed by a sickly tint. You can see the contamination." |
 | MARIE CURIE | 1867–1934 | "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War." | **RADIOSENSE** — "A compass now points toward unrecovered black boxes." |
 | IBN SINA · AVICENNA | 980–1037 | "The Persian polymath whose Canon of Medicine taught physicians on three continents for six hundred years — observation, evidence, and honest doubt." | **CANON OF TRUTH** — "Counterfeits are unmasked — Glycon's lures and lure-trees are marked for what they are." |
-| EDWARD JENNER | 1749–1823 | "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known." | **INOCULATION** — "Your passengers are immunised — saboteurs aboard can no longer kill them." [S6] |
+| EDWARD JENNER | 1749–1823 | "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known." | **INOCULATION** — "Your passengers are immunised — Vectors aboard can no longer kill them." |
 | ELIZABETH BLACKWELL | 1821–1910 | "Rejected by ten medical schools for being a woman, she graduated first in her class anyway — the first woman M.D. in America — and then opened the door for every one who followed." | **OPEN DOORS** — "MERCY's bay doors open wider — dock at approach speeds that would once have waved you off." |
 | RUDOLF VIRCHOW | 1821–1902 | "The father of cellular pathology — omnis cellula e cellula — who insisted every disease begins somewhere specific, and that medicine's job is to look until it finds where." | **CELL DOCTRINE** — "Diagnosis comes faster — black boxes, shrines and counterfeit scans complete in two-thirds the time." |
 | ALEXANDER FLEMING | 1881–1955 | "He came back from holiday to a spoiled culture plate and, instead of binning it, looked closer: the mould was killing the bacteria. Penicillin began as a noticed accident." | **PENICILLIN** — "Your hull cultures its own repair — vitals slowly self-heal while below half." |
@@ -227,7 +230,7 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 `HIDDEN CACHE +400 — stashed away from the serpent` · `SHIELD BOUNCE` ·
 `SHIELD HELD` · `HARD LANDING -<n>` · `-40` / `-26` (hit damage) ·
 `+250` / `+150` (turret / drone) · `FUEL LINE CUT` [S7 promotes] ·
-`PASSENGER KILLED BY SABOTEUR` [S6] [S7 promotes to banner; draft: `A
+`PASSENGER KILLED BY VECTOR` [S7 promotes to banner; draft: `A
 PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
 `THE STATIC SURGES` · `THE SURGE ROCKS THE LINE` ·
 `PRIMER MIST — FLY TO THE LINE` · `CLEAN LINE +250` ·
@@ -309,8 +312,8 @@ PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
 - **Daily modifiers** (`DAILY_MODS`, shown inside the briefing as "TODAY'S
   CONDITIONS — …"): `RATIONED TANK` "fuel cells run at 70% capacity" ·
   `SURGE FRONT` "the 41-second clock runs in every sector" · `CROWDED SKY`
-  "two extra hunter drones per sector" · `SLEEPER CELL` "every saboteur is a
-  sleeper — listen closely" [S6] · `BLACKOUT ROTATION` "every sector is dark;
+  "two extra hunter drones per sector" · `SLEEPER CELL` "every Vector is a
+  sleeper — listen closely" · `BLACKOUT ROTATION` "every sector is dark;
   fly by lamp" · `STOPWATCH` "clear each sector under 90s for +500".
 - **HUD micro-labels** (`drawHUD` and friends): `FUEL`, the ECG bar, sector
   name, `❚❚` (pause), landing-guide reason text and `✓ / ! / ✕` glyphs,

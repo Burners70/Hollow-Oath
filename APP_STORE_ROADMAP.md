@@ -895,22 +895,24 @@ feedback items that change how the game *feels* rather than how it looks.
     prove it."` Update HELP_CARD's "Listen to what boards" paragraph.
   - Tests: flagged saboteur + all real Scions delivered closes the manifest;
     unflagged sleeper blocks it; scan on a real Scion does not flag.
-- [ ] **S6. Rename the saboteurs? (owner question — recommendation below.)**
-  The owner asks if "saboteur" should be "more redolent of medical
-  misinformation". Recommendation: **yes — call them VECTORS** in all
-  player-facing copy (code identifiers stay `"saboteur"`, like the `doids_`
-  keys). Rationale: a *vector* is the epidemiological term for a carrier
-  that spreads infection while healthy-seeming — exactly what these units
-  are (misinformation carried home by well-meaning hands, GAME_DESIGN §2.4),
-  it pairs with the game's existing quarantine/contaminant language, and it
-  gives briefings a chilling clinical register ("a vector wearing a rescue's
-  face"). Runners-up, for the owner to veto/choose: **NOSTRUMS** (a quack's
-  fake remedy — the truest misinformation word, but obscure); **SHILLS**
-  (historically apt — Alexander of Abonoteichus used crowd-plants — but
-  reads as slang); SIMULACRA (generic sci-fi, avoid). PLACEBO is wrong —
-  placebos are benign. On owner sign-off: sweep BRIEFS[1]/[3], HELP_CARD,
-  the WORKSHOP shrine card, Antisepsis/Inoculation `upgradeDesc`s,
-  GAME_DESIGN.md §2.4/§4, COPY_DECK.md, and the store-listing draft in O2.
+- [x] **S6. Rename the saboteurs → VECTORS (locked, owner decision, July
+  2026).** The owner asked if "saboteur" should be "more redolent of
+  medical misinformation"; **VECTOR** was the recommendation and is now
+  locked as the player-facing term. Rationale: a *vector* is the
+  epidemiological term for a carrier that spreads infection while
+  healthy-seeming — exactly what these units are (misinformation carried
+  home by well-meaning hands, GAME_DESIGN §2.4), it pairs with the game's
+  existing quarantine/contaminant language, and it gives briefings a
+  chilling clinical register. Code identifiers stay `"saboteur"` (the
+  `role` value, variable names), same rule as the `doids_` keys.
+  **Done:** the WORKSHOP shrine card, Antisepsis/Inoculation
+  `upgradeDesc`s, the SLEEPER CELL daily-mod description, and the
+  `"PASSENGER KILLED BY VECTOR"` floating text are swept in `index.html`;
+  GAME_DESIGN.md §2.3/§2.4/§3/§4/§6/§7 and HOLLOWS_EXPANSION_SPEC.md
+  updated; COPY_DECK.md reflects the final copy. BRIEFS[1]/[3] and
+  HELP_CARD were checked and never named the role directly, so no change
+  was needed there. **Still open:** the store-listing draft in O2 (write
+  it "Vector"-first when O2 is drafted).
 - [ ] **S7. Saboteur effects are too subtle / colour spoils sleepers.** Two
   halves of one legibility problem:
   - *Active sabotage is missable.* "FUEL LINE CUT" is a small floating text.
@@ -1192,7 +1194,7 @@ plays at the $4.99 feature bar.
 **The July 2026 owner-playtest feedback round is now bundled as R, S and T**
 (above): R is pure defect-fixing and joins the submission-blocking set; S
 (sound character, the extraction-hangar endgame, leavable identified
-saboteurs, the VECTOR rename question, the 1.2 manifest teaser) and the core
+saboteurs, the VECTOR rename (locked), the 1.2 manifest teaser) and the core
 of T (progressive sector widths, per-sector biome palettes and ornamentation,
 staged nightfall on the Basin) are owner-requested for the launch build. T4
 (destructible scenery) and T5 (weather) are launch-stretch with a

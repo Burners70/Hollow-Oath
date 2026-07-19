@@ -56,9 +56,18 @@ been, a call for help. It is a *wound*, not a weapon.
 ### 2.3 The villain: GLYCON (the medical-misinformation layer)
 
 The later campaign reveals a second, deliberate hand. Counterfeit refuelling
-points that drain tanks dry. Trees that aren't trees. Saboteur "Scions" that
-were never rescued units at all. Every counterfeit carries the same maker's
-mark: **a coiled serpent wearing a human mask**.
+points that drain tanks dry. Trees that aren't trees. **Vectors** — "Scions"
+that were never rescued units at all. Every counterfeit carries the same
+maker's mark: **a coiled serpent wearing a human mask**.
+
+> **Naming (locked, owner decision, July 2026 — roadmap S6):** in all
+> player-facing copy the counterfeit "Scions" are called **Vectors** — the
+> epidemiological term for a carrier that spreads harm while
+> healthy-seeming, which is exactly the misinformation metaphor and pairs
+> with the game's existing quarantine/contaminant language. Code identifiers
+> stay `"saboteur"` (the `role` value, variable names) — same rule as the
+> `doids_` localStorage prefix: renaming internals buys nothing and risks
+> everything.
 
 Archive match: **GLYCON** — the puppet god of **Alexander of Abonoteichus**,
 a real second-century charlatan who wrapped a tame snake in linen, ran a fake
@@ -78,7 +87,7 @@ The reveal is staged across three secret caves ("the Hollows"):
 1. **THE RELAY** — a hand-built transmitter boosting the Static. Not
    wreckage. Deliberate. The serpent mark scratched into the casing.
 2. **THE WORKSHOP** — racks of half-finished Scions with dull chests and no
-   hearts. The saboteurs aren't corrupted survivors; they are counterfeits,
+   hearts. The Vectors aren't corrupted survivors; they are counterfeits,
    built to be found and carried home in good faith.
 3. **THE SHRINE** — the serpent-with-a-mask itself, and the archive match to
    Alexander. Finding all three = **GLYCON UNMASKED** (+3000, epilogue line
@@ -86,7 +95,7 @@ The reveal is staged across three secret caves ("the Hollows"):
 
 ### 2.4 The moral architecture
 
-- The **saboteurs** spread harm by exploiting trust in rescue — the game's
+- The **Vectors** spread harm by exploiting trust in rescue — the game's
   metaphor for misinformation carried by well-meaning hands.
 - The **counterfeit pods/trees** punish credulity but reward observation:
   every fake has a *tell* (see §6). The skill the game teaches is the
@@ -157,12 +166,12 @@ seeded procedural heightmap (deterministic per sector).
 | # | Sector | Introduces | Famous Scion → upgrade |
 |---|---|---|---|
 | 0 | ASCLEPION | Basics: land, rescue, deliver | Hippocrates → **Gentle Touch** (hard landings do far less damage) |
-| 1 | VESALIUS RIDGE | Saboteurs + red quarantine bay; first secret lift | Vesalius → **Fabrica Hull** (max vitals 125) |
+| 1 | VESALIUS RIDGE | Vectors + red quarantine bay; first secret lift | Vesalius → **Fabrica Hull** (max vitals 125) |
 | 2 | NIGHTINGALE BASIN | Darkness + your lamp | Nightingale → **The Lamp** (much larger light radius) |
-| 3 | SEMMELWEIS DEEP | Fuel scarcity, fuel pods, drones; second lift | Semmelweis → **Antisepsis** (saboteurs visibly tinted) |
+| 3 | SEMMELWEIS DEEP | Fuel scarcity, fuel pods, drones; second lift | Semmelweis → **Antisepsis** (Vectors visibly tinted) |
 | 4 | CURIE FIELDS | Gravity anomalies | Curie → **Radiosense** (compass to unrecovered black boxes) |
 | 5 | AVICENNA SHOALS | Glycon's counterfeits (fake pods, lure-tree, hollow rock); third lift | Avicenna → **Canon of Truth** (counterfeits unmasked with a "?" mark) |
-| 6 | JENNER TERRACES | Sleeper-saboteur gauntlet (75% sleepers) | Jenner → **Inoculation** (saboteurs can no longer kill passengers) |
+| 6 | JENNER TERRACES | Sleeper-Vector gauntlet (75% sleepers) | Jenner → **Inoculation** (Vectors can no longer kill passengers) |
 | 7 | THE NULLWAVE | Secret finale: the beacon, two endings — and a **counterfeit MERCY** (Bundle N) parked between spawn and the beacon, told apart only by its mechanically-blinking emblem | — |
 
 **The wider pool & rotations (Bundle M).** Four more famous minds live in
@@ -186,12 +195,12 @@ ship in quickening pulses while you dock one last time.
 - **Rescue**: land near a waiting Scion; it walks over and climbs aboard
   (capacity 6). Delivering to MERCY's cyan **recovery bay** heals, refuels
   and scores; famous Scions step out last for the reveal.
-- **Saboteurs**: indistinguishable at distance. Tells: mechanically perfect
+- **Vectors**: indistinguishable at distance. Tells: mechanically perfect
   wave/blink rhythm, slightly-too-eager walk, a **dull thud** instead of a
   heartbeat on boarding, ECG **arrhythmia** while an active one is aboard.
   Active ones cut fuel lines and kill passengers; **sleepers** wait and slip
   into MERCY at delivery → timed breach (dock at the **red quarantine bay**
-  within 45s or healing goes offline). Containing a saboteur in the red bay
+  within 45s or healing goes offline). Containing a Vector in the red bay
   = +750.
 - **Force field** (SHIELD, hold): drains fuel ~7/s; deflects turret fire,
   destroys drones harmlessly on contact, turns bad landings into bounces,
@@ -225,7 +234,7 @@ ship in quickening pulses while you dock one last time.
 ## 6. Secrets inventory (and their tells)
 
 Design rule: **every secret has a subtle, learnable tell, and most tells
-rhyme with the saboteur tell — mechanical perfection is the signature of the
+rhyme with the Vector tell — mechanical perfection is the signature of the
 counterfeit.**
 
 | Secret | Tell | Payoff |
@@ -238,7 +247,7 @@ counterfeit.**
 | **The counterfeit MERCY** (finale) | Identical hull, bay beam, name plate — but the emblem **blinks in perfect mechanical unison with the fake pods** (the real one pulses like a pulse); ECG + soundtrack go arrhythmic in its bay | Dock: the bay is a mouth (fuel drain, −200). Scan from the ground or one shot: powers down, +800 |
 | Black boxes (one per campaign sector) | Faint blink, stronger when near; Curie's compass points at them | +800, a log fragment, finale progress |
 | Famous Scions | Gold shimmer particles if you watch closely | Reveal card + permanent upgrade + 1500 |
-| Saboteurs | See §4 | Quarantine +750 / breach risk |
+| Vectors | See §4 | Quarantine +750 / breach risk |
 
 Note the tension: unmasking lure-trees and hollow rocks costs shots, which
 breaks the Hippocratic/no-fire bonuses. Curiosity vs. the oath is a
@@ -253,7 +262,7 @@ rank (§2.5), distinct from breaking it in combat.
 | Scion aboard | +500 |
 | Scion delivered | +300 |
 | Famous Scion delivered | +1500 (+upgrade) |
-| Saboteur contained (red bay) | +750 |
+| Vector contained (red bay) | +750 |
 | Breach resolved / failed | +750 / −1000 and healing offline |
 | Turret / drone destroyed | +250 / +150 |
 | Black box | +800 |
@@ -381,7 +390,7 @@ session scratchpad and can be recreated the same way if needed.)
   obvious.
 - ~~More famous Scions from a larger pool; difficulty settings.~~ *(shipped —
   Bundles M4 and H3)* Second-playthrough *modifiers* beyond remix remain open.
-- Moving rescue targets; saboteur ground-behaviour tells (refusing to panic,
+- Moving rescue targets; Vector ground-behaviour tells (refusing to panic,
   standing too still).
 - A fourth cave / a Glycon confrontation beyond the shrines *(the counterfeit
   MERCY — Bundle N — is now that confrontation's first act)*; a third finale

@@ -87,7 +87,7 @@
    mechanically in the lineage of the Atari ST gravity classic).
    Rescue the stranded Scions, ferry them to the hospital mothership
    AMS MERCY, and piece together what the Static is — seven sectors,
-   hidden black boxes, famous Scions, saboteurs, secret lifts down into
+   hidden black boxes, famous Scions, Vectors, secret lifts down into
    the Hollows, Glycon's counterfeits, and a secret finale.
    NOTE: the game was formerly titled DOIDS and the androids were "Doids";
    renamed to HOLLOW OATH / "Scions" (see CHANGELOG.md). localStorage keys
@@ -731,7 +731,7 @@ const SHRINES = [
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · WORKSHOP",
     title: "THEY WERE NEVER RESCUED",
-    body: "Racks of half-finished Scions. Dull chests. No hearts to tick.\n\nThe saboteurs were never rescued units. Not corrupted. Hollow. Built empty, and dressed to be carried home in good faith.\n\nThe same serpent mark on every chassis.",
+    body: "Racks of half-finished Scions. Dull chests. No hearts to tick.\n\nThe Vectors were never rescued units. Not corrupted. Hollow. Built empty, and dressed to be carried home in good faith.\n\nThe same serpent mark on every chassis.",
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · SHRINE",
     title: "GLYCON",
@@ -755,7 +755,7 @@ const FAMOUS = [
   { name: "IGNAZ SEMMELWEIS", era: "1818–1865",
     story: "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades.",
     upgrade: "antisepsis", upgradeName: "ANTISEPSIS",
-    upgradeDesc: "Saboteurs are now revealed by a sickly tint. You can see the contamination." },
+    upgradeDesc: "Vectors are now revealed by a sickly tint. You can see the contamination." },
   { name: "MARIE CURIE", era: "1867–1934",
     story: "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War.",
     upgrade: "radiosense", upgradeName: "RADIOSENSE",
@@ -767,7 +767,7 @@ const FAMOUS = [
   { name: "EDWARD JENNER", era: "1749–1823",
     story: "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
     upgrade: "inoculation", upgradeName: "INOCULATION",
-    upgradeDesc: "Your passengers are immunised — saboteurs aboard can no longer kill them." },
+    upgradeDesc: "Your passengers are immunised — Vectors aboard can no longer kill them." },
   /* the wider pool (Bundle M4) — the campaign carries the canonical seven;
      REMIX and DAILY rotations draw 7 of everyone below as well */
   { name: "ELIZABETH BLACKWELL", era: "1821–1910",
@@ -1024,7 +1024,7 @@ const DAILY_MODS = [
   { id: "rationed",  name: "RATIONED TANK",     desc: "fuel cells run at 70% capacity" },
   { id: "surge",     name: "SURGE FRONT",       desc: "the 41-second clock runs in every sector" },
   { id: "crowded",   name: "CROWDED SKY",       desc: "two extra hunter drones per sector" },
-  { id: "sleepers",  name: "SLEEPER CELL",      desc: "every saboteur is a sleeper — listen closely" },
+  { id: "sleepers",  name: "SLEEPER CELL",      desc: "every Vector is a sleeper — listen closely" },
   { id: "dark",      name: "BLACKOUT ROTATION", desc: "every sector is dark; fly by lamp" },
   { id: "stopwatch", name: "STOPWATCH",         desc: "clear each sector under 90s for +500" }
 ];
@@ -2449,7 +2449,7 @@ function updateSabotage(dt) {
         acctLevel().lost++; runLost++;
         if (v.role === "famous")
           addText(s.x, s.y - 48, FAMOUS[v.famousId].name + " WAS KILLED", "#ffd54f");
-        addText(s.x, s.y - 34, "PASSENGER KILLED BY SABOTEUR", "#ff4081");
+        addText(s.x, s.y - 34, "PASSENGER KILLED BY VECTOR", "#ff4081");
         dullThud();
         checkSectorClear();
       }

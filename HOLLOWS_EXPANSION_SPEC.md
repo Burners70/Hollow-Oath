@@ -194,7 +194,7 @@ HEARD** (+1500, Game Center achievement id for the G3 list).
 
 > **Owner direction (July 2026 feedback round — roadmap item S8):** THE WARD
 > also inherits the *missing-originals* thread. The Workshop shrine proves
-> the saboteurs were built, not corrupted — so the genuine Scions they
+> the Vectors were built, not corrupted — so the genuine Scions they
 > impersonate were never rescued and are still missing from MERCY's
 > manifest. Direction: beyond the fourteen cots, THE WARD holds **cells** —
 > the original units, alive, held where Glycon's copies were fitted to their
