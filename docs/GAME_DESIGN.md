@@ -212,9 +212,9 @@ ship in quickening pulses while you dock one last time.
   confirm a real Scion's heartbeat. There is **no colour tell** — identification
   is earned and active, never passive. Unproven units must be carried, or the
   manifest stays open. Destroying a *proven* counterfeit is **not** malpractice
-  (a hollow chassis is not a patient — it neutralises with no penalty); shooting
-  an *unidentified* unit still costs you, because you couldn't know it wasn't
-  alive.
+  (a hollow chassis with no heartbeat is not one of the medics — it neutralises
+  with no penalty); shooting an *unidentified* unit still costs you, because you
+  couldn't know it wasn't a living medic.
 - **Force field** (SHIELD, hold): drains fuel ~7/s; deflects turret fire,
   destroys drones harmlessly on contact, turns bad landings into bounces,
   and saves you from cave ceilings. It cannot come up while the transfusion

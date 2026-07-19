@@ -858,10 +858,11 @@ function updateOids(dt, now) {
           color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2.5 });
       }
       if (o.deathT >= 1.3) {
-        // a PROVEN counterfeit (catalogued via the S5 scan) is a hollow chassis,
-        // not a patient — destroying it is no malpractice; it's neutralised, off
-        // the manifest, no penalty. An UNidentified unit still costs you: you
-        // couldn't know it wasn't alive, and that risk is the whole tension.
+        // a PROVEN counterfeit (catalogued via the S5 scan) is a hollow chassis
+        // with no heartbeat — not one of the medics we came for — so destroying
+        // it is no malpractice; it's neutralised, off the manifest, no penalty.
+        // An UNidentified unit still costs you: you couldn't know it wasn't a
+        // living medic, and that risk is the whole tension.
         if (o.role === "saboteur" && o.flagged) {
           o.state = "contained"; level.contained++;
           addText(o.x, o.y - 40, "COUNTERFEIT DESTROYED", PAL().REVEAL);
