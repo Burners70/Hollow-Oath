@@ -34,7 +34,7 @@ const NBOX = FINALE_IDX;                      // one hidden black box per campai
 
 const BRIEFS = [
   "MERCY to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\nAnd captain… the dark out here listens back.",
   "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
@@ -562,8 +562,11 @@ const RECIPE = [
     lift: false, scn: { trees: 5, rocks: 6, bld: 0, ruin: 2, wreck: 1, reeds: 5, lanterns: 3 },
     pal: { grad: ["#141240", "#080622"], stroke: "#8390ff", glow: "#3b3f9f",
            night: [4, 4, 14], star: [200, 210, 255] } },
-  // 3 · SEMMELWEIS DEEP — the scrubbed ward; cold antiseptic grey-green
+  // 3 · SEMMELWEIS DEEP — the scrubbed ward; cold antiseptic grey-green.
+  // Its signature: unscreened contagion spreads (see updateContagion) — an
+  // unscanned Vector left standing taints the survivor beside it.
   { oids: 7, turrets: 6, sabs: 2, drones: 1, pods: 3, fakes: 0, anomalies: 0, dark: false,
+    contagion: true,
     lift: true,  scn: { trees: 4, rocks: 7, bld: 0, ruin: 2, wreck: 1 },
     pal: { grad: ["#16241f", "#0a120e"], stroke: "#8fd6b8", glow: "#3f7a5f",
            night: [3, 8, 7], star: [205, 225, 215] } },
@@ -622,7 +625,7 @@ function genLevel(n) {
     mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
     total: 0, firedShots: 0, extraction: null, pulse: null, isCave: false,
     dark: r.dark || dailyMod("dark"), isFinale: n === FINALE_IDX,
-    contamKnown: false, fragmentsHere: [] };
+    contamKnown: false, contagion: !!r.contagion, contagSeen: false, fragmentsHere: [] };
 
   // T6 — the Basin stages its own nightfall: it opens at dusk and the dark
   // comes down over the first ~20s (or at first boarding, whichever is first).
@@ -814,7 +817,7 @@ function genLevel(n) {
     const k = 1 + Math.floor(rng() * 3);   // 1–3 chunks: lone boulders through low cairns
     let dy = 0;
     for (let b = 0; b < k; b++) {
-      const rr = Math.max(4, 11 + rng() * 7 - b * 2.2);
+      const rr = Math.max(5, 13 + rng() * 8 - b * 2.2);
       // an irregular chunk, not a sphere — jittered vertices like the rocks
       const kv = 6 + Math.floor(rng() * 3), verts = [];
       for (let v = 0; v < kv; v++) {

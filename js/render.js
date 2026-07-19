@@ -494,7 +494,7 @@ function drawDarkness(now) {
     // from the ship's three points (nose + engine corners), not one flat disc.
     // Flo's lamp widens each pool; on the surface the single disc is unchanged.
     if (level.isCave) {
-      const r = lampRadius() * 0.64;
+      const r = lampRadius() * 0.72;
       for (const [px, py] of shipGlowPoints()) punch(px, py, r, lampS);
     } else {
       punch(ship.x, ship.y, lampRadius(), lampS);
@@ -540,8 +540,10 @@ function drawShip(now) {
   // light leaving the ship, not a ring around it.
   if (level.isCave && !s.dead) {
     const lamp = upgrades.lamp;
-    for (const [px, py] of shipGlowPoints())
-      drawGlow(px, py, lamp ? 27 : 18, "#00e5ff", lamp ? 0.5 : 0.32);
+    for (const [px, py] of shipGlowPoints()) {
+      drawGlow(px, py, lamp ? 42 : 30, "#00e5ff", lamp ? 0.55 : 0.4);   // halo
+      drawGlow(px, py, lamp ? 15 : 11, "#aef4ff", lamp ? 0.75 : 0.55);  // bright core
+    }
   }
   ctx.save();
   ctx.translate(s.x, s.y);
@@ -802,25 +804,27 @@ function doidFigure(p) {
   ctx.translate(0, -11.3);
   drawAsclepius(4.6, p.emblemCol, true);
   ctx.restore();
-  // head
+  // head — owner steer: smaller, hooded dome instead of a big baby head, so the
+  // figure reads as a suited healer, not a toy
   ctx.beginPath();
-  ctx.moveTo(-3.5, -15.5);
-  ctx.lineTo(-3.5, -19); ctx.arcTo(-3.5, -21, -1.5, -21, 2);
-  ctx.lineTo(1.5, -21); ctx.arcTo(3.5, -21, 3.5, -19, 2);
-  ctx.lineTo(3.5, -15.5);
+  ctx.moveTo(-2.9, -15.5);
+  ctx.lineTo(-2.9, -18.6); ctx.arcTo(-2.9, -20.3, -1.3, -20.3, 1.6);
+  ctx.lineTo(1.3, -20.3); ctx.arcTo(2.9, -20.3, 2.9, -18.6, 1.6);
+  ctx.lineTo(2.9, -15.5);
   ctx.closePath();
   ctx.fillStyle = p.fill; ctx.fill();
   glowStroke(p.col, 2);
-  // eyes (they blink)
+  // a single visor slit rather than two cartoon eyes — it dims on "blink"
   ctx.fillStyle = p.col;
-  if (p.blink) { ctx.fillRect(-2.4, -18.1, 1.7, 0.9); ctx.fillRect(0.7, -18.1, 1.7, 0.9); }
-  else { ctx.fillRect(-2.3, -18.9, 1.6, 2); ctx.fillRect(0.7, -18.9, 1.6, 2); }
-  // antenna with swaying bobble
+  ctx.globalAlpha = p.blink ? 0.35 : 1;
+  ctx.fillRect(-2, -18.4, 4, 1.1);
+  ctx.globalAlpha = 1;
+  // a short antenna with a small swaying tip — subtler than the old bobble
   ctx.beginPath();
-  ctx.moveTo(0, -21); ctx.lineTo(p.sway, -25);
+  ctx.moveTo(0, -20.3); ctx.lineTo(p.sway * 0.6, -23.2);
   glowStroke(p.col, 2);
   ctx.fillStyle = p.col;
-  ctx.beginPath(); ctx.arc(p.sway, -26, 1.4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.sway * 0.6, -23.8, 1.0, 0, 7); ctx.fill();
 }
 
 /* Each Scion has a persona — big wavers, two-arm wavers, jumpers,
@@ -1485,7 +1489,7 @@ function drawMothership(now) {
   // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
   drawTractorBeam(bays.red, "255,23,68", now, false, true);
   ctx.fillStyle = "rgba(255,23,68,.7)";
-  ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
+  ctx.fillText("RED BAY · ISOLATION AIRLOCK", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
   ctx.restore();
 
   // S4.5 — a faint ventral hangar hint once the triage retreat is on offer
@@ -1849,7 +1853,7 @@ function drawHUD(now) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.font = "800 14px Menlo, monospace";
-    ctx.fillText("⚠ BREACH — RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
+    ctx.fillText("⚠ BREACH — SEAL IN THE RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if (level.extraction && !level.extraction.done && state === "play" && Math.sin(now * 5) > -0.3) {
     ctx.textAlign = "center";
@@ -1861,7 +1865,7 @@ function drawHUD(now) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.font = "800 13px Menlo, monospace";
-    ctx.fillText("⚠ CONTAMINANT ABOARD — RED BAY", vw / 2, topPad + 44);
+    ctx.fillText("⚠ CONTAMINANT ABOARD — SEAL IT IN THE RED BAY", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if ((s.fuel < 20 || s.vitals < 30) && Math.sin(now * 8) > 0 && state === "play") {
     ctx.textAlign = "center";

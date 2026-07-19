@@ -989,6 +989,30 @@ test("T6: the Basin opens at dusk and night falls once to full dark", async ({ p
   expect(fin.da).toBeUndefined();
 });
 
+test("Semmelweis Deep: unscreened contagion taints the nearest un-scanned survivor", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(3); __doids.launch(); });
+  await page.waitForFunction(
+    () => __doids.get().state === "play" && __doids.get().level.contagion === true,
+    null, { timeout: 4000 });
+  // only Semmelweis carries the mechanic
+  const vesalius = await page.evaluate(() => { __doids.go(1); return !!level.contagion; });
+  expect(vesalius).toBe(false);
+  // back to the ward: seat an unproven Vector beside a clean survivor, prime its
+  // timer to one tick from seeding, and watch the survivor turn
+  const victimIdx = await page.evaluate(() => {
+    __doids.go(3); __doids.launch();
+    const sab = level.oids.find(o => o.role === "saboteur" && o.state === "wait");
+    const victim = level.oids.find(o => o.role === "normal" && !o.carrier &&
+      !o.verified && !o.flagged && o.state === "wait");
+    sab.x = victim.x + 20; sab.y = victim.y; sab.contagT = 9.9;
+    return level.oids.indexOf(victim);
+  });
+  await page.waitForFunction(
+    idx => __doids.get().level.oids[idx].role === "saboteur", victimIdx, { timeout: 4000 });
+  expect(await page.evaluate(idx => __doids.get().level.oids[idx].sleeper, victimIdx)).toBe(true);
+  expect(await page.evaluate(() => __doids.get().level.contagSeen)).toBe(true);
+});
+
 test("U1: the lift pad rings hollow once per touchdown and re-arms on lift-off", async ({ page }) => {
   // sector 1 hides a lift; settle on its plate and the pad rings once
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });

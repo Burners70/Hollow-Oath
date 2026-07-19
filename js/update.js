@@ -321,7 +321,7 @@ function triggerBreach() {
   mercyBreach = { t: easyMode ? 60 : 45 };
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 250, style: "heavy" }]);   // klaxon ×2 (F2)
   level.contamKnown = true;
-  banner("SECURITY BREACH ABOARD MERCY\nDOCK AT THE RED BAY TO CONTAIN IT", "#ff4081");
+  banner("UNSCREENED UNIT LOOSE IN THE RECOVERY BAY\nDOCK AT THE RED ISOLATION BAY TO SEAL IT IN", "#ff4081");
   blip(880, 220, 0.6, "sawtooth", 0.2);
 }
 
@@ -329,7 +329,7 @@ function resolveBreach(success) {
   mercyBreach = null;
   if (success) {
     score += 750;
-    banner("CONTAMINANT CONTAINED  +750\nLOCKDOWN LIFTED", "#69f0ae");
+    banner("CONTAMINANT SEALED IN ISOLATION  +750\nLOCKDOWN LIFTED", "#69f0ae");
     blip(520, 1040, 0.3, "sine", 0.15);
   } else {
     score = Math.max(0, score - 1000);
@@ -836,6 +836,7 @@ function updatePlay(dt) {
   updateShrine(dt);
   updateScan(dt);
   updateScionScan(dt);    // S5 — read a grounded unit's vitals; flag the fakes
+  updateContagion(dt);    // Semmelweis Deep — unscreened contagion spreads
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
@@ -1211,6 +1212,50 @@ function contaminantAboard() {
   return ship.passengers.some(p => p.role === "saboteur" && !p.sleeper);
 }
 
+/* SEMMELWEIS DEEP — the theme made mechanical (owner steer: "contamination
+   spreads"). In the scrubbed ward an unscreened Vector left standing among the
+   survivors taints the nearest un-scanned one, turning it into a hidden Vector.
+   Dawdle and the ward breeds carriers; scanning a unit clean (verified) locks
+   it safe, and lifting the Vector out stops it seeding. Gated to the sector
+   that carries `contagion` in its RECIPE, and never taints the last survivor,
+   a famous Scion, a log-carrier, or a unit you've already proven. */
+const CONTAGION_R = 210, CONTAGION_T = 10;
+function updateContagion(dt) {
+  if (!level.contagion || ship.dead || state !== "play") return;
+  if (level.extraction || mercyBreach) return;
+  const grounded = o => o.state === "wait";
+  const susceptible = level.oids.filter(o =>
+    o.role === "normal" && !o.carrier && !o.verified && !o.flagged && grounded(o));
+  if (susceptible.length <= 1) return;   // leave at least one clean survivor
+  for (const src of level.oids) {
+    if (src.role !== "saboteur" || !grounded(src)) continue;
+    let best = null, bd = CONTAGION_R;
+    for (const v of susceptible) {
+      const d = Math.hypot(v.x - src.x, v.y - src.y);
+      if (d < bd) { bd = d; best = v; }
+    }
+    if (!best) { src.contagT = 0; continue; }
+    src.contagT = (src.contagT || 0) + dt;
+    if (Math.random() < dt * 2)   // a sickly mote drifting toward the victim
+      particles.push({ x: src.x + (Math.random() - 0.5) * 10, y: src.y - 12,
+        vx: (best.x - src.x) * 0.35, vy: -6 - Math.random() * 6,
+        t: 0.7, max: 0.7, color: "#6f9f7f", size: 1 });
+    if (src.contagT >= CONTAGION_T) {
+      src.contagT = -4;   // a cooldown before this carrier can seed again
+      best.role = "saboteur"; best.sleeper = true; best.contagT = 0;
+      staticTick();
+      for (let k = 0; k < 10; k++)
+        particles.push({ x: best.x, y: best.y - 12,
+          vx: (Math.random() - 0.5) * 40, vy: -Math.random() * 30,
+          t: 0.6, max: 0.6, color: "#4f7f5f", size: 1.4 });
+      if (!level.contagSeen) {
+        level.contagSeen = true;
+        addText(best.x, best.y - 46, "THE WARD ISN'T CLEAN…", "#8fd6b8");
+      }
+    }
+  }
+}
+
 /* S1 — the cabin fills with heartbeats. Every genuine Scion aboard contributes
    one soft pulse on its own ~1.5 s period (a phase offset per index, ±5% rate
    variance) so the chorus reads as a living crew. A saboteur's slot stays
@@ -1406,7 +1451,7 @@ function updateDocking(dt) {
       sab.state = "contained";
       level.contained++; // accounted for, but not a casualty
       score += 750;
-      addText(level.mx, level.my + 40, "CONTAMINANT CONTAINED +750", "#ff4081");
+      addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", "#ff4081");
       explode(level.mx + 65, level.my + 60, "#ff4081", 14);
       blip(220, 660, 0.3, "square", 0.12);
       checkSectorClear();
