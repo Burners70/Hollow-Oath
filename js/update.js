@@ -213,7 +213,7 @@ function updateExtraction(dt) {
     // streaks off-screen as she jumps)
     camera.x = lerp(camera.x, ship.x, 1 - Math.pow(0.001, dt));
     camera.y = lerp(camera.y, ship.y - 40, 1 - Math.pow(0.001, dt));
-    if (e.beatT >= 1.7) sectorClearNow();
+    if (e.beatT >= 1.9) sectorClearNow();   // capture → doors shut → jet away
     return;
   }
   e.t += dt;
@@ -279,7 +279,7 @@ function askEarlyExtraction() {
   // one clause per line, at logical breaks — no mid-sentence wrapping
   let body = "MERCY can spool now.";
   body += "\nBut " + n + (n === 1 ? " still waits on " : " still wait on ") + SECTOR_NAMES[levelIdx] + ".";
-  if (names.length) body += "\n" + (names.length === 1 ? "One of them is " : "Among them: ") + names.join(" and ") + ".";
+  if (names.length) body += "\nOne of them is someone extraordinary.";   // felt, never named — you left before knowing
   body += "\nSignal early and they are logged lost — 250 each.";
   body += "\nNo sector-clear bonus. No oath.";
   body += "\nThe manifest will remember.";
@@ -296,7 +296,9 @@ function confirmEarlyExtraction() {
     level.lost++; runLost++; n++;
     const fam = o.role === "famous";
     score = Math.max(0, score - (fam ? 500 : 250));
-    if (fam) addText(level.mx, level.my + 40, FAMOUS[o.famousId].name + " LEFT BEHIND  −500", "#ffd54f");
+    // a famous mind left behind costs more, but you leave before you ever learn
+    // who — no name, only the weight of it
+    if (fam) addText(level.mx, level.my + 40, "SOMEONE EXTRAORDINARY, LEFT BEHIND  −500", "#ffd54f");
   }
   leftBehindNote = { n, sector: SECTOR_NAMES[levelIdx] };
   confirmCard = null;
@@ -1267,7 +1269,7 @@ function mercyPos() {
   const e = level.extraction;
   const lift = e ? Math.min(140, e.t * (140 / 3)) : 0;
   let jump = 0;
-  if (e && e.done) { const j = Math.max(0, e.beatT - 0.55); jump = 1500 * j * j; }
+  if (e && e.done) { const j = Math.max(0, e.beatT - 0.9); jump = 1700 * j * j; }   // jets off once the doors are shut
   return { mx: level.mx + (level.mxo || 0), my: level.my + (level.myo || 0) - lift - jump };
 }
 function bayRects() {
@@ -1449,6 +1451,16 @@ const SIGNAL_HOLD_T = 1.8;
 const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 130;
 function xfuseWindowR() { return easyMode ? 44 : 34; }   // FIELD MEDIC widens the window
 function capturePoint(rd) { return { x: rd.x, y: rd.y + 55 }; }
+/* the resupply drone flies a real errand — out from MERCY and back to dock —
+   so the wait is honest and you can follow it home if you like */
+const DRONE_SPEED = 430;
+function droneFlyTo(rd, tx, ty, dt) {
+  const dx = tx - rd.x, dy = ty - rd.y, d = Math.hypot(dx, dy);
+  const step = DRONE_SPEED * dt;
+  if (d <= step) { rd.x = tx; rd.y = ty; return true; }
+  rd.x += dx / d * step; rd.y += dy / d * step;
+  return false;
+}
 /* "tethered" = the line has caught the ship at least once and is still out —
    from then until release, FIRE detaches instead of shooting */
 function tethered() {
@@ -1469,7 +1481,9 @@ function updateResupplySignal(dt) {
   }
   if (s.signalT >= SIGNAL_HOLD_T && !resupplyDrone) {
     s.signalT = 0;
-    resupplyDrone = { x: s.x, y: s.y - 320, hoverY: s.y - 130, phase: "in", t: 0,
+    // launched FROM MERCY's recovery bay, bound for a hover point above you
+    const m = mercyPos();
+    resupplyDrone = { x: m.mx, y: m.my + 40, hoverX: s.x, hoverY: s.y - 130, phase: "in", t: 0,
       given: 0, occluded: false, attachedNow: false, everAttached: false,
       dripT: 0, dripFlip: false, firePrev: true };
     blip(180, 420, 0.4, "sine", 0.12);
@@ -1478,8 +1492,8 @@ function updateResupplySignal(dt) {
   const rd = resupplyDrone;
   rd.t += dt;
   if (rd.phase === "in") {
-    rd.y = lerp(rd.hoverY - 190, rd.hoverY, clamp(rd.t / 1.1, 0, 1));
-    if (rd.t >= 1.1) {
+    // fly out from MERCY to the hover point above you (the wait is the distance)
+    if (droneFlyTo(rd, rd.hoverX, rd.hoverY, dt)) {
       rd.phase = "line"; rd.t = 0;
       if (s.fuel < XFUSE_PRIMER) {   // just enough to reach the line, not to leave
         s.fuel = XFUSE_PRIMER;
@@ -1490,9 +1504,12 @@ function updateResupplySignal(dt) {
     }
   } else if (rd.phase === "line") {
     updateTransfusion(dt, rd);
-  } else {   // out
-    rd.y -= 260 * dt;
-    if (rd.t >= 1.2) resupplyDrone = null;
+  } else {   // out — fly home and dock back into MERCY (follow it if you like)
+    const m = mercyPos();
+    if (droneFlyTo(rd, m.mx, m.my + 34, dt)) {
+      resupplyDrone = null;
+      blip(300, 620, 0.2, "sine", 0.09);   // docked
+    }
   }
 }
 function updateTransfusion(dt, rd) {

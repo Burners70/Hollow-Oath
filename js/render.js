@@ -393,16 +393,22 @@ function drawWorld(now) {
   ctx.globalAlpha = 1;
 
   if (!ship.dead) {
-    // S4 — as MERCY captures the ship for the jump, fade it into her hull so it
-    // reads as becoming part of her, not a craft parked alongside
-    const dep = level.extraction && level.extraction.done;
-    if (dep) {
+    // S4 — once the ship is in (or being captured by) the ventral bay, clip it
+    // to the opening so its top is swallowed by the hull as it tucks inside —
+    // it reads as entering her, not overlapping her. Free flight is unclipped.
+    const ext = level.extraction;
+    const framed = ext && (ext.done || inHangar());
+    if (framed) {
+      const h = hangarRect();
       ctx.save();
-      ctx.globalAlpha = Math.max(0.1, 1 - level.extraction.beatT / 0.5);
+      ctx.beginPath(); ctx.rect(h.x0, h.cy - 22, h.x1 - h.x0, 640); ctx.clip();
+      if (ext.done) ctx.globalAlpha = Math.max(0.12, 1 - ext.beatT / 0.5);
       drawShip(now);
       ctx.restore();
     } else drawShip(now);
   }
+  // S4 — the bay doors slide shut over the captured ship before she jumps
+  if (level.extraction && level.extraction.done) drawBayDoors(now);
   if (!ship.dead && !ship.landed && state === "play" && !(level.extraction && level.extraction.done)) drawLandingGuide();
   if (resupplyDrone) drawResupplyDrone(now);
 
@@ -1238,7 +1244,7 @@ function drawMothership(now) {
   // hangar: the only way aboard is now to FLY into her and hold the hover.
   // (drawHangar self-manages its transform; the hull's save was already closed.)
   if (level.extraction) {
-    if (level.extraction.done && level.extraction.beatT > 0.55) drawJumpStreak(now);
+    if (level.extraction.done && level.extraction.beatT > 0.9) drawJumpStreak(now);
     drawHangar(now, true);
     return;
   }
@@ -1320,6 +1326,30 @@ function drawHangar(now, active) {
   ctx.restore();
 }
 
+/* S4 — the bay doors sliding shut over the captured ship, just before the jump.
+   Drawn AFTER the ship so they occlude it — she closes up, then jets away. */
+function drawBayDoors(now) {
+  const h = hangarRect();
+  const bt = level.extraction.beatT;
+  const close = clamp((bt - 0.4) / 0.45, 0, 1);   // shut from ~0.4s to ~0.85s
+  if (close <= 0) return;
+  const top = h.cy - 22, bot = h.cy + 24, halfW = (h.x1 - h.x0) / 2;
+  const dw = halfW * close;   // each door's reach toward centre
+  ctx.save();
+  ctx.fillStyle = "rgba(6,18,26,.98)";           // hull-dark door panels
+  ctx.strokeStyle = "rgba(0,229,255,.9)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.lineWidth = 2;
+  // left door slides right, right door slides left
+  ctx.fillRect(h.x0, top, dw, bot - top);
+  ctx.fillRect(h.x1 - dw, top, dw, bot - top);
+  // bright leading edges meeting at the seam
+  ctx.beginPath();
+  ctx.moveTo(h.x0 + dw, top); ctx.lineTo(h.x0 + dw, bot);
+  ctx.moveTo(h.x1 - dw, top); ctx.lineTo(h.x1 - dw, bot);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* S4 — the jump: bright vertical light-streaks trailing under MERCY as she
    accelerates off the top of the world, with a one-beat flash at ignition. */
 function drawJumpStreak(now) {
@@ -1327,7 +1357,7 @@ function drawJumpStreak(now) {
   const bt = level.extraction.beatT;
   ctx.save();
   // ignition flash — a quick brightening in the first ~0.2s of the jump
-  const flash = Math.max(0, 1 - (bt - 0.55) / 0.2);
+  const flash = Math.max(0, 1 - (bt - 0.9) / 0.2);
   if (flash > 0) {
     const g = ctx.createRadialGradient(mx, my, 0, mx, my, 260);
     g.addColorStop(0, "rgba(200,245,255," + (0.5 * flash).toFixed(2) + ")");
