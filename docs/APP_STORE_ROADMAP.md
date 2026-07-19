@@ -63,6 +63,7 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | R | Playtest fixes (July 2026 feedback) | Bugs & UX corrections | **Yes — ship in launch** |
 | S | Sound, endgame & saboteur upgrades | Feedback improvements | **Owner-requested for launch** |
 | T | Zone identity — width, biomes, weather | Feedback improvements | Core in launch; deep items may slip to 1.1 |
+| U | Second playtest — sound, refueller & UI | Feedback improvements | Owner-requested for launch |
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness | No (recommended before O) |
 | O | Store listing & submission | Shipping | **Yes (last)** |
 | P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
@@ -1147,6 +1148,79 @@ checksum deliberately).**
   BLACKOUT ROTATION daily mod and the finale already reprise it. Test: alpha
   ramp fires once, REDUCED FLASH halves the flicker, resume mid-sector
   restores the post-nightfall state.
+
+---
+
+## Bundle U — Second playtest: sound, refueller economy & UI (mid-July 2026 feedback)
+
+**Why:** A second phone playtest after the R/S/T round surfaced four more items —
+a missing audio cue on the lift pad, a field-refuelling loop that currently costs
+nothing (owner wants it to *cost*), no on-screen legend for the HUD readouts, and a
+pause button a second player independently failed to find. All web-side; keep the
+smoke suite green. **Priority: before O, alongside R/S. Dependencies: U4 sits on
+top of R4/R2 (don't double-implement); U3 pairs well with R1's card pagination.**
+
+- [ ] **U1. "Rings hollow" sound when you land on a lift pad.** The pad already
+  *reads* hollow — `updateLift()` (`js/update.js:1257`) floats
+  `"THE PAD RINGS HOLLOW…"` and plays a tiny `blip(180, 120, 0.3, "sine", 0.1)`,
+  but only after a 0.6 s hold, and there is no distinct cue at the moment the ship
+  first settles on the plate. Add a `ringHollow()` primitive to `js/audio.js` (next
+  to `hydraulic()`): a resonant, struck-tube tone — two detuned sine/triangle
+  partials roughly an octave apart, a long exponential decay (~0.9 s), routed
+  through a gentle lowpass like `hydraulic()` uses so it reads as "empty space
+  underneath." Fire it **once** when `near` first becomes true in `updateLift`
+  (guard with an `L.rung` flag so it doesn't retrigger every frame while parked;
+  clear it when the ship leaves the pad, alongside the existing `L.holdT`/`armed`
+  reset). Keep the hint text + blip as the secondary "hold to descend" cue. Gate on
+  the SOUND setting like every other SFX. Test: land on a lift sector's pad via
+  `__doids`, assert `L.rung` sets exactly once and clears on lift-off.
+- [ ] **U2. The refueller should cost points — and carry less each time.**
+  Field-refuelling (THE TRANSFUSION LINE, `js/update.js:1124`; `XFUSE_RATE` /
+  `XFUSE_PRIMER`) is currently a net *reward* — a CLEAN LINE pays **+250**. The
+  owner wants it re-cast as a diminishing, priced lifeline:
+  1. *Diminishing supply.* Track resupply uses per run (a `run.refuels` counter, or
+     a field on the ship, reset in `resetRun()`), and cap each fill lower than the
+     last — e.g. deliver up to `maxFuel() * (0.9 ** refuels)` so the drone visibly
+     brings less every time (~full, then ~90%, ~81%…).
+  2. *Score penalty scaled to fuel taken.* Replace the CLEAN-LINE bonus with a
+     charge proportional to the fuel delivered — using the crutch should hurt the
+     tally, not help it.
+  3. *Watch it tick down.* During the `"fill"` flow (~`js/update.js:1213`) decrement
+     `score` per unit delivered and float a running `-N` readout at the ship (reuse
+     the `addText` float), so the player literally sees points draining as the tank
+     climbs.
+  4. *Keep the safety valve honest.* A ship stranded at 0 fuel must still be able to
+     limp to the next pad (thrust and shield both require `fuel > 0`), so floor the
+     per-use delivery at a usable margin (≥ `XFUSE_PRIMER` + enough to move).
+  **This reverses an established reward — flag for owner sign-off and update
+  `GAME_DESIGN.md` (scoring) + `COPY_DECK.md` before implementing.** Check the
+  interaction with S4's endgame docking and the RATIONED TANK daily mod
+  (`js/world.js:361`) so a hard mod plus the new penalty can't soft-lock a run.
+- [ ] **U3. Play-screen explainer — a legend for the HUD.** `HELP_CARD`
+  (`js/world.js:472`) teaches the controls but never names the on-screen readouts,
+  so a new player can't tell the FUEL bar from the ECG. Add a "WHAT YOU'RE LOOKING
+  AT" explainer — either a second page of `HELP_CARD` (using R1's pagination) or a
+  sibling card — that labels each element: the **FUEL** bar top-left (`drawBar`,
+  `js/render.js:1373`), the **ECG / vitals** bar top-right (`drawECG`, `:1374`), the
+  **score** readout top-centre, the **❚❚ pause** button (U4/R4), the on-screen
+  **THRUST / FIRE / SHIELD** buttons, the **landing approach guide** (↓ descent /
+  ↔ drift, green = safe touchdown), and the **Static clock**. A small labelled
+  diagram is ideal if cheap; otherwise a short glossary list rendered via
+  `drawCardPanel`. Reach it from the title (beside HOW TO FLY / `helpRect()`) and
+  from the PAUSE screen. Keep all copy in `COPY_DECK.md`. Test at 568×320 that it
+  paginates/fits within the viewport (same constraint as R1).
+- [ ] **U4. Pause button is still hard to find / overlaps other content.** This is
+  the same defect **R4** ("pause button effectively invisible") and **R2** ("PAUSED
+  overlaps RESUME") already target — filed here because a *second* playtester
+  independently missed it, confirming the fix is needed. `pauseRect()` is still
+  `{ x: vw/2 - 18, y: 2, w: 36, h: 18 }` (`js/world.js:449`), stroked at 0.35 alpha
+  and sitting directly under the centred score readout (`js/render.js:1376`) —
+  exactly the collision the owner reports as "overlaps with other content." **Do not
+  re-implement R4/R2 — land them.** The one addition from this round: whatever new
+  home the button gets (R4 proposes ≥44×30 px, left of the ECG bar, alpha ≥ 0.6)
+  must clear the score readout **and** the FUEL/ECG bars at a 320-high viewport, not
+  just the score. If R4 has already merged and players still miss it, escalate the
+  outline to a filled, higher-contrast pill rather than a stroked box.
 
 ---
 
