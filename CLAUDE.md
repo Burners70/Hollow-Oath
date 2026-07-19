@@ -83,7 +83,7 @@ doc only when the task touches it:
 
 - `docs/GAME_DESIGN.md` — canonical design & narrative (the Static, Glycon, mechanics, scoring). Read when changing game rules or story.
 - `docs/COPY_DECK.md` — user-facing text. Read when editing wording.
-- `docs/specs/PENDULUM_SPEC.md`, `docs/specs/HOLLOWS_EXPANSION_SPEC.md` — feature specs (Bundle P, Bundle Q).
+- `docs/PENDULUM_SPEC.md`, `docs/HOLLOWS_EXPANSION_SPEC.md` — feature specs (Bundle P, Bundle Q).
 - `docs/GAMECENTER_ACHIEVEMENTS.md` — achievement/rank list.
 - `docs/RELEASE_READINESS_REVIEW.md` — July 2026 QA snapshot.
 - `docs/CHANGELOG.md` — history incl. the DOIDS→Hollow Oath rename. Reference only.

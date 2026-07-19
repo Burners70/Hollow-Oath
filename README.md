@@ -9,21 +9,26 @@ and names here are original; this is an unaffiliated fan homage to a genre, not
 a remake of any of them.
 
 > **Formerly "DOIDS".** The game was renamed to **Hollow Oath** and the rescued
-> androids from "Doids" to **Scions**. See [CHANGELOG.md](CHANGELOG.md) for the
+> androids from "Doids" to **Scions**. See [CHANGELOG.md](docs/CHANGELOG.md) for the
 > full rename log (what changed, what was deliberately kept, and why).
 
 **Play it live:** https://burners70.github.io/Hollow-Oath/
 *(GitHub Pages deploys straight from `main` — see CHANGELOG.md § "Repository &
 URL").*
 
-**New developers / writers:** start with [GAME_DESIGN.md](GAME_DESIGN.md) — the full
+**Working on the code with Claude?** Start with [CLAUDE.md](CLAUDE.md) — a
+navigation map (section index into `index.html`, doc guide, conventions) that
+keeps sessions from re-reading the whole codebase.
+
+**New developers / writers:** start with [GAME_DESIGN.md](docs/GAME_DESIGN.md) — the full
 game definition, evolved narrative canon (the Static, Glycon), mechanics, secrets,
 scoring, code architecture, branch/deployment layout, and future ideas.
-**The forward plan is [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)** — the
+**The forward plan is [APP_STORE_ROADMAP.md](docs/APP_STORE_ROADMAP.md)** — the
 prioritised, checkbox-tracked bundles taking the game to a paid iOS App Store
 release; pick up the next unchecked bundle from there.
-Build-out history is in [ROADMAP.md](ROADMAP.md); the rename & narrative brief that
-drove the current naming is in [HOLLOW_OATH_BRIEF.md](HOLLOW_OATH_BRIEF.md).
+Build-out history is in [ROADMAP.md](docs/ROADMAP.md); the rename & narrative brief that
+drove the current naming is in [HOLLOW_OATH_BRIEF.md](docs/HOLLOW_OATH_BRIEF.md).
+All reference docs now live in [`docs/`](docs/README.md).
 
 ## Play
 
