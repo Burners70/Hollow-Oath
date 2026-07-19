@@ -68,7 +68,8 @@ function render() {
   if (level) drawWorld(now);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (state === "play" || state === "dead" || state === "reveal" || state === "clear" || state === "pause") drawHUD(now);
+  if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
+      state === "pause" || state === "confirm") drawHUD(now);
 
   if (state === "title") drawTitle(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
@@ -76,11 +77,14 @@ function render() {
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
   if (state === "pause") drawPause(now);
+  if (state === "confirm") drawConfirm(now);
   if (state === "settings") drawSettings(now);
   if (state === "epilogue") drawEpilogue(now);
   if (state === "ending") drawEnding(now);
   if (state === "gameover") drawGameOver(now);
   if (state === "win") drawWin();
+
+  if (resupplyDrone && (state === "play" || state === "dead")) drawDroneMarker(now);
 
   if (bannerMsg && (state === "play" || state === "dead")) {
     ctx.textAlign = "center";
@@ -390,8 +394,26 @@ function drawWorld(now) {
   }
   ctx.globalAlpha = 1;
 
-  if (!ship.dead) drawShip(now);
-  if (!ship.dead && !ship.landed && state === "play") drawLandingGuide();
+  if (!ship.dead) {
+    // S4 — once the ship is in (or being captured by) the ventral bay, clip it
+    // to the opening so its top is swallowed by the hull as it tucks inside —
+    // it reads as entering her, not overlapping her. Free flight is unclipped.
+    const ext = level.extraction;
+    const framed = ext && (ext.done || inHangar());
+    if (framed) {
+      const h = hangarRect();
+      ctx.save();
+      ctx.beginPath(); ctx.rect(h.x0, h.top, h.x1 - h.x0, 640); ctx.clip();
+      // fully gone before the doors finish shutting, so nothing lingers when the
+      // bay fades back to a clean hull
+      if (ext.done) ctx.globalAlpha = clamp(1 - ext.beatT / 0.55, 0, 1);
+      drawShip(now);
+      ctx.restore();
+    } else drawShip(now);
+  }
+  // S4 — the bay doors slide shut over the captured ship before she jumps
+  if (level.extraction && level.extraction.done) drawBayDoors(now);
+  if (!ship.dead && !ship.landed && state === "play" && !(level.extraction && level.extraction.done)) drawLandingGuide();
   if (resupplyDrone) drawResupplyDrone(now);
 
   ctx.textAlign = "center";
@@ -534,6 +556,38 @@ function drawShip(now) {
 
 /* the transfusion drone: descends on signal, then holds station with a fuel
    line out — the whole minigame reads from here (window, flow, occlusion) */
+/* an off-screen edge marker for the resupply drone, so you can see where it is
+   and follow it out from / home to MERCY */
+function drawDroneMarker(now) {
+  const rd = resupplyDrone;
+  const t = worldTransform();
+  const sx = saLeft + t.z * (rd.x - t.cx);
+  const sy = t.z * (rd.y - t.cy);
+  const m = 30;
+  if (sx >= saLeft + m && sx <= vw - m && sy >= m && sy <= vh - m) return;   // visible — no marker
+  const ex = clamp(sx, saLeft + m, vw - m), ey = clamp(sy, m, vh - m);
+  const ang = Math.atan2(sy - ey, sx - ex);
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.translate(ex, ey);
+  const pulse = 0.6 + 0.4 * Math.sin(now * 6);
+  // the pointing chevron
+  ctx.save();
+  ctx.rotate(ang);
+  ctx.fillStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
+  ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(12, 0); ctx.lineTo(-6, 7); ctx.lineTo(-6, -7); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // a small label so it reads as the drone, with its current leg — kept on the
+  // inward side of the marker so it never clips off the edge
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = "rgba(255,196,0,.9)";
+  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  const leg = rd.phase === "in" ? "⛽ INBOUND" : rd.phase === "out" ? "⛽ RETURNING" : "⛽ FUEL LINE";
+  ctx.fillText(leg, ex, ey < vh / 2 ? ey + 20 : ey - 14);
+  ctx.restore();
+}
 function drawResupplyDrone(now) {
   const rd = resupplyDrone;
   const bobY = rd.phase === "line" ? rd.y + Math.sin(now * 1.7) * 3 : rd.y;
@@ -748,7 +802,10 @@ function drawOid(o, now) {
   if (dying && o.deathType === "shot")
     ctx.rotate(-Math.min(1, o.deathT) * Math.PI / 2);      // keels over backward
   ctx.scale(sc, sc);
-  let tint = mech && upgrades.antisepsis ? PAL().REVEAL : "#69f0ae";
+  // S5 (owner steer, July 2026): a Vector is NEVER given away by colour — the
+  // reward for rescuing Semmelweis is the diagnostic SCAN, not a passive tint.
+  // Identification is the "?" mark below, earned by cataloguing the unit.
+  let tint = "#69f0ae";
   if (dying && o.deathType === "torched") tint = "#ff9e40";
   doidFigure({
     col: tint,
@@ -760,15 +817,31 @@ function drawOid(o, now) {
     sway: mech ? 0 : osc(2.2) * 1.5
   });
   ctx.restore();
-  // famous Scions shimmer, if you watch closely
-  if (o.role === "famous" && Math.random() < 0.06) {
-    particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 22,
-      vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
+  // famous Scions shimmer, if you watch closely — a fine gold sparkle drifting
+  // off the whole figure, not fat bubbles rising from the head
+  if (o.role === "famous" && Math.random() < 0.05) {
+    particles.push({
+      x: o.x + (Math.random() - 0.5) * 22,
+      y: o.y - 4 - Math.random() * 26,                 // spread up the body
+      vx: (Math.random() - 0.5) * 6, vy: -6 - Math.random() * 6,   // a slow lift
+      t: 0.6, max: 0.6, color: "#ffe082", size: 0.8 + Math.random() * 0.8 });
   }
-  if (mech && upgrades.antisepsis && !dying) {
+  // a permanent "?" over a counterfeit you have CATALOGUED with the S5 scan —
+  // the only identification cue, and only after you've earned and used the scan
+  if (o.flagged && !dying) {
     ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = PAL().REVEAL;
     ctx.fillText("?", o.x, o.y - hop - 36);
+  }
+  // S5 — the landed-scan progress ring while you read a unit's vitals
+  if (o.oidScanT > 0 && !dying) {
+    const p = clamp(o.oidScanT / 4, 0, 1);
+    ctx.strokeStyle = "#00e5ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(o.x, o.y - hop - 30, 12, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 }
 
@@ -1166,9 +1239,10 @@ function drawTractorBeam(b, colorRGB, now, vertical, pull) {
 
 function drawMothership(now) {
   const { mx, my } = mercyPos();
-  const bob = Math.sin(now * 1.2) * 4;
+  // no idle bob: the hull, the bays and the ventral hangar all sit on the exact
+  // same mercyPos, so the hangar can never drift out of sync with the hull
   ctx.save();
-  ctx.translate(mx, my + bob);
+  ctx.translate(mx, my);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
@@ -1202,29 +1276,154 @@ function drawMothership(now) {
     ctx.restore();
   }
 
+  // S4 — once the manifest closes MERCY retracts her bays and opens a ventral
+  // hangar: the only way aboard is now to FLY into her and hold the hover.
+  // (drawHangar self-manages its transform; the hull's save was already closed.)
+  if (level.extraction) {
+    if (level.extraction.done && level.extraction.beatT > 0.9) drawJumpStreak(now);
+    drawHangar(now, true);
+    return;
+  }
+
   const bays = bayRects();
   ctx.save();
   ctx.lineWidth = 1.5;
   // recovery bay: a beam hanging under the hull, dispensing outward
-  const medRGB = mercyBreach ? "255,64,129" : level.extraction ? "255,196,0" : "0,229,255";
+  const medRGB = mercyBreach ? "255,64,129" : "0,229,255";
   drawTractorBeam(bays.med, medRGB, now, true, false);
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = level.extraction ? "rgba(255,196,0,.8)" : "rgba(0,229,255,.6)";
-  ctx.fillText(mercyBreach ? "LOCKDOWN" : level.extraction ? "EXTRACTION DOCK" : "RECOVERY BAY",
+  ctx.fillStyle = "rgba(0,229,255,.6)";
+  ctx.fillText(mercyBreach ? "LOCKDOWN" : "RECOVERY BAY",
     (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 14);
-  // extraction dock-hold progress
-  if (level.extraction && level.extraction.hold > 0) {
-    ctx.strokeStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(mx, bays.med.y0 + 55, 22, -Math.PI / 2,
-      -Math.PI / 2 + (level.extraction.hold / 1.5) * Math.PI * 2);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
   // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
   drawTractorBeam(bays.red, "255,23,68", now, false, true);
   ctx.fillStyle = "rgba(255,23,68,.7)";
   ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
+  ctx.restore();
+
+  // S4.5 — a faint ventral hangar hint once the triage retreat is on offer
+  if (level.earlyEligible) drawHangar(now, false);
+}
+
+/* S4 — the ventral hangar: an approach-lit slot in MERCY's underside. Drawn in
+   whatever world transform the caller is already in (drawMothership / drawWorld),
+   exactly like the bay beams, so it stays pinned to her through camera shake.
+   `active` is the spooling-to-jump hangar; the dim variant is the S4.5 offer. */
+function bayFade() {
+  // once the doors are shut she fades the bay away, so she jets off looking like
+  // her whole self again (the way she does at mission start)
+  const e = level.extraction;
+  return (e && e.done) ? clamp(1 - (e.beatT - 0.9) / 0.2, 0, 1) : 1;
+}
+function drawHangar(now, active) {
+  const h = hangarRect();
+  const fade = bayFade();
+  if (fade <= 0) return;
+  ctx.save();
+  const col = active ? "255,196,0" : "0,229,255";
+  const a = (active ? 1 : 0.4) * fade;
+  // the OPENED BAY: a dark recess set into her belly, drawn over the hull fill
+  // (drawMothership already laid the hull), so it reads as a large zone opened
+  // in the side of the ship — not a box floating below her. Top tucks up inside
+  // the hull; base sits flush with her belly line — never hangs below it.
+  const top = h.top, bot = h.bot;
+  ctx.globalAlpha = (active ? 0.96 : 0.55) * fade;
+  ctx.fillStyle = "rgba(3,7,16,1)";
+  ctx.fillRect(h.x0, top, h.x1 - h.x0, bot - top);
+  // interior back-wall shading lines, so the recess reads as depth, not a hole
+  ctx.globalAlpha = (active ? 0.18 : 0.1) * fade;
+  ctx.strokeStyle = "rgba(" + col + ",1)"; ctx.lineWidth = 1;
+  for (let gx = h.x0 + 16; gx < h.x1 - 8; gx += 16) {
+    ctx.beginPath(); ctx.moveTo(gx, top + 3); ctx.lineTo(gx, top + (bot - top) * 0.55); ctx.stroke();
+  }
+  // the bright bay-door frame
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "rgba(" + col + "," + a.toFixed(2) + ")"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = (active ? 14 : 5) * fade;
+  ctx.strokeRect(h.x0, top, h.x1 - h.x0, bot - top);
+  ctx.shadowBlur = 0;
+  // interior guide chevrons pointing UP into her — the way in
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const ph = (now * 1.2 + i / 3) % 1;
+    ctx.globalAlpha = (active ? (0.25 + 0.6 * (1 - ph)) : 0.2) * fade;
+    const yy = bot - 8 - ph * (bot - top - 12);
+    ctx.beginPath();
+    ctx.moveTo(h.cx - 11, yy + 6); ctx.lineTo(h.cx, yy); ctx.lineTo(h.cx + 11, yy + 6);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // hover-hold progress ring, inside the bay — gone the instant she captures you
+  if (active && level.extraction && level.extraction.hold > 0 && !level.extraction.done) {
+    ctx.strokeStyle = "rgba(" + col + ",1)"; ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(h.cx, h.cy, 18, -Math.PI / 2,
+      -Math.PI / 2 + Math.min(1, level.extraction.hold / 1.2) * Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  if (fade > 0.5) {
+    ctx.globalAlpha = fade;
+    ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
+    ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 20);
+  }
+  ctx.restore();
+}
+
+/* S4 — the bay doors sliding shut over the captured ship, just before the jump.
+   Drawn AFTER the ship so they occlude it — she closes up, then jets away. */
+function drawBayDoors(now) {
+  const h = hangarRect();
+  const bt = level.extraction.beatT;
+  const close = clamp((bt - 0.4) / 0.45, 0, 1);   // shut from ~0.4s to ~0.85s
+  const fade = bayFade();
+  if (close <= 0 || fade <= 0) return;
+  const top = h.top, bot = h.bot, halfW = (h.x1 - h.x0) / 2;
+  const dw = halfW * close;   // each door's reach toward centre
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = "rgba(6,18,26,1)";           // hull-dark door panels
+  ctx.strokeStyle = "rgba(0,229,255,.9)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.lineWidth = 2;
+  // left door slides right, right door slides left
+  ctx.fillRect(h.x0, top, dw, bot - top);
+  ctx.fillRect(h.x1 - dw, top, dw, bot - top);
+  // bright leading edges meeting at the seam
+  ctx.beginPath();
+  ctx.moveTo(h.x0 + dw, top); ctx.lineTo(h.x0 + dw, bot);
+  ctx.moveTo(h.x1 - dw, top); ctx.lineTo(h.x1 - dw, bot);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* S4 — the jump: bright vertical light-streaks trailing under MERCY as she
+   accelerates off the top of the world, with a one-beat flash at ignition. */
+function drawJumpStreak(now) {
+  const { mx, my } = mercyPos();
+  const bt = level.extraction.beatT;
+  ctx.save();
+  // ignition flash — a quick brightening in the first ~0.2s of the jump
+  const flash = Math.max(0, 1 - (bt - 0.9) / 0.2);
+  if (flash > 0) {
+    const g = ctx.createRadialGradient(mx, my, 0, mx, my, 260);
+    g.addColorStop(0, "rgba(200,245,255," + (0.5 * flash).toFixed(2) + ")");
+    g.addColorStop(1, "rgba(200,245,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(mx - 260, my - 260, 520, 520);
+  }
+  ctx.strokeStyle = "rgba(180,240,255,.85)";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18; ctx.lineWidth = 2;
+  for (let i = 0; i < 7; i++) {
+    const dx = (i - 3) * 28;
+    ctx.globalAlpha = 0.45 + 0.55 * Math.random();
+    const len = 200 + Math.random() * 160;
+    ctx.beginPath();
+    ctx.moveTo(mx + dx, my + 20);
+    ctx.lineTo(mx + dx, my + 20 + len);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   ctx.restore();
 }
 
@@ -1369,8 +1568,22 @@ function drawHUD(now) {
   ctx.fillRect(0, 0, vw, 62);
   ctx.font = "700 12px Menlo, monospace";
 
+  // S7 — sabotage vignette: a red pulse at the screen edges so a fuel-line cut
+  // or a cabin kill is never something you discover from the score readout.
+  // REDUCED FLASH halves it.
+  if (sabotageFlash > 0 && (state === "play" || state === "dead")) {
+    const a = (sabotageFlash / 0.5) * (reducedFlash ? 0.18 : 0.36);
+    const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.32,
+                                        vw / 2, vh / 2, Math.max(vw, vh) * 0.72);
+    vg.addColorStop(0, "rgba(255,23,68,0)");
+    vg.addColorStop(1, "rgba(255,23,68," + a.toFixed(3) + ")");
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, vw, vh);
+  }
+
   const bw = Math.min(150, vw * 0.3);
-  drawBar(hx, topPad, bw, 10, s.fuel / maxFuel(), "#ffc400", "FUEL");
+  // the fuel bar flashes red on sabotage — the cut is felt at the gauge, too
+  const fuelFlash = sabotageFlash > 0 && Math.sin(now * 34) > 0;
+  drawBar(hx, topPad, bw, 10, s.fuel / maxFuel(), fuelFlash ? "#ff4081" : "#ffc400", "FUEL");
   drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
 
   if (state === "play") {
@@ -1428,11 +1641,11 @@ function drawHUD(now) {
     ctx.font = "800 14px Menlo, monospace";
     ctx.fillText("⚠ BREACH — RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
-  } else if (level.extraction && state === "play" && Math.sin(now * 5) > -0.3) {
+  } else if (level.extraction && !level.extraction.done && state === "play" && Math.sin(now * 5) > -0.3) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
     ctx.font = "800 13px Menlo, monospace";
-    ctx.fillText("⚠ EXTRACTION — DOCK WITH MERCY", vw / 2, topPad + 44);
+    ctx.fillText("⚠ EXTRACTION — FLY INTO MERCY'S HANGAR", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if (level.contamKnown && contaminantAboard() && Math.sin(now * 6) > 0) {
     ctx.textAlign = "center";
@@ -1708,6 +1921,10 @@ function archiveEntries() {
       on, shrine: true
     });
   }
+  // S8 — a 15th, unresolvable entry once the WORKSHOP proves the counterfeits
+  // were built, not rescued: the missing originals. The file 1.2 will open.
+  if (shrinesSeen.has(1))
+    out.push({ title: "MANIFEST DISCREPANCY", body: "— file remains open —", on: false, shrine: true });
   return out;
 }
 function updateCodex() {
@@ -2264,6 +2481,38 @@ function drawPause(now) {
   }
 }
 
+/* S4.5 — the early-extraction confirm: a two-choice card over the frozen world */
+function drawConfirm(now) {
+  if (!confirmCard) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.8)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,196,0,.75)"; ctx.font = "700 11px Menlo, monospace";
+  ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.20);
+  ctx.shadowColor = confirmCard.color; ctx.shadowBlur = 16;
+  ctx.fillStyle = confirmCard.color;
+  ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(confirmCard.title, vw / 2, vh * 0.27);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#dff8ff"; ctx.font = "600 12px Menlo, monospace";
+  // the body already breaks at logical clause boundaries; wrap only guards a
+  // stray over-long line on a narrow phone
+  const wrapped = wrapText(confirmCard.body, Math.min(600, vw * 0.86));
+  wrapped.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.33 + i * 18));
+  const labels = ["⚠ SIGNAL EARLY EXTRACTION", "RETURN TO THE SECTOR"];
+  const cols = ["255,196,0", "0,229,255"];
+  for (let i = 0; i < 2; i++) {
+    const r = confirmRowRect(i);
+    ctx.strokeStyle = "rgba(" + cols[i] + ",.7)"; ctx.shadowColor = "rgba(" + cols[i] + ",1)"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.font = "700 13px Menlo, monospace";
+    ctx.fillText(labels[i], r.x + r.w / 2, r.y + r.h / 2 + 5);
+    ctx.shadowBlur = 0;
+  }
+}
+
 /* SOUND/MUSIC/ASSIST/COLORBLIND/FIELD MEDIC/BIG TEXT all take effect now;
    HAPTICS is a no-op on the web build (the haptic facade bridges to the
    native wrapper when Bundle E lands — the flag persists regardless) */
@@ -2366,6 +2615,10 @@ function drawEnding(now) {
     if (decoyOutcome === "observed")
       body += "\nEven his best lure — the second MERCY — failed the moment you counted her heartbeat.";
   }
+  // S8 — once the WORKSHOP is seen (the counterfeits were BUILT, not corrupted),
+  // the missing originals become an open question — the itch 1.2 will scratch
+  if (shrinesSeen.has(1))
+    body += "\n\nAnd one line nobody signs off: if the counterfeits were never our Scions — where are ours? MERCY's manifest still lists the missing.";
   drawCardPanel({ kicker: "— TRANSMISSION ENDS —", title, subtitle: "", body, color }, now);
 }
 
@@ -2419,6 +2672,8 @@ window.__doids = {
     musicGainValue: musicGain ? musicGain.gain.value : null,
     perfFrameMs, perfFps, resupplyDrone, liftTransit,
     staticClock, staticSurge,
+    vitalsAudioLevel, cabinMedicRate,   // S2 / S9
+    confirmOpen: !!confirmCard,          // S4.5
     logsSeen: [...logsSeen], shrinesSeen: [...shrinesSeen], codexTab, archivePage, mindsPage,
     codexCardOpen: !!codexCard,
     unresolvedHaunt, epilogueChars,
@@ -2428,10 +2683,11 @@ window.__doids = {
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
   go: toBriefing,
-  // R9 — the body tint a Scion renders with. A saboteur (mech) only differs
-  // from a true Scion once ANTISEPSIS is earned; before that no colour tell
-  // may leak (see S7). Exposed so a test can assert the parity.
-  oidTint: mech => mech && upgrades.antisepsis ? PAL().REVEAL : "#69f0ae",
+  // R9 / S5 (owner steer): a Vector is NEVER given away by colour — with or
+  // without ANTISEPSIS a saboteur (mech) renders exactly like a true Scion.
+  // Identification is the earned SCAN (the "?" over a catalogued unit), not a
+  // tint. Exposed so a test can assert the colour parity always holds.
+  oidTint: () => "#69f0ae",
   setStaticClock: v => { staticClock = v; },
   remix: startRemix,
   daily: startDaily,

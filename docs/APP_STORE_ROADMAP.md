@@ -784,7 +784,7 @@ feedback items that change how the game *feels* rather than how it looks.
 **Priority: with R, before O. Dependencies: C (audio plumbing), I (surge), J
 (scan pattern), N shipped (all are).**
 
-- [ ] **S1. Sound-effect modernisation (beyond C6's richness pass).**
+- [x] **S1. Sound-effect modernisation (beyond C6's richness pass).**
   C6 added jitter and harmonics; the owner wants *character*. Three targets,
   in order of how often they're heard:
   - **The shot.** `blip(880, 180, 0.12, "square", 0.09)` at the fire call site
@@ -809,7 +809,7 @@ feedback items that change how the game *feels* rather than how it looks.
     This is the game's signature (the haptic bundle F2 already mirrors
     single beats); keep every layer soft enough that the boarding lub-dub /
     dull-thud read stays unmistakable — that tell is load-bearing (C6 note).
-- [ ] **S2. Vitals-reactive ambience — the score becomes your monitor.**
+- [x] **S2. Vitals-reactive ambience — the score becomes your monitor.**
   Owner: "could the ambient sound reflect your vitals — more frantic as you
   take damage / are closer to death?" Yes — and it deepens the existing
   diagnostic-sound language (the ECG already speeds up as vitals fall).
@@ -828,7 +828,7 @@ feedback items that change how the game *feels* rather than how it looks.
   Clamp everything so the boarding tells and the Static's tick stay the
   loudest diagnostic sounds. Expose `vitalsAudioLevel` on `__doids.get()` and
   smoke-test that it rises when `ship.vitals` is set low.
-- [ ] **S3. Environmental audio — the world has acoustics.** Two parts:
+- [x] **S3. Environmental audio — the world has acoustics.** Two parts:
   - **The Hollows echo.** Give `sfxGain` a wet send: `sfxGain → delay
     (0.28 s, feedback 0.35, lowpass 1200 Hz) → sfxGain`, with the send's gain
     at 0 on the surface and ramped to ~0.35 inside caves (`enterCave` /
@@ -840,7 +840,7 @@ feedback items that change how the game *feels* rather than how it looks.
     20–40 s). Anchor in `updatePlay` behind `level.isCave`.
   Per-biome surface ambience (wind beds etc.) belongs to T3/T5 — build this
   item so a biome can later set the echo/dressing parameters from `RECIPE`.
-- [ ] **S4. Endgame rework — the last docking should be a docking.**
+- [x] **S4. Endgame rework — the last docking should be a docking.**
   Today `checkSectorClear()` starts the extraction and `updateExtraction()`
   completes the sector after 1.5 s of *sitting in the same med bay you were
   probably already parked in* — the owner often "completed before noticing".
@@ -884,7 +884,7 @@ feedback items that change how the game *feels* rather than how it looks.
   manifest close → bays inert → hangar hold completes; early extraction at
   50% marks the right losses; a ship parked in the bay at manifest-close does
   NOT auto-clear.
-- [ ] **S5. Identified saboteurs may be left behind.** `lvl.total =
+- [x] **S5. Identified saboteurs may be left behind.** `lvl.total =
   lvl.oids.length` counts saboteurs, so the manifest never closes until every
   counterfeit is boarded-and-contained or destroyed — even after Antisepsis
   has *shown* you it's a fake. The owner is right that this is wrong: once
@@ -910,6 +910,13 @@ feedback items that change how the game *feels* rather than how it looks.
     prove it."` Update HELP_CARD's "Listen to what boards" paragraph.
   - Tests: flagged saboteur + all real Scions delivered closes the manifest;
     unflagged sleeper blocks it; scan on a real Scion does not flag.
+  - **Owner steer (July 2026 playtest, shipped):** the free always-on scan felt
+    too powerful ("saboteurs will always be identified"). The scan is now
+    **earned by rescuing Semmelweis (ANTISEPSIS)** and **replaces** the passive
+    colour tint entirely — S7's magenta reveal-tint is gone; there is *no*
+    colour tell at all. `provenLeftBehind` counts only units you actively
+    catalogue (`o.flagged`), not a blanket ANTISEPSIS reveal. SEMMELWEIS's
+    `upgradeDesc` and the R9 test were updated to match.
 - [x] **S6. Rename the saboteurs → VECTORS (locked, owner decision, July
   2026).** The owner asked if "saboteur" should be "more redolent of
   medical misinformation"; **VECTOR** was the recommendation and is now
@@ -928,7 +935,7 @@ feedback items that change how the game *feels* rather than how it looks.
   HELP_CARD were checked and never named the role directly, so no change
   was needed there. **Still open:** the store-listing draft in O2 (write
   it "Vector"-first when O2 is drafted).
-- [ ] **S7. Saboteur effects are too subtle / colour spoils sleepers.** Two
+- [x] **S7. Saboteur effects are too subtle / colour spoils sleepers.** Two
   halves of one legibility problem:
   - *Active sabotage is missable.* "FUEL LINE CUT" is a small floating text.
     Give sabotage a moment: 0.5 s red vignette pulse at the screen edges
@@ -947,7 +954,7 @@ feedback items that change how the game *feels* rather than how it looks.
     ground-tells from ROADMAP.md future ideas (refusing to panic near
     explosions; standing unnaturally still) since S5 now rewards *watching*
     Scions before committing to a rescue.
-- [ ] **S8. "If they were fake — where are our Scions?" (the 1.2 teaser).**
+- [x] **S8. "If they were fake — where are our Scions?" (the 1.2 teaser).**
   The owner's sharpest narrative catch: the Workshop shrine proves the
   saboteurs were *built, not corrupted* — so the real units they impersonate
   were never rescued. Thread it, cheaply, now; pay it off in Q:
@@ -964,7 +971,7 @@ feedback items that change how the game *feels* rather than how it looks.
     ("pendulum them out", exactly the owner's instinct). 1.1 ships the sling
     skill, 1.2 gives it its emotional payload. No launch-build work beyond
     the two copy lines above.
-- [ ] **S9. Scions gently repair the ship while aboard (owner-requested,
+- [x] **S9. Scions gently repair the ship while aboard (owner-requested,
   July 2026).** A living crew should feel like one — carrying Scions should
   itself be a small kindness back, not just cargo. Add a slow passive vitals
   regen driven by who is currently riding, stacking with more aboard and

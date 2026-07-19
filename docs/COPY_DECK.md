@@ -18,11 +18,23 @@ throughout this deck and in `index.html`. Code identifiers stay `"saboteur"`
 Pending copy decisions that will touch lines below:
 - **T6 (roadmap):** BRIEFS[2] (Nightingale Basin) gets a scarier rewrite when
   staged nightfall lands. Marked `[T6]`.
-- **S4/S5 (roadmap):** new extraction-hangar and catalogue-scan strings will be
-  added; drafts are in those roadmap items.
-- **S9 (roadmap):** a new HELP_CARD line for the passive cabin-medic heal
-  ("A full cabin steadies you, a little, between drop-offs" — draft, not
-  final) will be added to §3 once built.
+
+Landed (July 2026, Bundle S):
+- **S4:** the extraction banner is now `MANIFEST CLOSED — MERCY IS SPOOLING TO
+  JUMP / FLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER`, with an
+  `ABOARD — SECTOR <name> CLOSED` beat on completion (see §8). The S4.5 triage
+  card is `SIGNAL EARLY EXTRACTION?` and its next-briefing echo `You left N
+  behind on <SECTOR>. The manifest remembers.` (see §4).
+- **S5:** BRIEFS[3] gains `Prove a unit false — the salvage teams will take it
+  from there. But prove it.`; the scan reads `CATALOGUED — COUNTERFEIT +250` /
+  `VITALS VERIFIED — A HEARTBEAT`; HELP_CARD §3 updated. **Owner steer (July
+  2026):** the scan is EARNED by rescuing Semmelweis (ANTISEPSIS) and replaces
+  the old colour-tint reveal — there is no passive colour tell, only the earned
+  active scan and its permanent `?` on a catalogued unit. SEMMELWEIS's
+  `upgradeDesc` rewritten accordingly.
+- **S7:** a Vector kill is now the banner `A PASSENGER IS DEAD — IT'S IN THE
+  CABIN` (was a floating text).
+- **S9:** the HELP_CARD cabin-medic line landed in §3.
 
 ---
 
@@ -74,8 +86,13 @@ Pending copy decisions that will touch lines below:
 > Ferry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The
 > RED BAY is quarantine — you'll know when you need it.
 >
-> Listen to what boards. Watch how they wave. Watch your own ECG. [S5 adds a
-> line about cataloguing proven counterfeits]
+> Listen to what boards. Watch how they wave. Watch your own ECG. A full cabin
+> steadies you, a little, between drop-offs. _(S9)_
+>
+> Suspect a unit? Park right on top of it and hold still to read its vitals — a
+> real Scion's heartbeat verifies and it boards; a proven counterfeit is
+> catalogued and can be left where it lies. Land a step away instead to rescue
+> at speed. _(S5)_
 >
 > ◈ The zone hides black boxes, log fragments and famous healers — and
 > stranger things. Some ground rings hollow under your struts. Real fuel pods

@@ -7,6 +7,7 @@
 const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
+let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -87,13 +88,16 @@ function landingEval() {
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance
   const vyMax = (upgrades.gentle ? 62 : 52) * tol;
   const vxMax = 38 * tol, slopeMax = 0.25 * tol;
-  const soft = Math.abs(s.vy) < vyMax && Math.abs(s.vx) < vxMax && slope < slopeMax && upright;
-  const survivable = Math.abs(s.vy) < (upgrades.gentle ? 100 : 85) * tol &&
+  // only DOWNWARD speed can make a landing hard — rising (vy < 0) is never
+  // "too fast" (s.vy < vyMax is trivially true while ascending), so there is no
+  // rising-too-fast state and no message for it
+  const soft = s.vy < vyMax && Math.abs(s.vx) < vxMax && slope < slopeMax && upright;
+  const survivable = s.vy < (upgrades.gentle ? 100 : 85) * tol &&
     Math.abs(s.vx) < 60 * tol && slope < 0.35 * tol && upright;
   let reason = "";
   if (!upright) reason = "LEVEL THE SHIP";
   else if (slope >= slopeMax) reason = "GROUND TOO STEEP";
-  else if (Math.abs(s.vy) >= vyMax) reason = "DESCENDING TOO FAST";
+  else if (s.vy >= vyMax) reason = "DESCENDING TOO FAST";
   else if (Math.abs(s.vx) >= vxMax) reason = "DRIFTING SIDEWAYS";
   return { soft, survivable, reason };
 }
@@ -130,17 +134,42 @@ function shipDie() {
    is the sector's final exam: dock with a drifting mothership while
    the pulses quicken. Checked every play frame so no accounting path
    (delivery, crash, sabotage, quarantine, escape) can be missed. */
+/* S5 — you may leave what you can PROVE. A saboteur still on the ground counts
+   toward closing the manifest once it is identified: scanned-and-flagged, or
+   visibly revealed by ANTISEPSIS. Computed live (not a stored counter) and
+   scoped to grounded "wait" units, so it can never double-count a unit that
+   later boards, is contained, or is destroyed — those land in their own
+   buckets. Sleepers with no tint and no scan stay unprovable: carry them, or
+   the manifest stays open. */
+function provenLeftBehind() {
+  let n = 0;
+  for (const o of level.oids)
+    if (o.role === "saboteur" && o.state === "wait" && o.flagged) n++;   // scanned = proven
+  return n;
+}
 function checkSectorClear() {
   if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach) return;
-  if (level.delivered + level.lost + level.contained < level.total) return;
-  level.extraction = { t: 0, pulseT: 0, hold: 0 };
-  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nDOCK IN THE RECOVERY BAY BEFORE THE STATIC REACHES HER", "#ffc400");
+  if (level.delivered + level.lost + level.contained + provenLeftBehind() < level.total) return;
+  beginExtraction(false);
+}
+
+/* S4 — the last docking is a real docking. MERCY retracts her bays, lifts to
+   jump altitude and opens a ventral hangar; the sector closes only when you fly
+   INTO her and hold the hover (updateExtraction). `early` is the triage retreat
+   (S4.5): the same flight, but with the sector-clear and Hippocratic bonuses
+   withheld. */
+function beginExtraction(early) {
+  level.extraction = { t: 0, pulseT: 0, hold: 0, done: false, beatT: 0, early: !!early };
+  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", "#ffc400");
   blip(660, 220, 0.6, "sawtooth", 0.15);
 }
 
 function sectorClearNow() {
-  score += 1000;
-  if (level.firedShots === 0) { score += 2000; gc.achieve(GC_ACH.noHarm); }   // G3
+  const early = level.extraction && level.extraction.early;
+  if (!early) {
+    score += 1000;
+    if (level.firedShots === 0) { score += 2000; gc.achieve(GC_ACH.noHarm); }   // G3
+  }
   if (dailyMod("stopwatch") && sectorT < 90) { score += 500; level.stopwatchBeat = true; }
   bannerMsg = null;
   clearCards = level.fragmentsHere.map(f => ({
@@ -149,15 +178,53 @@ function sectorClearNow() {
   blip(440, 1760, 0.5, "sine", 0.15);
 }
 
+/* S4 — the ventral hangar: a slot ~1.6 ship-widths wide in MERCY's underside,
+   derived live from her (lifted, drifting) position. Completion is a sustained
+   hover here — the skill the transfusion line teaches, now as the sector's
+   closing beat, and mechanically nothing like a Scion drop-off. */
+const HANGAR_HOLD = 1.2;
+function hangarRect() {
+  const { mx, my } = mercyPos();
+  const halfW = 62;   // a wide bay across her belly (her underside is ~190 wide)
+  // the recess sits INSIDE her belly: top tucks up into the hull, base flush
+  // with her belly line (my + 20) — it never hangs below the bottom of the hull
+  const top = my - 18, bot = my + 20;
+  return { x0: mx - halfW, x1: mx + halfW, cx: mx, cy: (top + bot) / 2, top, bot };
+}
+function inHangar() {
+  const h = hangarRect();
+  // a generous band centred on the opened bay so you're clearly tucked up into
+  // her hull — gentle station-keeping holds it without frantic thrust
+  return !ship.dead && !ship.landed &&
+    ship.x > h.x0 + 4 && ship.x < h.x1 - 4 &&
+    ship.y > h.top - 6 && ship.y < h.bot + 8;
+}
 function updateExtraction(dt) {
   const e = level.extraction;
+  // the "ABOARD" beat: once the hover completes she captures your ship — it
+  // glides into her hangar and becomes a near-invisible part of her — then she
+  // spools up and jumps away (S4.4). Both handled in render off e.beatT.
+  if (e.done) {
+    e.beatT += dt;
+    const h = hangarRect();   // follows her up as she jumps, so the ship rides along
+    ship.vx = 0; ship.vy = 0; ship.landed = false; ship.ang = 0;
+    ship.x += (h.cx - ship.x) * Math.min(1, dt * 12);
+    ship.y += (h.cy - ship.y) * Math.min(1, dt * 12);
+    // ride the camera up with her (it clamps at the top of the world, so she
+    // streaks off-screen as she jumps)
+    camera.x = lerp(camera.x, ship.x, 1 - Math.pow(0.001, dt));
+    camera.y = lerp(camera.y, ship.y - 40, 1 - Math.pow(0.001, dt));
+    if (e.beatT >= 1.9) sectorClearNow();   // capture → doors shut → jet away
+    return;
+  }
   e.t += dt;
-  // MERCY drifts harder the longer you take
-  level.mxo = Math.sin(e.t * 0.55) * Math.min(60, 8 + e.t * 2.2);
-  level.myo = Math.sin(e.t * 1.15) * Math.min(30, 5 + e.t * 1.1);
-  // the Static surges in quickening pulses that shove your ship
+  // she rises ~140 px toward jump altitude over ~3 s (baked into mercyPos) and
+  // drifts as she stationkeeps — gently, so the hangar stays catchable
+  level.mxo = Math.sin(e.t * 0.5) * Math.min(34, 6 + e.t * 1.2);
+  level.myo = Math.sin(e.t * 1.0) * Math.min(14, 4 + e.t * 0.5);
+  // the Static surges in quickening pulses that nudge your ship
   e.pulseT += dt;
-  if (e.pulseT >= Math.max(2.8, 6.5 - e.t * 0.09)) {
+  if (e.pulseT >= Math.max(3.2, 6.5 - e.t * 0.09)) {
     e.pulseT = 0;
     level.pulse = { t: 0 };
     staticTick();
@@ -166,17 +233,88 @@ function updateExtraction(dt) {
     const { mx, my } = mercyPos();
     const dx = ship.x - mx, dy = ship.y - my, d = Math.hypot(dx, dy) || 1;
     if (d < 600 && !ship.landed && !ship.dead) {
-      const kick = 110 * (1 - d / 600);
+      const kick = 60 * (1 - d / 600);   // a nudge, not a fling
       ship.vx += dx / d * kick; ship.vy += dy / d * kick;
-      camera.shake += 8;
+      camera.shake += 6;
       addText(ship.x, ship.y - 30, "THE STATIC SURGES", "#b388ff");
     }
   }
   if (level.pulse && (level.pulse.t += dt) > 1.2) level.pulse = null;
-  if (!ship.dead && inBay(bayRects().med)) {
+  // hold the hover inside the hangar for a continuous 1.2 s, in the air. A brief
+  // bump only bleeds the hold back (×1.5), it doesn't snap it to zero — so one
+  // stray nudge near the end doesn't cost you the whole approach.
+  if (inHangar()) {
+    if (e.hold === 0) blip(440, 660, 0.1, "sine", 0.08);
     e.hold += dt;
-    if (e.hold >= 1.5) sectorClearNow();
-  } else e.hold = 0;
+    if (e.hold >= HANGAR_HOLD) {
+      e.done = true; e.beatT = 0;
+      banner("ABOARD — SECTOR " + SECTOR_NAMES[levelIdx] + " CLOSED", "#69f0ae");
+      blip(440, 1760, 0.4, "sine", 0.14);
+      haptic.medium();
+    }
+  } else e.hold = Math.max(0, e.hold - dt * 1.5);
+}
+
+/* S4.5 — the triage call. Once at least one Scion is home and half the manifest
+   is accounted for, MERCY will answer early: hover in the ventral hangar with an
+   empty deliverable cabin and she offers an early extraction — at the cost of
+   every Scion still waiting on the ground. Retreat is allowed, but never free. */
+function updateEarlyExtraction(dt) {
+  if (level.extraction || mercyBreach || level.isFinale || level.isCave || state !== "play") {
+    level.earlyHold = 0; level.earlyEligible = false; return;
+  }
+  const accounted = level.delivered + level.lost + level.contained + provenLeftBehind();
+  const deliverableAboard = ship.passengers.filter(p => p.role !== "saboteur").length;
+  const eligible = deliverableAboard === 0 && level.delivered >= 1 &&
+    accounted >= level.total * 0.5 && accounted < level.total;
+  level.earlyEligible = eligible;
+  if (!eligible || !inHangar()) { level.earlyHold = 0; return; }
+  level.earlyHold = (level.earlyHold || 0) + dt;
+  if (level.earlyHold >= 0.8) { level.earlyHold = 0; askEarlyExtraction(); }
+}
+function askEarlyExtraction() {
+  const waiting = level.oids.filter(o =>
+    (o.state === "wait" || o.state === "walk" || o.state === "panic") && o.role !== "saboteur");
+  const n = waiting.length;
+  const names = waiting.filter(o => o.role === "famous").map(o => FAMOUS[o.famousId].name);
+  // one clause per line, at logical breaks — no mid-sentence wrapping
+  let body = "MERCY can spool now.";
+  body += "\nBut " + n + (n === 1 ? " still waits on " : " still wait on ") + SECTOR_NAMES[levelIdx] + ".";
+  if (names.length) body += "\nOne of them is someone extraordinary.";   // felt, never named — you left before knowing
+  body += "\nSignal early and they are logged lost — 250 each.";
+  body += "\nNo sector-clear bonus. No oath.";
+  body += "\nThe manifest will remember.";
+  confirmCard = { kicker: "TRIAGE — FLEE AT A COST", title: "SIGNAL EARLY EXTRACTION?",
+    body, color: "#ffc400", waiting };
+  state = "confirm"; stateT = 0;
+}
+function confirmEarlyExtraction() {
+  const waiting = confirmCard.waiting;
+  let n = 0;
+  for (const o of waiting) {
+    if (o.state !== "wait" && o.state !== "walk" && o.state !== "panic") continue;
+    o.state = "lost";
+    level.lost++; runLost++; n++;
+    const fam = o.role === "famous";
+    score = Math.max(0, score - (fam ? 500 : 250));
+    // a famous mind left behind costs more, but you leave before you ever learn
+    // who — no name, only the weight of it
+    if (fam) addText(level.mx, level.my + 40, "SOMEONE EXTRAORDINARY, LEFT BEHIND  −500", "#ffd54f");
+  }
+  leftBehindNote = { n, sector: SECTOR_NAMES[levelIdx] };
+  confirmCard = null;
+  state = "play"; stateT = 0;
+  beginExtraction(true);
+}
+function updateConfirm() {
+  if (input.tap && stateT > 0.25) {
+    const yes = confirmRowRect(0), no = confirmRowRect(1);
+    if (inRect(yes, input.tapX, input.tapY)) { blip(520, 260, 0.2, "sawtooth", 0.12); confirmEarlyExtraction(); }
+    else if (inRect(no, input.tapX, input.tapY)) {
+      blip(440, 660, 0.1, "sine", 0.08); confirmCard = null; state = "play"; stateT = 0;
+    }
+  }
+  input.tap = false;
 }
 
 function triggerBreach() {
@@ -221,6 +359,7 @@ function update(dt) {
   pollPad();
   updateCtlVisibility();
   updateMusic(dt);
+  updateVitalsAudio(dt);   // S2 — the score tracks your vitals every frame
   if (bannerMsg && (bannerMsg.t -= dt) <= 0) bannerMsg = null;
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -233,6 +372,7 @@ function update(dt) {
     if (texts[i].t <= 0) texts.splice(i, 1);
   }
   if (camera) camera.shake = Math.max(0, camera.shake - 60 * dt);
+  sabotageFlash = Math.max(0, sabotageFlash - dt);   // S7
 
   // portrait: hold the game and show the rotate prompt instead
   if (vh > vw) {
@@ -295,6 +435,7 @@ function update(dt) {
       input.tap = false;
       return;
     case "pause": updatePause(); return;
+    case "confirm": updateConfirm(); return;
     case "settings": updateSettings(); return;
     case "epilogue": updateEpilogue(dt); return;
     case "play": updatePlay(dt); return;
@@ -435,6 +576,10 @@ function briefText() {
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
       dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n" + t;
+  // S4.5 — the grim line after a triage retreat, carried into the next briefing
+  if (leftBehindNote)
+    t += "\nYou left " + leftBehindNote.n + " behind on " + leftBehindNote.sector +
+      ". The manifest remembers.";
   return t;
 }
 function updateBrief(dt) {
@@ -442,7 +587,7 @@ function updateBrief(dt) {
   briefChars = Math.min(full, briefChars + dt * 55);
   if (input.tap && stateT > 0.5) {
     if (briefChars < full) briefChars = full;
-    else { state = "play"; stateT = 0; banner(SECTOR_NAMES[levelIdx], "#00e5ff"); }
+    else { state = "play"; stateT = 0; leftBehindNote = null; banner(SECTOR_NAMES[levelIdx], "#00e5ff"); }
   }
   input.tap = false;
 }
@@ -550,6 +695,9 @@ function updateSettings() {
 
 function updatePlay(dt) {
   if (liftTransit) { updateLiftTransit(dt); return; }
+  // S4 — during the capture/jump beat the ship is MERCY's, not yours: skip the
+  // flight sim (its ceiling clamp would fight the lerp that rides you up with her)
+  if (level.extraction && level.extraction.done) { updateExtraction(dt); return; }
   if (input.tap && inRect(pauseRect(), input.tapX, input.tapY)) {
     input.tap = false;
     state = "pause"; stateT = 0;
@@ -565,7 +713,9 @@ function updatePlay(dt) {
   if (steer === 0) steer = gyroSteerVal();
   if (steer) s.ang += ROT * dt * steer;
 
-  if (assist && !s.landed && !steer) {
+  // landing assist auto-levels the ship — but only on the way DOWN, so it never
+  // fights your attitude while you're thrusting up and away
+  if (assist && !s.landed && !steer && s.vy > 0) {
     const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     if (Math.abs(tilt) < ASSIST_CAPTURE) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
   }
@@ -668,6 +818,9 @@ function updatePlay(dt) {
   updateLift(dt);
   updateShrine(dt);
   updateScan(dt);
+  updateScionScan(dt);    // S5 — read a grounded unit's vitals; flag the fakes
+  updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
+  updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
   if (level.isFinale) updateBeacon(dt);
   if (level.fakeMercy) updateDecoy(dt);
@@ -679,10 +832,12 @@ function updatePlay(dt) {
 
   if (level.extraction && state === "play") updateExtraction(dt);
   checkSectorClear();
+  updateEarlyExtraction(dt);   // S4.5 — the triage retreat
 
   // Fleming: the hull cultures its own repair while vitals sit below half
   if (upgrades.penicillin && !s.dead && s.vitals > 0 && s.vitals < maxVitals() * 0.5)
     s.vitals = Math.min(maxVitals() * 0.5, s.vitals + 2 * dt);
+  updateCabinMedic(dt);   // S9 — a living cabin steadies the hull between drops
 
   // F2: the arrhythmia reaches the player's hand — a light early tap every
   // few seconds while something wrong rides along (or the bay has you)
@@ -713,15 +868,26 @@ function updateOids(dt, now) {
           color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2.5 });
       }
       if (o.deathT >= 1.3) {
-        o.state = "lost";
-        level.lost++; runLost++;
-        const fam = o.role === "famous";
-        const pen = fam ? 500 : 250;
-        score = Math.max(0, score - pen);
-        addText(o.x, o.y - 40,
-          (fam ? "YOU KILLED " + FAMOUS[o.famousId].name : "MALPRACTICE") + "  -" + pen,
-          fam ? "#ffd54f" : "#ff4081");
-        explode(o.x, o.y - 8, o.deathType === "torched" ? "#ff6d00" : "#69f0ae", 18);
+        // a PROVEN counterfeit (catalogued via the S5 scan) is a hollow chassis
+        // with no heartbeat — not one of the medics we came for — so destroying
+        // it is no malpractice; it's neutralised, off the manifest, no penalty.
+        // An UNidentified unit still costs you: you couldn't know it wasn't a
+        // living medic, and that risk is the whole tension.
+        if (o.role === "saboteur" && o.flagged) {
+          o.state = "contained"; level.contained++;
+          addText(o.x, o.y - 40, "COUNTERFEIT DESTROYED", PAL().REVEAL);
+          explode(o.x, o.y - 8, PAL().REVEAL, 18);
+        } else {
+          o.state = "lost";
+          level.lost++; runLost++;
+          const fam = o.role === "famous";
+          const pen = fam ? 500 : 250;
+          score = Math.max(0, score - pen);
+          addText(o.x, o.y - 40,
+            (fam ? "YOU KILLED " + FAMOUS[o.famousId].name : "MALPRACTICE") + "  -" + pen,
+            fam ? "#ffd54f" : "#ff4081");
+          explode(o.x, o.y - 8, o.deathType === "torched" ? "#ff6d00" : "#69f0ae", 18);
+        }
       }
       continue;
     }
@@ -742,7 +908,14 @@ function updateOids(dt, now) {
     }
     if (o.state === "wait" && s.landed &&
         Math.abs(s.x - o.x) < 150 && Math.abs(groundAt(o.x) - (s.y + SHIP_R)) < 60) {
-      o.state = "walk";
+      // S5 — with ANTISEPSIS earned, parking DIRECTLY on a unit (and holding
+      // still) examines it rather than boards it: the landed scan resolves what
+      // it is. A verified real Scion then climbs aboard as normal; land a short
+      // step away (>66 px) to skip the check and rescue at speed. Without the
+      // upgrade there is no examine hold — units board exactly as they always did.
+      const examining = upgrades.antisepsis && !o.verified && Math.abs(s.x - o.x) < 66 &&
+        Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20;
+      if (!examining) o.state = "walk";
     }
     if (o.state === "walk") {
       if (!s.landed) { o.state = "wait"; continue; }
@@ -843,7 +1016,7 @@ function updateEnemies(dt) {
     acctLevel().firedShots++; runFired++;
     level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
       vx: s.vx + Math.sin(s.ang) * 360, vy: s.vy - Math.cos(s.ang) * 360, t: 1.3 });
-    blip(880, 180, 0.12, "square", 0.09);
+    shotSfx();   // S1 — a muffled energy-dart "thmp", not a 1982 "pew"
   }
   for (let i = level.shots.length - 1; i >= 0; i--) {
     const b = level.shots[i];
@@ -911,6 +1084,10 @@ function updateSabotage(dt) {
     p.sabT = 7 + Math.random() * 4;
     acctLevel().contamKnown = true;
     level.contamKnown = true;
+    // S7 — sabotage gets a moment: a red-edge pulse, a hiss, a shove to the hand
+    sabotageFlash = 0.5;
+    haptic.heavy();
+    sabHiss();
     // Jenner's gift: immunised passengers can't be killed, only inconvenienced
     if (upgrades.inoculation || Math.random() < 0.55 || s.passengers.length === 1) {
       s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
@@ -925,7 +1102,8 @@ function updateSabotage(dt) {
         acctLevel().lost++; runLost++;
         if (v.role === "famous")
           addText(s.x, s.y - 48, FAMOUS[v.famousId].name + " WAS KILLED", "#ffd54f");
-        addText(s.x, s.y - 34, "PASSENGER KILLED BY VECTOR", "#ff4081");
+        // S7 — a kill is never discovered from the score readout: a full banner
+        banner("A PASSENGER IS DEAD — IT'S IN THE CABIN", PAL().DANGER);
         dullThud();
         checkSectorClear();
       }
@@ -975,8 +1153,104 @@ function updateScan(dt) {
   if (target.scanT >= SCAN_T) revealSecret(target, false);
 }
 
+/* S5 — the landed Scion scan, the diagnostic EARNED by rescuing Semmelweis
+   (ANTISEPSIS). Park directly on a waiting unit and hold ~4 s to read its
+   vitals: a counterfeit is CATALOGUED (+250, marked with a permanent "?", may
+   be left on the ground); a real Scion's heartbeat is VERIFIED (no score) and
+   it then boards as normal. Priced in time and exposure. Before you've earned
+   it there is no positive identification — only the behavioural tells. */
+const SCION_SCAN_T = 4;
+function updateScionScan(dt) {
+  const s = ship;
+  if (!upgrades.antisepsis) return;   // no diagnostic until Semmelweis is aboard
+  let target = null;
+  if (s.landed && !s.dead && Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20) {
+    for (const o of level.oids) {
+      if (o.state !== "wait" || o.flagged || o.verified) continue;
+      if (Math.abs(s.x - o.x) < 66 && Math.abs(groundAt(o.x) - (s.y + SHIP_R)) < 70) { target = o; break; }
+    }
+  }
+  for (const o of level.oids)
+    if (o !== target && o.oidScanT) o.oidScanT = Math.max(0, o.oidScanT - dt * 2);
+  if (!target) return;
+  target.oidScanT = (target.oidScanT || 0) + dt * scanRate();
+  if (target.oidScanT >= SCION_SCAN_T) {
+    target.oidScanT = 0;
+    if (target.role === "saboteur") {
+      target.flagged = true;   // stays on the ground, catalogued; oath untouched (no shot)
+      score += 250;
+      staticTick();
+      addText(target.x, target.y - 44, "CATALOGUED — COUNTERFEIT +250", PAL().REVEAL);
+      checkSectorClear();
+    } else {
+      target.verified = true;
+      heartbeat(0.5, true);
+      addText(target.x, target.y - 44, "VITALS VERIFIED — A HEARTBEAT", "#69f0ae");
+    }
+  }
+}
+
 function contaminantAboard() {
   return ship.passengers.some(p => p.role === "saboteur" && !p.sleeper);
+}
+
+/* S1 — the cabin fills with heartbeats. Every genuine Scion aboard contributes
+   one soft pulse on its own ~1.5 s period (a phase offset per index, ±5% rate
+   variance) so the chorus reads as a living crew. A saboteur's slot stays
+   SILENT — the missing beat is the boarding dull-thud made continuous. At most
+   three layers sound at once and the total is capped, so the load-bearing
+   boarding tell is never blurred. Runs only in live flight (updatePlay), so it
+   naturally falls quiet behind cards, briefings and death. */
+function updateCabinPulse(dt) {
+  const s = ship;
+  if (s.dead || state !== "play") return;
+  const riders = s.passengers.filter(p => p.role !== "saboteur");
+  const audible = Math.min(3, riders.length);
+  if (audible === 0) return;
+  const v = 0.22 / audible;
+  for (let i = 0; i < riders.length; i++) {
+    const p = riders[i];
+    if (p.pulseRate === undefined) {
+      p.pulseRate = 1.5 * (1 + (Math.random() * 2 - 1) * 0.05);   // ±5%
+      p.pulseT = (i / riders.length) * 1.5;                        // spread the chorus
+    }
+    p.pulseT += dt;
+    if (p.pulseT >= p.pulseRate) {
+      p.pulseT -= p.pulseRate;
+      if (i < audible) heartbeat(v, true);   // no-haptic layer, soft
+    }
+  }
+}
+
+/* S3 — the Hollows have acoustics. A stray drip every 4–9 s and a rare distant
+   rumble every 20–40 s, both routed through the echo bus enterCave lit up. */
+let caveDripT = 0, caveRumbleT = 0;
+function updateCaveAudio(dt) {
+  if (!level.isCave || ship.dead || state !== "play") { caveDripT = 0; caveRumbleT = 0; return; }
+  if ((caveDripT -= dt) <= 0) { caveDripT = 4 + Math.random() * 5; caveDrip(); }
+  if ((caveRumbleT -= dt) <= 0) { caveRumbleT = 20 + Math.random() * 20; caveRumble(); }
+}
+
+/* S9 — Scions gently repair the ship while aboard. A slow passive regen driven
+   by who is riding: only genuine Scions lend a hand (a hollow counterfeit has
+   no medical mind — the same point the WORKSHOP shrine makes, felt not flagged),
+   stronger with a famous mind in the cabin, capped at 85% so MERCY's bay stays
+   the only way to FINISH a repair. Additive with Fleming; both are dt-scaled. */
+const BASE_MEDIC_RATE = 0.5;     // vitals/s per ordinary Scion aboard
+const FAMOUS_MEDIC_BONUS = 1.0;  // extra per famous Scion currently riding
+let cabinMedicRate = 0;
+function updateCabinMedic(dt) {
+  const s = ship;
+  cabinMedicRate = 0;
+  // the already-tense states get no quiet heal (breach, extraction, the decoy's
+  // mouth); gate on live flight exactly like updateVitalsAudio
+  if (s.dead || state !== "play" || mercyBreach || level.extraction || decoySnared()) return;
+  const real = s.passengers.filter(p => p.role !== "saboteur");
+  if (!real.length) return;
+  const famous = real.filter(p => p.role === "famous").length;
+  cabinMedicRate = real.length * BASE_MEDIC_RATE + famous * FAMOUS_MEDIC_BONUS;
+  const ceiling = maxVitals() * 0.85;
+  if (s.vitals < ceiling) s.vitals = Math.min(ceiling, s.vitals + cabinMedicRate * dt);
 }
 
 function killOid(o, how) {
@@ -989,7 +1263,15 @@ function killOid(o, how) {
 /* recovery bay (cyan) spans MERCY's underside and heals & delivers;
    the red quarantine bay hangs off her starboard side */
 function mercyPos() {
-  return { mx: level.mx + (level.mxo || 0), my: level.my + (level.myo || 0) };
+  // S4 — during extraction she lifts ~140 px toward jump altitude over ~3 s;
+  // the hangar and every render follow her up. Once your ship is aboard she
+  // accelerates off the top of the world (the jump), dragging the hangar (and
+  // the captured ship lerping to it) with her.
+  const e = level.extraction;
+  const lift = e ? Math.min(140, e.t * (140 / 3)) : 0;
+  let jump = 0;
+  if (e && e.done) { const j = Math.max(0, e.beatT - 0.9); jump = 1700 * j * j; }   // jets off once the doors are shut
+  return { mx: level.mx + (level.mxo || 0), my: level.my + (level.myo || 0) - lift - jump };
 }
 function bayRects() {
   const { mx, my } = mercyPos();
@@ -1010,6 +1292,10 @@ function inBay(b) {
 
 function updateDocking(dt) {
   if (level.isCave) return;   // no MERCY down in the Hollows
+  // S4 — the moment the manifest closes MERCY retracts her bays: they go inert,
+  // the recovery beam is dead, and the only way aboard is the ventral hangar.
+  // A ship parked in the bay at that instant simply has the deck rise away.
+  if (level.extraction) { ship.dockT = 0; ship.escapeT = 0; ship.redDockT = 0; ship.breachDockT = 0; return; }
   const s = ship;
   const bays = bayRects();
 
@@ -1166,6 +1452,16 @@ const SIGNAL_HOLD_T = 1.8;
 const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 130;
 function xfuseWindowR() { return easyMode ? 44 : 34; }   // FIELD MEDIC widens the window
 function capturePoint(rd) { return { x: rd.x, y: rd.y + 55 }; }
+/* the resupply drone flies a real errand — out from MERCY and back to dock —
+   so the wait is honest and you can follow it home if you like */
+const DRONE_SPEED = 430;
+function droneFlyTo(rd, tx, ty, dt) {
+  const dx = tx - rd.x, dy = ty - rd.y, d = Math.hypot(dx, dy);
+  const step = DRONE_SPEED * dt;
+  if (d <= step) { rd.x = tx; rd.y = ty; return true; }
+  rd.x += dx / d * step; rd.y += dy / d * step;
+  return false;
+}
 /* "tethered" = the line has caught the ship at least once and is still out —
    from then until release, FIRE detaches instead of shooting */
 function tethered() {
@@ -1186,7 +1482,9 @@ function updateResupplySignal(dt) {
   }
   if (s.signalT >= SIGNAL_HOLD_T && !resupplyDrone) {
     s.signalT = 0;
-    resupplyDrone = { x: s.x, y: s.y - 320, hoverY: s.y - 130, phase: "in", t: 0,
+    // launched FROM MERCY's recovery bay, bound for a hover point above you
+    const m = mercyPos();
+    resupplyDrone = { x: m.mx, y: m.my + 40, hoverX: s.x, hoverY: s.y - 130, phase: "in", t: 0,
       given: 0, occluded: false, attachedNow: false, everAttached: false,
       dripT: 0, dripFlip: false, firePrev: true };
     blip(180, 420, 0.4, "sine", 0.12);
@@ -1195,8 +1493,8 @@ function updateResupplySignal(dt) {
   const rd = resupplyDrone;
   rd.t += dt;
   if (rd.phase === "in") {
-    rd.y = lerp(rd.hoverY - 190, rd.hoverY, clamp(rd.t / 1.1, 0, 1));
-    if (rd.t >= 1.1) {
+    // fly out from MERCY to the hover point above you (the wait is the distance)
+    if (droneFlyTo(rd, rd.hoverX, rd.hoverY, dt)) {
       rd.phase = "line"; rd.t = 0;
       if (s.fuel < XFUSE_PRIMER) {   // just enough to reach the line, not to leave
         s.fuel = XFUSE_PRIMER;
@@ -1207,9 +1505,12 @@ function updateResupplySignal(dt) {
     }
   } else if (rd.phase === "line") {
     updateTransfusion(dt, rd);
-  } else {   // out
-    rd.y -= 260 * dt;
-    if (rd.t >= 1.2) resupplyDrone = null;
+  } else {   // out — fly home and dock back into MERCY (follow it if you like)
+    const m = mercyPos();
+    if (droneFlyTo(rd, m.mx, m.my + 34, dt)) {
+      resupplyDrone = null;
+      blip(300, 620, 0.2, "sine", 0.09);   // docked
+    }
   }
 }
 function updateTransfusion(dt, rd) {
