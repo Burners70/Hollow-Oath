@@ -696,13 +696,13 @@ const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 
 const BRIEFS = [
-  "MERCY ACTUAL to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
+  "MERCY to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
   "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
-  "Last leg before the ridge. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
   "Triangulation complete. The source of the Static is below the nullwave ridge.\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
 ];
 
@@ -2468,12 +2468,12 @@ function revealSecret(sc, viaFire) {
     staticTick();
     addText(sc.x, sc.y - 56,
       (viaFire ? "LURE-TREE DESTROYED" : "LURE-TREE READ FOR WHAT IT IS") +
-      " — GLYCON TRANSMITTER +500", "#c6ff00");
+      " — COUNTERFEIT TRANSMITTER +500", "#c6ff00");
   } else {
     score += 400;
     explode(sc.x, sc.y - 8, "#ffc400", 20);
     level.pods.push({ x: sc.x, y: sc.y, taken: false, ph: Math.random() * 7 });
-    addText(sc.x, sc.y - 44, "HIDDEN CACHE +400 — stashed away from the serpent", "#ffc400");
+    addText(sc.x, sc.y - 44, "HIDDEN CACHE +400 — someone didn't want this found", "#ffc400");
     blip(400, 1200, 0.3, "sine", 0.12);
   }
 }
@@ -2658,7 +2658,7 @@ function updatePods() {
       p.taken = true;
       s.fuel = Math.max(0, s.fuel - 18);
       score = Math.max(0, score - 100);
-      addText(p.x, p.y - 30, "COUNTERFEIT — GLYCON'S LURE  -100", "#c6ff00");
+      addText(p.x, p.y - 30, "COUNTERFEIT — SOMEBODY'S LURE  -100", "#c6ff00");
       addText(p.x, p.y - 46, "FUEL DRAINED -18", "#ff4081");
       staticTick();
       explode(p.x, p.y - 8, "#c6ff00", 14);
@@ -2942,7 +2942,7 @@ function updateDecoy(dt) {
       banner("COUNTERFEIT — THE BAY IS A MOUTH  -200", "#c6ff00");
       staticTick(); dullThud();
       explode(f.x, f.y + 40, "#c6ff00", 30);
-      showCard({ kicker: "GLYCON · THE THIRD ACT · -200", title: "THE BAY IS A MOUTH", subtitle: "",
+      showCard({ kicker: "THE THIRD ACT · -200", title: "THE BAY IS A MOUTH", subtitle: "",
         body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
         color: "#c6ff00" });
     }

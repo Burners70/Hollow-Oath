@@ -89,15 +89,16 @@ Pending copy decisions that will touch lines below:
 
 ## 4. Sector briefings (`BRIEFS[0..7]`)
 
-0. **ASCLEPION** — "MERCY ACTUAL to rescue flight. / Routine tasking: the
+0. **ASCLEPION** — "MERCY to rescue flight. / Routine tasking: the
    convoy scatter left medical units stranded across Asclepion. Land near
    them, bring them home to the recovery bay. / The approach guide turns green
    when it's safe to set down — watch your ↓ descent and ↔ drift. / End
    transmission."
 1. **VESALIUS RIDGE** — "Captain — some stranded units on the ridge have
-   stopped answering triage pings. / If a rescue feels wrong — the wave wrong,
-   the heartbeat missing — trust your instincts. The red quarantine bay is
-   open. Do NOT bring contaminated units into the recovery bay."
+   stopped answering triage pings. Comms has a name for them now: Vectors.
+   Carriers, not survivors. / If a rescue feels wrong — the wave wrong, the
+   heartbeat missing — trust your instincts. The red quarantine bay is open.
+   Do NOT bring contaminated units into the recovery bay."
 2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin. Visibility near
    zero. / Your lamp is your lifeline — and theirs. Listen for them in the
    dark." [T6 — rewrite pending; draft: *"Dust occlusion across the basin —
@@ -118,7 +119,7 @@ Pending copy decisions that will touch lines below:
    fire; the fakes keep perfect time. Trust nothing that looks too convenient.
    / And if you won't fire on a lie — land beside it and look at it long
    enough."
-6. **JENNER TERRACES** — "Last leg before the ridge. The counterfeiter has a
+6. **JENNER TERRACES** — "Last leg before the nullwave. The counterfeiter has a
    mark now — ground crews found the same coiled serpent stamped on every lure
    and every tampered unit. / Archive is still matching it. Whoever wears that
    mask has been rewriting rescue into ruin for a long time. Bring our people
@@ -229,8 +230,10 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 
 `SHIP FULL` · `SCION ABOARD +500` · `◇ CARRYING DATA` · `DELIVERED +300` ·
 `LOG FRAGMENT RECOVERED` · `CONTAMINANT CONTAINED +750` · `FUEL +35` ·
-`COUNTERFEIT — GLYCON'S LURE  -100` · `FUEL DRAINED -18` ·
-`HIDDEN CACHE +400 — stashed away from the serpent` · `SHIELD BOUNCE` ·
+`COUNTERFEIT — SOMEBODY'S LURE  -100` · `FUEL DRAINED -18` ·
+`LURE-TREE DESTROYED` / `LURE-TREE READ FOR WHAT IT IS — COUNTERFEIT
+TRANSMITTER +500` ·
+`HIDDEN CACHE +400 — someone didn't want this found` · `SHIELD BOUNCE` ·
 `SHIELD HELD` · `HARD LANDING -<n>` · `-40` / `-26` (hit damage) ·
 `+250` / `+150` (turret / drone) · `FUEL LINE CUT` [S7 promotes] ·
 `PASSENGER KILLED BY VECTOR` [S7 promotes to banner; draft: `A
@@ -247,7 +250,7 @@ PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at
   least 3 of 7 to triangulate the source."
 - **Log fragment (sector clear)** — kicker `LOG FRAGMENT RECOVERED`.
-- **Counterfeit MERCY, docked (the trap)** — kicker `GLYCON · THE THIRD ACT ·
+- **Counterfeit MERCY, docked (the trap)** — kicker `THE THIRD ACT ·
   -200`, title `THE BAY IS A MOUTH`: "No healing. No fuel. A hull with
   nothing inside but appetite — wearing the one shape you stopped checking. /
   He built a better lure this time. He built the thing you trust."
