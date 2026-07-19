@@ -192,6 +192,18 @@ homes for future relics if Bundle P grows (hook noted, not specced).
 **Completion:** entering all six Hollows in one run = **EVERY HOLLOW
 HEARD** (+1500, Game Center achievement id for the G3 list).
 
+> **Owner direction (July 2026 feedback round — roadmap item S8):** THE WARD
+> also inherits the *missing-originals* thread. The Workshop shrine proves
+> the saboteurs were built, not corrupted — so the genuine Scions they
+> impersonate were never rescued and are still missing from MERCY's
+> manifest. Direction: beyond the fourteen cots, THE WARD holds **cells** —
+> the original units, alive, held where Glycon's copies were fitted to their
+> records — and they are recovered with **Bundle P's pendulum sling**
+> (slung out through roof and dark, the 1.1 skill given its 1.2 emotional
+> payload). The launch build seeds the question only (an ending line and a
+> locked `MANIFEST DISCREPANCY` codex row — see S8); integrate the cells
+> into §6/§7/§8 of this spec when Q is picked up.
+
 ## 7. Narrative delivery (draft copy, house voice)
 
 **Briefing seed** (one sentence, J4/N4 precedent) — BRIEFS[6] only; the

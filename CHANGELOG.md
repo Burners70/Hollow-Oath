@@ -1,5 +1,36 @@
 # Changelog
 
+## July 2026 owner-playtest feedback → Bundles R, S, T + the copy deck
+
+The owner's phone-playtest feedback structured into three new roadmap bundles
+in APP_STORE_ROADMAP.md, sequenced before Bundle O (submission):
+
+- **Bundle R — playtest fixes (blocks submission):** help-card overflow on
+  phone viewports, PAUSED/RESUME overlap + pause-state guards, shield-button
+  placement, a visible pause button, an explicit ▶ START NEW FLIGHT pill
+  (no more tap-anywhere), even title line spacing, codex spacing + clickable
+  codex entries (re-open reveal cards), bigger/longer-lived in-flight copy,
+  and a new saboteur-reveal colour (magenta — the old `#c6ff00` lime read as
+  famous-Scion gold).
+- **Bundle S — feel improvements (owner-requested for launch):** SFX
+  modernisation (the shot loses its 1982 square wave; the cabin fills with
+  per-passenger heartbeats — a saboteur is the silent slot in the chorus),
+  vitals-reactive ambience, cave echo + drips, the extraction endgame
+  reworked into a fly-into-the-ventral-hangar docking (plus the ≥50% "triage
+  call" early-extraction option at a cost), identified saboteurs may now be
+  flagged and left behind (catalogue scan), the VECTOR rename recommendation,
+  sabotage-legibility pass, and the "where are the original Scions?" 1.2
+  teaser (pays off in Bundle Q's THE WARD via Bundle P's pendulum).
+- **Bundle T — zone identity:** progressive sector widths (with fuel-economy
+  compensation), per-sector biome palettes threaded through the D4 terrain
+  tiles, per-biome ornamentation sets and ambient beds, staged nightfall on
+  Nightingale Basin (scarier intro, canon pairing preserved); destructible
+  scenery (T4) and weather systems (T5) specced as launch-stretch with a
+  pre-approved slip to 1.1.
+- **`COPY_DECK.md` (new):** every player-facing string, organised by surface
+  with code anchors, for owner line edits — plus a standing rule that any PR
+  touching a player-facing string updates the deck in the same PR.
+
 ## Game Center achievement art & App Store Connect copy (July 2026)
 
 The asset half of G3, ready to paste into App Store Connect
