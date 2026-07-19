@@ -910,6 +910,13 @@ feedback items that change how the game *feels* rather than how it looks.
     prove it."` Update HELP_CARD's "Listen to what boards" paragraph.
   - Tests: flagged saboteur + all real Scions delivered closes the manifest;
     unflagged sleeper blocks it; scan on a real Scion does not flag.
+  - **Owner steer (July 2026 playtest, shipped):** the free always-on scan felt
+    too powerful ("saboteurs will always be identified"). The scan is now
+    **earned by rescuing Semmelweis (ANTISEPSIS)** and **replaces** the passive
+    colour tint entirely — S7's magenta reveal-tint is gone; there is *no*
+    colour tell at all. `provenLeftBehind` counts only units you actively
+    catalogue (`o.flagged`), not a blanket ANTISEPSIS reveal. SEMMELWEIS's
+    `upgradeDesc` and the R9 test were updated to match.
 - [x] **S6. Rename the saboteurs → VECTORS (locked, owner decision, July
   2026).** The owner asked if "saboteur" should be "more redolent of
   medical misinformation"; **VECTOR** was the recommendation and is now

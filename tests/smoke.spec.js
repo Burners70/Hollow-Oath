@@ -683,21 +683,38 @@ test("R7: a codex mind is clickable and opens its reveal card", async ({ page })
   expect(s.state).toBe("codex");
 });
 
-test("R9: no colour tell leaks a saboteur before ANTISEPSIS", async ({ page }) => {
+test("R9/S5: a Vector is never given away by colour, even after ANTISEPSIS", async ({ page }) => {
   await page.evaluate(() => { __doids.go(0); __doids.launch(); });
-  // before the upgrade, a saboteur (mech) renders exactly like a true Scion
+  // a saboteur (mech) renders exactly like a true Scion — no colour tell
   let cols = await page.evaluate(() => ({
     mech: __doids.oidTint(true), scion: __doids.oidTint(false)
   }));
   expect(cols.mech).toBe(cols.scion);
   expect(cols.mech).toBe("#69f0ae");
-  // ANTISEPSIS earns the magenta reveal tint — distinct from the Scion green
+  // ANTISEPSIS grants the diagnostic SCAN, not a tint — colour parity still holds
   await page.evaluate(() => __doids.give("antisepsis"));
   cols = await page.evaluate(() => ({
     mech: __doids.oidTint(true), scion: __doids.oidTint(false)
   }));
-  expect(cols.mech).toBe("#ff5ce1");
-  expect(cols.mech).not.toBe(cols.scion);
+  expect(cols.mech).toBe(cols.scion);
+  expect(cols.mech).toBe("#69f0ae");
+});
+
+test("S5: the landed scan needs ANTISEPSIS — without it, a unit boards instead of scanning", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => { t.alive = false; });
+    level.drones.forEach(d => { d.alive = false; });
+    level.total = 99;
+    // no antisepsis: parking on a saboteur must NOT flag it (it boards instead)
+    upgrades.antisepsis = false;
+    level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
+      wave: 0, persona: "wave1", scale: 1, gait: 34, panicT: 0, sabT: 0, flagged: false, verified: false }];
+    ship.x = 600; ship.y = __doids.ground(600) - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false; ship.passengers = [];
+  });
+  // it boards (state leaves "wait"), and is NOT flagged
+  await page.waitForFunction(() => level.oids[0].state !== "wait", null, { timeout: 5000 });
+  expect(await page.evaluate(() => !!level.oids[0].flagged)).toBe(false);
 });
 
 test("S2: the ambience level rises as vitals fall", async ({ page }) => {
@@ -760,7 +777,7 @@ test("S5: a proven counterfeit may be left; an unproven sleeper blocks the manif
 });
 
 test("S5: the landed scan flags a counterfeit and verifies a real Scion without flagging it", async ({ page }) => {
-  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.give("antisepsis"); });
   await page.evaluate(() => {
     level.turrets.forEach(t => { t.alive = false; });
     level.drones.forEach(d => { d.alive = false; });
@@ -779,6 +796,39 @@ test("S5: the landed scan flags a counterfeit and verifies a real Scion without 
   });
   await page.waitForFunction(() => level.oids[0].verified === true, null, { timeout: 8000 });
   expect(await page.evaluate(() => !!level.oids[0].flagged)).toBe(false);
+});
+
+test("S5: destroying a PROVEN counterfeit is not malpractice; an unproven one still is", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  // a catalogued (flagged) Vector: shooting it neutralises it, no penalty
+  let before = await page.evaluate(() => {
+    level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
+      flagged: true, wave: 0, persona: "wave1", scale: 1 }];
+    level.lost = 0; level.contained = 0; runLost = 0;
+    const s = __doids.get().score;
+    killOid(level.oids[0], "shot"); level.oids[0].deathT = 1.35;
+    return s;
+  });
+  await page.waitForTimeout(150);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.runLost).toBe(0);
+  expect(s.level.lost).toBe(0);
+  expect(s.level.contained).toBe(1);   // neutralised, not a casualty
+  expect(s.score).toBe(before);        // no malpractice penalty
+  // an UNidentified unit shot is still malpractice — the risk you took
+  before = await page.evaluate(() => {
+    score = 1000;   // a buffer so the malpractice penalty is visible (not clamped at 0)
+    level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
+      flagged: false, wave: 0, persona: "wave1", scale: 1 }];
+    level.lost = 0; runLost = 0;
+    const sc = __doids.get().score;
+    killOid(level.oids[0], "shot"); level.oids[0].deathT = 1.35;
+    return sc;
+  });
+  await page.waitForTimeout(150);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.runLost).toBe(1);
+  expect(s.score).toBeLessThan(before);   // penalised
 });
 
 test("S4: manifest close opens the ventral hangar; bays go inert; the hover-hold clears the sector", async ({ page }) => {

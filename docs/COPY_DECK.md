@@ -27,7 +27,11 @@ Landed (July 2026, Bundle S):
   behind on <SECTOR>. The manifest remembers.` (see §4).
 - **S5:** BRIEFS[3] gains `Prove a unit false — the salvage teams will take it
   from there. But prove it.`; the scan reads `CATALOGUED — COUNTERFEIT +250` /
-  `VITALS VERIFIED — A HEARTBEAT`; HELP_CARD §3 updated.
+  `VITALS VERIFIED — A HEARTBEAT`; HELP_CARD §3 updated. **Owner steer (July
+  2026):** the scan is EARNED by rescuing Semmelweis (ANTISEPSIS) and replaces
+  the old colour-tint reveal — there is no passive colour tell, only the earned
+  active scan and its permanent `?` on a catalogued unit. SEMMELWEIS's
+  `upgradeDesc` rewritten accordingly.
 - **S7:** a Vector kill is now the banner `A PASSENGER IS DEAD — IT'S IN THE
   CABIN` (was a floating text).
 - **S9:** the HELP_CARD cabin-medic line landed in §3.

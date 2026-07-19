@@ -392,8 +392,18 @@ function drawWorld(now) {
   }
   ctx.globalAlpha = 1;
 
-  if (!ship.dead) drawShip(now);
-  if (!ship.dead && !ship.landed && state === "play") drawLandingGuide();
+  if (!ship.dead) {
+    // S4 — as MERCY captures the ship for the jump, fade it into her hull so it
+    // reads as becoming part of her, not a craft parked alongside
+    const dep = level.extraction && level.extraction.done;
+    if (dep) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.1, 1 - level.extraction.beatT / 0.5);
+      drawShip(now);
+      ctx.restore();
+    } else drawShip(now);
+  }
+  if (!ship.dead && !ship.landed && state === "play" && !(level.extraction && level.extraction.done)) drawLandingGuide();
   if (resupplyDrone) drawResupplyDrone(now);
 
   ctx.textAlign = "center";
@@ -750,7 +760,10 @@ function drawOid(o, now) {
   if (dying && o.deathType === "shot")
     ctx.rotate(-Math.min(1, o.deathT) * Math.PI / 2);      // keels over backward
   ctx.scale(sc, sc);
-  let tint = mech && upgrades.antisepsis ? PAL().REVEAL : "#69f0ae";
+  // S5 (owner steer, July 2026): a Vector is NEVER given away by colour — the
+  // reward for rescuing Semmelweis is the diagnostic SCAN, not a passive tint.
+  // Identification is the "?" mark below, earned by cataloguing the unit.
+  let tint = "#69f0ae";
   if (dying && o.deathType === "torched") tint = "#ff9e40";
   doidFigure({
     col: tint,
@@ -767,10 +780,9 @@ function drawOid(o, now) {
     particles.push({ x: o.x + (Math.random() - 0.5) * 10, y: o.y - 22,
       vx: (Math.random() - 0.5) * 12, vy: -26, t: 0.9, max: 1, color: "#ffd54f", size: 2 });
   }
-  // a permanent "?" over an identified counterfeit — from ANTISEPSIS's tint or
-  // from an S5 scan that catalogued it (so a pilot without the upgrade still
-  // gets the mark once they've proven it)
-  if (((mech && upgrades.antisepsis) || o.flagged) && !dying) {
+  // a permanent "?" over a counterfeit you have CATALOGUED with the S5 scan —
+  // the only identification cue, and only after you've earned and used the scan
+  if (o.flagged && !dying) {
     ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = PAL().REVEAL;
     ctx.fillText("?", o.x, o.y - hop - 36);
@@ -1181,9 +1193,10 @@ function drawTractorBeam(b, colorRGB, now, vertical, pull) {
 
 function drawMothership(now) {
   const { mx, my } = mercyPos();
-  const bob = Math.sin(now * 1.2) * 4;
+  // no idle bob: the hull, the bays and the ventral hangar all sit on the exact
+  // same mercyPos, so the hangar can never drift out of sync with the hull
   ctx.save();
-  ctx.translate(mx, my + bob);
+  ctx.translate(mx, my);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
@@ -1220,7 +1233,11 @@ function drawMothership(now) {
   // S4 — once the manifest closes MERCY retracts her bays and opens a ventral
   // hangar: the only way aboard is now to FLY into her and hold the hover.
   // (drawHangar self-manages its transform; the hull's save was already closed.)
-  if (level.extraction) { drawHangar(now, true); return; }
+  if (level.extraction) {
+    if (level.extraction.done && level.extraction.beatT > 0.55) drawJumpStreak(now);
+    drawHangar(now, true);
+    return;
+  }
 
   const bays = bayRects();
   ctx.save();
@@ -1251,21 +1268,28 @@ function drawHangar(now, active) {
   ctx.save();
   const col = active ? "255,196,0" : "0,229,255";
   const a = active ? 0.9 : 0.35;
-  // the slot
+  // the pocket: a wide, deep mouth under her hull — draw it roughly the size of
+  // the actual capture band so the player can see exactly where to hold
+  const top = h.cy - 26, bh = 78;
   ctx.strokeStyle = "rgba(" + col + "," + a + ")"; ctx.lineWidth = 2;
   ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = active ? 12 : 5;
-  ctx.strokeRect(h.x0, h.cy - 10, h.x1 - h.x0, 20);
-  // approach lights: a run of dashes converging on the slot, always readable
-  const n = 5;
+  ctx.strokeRect(h.x0, top, h.x1 - h.x0, bh);
+  // a faint fill so the mouth reads as an opening, not just an outline
+  ctx.globalAlpha = active ? 0.12 : 0.05;
+  ctx.fillStyle = "rgba(" + col + ",1)"; ctx.fillRect(h.x0, top, h.x1 - h.x0, bh);
+  ctx.globalAlpha = 1;
+  // approach lights: a run of dashes converging on the mouth, always readable
+  const n = 7;
   for (let i = 0; i < n; i++) {
     const ph = (now * 1.4 + i / n) % 1;
     ctx.globalAlpha = active ? (0.3 + 0.6 * ph) : 0.25;
     const lx = h.x0 + (i + 0.5) / n * (h.x1 - h.x0);
-    ctx.beginPath(); ctx.moveTo(lx, h.cy + 16); ctx.lineTo(lx, h.cy + 22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx, top + bh + 4); ctx.lineTo(lx, top + bh + 10); ctx.stroke();
   }
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-  // the hover-hold progress ring while you sit in the slot (in the air)
-  if (active && level.extraction && level.extraction.hold > 0) {
+  // the hover-hold progress ring while you sit in the slot (in the air) — gone
+  // the instant the hold completes and she captures you for the jump
+  if (active && level.extraction && level.extraction.hold > 0 && !level.extraction.done) {
     ctx.strokeStyle = "rgba(" + col + ",1)"; ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = 10;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -1277,6 +1301,35 @@ function drawHangar(now, active) {
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
   ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, h.cy + 34);
+  ctx.restore();
+}
+
+/* S4 — the jump: bright vertical light-streaks trailing under MERCY as she
+   accelerates off the top of the world, with a one-beat flash at ignition. */
+function drawJumpStreak(now) {
+  const { mx, my } = mercyPos();
+  const bt = level.extraction.beatT;
+  ctx.save();
+  // ignition flash — a quick brightening in the first ~0.2s of the jump
+  const flash = Math.max(0, 1 - (bt - 0.55) / 0.2);
+  if (flash > 0) {
+    const g = ctx.createRadialGradient(mx, my, 0, mx, my, 260);
+    g.addColorStop(0, "rgba(200,245,255," + (0.5 * flash).toFixed(2) + ")");
+    g.addColorStop(1, "rgba(200,245,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(mx - 260, my - 260, 520, 520);
+  }
+  ctx.strokeStyle = "rgba(180,240,255,.85)";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18; ctx.lineWidth = 2;
+  for (let i = 0; i < 7; i++) {
+    const dx = (i - 3) * 28;
+    ctx.globalAlpha = 0.45 + 0.55 * Math.random();
+    const len = 200 + Math.random() * 160;
+    ctx.beginPath();
+    ctx.moveTo(mx + dx, my + 20);
+    ctx.lineTo(mx + dx, my + 20 + len);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   ctx.restore();
 }
 
@@ -1494,7 +1547,7 @@ function drawHUD(now) {
     ctx.font = "800 14px Menlo, monospace";
     ctx.fillText("⚠ BREACH — RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
-  } else if (level.extraction && state === "play" && Math.sin(now * 5) > -0.3) {
+  } else if (level.extraction && !level.extraction.done && state === "play" && Math.sin(now * 5) > -0.3) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
     ctx.font = "800 13px Menlo, monospace";
@@ -2342,15 +2395,17 @@ function drawConfirm(now) {
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,196,0,.75)"; ctx.font = "700 11px Menlo, monospace";
-  ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.24);
+  ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.20);
   ctx.shadowColor = confirmCard.color; ctx.shadowBlur = 16;
   ctx.fillStyle = confirmCard.color;
   ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText(confirmCard.title, vw / 2, vh * 0.31);
+  ctx.fillText(confirmCard.title, vw / 2, vh * 0.27);
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "#dff8ff"; ctx.font = "600 13px Menlo, monospace";
-  const wrapped = wrapText(confirmCard.body, Math.min(560, vw * 0.82));
-  wrapped.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.38 + i * 20));
+  ctx.fillStyle = "#dff8ff"; ctx.font = "600 12px Menlo, monospace";
+  // the body already breaks at logical clause boundaries; wrap only guards a
+  // stray over-long line on a narrow phone
+  const wrapped = wrapText(confirmCard.body, Math.min(600, vw * 0.86));
+  wrapped.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.33 + i * 18));
   const labels = ["⚠ SIGNAL EARLY EXTRACTION", "RETURN TO THE SECTOR"];
   const cols = ["255,196,0", "0,229,255"];
   for (let i = 0; i < 2; i++) {
@@ -2534,10 +2589,11 @@ window.__doids = {
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
   go: toBriefing,
-  // R9 — the body tint a Scion renders with. A saboteur (mech) only differs
-  // from a true Scion once ANTISEPSIS is earned; before that no colour tell
-  // may leak (see S7). Exposed so a test can assert the parity.
-  oidTint: mech => mech && upgrades.antisepsis ? PAL().REVEAL : "#69f0ae",
+  // R9 / S5 (owner steer): a Vector is NEVER given away by colour — with or
+  // without ANTISEPSIS a saboteur (mech) renders exactly like a true Scion.
+  // Identification is the earned SCAN (the "?" over a catalogued unit), not a
+  // tint. Exposed so a test can assert the colour parity always holds.
+  oidTint: () => "#69f0ae",
   setStaticClock: v => { staticClock = v; },
   remix: startRemix,
   daily: startDaily,

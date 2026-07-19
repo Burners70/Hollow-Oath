@@ -207,6 +207,22 @@ function dullThud() { // what boards when there is no heartbeat
   o.connect(g); g.connect(sfxGain);
   o.start(); o.stop(AC.currentTime + d + 0.05);
 }
+/* S2 — the cardiac monitor beep. A short, dry blip whose PITCH lifts a little
+   and whose level grows as vitals fall; the RATE is driven by the caller, so
+   it audibly quickens the closer you are to death. Routed through sfxGain so it
+   reads as a diagnostic instrument alongside the ECG, not part of the score. */
+function vitalsBeep(urgency) { // urgency 0..1 (0 = healthy-ish, 1 = near death)
+  if (!AC) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = "sine"; o.frequency.value = 620 + 180 * urgency;
+  const vol = 0.05 + 0.07 * urgency;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+  o.connect(g); g.connect(sfxGain);
+  o.start(t); o.stop(t + 0.14);
+}
 function sabHiss() { // S7 — sabotage: a short caustic hiss (noise, highpassed)
   if (!AC) return;
   const dur = 0.3, sz = Math.floor(AC.sampleRate * dur);
@@ -238,7 +254,7 @@ let musicNoteT = 0, musicNoteNext = 9 + Math.random() * 6, musicArrhythmiaFlip =
 // S2 — the score becomes your monitor: a far-away alarm layer below 35% vitals,
 // and a level exposed for tests that rises as vitals fall.
 let alarmOsc = null, alarmTrem = null, alarmGain = null, alarmDuckT = 0;
-let vitalsAudioLevel = 0;
+let vitalsAudioLevel = 0, vitalsBeepT = 0;
 function startMusic() {
   if (!AC || !musicGain) return;
   droneOsc1 = AC.createOscillator(); droneOsc1.type = "sine"; droneOsc1.frequency.value = 55;
@@ -277,6 +293,18 @@ function updateVitalsAudio(dt) {
   const v = live ? clamp(ship.vitals / maxVitals(), 0, 1) : 1;
   vitalsAudioLevel = live ? 1 - v : 0;
   if (droneLfo) droneLfo.frequency.value = 0.05 + (0.22 - 0.05) * (1 - v);
+  // the cardiac monitor: below ~55% vitals a beep starts, and its RATE quickens
+  // as vitals fall — the "more frantic the closer to death" cue. Skips a beat
+  // while a real heartbeat/dull-thud tell is playing so those stay on top.
+  if (live && v < 0.55) {
+    const urgency = clamp(1 - v / 0.55, 0, 1);
+    const interval = 1.5 - 1.15 * urgency;   // ~1.5 s at 55% → ~0.35 s near death
+    vitalsBeepT += dt;
+    if (vitalsBeepT >= interval) {
+      vitalsBeepT = 0;
+      if (alarmDuckT <= 0) vitalsBeep(urgency);
+    }
+  } else vitalsBeepT = 0;
   const wantAlarm = (live && v < 0.35) ? 0.03 * (1 - v / 0.35) : 0;
   if (wantAlarm > 0) startAlarm();
   if (alarmGain) {

@@ -92,7 +92,7 @@ const FAMOUS = [
   { name: "IGNAZ SEMMELWEIS", era: "1818–1865",
     story: "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades.",
     upgrade: "antisepsis", upgradeName: "ANTISEPSIS",
-    upgradeDesc: "Vectors are now revealed by a sickly tint. You can see the contamination." },
+    upgradeDesc: "Land on a grounded unit and hold to read its vitals — catalogue a Vector, or confirm a heartbeat. A proven Vector can be left behind." },
   { name: "MARIE CURIE", era: "1867–1934",
     story: "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War.",
     upgrade: "radiosense", upgradeName: "RADIOSENSE",
@@ -486,15 +486,15 @@ function settingsRowRect(i) {
 }
 /* S4 — the early-extraction confirm has two rows: SIGNAL (0) and RETURN (1) */
 function confirmRowRect(i) {
-  const w = Math.min(300, vw * 0.7), h = 44, gap = 16;
-  const y0 = vh * 0.62;
+  const w = Math.min(300, vw * 0.7), h = 42, gap = 14;
+  const y0 = vh * 0.66;
   return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nSuspect a unit? Park right on top of it and hold still to read its vitals — a real Scion's heartbeat verifies and it boards; a proven counterfeit is catalogued and can be left where it lies. Land a step away instead to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on in SETTINGS.",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nRescue the right healer and you learn to read a grounded unit's vitals: park on it and hold to confirm a heartbeat, or catalogue a counterfeit and leave it where it lies. Land a step away to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on in SETTINGS.",
   color: "#00e5ff"
 };
 

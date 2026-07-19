@@ -205,11 +205,16 @@ ship in quickening pulses while you dock one last time.
   and kill passengers (a screen-edge red pulse + a full DANGER banner, S7);
   **sleepers** wait and slip into MERCY at delivery → timed breach (dock at
   the **red quarantine bay** within 45s or healing goes offline). Containing a
-  Vector in the red bay = +750. **You may leave what you can prove (S5)**: a
-  Vector identified by ANTISEPSIS's tint, or catalogued by a landed 4-second
-  scan (+250, works without the upgrade), may be left on the ground and still
-  close the manifest. Unproven sleepers must be carried, or the manifest stays
-  open.
+  Vector in the red bay = +750. **You may leave what you can prove (S5)**:
+  rescuing **Semmelweis (ANTISEPSIS)** grants a landed **diagnostic scan** —
+  park on a grounded unit and hold ~4s to catalogue a counterfeit (+250, marked
+  with a permanent "?", may be left behind and still close the manifest) or
+  confirm a real Scion's heartbeat. There is **no colour tell** — identification
+  is earned and active, never passive. Unproven units must be carried, or the
+  manifest stays open. Destroying a *proven* counterfeit is **not** malpractice
+  (a hollow chassis is not a patient — it neutralises with no penalty); shooting
+  an *unidentified* unit still costs you, because you couldn't know it wasn't
+  alive.
 - **Force field** (SHIELD, hold): drains fuel ~7/s; deflects turret fire,
   destroys drones harmlessly on contact, turns bad landings into bounces,
   and saves you from cave ceilings. It cannot come up while the transfusion
