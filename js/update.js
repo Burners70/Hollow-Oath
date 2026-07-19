@@ -1490,6 +1490,18 @@ function updatePods() {
      arrhythmic while a contaminant rides along, and the 41-second surge
      physically rocks the tethered ship (see updateStaticClock). */
 const SIGNAL_HOLD_T = 1.8;
+/* U-Hollows — MERCY's resupply signal never reaches the Hollows; the rock
+   swallows it. A ship stranded at zero fuel underground has one way out:
+   scuttle it. Holding THRUST this long fires the charge, and death handling
+   (which spits the wreck back to the surface) breaks the soft-lock. */
+const SCUTTLE_HOLD_T = 2.4;
+function scuttleShip() {
+  addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", "#ff4081");
+  banner("SCUTTLED IN THE HOLLOWS", "#ff4081");
+  blip(220, 40, 0.8, "sawtooth", 0.2);
+  haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 180, style: "heavy" }]);
+  shipDie();   // the wreck is spat back to the surface on respawn (see updateDead)
+}
 const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 130;
 /* U2 — field refuelling is a priced, diminishing lifeline, not a reward.
    XFUSE_COST is points charged per unit of fuel the line delivers; XFUSE_FLOOR
@@ -1520,6 +1532,18 @@ function tethered() {
 function updateResupplySignal(dt) {
   const s = ship;
   const stranded = s.landed && s.fuel <= 0 && !s.dead;
+  // In the Hollows there is no drone to call — SIGNAL NOT RECEIVED. Holding
+  // THRUST while stranded arms the scuttle charge instead (the only way out).
+  if (level.isCave) {
+    if (stranded && (input.thrust || pad.thrust)) {
+      s.scuttleT = (s.scuttleT || 0) + dt;
+      if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); }
+    } else {
+      s.scuttleT = Math.max(0, (s.scuttleT || 0) - dt * 2.5);
+    }
+    return;
+  }
+  s.scuttleT = 0;
   if (stranded && !resupplyDrone && (input.thrust || pad.thrust)) {
     s.signalT += dt;
     if (Math.random() < dt * 8) particles.push({
@@ -1653,15 +1677,20 @@ function updateLift(dt) {
     Math.abs(ship.x - L.x) < 46 && Math.abs((ship.y + SHIP_R) - L.y) < 24;
   if (!near) { L.holdT = 0; L.armed = true; L.rung = false; return; }
   // U1 — a distinct hollow ring the moment the ship first settles on the plate,
-  // before the hold-to-descend hint. Guarded so it fires once per touchdown and
-  // re-arms when the ship lifts off the pad (near goes false above).
-  if (!L.rung) { L.rung = true; ringHollow(); }
+  // with its "…RINGS HOLLOW" cue firing on the same beat (owner steer: the pad
+  // should ring AS you land, not a half-second later). Guarded so it fires once
+  // per touchdown and re-arms when the ship lifts off the pad (near went false).
+  if (!L.rung) {
+    L.rung = true;
+    ringHollow();
+    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
+    blip(180, 120, 0.3, "sine", 0.1);
+  }
   if (!L.armed) return;   // must lift off the pad once before it cycles again
   L.holdT += dt;
   if (L.holdT > 0.6 && !L.hinted) {
     L.hinted = true;
-    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
-    blip(180, 120, 0.3, "sine", 0.1);
+    addText(L.x, L.y - 60, "HOLD TO DESCEND", "#b388ff");
   }
   if (L.holdT >= 2.4 && !liftTransit) {
     startLiftTransit(level.isCave ? "up" : "down", L);

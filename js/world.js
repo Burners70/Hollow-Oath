@@ -809,14 +809,21 @@ function genLevel(n) {
     deco(rng() < 0.5 ? "wreckM" : "wreckS", 6, { lean: (rng() - 0.5) * 0.7 });
   // T3 — biome ornamentation. Decorative-first (collision is T4); each type is
   // authored per-sector in RECIPE[].scn so a landscape reads as its own place.
-  for (let i = 0; i < (sc.boulders || 0); i++) {   // VESALIUS — stacked boulders
+  for (let i = 0; i < (sc.boulders || 0); i++) {   // VESALIUS — angular half-buried rubble
     const stack = [];
-    const k = 2 + Math.floor(rng() * 3);
+    const k = 1 + Math.floor(rng() * 3);   // 1–3 chunks: lone boulders through low cairns
     let dy = 0;
     for (let b = 0; b < k; b++) {
-      const rr = Math.max(4, 10 + rng() * 7 - b * 1.6);
-      stack.push({ dx: (rng() - 0.5) * 7, dy, r: rr });
-      dy -= rr * 1.25;
+      const rr = Math.max(4, 11 + rng() * 7 - b * 2.2);
+      // an irregular chunk, not a sphere — jittered vertices like the rocks
+      const kv = 6 + Math.floor(rng() * 3), verts = [];
+      for (let v = 0; v < kv; v++) {
+        const a = (v / kv) * Math.PI * 2 + (rng() - 0.5) * 0.35;
+        const vr = rr * (0.72 + rng() * 0.5);
+        verts.push([Math.cos(a) * vr, Math.sin(a) * vr * 0.82]);
+      }
+      stack.push({ dx: (rng() - 0.5) * 6, dy, r: rr, verts });
+      dy -= rr * 1.4;   // seat each chunk higher, less overlap than the old snowman
     }
     deco("boulder", 2, { stack });
   }
@@ -928,6 +935,8 @@ function acctLevel() {   // sector accounting always lands on the surface level
 
 function enterCave(L) {
   L.holdT = 0; L.armed = false;
+  resupplyDrone = null;   // no signal follows you down — never leave one mid-flight in the rock
+  ship.scuttleT = 0;
   surfaceCtx = { level, x: ship.x, y: ship.y };
   level = genCave(L.cave);
   ship.x = level.lift.x; ship.y = groundAt(level.lift.x) - SHIP_R;
@@ -976,7 +985,7 @@ function spawnShip() {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
-    shield: false, signalT: 0
+    shield: false, signalT: 0, scuttleT: 0
   };
 }
 

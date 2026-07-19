@@ -489,7 +489,17 @@ function drawDarkness(now) {
     const amp = reducedFlash ? 0.15 : 0.3;
     lampS = (1 - amp) + amp * Math.abs(Math.sin(now * 22));
   }
-  if (!ship.dead) punch(ship.x, ship.y, lampRadius(), lampS);
+  if (!ship.dead) {
+    // T-Hollows / owner steer: underground the reveal reads as light spilling
+    // from the ship's three points (nose + engine corners), not one flat disc.
+    // Flo's lamp widens each pool; on the surface the single disc is unchanged.
+    if (level.isCave) {
+      const r = lampRadius() * 0.64;
+      for (const [px, py] of shipGlowPoints()) punch(px, py, r, lampS);
+    } else {
+      punch(ship.x, ship.y, lampRadius(), lampS);
+    }
+  }
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
   if (level.fakeMercy && !level.fakeMercy.dead)   // lit exactly like her (N1)
     punch(level.fakeMercy.x, level.fakeMercy.y + 40, 260, 0.9);
@@ -514,8 +524,25 @@ function drawDarkness(now) {
   ctx.drawImage(darkCanvas, 0, 0);
 }
 
+/* the ship's three light points in WORLD space — nose and the two engine
+   corners of the hull, rotated by heading. Used by the Hollows lamp reveal
+   (drawDarkness) and the visible glow that spills from them (drawShip). */
+function shipGlowPoints() {
+  const s = ship, c = Math.cos(s.ang), sn = Math.sin(s.ang);
+  const local = [[0, -11], [-8, 8], [8, 8]];
+  return local.map(([lx, ly]) => [s.x + lx * c - ly * sn, s.y + lx * sn + ly * c]);
+}
+
 function drawShip(now) {
   const s = ship;
+  // underground, warm cyan pools bloom from each of the ship's three points —
+  // Flo's lamp burns them brighter. Drawn under the hull so the reveal reads as
+  // light leaving the ship, not a ring around it.
+  if (level.isCave && !s.dead) {
+    const lamp = upgrades.lamp;
+    for (const [px, py] of shipGlowPoints())
+      drawGlow(px, py, lamp ? 27 : 18, "#00e5ff", lamp ? 0.5 : 0.32);
+  }
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.ang);
@@ -546,19 +573,33 @@ function drawShip(now) {
     ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
     ctx.shadowBlur = 0;
   }
-  // stranded at zero fuel — hold THRUST to call a resupply drone
+  // stranded at zero fuel — hold THRUST to call a resupply drone, except in the
+  // Hollows where no signal reaches you and THRUST arms the scuttle charge
   if (s.landed && s.fuel <= 0 && !s.dead && !resupplyDrone) {
     ctx.textAlign = "center";
     ctx.font = "700 10px Menlo, monospace";
-    ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 8;
-    ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
-    ctx.shadowBlur = 0;
-    if (s.signalT > 0) {
-      const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
-      ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
-      glowStroke("#ffc400", 2.4);
+    if (level.isCave) {
+      ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 8;
+      ctx.fillText("SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT", s.x, s.y - 52);
+      ctx.fillText("HOLD THRUST TO SCUTTLE", s.x, s.y - 40);
+      ctx.shadowBlur = 0;
+      if (s.scuttleT > 0) {
+        const p = clamp(s.scuttleT / SCUTTLE_HOLD_T, 0, 1);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - 68, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+        glowStroke("#ff4081", 2.4);
+      }
+    } else {
+      ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 8;
+      ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
+      ctx.shadowBlur = 0;
+      if (s.signalT > 0) {
+        const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
+        ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+        glowStroke("#ffc400", 2.4);
+      }
     }
   }
   // Curie's compass to the nearest unrecovered black box
@@ -788,7 +829,7 @@ function doidFigure(p) {
 function drawOid(o, now) {
   const mech = o.role === "saboteur";
   const t = now + o.wave * 3;
-  const sc = 1.2 * (o.scale || 1);
+  const sc = 1.0 * (o.scale || 1);   // owner steer: smaller on the ground, less toy-like
   const osc = f => mech ? Math.sign(Math.sin(t * f)) * 0.85 : Math.sin(t * f);
   const dying = o.state === "dying";
   const panic = o.state === "panic" || (dying && o.deathType === "torched");
@@ -914,8 +955,20 @@ function drawBoulder(sc, now) {
   ctx.translate(sc.x, sc.y);
   ctx.rotate(sc.tilt);
   ctx.scale(sc.s, sc.s);
+  // half-buried: clip away everything below the (rotated) ground line so the
+  // base sinks INTO the slope instead of being painted over it. +3 keeps a
+  // hair of overlap so there's no seam between rock and terrain.
+  ctx.beginPath(); ctx.rect(-60, -300, 120, 303); ctx.clip();
   for (const b of sc.stack) {
-    ctx.beginPath(); ctx.arc(b.dx, b.dy, b.r, 0, 7);
+    ctx.beginPath();
+    const vs = b.verts;
+    if (vs) {
+      ctx.moveTo(b.dx + vs[0][0], b.dy + vs[0][1]);
+      for (let i = 1; i < vs.length; i++) ctx.lineTo(b.dx + vs[i][0], b.dy + vs[i][1]);
+      ctx.closePath();
+    } else {
+      ctx.arc(b.dx, b.dy, b.r, 0, 7);   // legacy fallback
+    }
     ctx.fillStyle = "#1b0f06"; ctx.fill();
     glowStroke("rgba(224,151,90,.5)", 1.6);
   }
@@ -1766,10 +1819,18 @@ function drawHUD(now) {
   ctx.shadowBlur = 0;
 
   const tl = acctLevel();
+  // A Vector is not a Scion to be saved — once you've identified one (contained
+  // it in the red bay, or scanned-and-flagged it to leave on the ground) it
+  // drops out of the "to save" denominator, so the tally counts genuine
+  // survivors, not MERCY's opening headcount: 5/6 with one contained reads 5/5.
+  let vectorsKnown = tl.contained;
+  for (const o of tl.oids)
+    if (o.role === "saboteur" && o.state === "wait" && o.flagged) vectorsKnown++;
+  const savable = Math.max(tl.delivered, tl.total - vectorsKnown);
   ctx.textAlign = "left";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
-  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + tl.total;
+  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + savable;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
   if (tl.lost > 0) {
