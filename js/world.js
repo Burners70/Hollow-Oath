@@ -430,6 +430,11 @@ function storyRect() {
   const h = helpRect();
   return { x: h.x, y: h.y + 42, w: 150, h: 34 };
 }
+/* U3 — the HUD-legend pill, stacked under STORY in the right-hand column */
+function legendRect() {
+  const h = helpRect();
+  return { x: h.x, y: h.y + 84, w: 150, h: 34 };
+}
 /* the three lower title pills are laid out from one place so they can
    never collide (on phone-height viewports they used to overlap — and the
    old remix/daily-first hit order could burn the daily attempt on a tap
@@ -472,6 +477,14 @@ function pauseRowRect(i) {
   const y0 = vh / 2 - totalH / 2;
   return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
+/* U3 — a compact link under the four pause rows into the HUD legend. Kept as a
+   secondary strip (not a fifth full row) so the pause stack still fits a
+   320-high landscape viewport without the heading clipping. */
+function pauseLegendRect() {
+  const w = Math.min(260, vw * 0.6), h = 26;
+  const last = pauseRowRect(3);
+  return { x: vw / 2 - w / 2, y: Math.min(last.y + last.h + 12, vh - h - 8), w, h };
+}
 /* two-column grid so all ten rows fit even a 320-high landscape viewport
    (the old single column of 8 already clipped its hints at vh ≤ 375, and
    REDUCED FLASH + RESET PROGRESS would have run right off the screen). */
@@ -495,6 +508,16 @@ const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y +
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
   body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nRescue the right healer and you learn to read a grounded unit's vitals: park on it and hold to confirm a heartbeat, or catalogue a counterfeit and leave it where it lies. Land a step away to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on in SETTINGS.",
+  color: "#00e5ff"
+};
+
+/* U3 — HELP_CARD teaches the controls but never names the on-screen readouts.
+   This companion card labels every HUD element so a new player can tell the
+   FUEL bar from the ECG. Reached from the title (beside HOW TO FLY) and from
+   the PAUSE screen; paginates via drawCardPanel like the flight manual. */
+const LEGEND_CARD = {
+  kicker: "THE HEADS-UP DISPLAY", title: "WHAT YOU'RE LOOKING AT", subtitle: "every readout, named",
+  body: "TOP-LEFT · FUEL — the yellow bar. THRUST and SHIELD both burn it. Empty and you're stranded until you signal for a resupply line.\n\nTOP-RIGHT · VITALS — your heartbeat drawn as a live ECG. It quickens and reddens as you fail; a stutter (arrhythmia) means something wrong is aboard.\n\nTOP-CENTRE · SCORE — with the sector name, ♥ lives and ◈ black boxes found.\n\n❚❚ PAUSE — the button just left of the ECG. Tap it, or press ESC / P (gamepad START), to pause.\n\nBOTTOM BUTTONS · THRUST · FIRE · SHIELD — thrust burns fuel; FIRE shoots, but firing is malpractice and costs you; hold SHIELD for a force field.\n\nLANDING GUIDE — the chevrons under the ship on approach: ↓ is your descent rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe.\n\nTHE STATIC CLOCK — from the deep sectors on, a countdown to the 41-second surge: the ECG jumps, the sector name corrupts, a caught fuel line rocks. Brace or land before it fires.",
   color: "#00e5ff"
 };
 

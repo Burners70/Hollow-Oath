@@ -51,7 +51,7 @@ Landed (July 2026, Bundle S):
 | Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5) |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
-| Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |
+| Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `◎ HUD GUIDE` (U3) · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |
 
 ## 2. Intro panels (`INTRO`, 5 panels; skippable, replayable via ▸ STORY)
 
@@ -108,6 +108,36 @@ Landed (July 2026, Bundle S):
 On a short landscape phone this card paginates (R1): the footer reads
 `<page>/<pages> · tap for more` and, on the last page, `<page>/<pages> · tap to
 continue`. Short cards show a single `tap to continue` as before.
+
+### 3a. WHAT YOU'RE LOOKING AT card (`LEGEND_CARD`, U3)
+
+A companion to HOW TO FLY that names the on-screen readouts. Reached from the
+title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
+(`◎ WHAT YOU'RE LOOKING AT` link). Paginates via the same R1 footer.
+
+> kicker `THE HEADS-UP DISPLAY` · title `WHAT YOU'RE LOOKING AT` · subtitle
+> `every readout, named`
+>
+> TOP-LEFT · FUEL — the yellow bar. THRUST and SHIELD both burn it. Empty and
+> you're stranded until you signal for a resupply line.
+>
+> TOP-RIGHT · VITALS — your heartbeat drawn as a live ECG. It quickens and
+> reddens as you fail; a stutter (arrhythmia) means something wrong is aboard.
+>
+> TOP-CENTRE · SCORE — with the sector name, ♥ lives and ◈ black boxes found.
+>
+> ❚❚ PAUSE — the button just left of the ECG. Tap it, or press ESC / P (gamepad
+> START), to pause.
+>
+> BOTTOM BUTTONS · THRUST · FIRE · SHIELD — thrust burns fuel; FIRE shoots, but
+> firing is malpractice and costs you; hold SHIELD for a force field.
+>
+> LANDING GUIDE — the chevrons under the ship on approach: ↓ is your descent
+> rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe.
+>
+> THE STATIC CLOCK — from the deep sectors on, a countdown to the 41-second
+> surge: the ECG jumps, the sector name corrupts, a caught fuel line rocks.
+> Brace or land before it fires.
 
 ## 4. Sector briefings (`BRIEFS[0..7]`)
 
@@ -323,7 +353,8 @@ PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
 ## 12. Menus & system UI
 
 - **Pause** (`drawPause`): `PAUSED` · `RESUME` · `RESTART SECTOR` ·
-  `SETTINGS` · `QUIT TO TITLE`.
+  `SETTINGS` · `QUIT TO TITLE` · `◎ WHAT YOU'RE LOOKING AT` (link into the HUD
+  legend, U3).
 - **Settings** (`drawSettings`): `SETTINGS` · rows `SOUND / MUSIC / HAPTICS /
   ASSIST / TILT / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
   · `RESET PROGRESS` → `TAP AGAIN TO WIPE` · footers "field medic: gentler, 5

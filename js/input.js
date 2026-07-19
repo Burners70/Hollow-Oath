@@ -188,6 +188,7 @@ window.addEventListener("keydown", e => {
     // pause is only ever entered from a live run, so it can't leak in here
     else if (e.key === "Escape") {
       if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+      else if (state === "legend") { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
       else if (state === "codex") {
         if (codexCard) codexCard = null; else { state = "title"; stateT = 0.7; }
       } else if (state === "settings") {

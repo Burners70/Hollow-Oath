@@ -1178,7 +1178,7 @@ pause button a second player independently failed to find. All web-side; keep th
 smoke suite green. **Priority: before O, alongside R/S. Dependencies: U4 sits on
 top of R4/R2 (don't double-implement); U3 pairs well with R1's card pagination.**
 
-- [ ] **U1. "Rings hollow" sound when you land on a lift pad.** The pad already
+- [x] **U1. "Rings hollow" sound when you land on a lift pad.** The pad already
   *reads* hollow — `updateLift()` (`js/update.js:1257`) floats
   `"THE PAD RINGS HOLLOW…"` and plays a tiny `blip(180, 120, 0.3, "sine", 0.1)`,
   but only after a 0.6 s hold, and there is no distinct cue at the moment the ship
@@ -1214,7 +1214,7 @@ top of R4/R2 (don't double-implement); U3 pairs well with R1's card pagination.*
   `GAME_DESIGN.md` (scoring) + `COPY_DECK.md` before implementing.** Check the
   interaction with S4's endgame docking and the RATIONED TANK daily mod
   (`js/world.js:361`) so a hard mod plus the new penalty can't soft-lock a run.
-- [ ] **U3. Play-screen explainer — a legend for the HUD.** `HELP_CARD`
+- [x] **U3. Play-screen explainer — a legend for the HUD.** `HELP_CARD`
   (`js/world.js:472`) teaches the controls but never names the on-screen readouts,
   so a new player can't tell the FUEL bar from the ECG. Add a "WHAT YOU'RE LOOKING
   AT" explainer — either a second page of `HELP_CARD` (using R1's pagination) or a
@@ -1227,7 +1227,7 @@ top of R4/R2 (don't double-implement); U3 pairs well with R1's card pagination.*
   `drawCardPanel`. Reach it from the title (beside HOW TO FLY / `helpRect()`) and
   from the PAUSE screen. Keep all copy in `COPY_DECK.md`. Test at 568×320 that it
   paginates/fits within the viewport (same constraint as R1).
-- [ ] **U4. Pause button is still hard to find / overlaps other content.** This is
+- [x] **U4. Pause button is still hard to find / overlaps other content.** This is
   the same defect **R4** ("pause button effectively invisible") and **R2** ("PAUSED
   overlaps RESUME") already target — filed here because a *second* playtester
   independently missed it, confirming the fix is needed. `pauseRect()` is still

@@ -405,6 +405,14 @@ function update(dt) {
         } else { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
       }
       input.tap = false; return;
+    case "legend":
+      // U3 — page through the HUD legend, then return where it was opened from
+      if (input.tap && stateT > 0.4) {
+        if ((LEGEND_CARD.pages || 1) > 1 && (LEGEND_CARD.page || 0) < LEGEND_CARD.pages - 1) {
+          LEGEND_CARD.page++; blip(440, 550, 0.06, "sine", 0.06);
+        } else { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
+      }
+      input.tap = false; return;
     case "codex": updateCodex(); return;
     case "brief": updateBrief(dt); return;
     case "reveal":
@@ -491,6 +499,9 @@ function updateMenu() {
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
       state = "help"; stateT = 0; HELP_CARD.page = 0;
+      blip(440, 660, 0.1, "sine", 0.08);
+    } else if (state === "title" && inRect(legendRect(), input.tapX, input.tapY)) {
+      state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "title";
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
       state = "codex"; stateT = 0;
@@ -613,9 +624,14 @@ function updatePause() {
       settingsReturnState = "pause"; state = "settings"; stateT = 0;
     }
     else if (inRect(pauseRowRect(3), input.tapX, input.tapY)) { snapshotRun(); state = "title"; stateT = 0; }
+    else if (inRect(pauseLegendRect(), input.tapX, input.tapY)) {
+      state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "pause";
+      blip(440, 660, 0.1, "sine", 0.08);
+    }
   }
   input.tap = false;
 }
+let legendReturnState = "title";
 
 /* wipe run progress, codex and saves — but keep the player's chosen prefs
    (audio/assist/difficulty). Double-tap-to-confirm on the settings row. */
@@ -1607,7 +1623,11 @@ function updateLift(dt) {
   if (mercyBreach || level.extraction) { L.holdT = 0; return; }
   const near = ship.landed && !ship.dead &&
     Math.abs(ship.x - L.x) < 46 && Math.abs((ship.y + SHIP_R) - L.y) < 24;
-  if (!near) { L.holdT = 0; L.armed = true; return; }
+  if (!near) { L.holdT = 0; L.armed = true; L.rung = false; return; }
+  // U1 — a distinct hollow ring the moment the ship first settles on the plate,
+  // before the hold-to-descend hint. Guarded so it fires once per touchdown and
+  // re-arms when the ship lifts off the pad (near goes false above).
+  if (!L.rung) { L.rung = true; ringHollow(); }
   if (!L.armed) return;   // must lift off the pad once before it cycles again
   L.holdT += dt;
   if (L.holdT > 0.6 && !L.hinted) {

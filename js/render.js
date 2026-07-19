@@ -73,6 +73,7 @@ function render() {
 
   if (state === "title") drawTitle(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
+  if (state === "legend") drawCardPanel(LEGEND_CARD, now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
@@ -1720,15 +1721,30 @@ function drawHUD(now) {
   drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
 
   if (state === "play") {
-    const pr = pauseRect();
-    ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(pr.x, pr.y, pr.w, pr.h);
-    ctx.fillStyle = "rgba(180,240,255,.85)";
-    ctx.font = "700 14px Menlo, monospace";
+    // U4 — a second playtester independently missed the pause button, so the R4
+    // stroked box is escalated to a filled, higher-contrast pill. pauseRect()
+    // already clears the score readout and the FUEL/ECG bars at a 320-high
+    // viewport (it sits 6px left of the ECG bar); this is purely a visibility
+    // bump — a rounded fill + bright stroke reads as a real button.
+    const pr = pauseRect(), rr = 7;
+    ctx.save();
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(pr.x + rr, pr.y);
+    ctx.arcTo(pr.x + pr.w, pr.y, pr.x + pr.w, pr.y + pr.h, rr);
+    ctx.arcTo(pr.x + pr.w, pr.y + pr.h, pr.x, pr.y + pr.h, rr);
+    ctx.arcTo(pr.x, pr.y + pr.h, pr.x, pr.y, rr);
+    ctx.arcTo(pr.x, pr.y, pr.x + pr.w, pr.y, rr);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(0,120,150,.6)";
+    ctx.strokeStyle = "rgba(130,242,255,.95)"; ctx.lineWidth = 2;
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#eaffff";
+    ctx.font = "700 15px Menlo, monospace";
     ctx.textAlign = "center";
     ctx.fillText("❚❚", pr.x + pr.w / 2, pr.y + pr.h / 2 + 6);
-    ctx.shadowBlur = 0;
+    ctx.restore();
   }
 
   ctx.textAlign = "center";
@@ -1923,6 +1939,16 @@ function drawTitle(now) {
   ctx.strokeRect(str.x, str.y, str.w, str.h);
   ctx.fillStyle = "rgba(255,255,255,.55)";
   ctx.fillText("▸ STORY", str.x + str.w / 2, str.y + 22);
+
+  // U3 — the HUD-legend pill, beside HOW TO FLY
+  const lr = legendRect();
+  ctx.strokeStyle = "rgba(0,229,255,.7)";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+  ctx.strokeRect(lr.x, lr.y, lr.w, lr.h);
+  ctx.fillStyle = "#7fe9ff";
+  ctx.font = "700 12px Menlo, monospace";
+  ctx.fillText("◎ HUD GUIDE", lr.x + lr.w / 2, lr.y + 22);
+  ctx.shadowBlur = 0;
 
   // codex pill — minds recovered + the signal archive, across all runs (K3)
   const cr = codexRect();
@@ -2612,6 +2638,11 @@ function drawPause(now) {
     ctx.fillText(labels[i], vw / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
+  // U3 — a compact link into the HUD legend
+  const lg = pauseLegendRect();
+  ctx.fillStyle = "rgba(155,234,249,.7)";
+  ctx.font = "600 12px Menlo, monospace";
+  ctx.fillText("◎ WHAT YOU'RE LOOKING AT", vw / 2, lg.y + lg.h / 2 + 4);
 }
 
 /* S4.5 — the early-extraction confirm: a two-choice card over the frozen world */
@@ -2812,7 +2843,8 @@ window.__doids = {
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
-    rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect() },
+    rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect(),
+      help: helpRect(), legend: legendRect(), pauseLegend: pauseLegendRect() },
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     darkAlpha: level && level.darkAlpha, nightFell: level && !!level.nightFell,   // T6
     gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
