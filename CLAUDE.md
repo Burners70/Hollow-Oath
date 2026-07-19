@@ -86,7 +86,7 @@ doc only when the task touches it:
 ## Workflow
 
 - **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. Pages deploys from `main`, so a merge to `main` is a live release.
-- **Tests:** Playwright smoke tests in `tests/` (`tests/smoke.spec.js`) load `index.html`. Run with `cd tests && npm ci && npx playwright test`. Chromium is preinstalled — don't run `playwright install`.
+- **Tests:** Playwright smoke tests in `tests/` (`tests/smoke.spec.js`) load `index.html`. Run with `cd tests && npm ci && npx playwright test`. Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
 - **Assets:** icons/manifest at root (`icon-*.png`, `manifest.webmanifest`, `apple-touch-icon.png`); art in `assets/`.
 
