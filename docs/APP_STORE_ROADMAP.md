@@ -650,7 +650,7 @@ optional: a reviewer holding an iPhone hits every one of these inside five
 minutes. **Priority: before O. Dependencies: none (all web-side; keep the
 smoke suite green).**
 
-- [ ] **R1. HOW TO FLY card overflows the phone screen.** `drawCardPanel()`
+- [x] **R1. HOW TO FLY card overflows the phone screen.** `drawCardPanel()`
   computes `h = 86 + titleH + bodyLines.length * bodyLH` and only clamps the
   *top* (`y = Math.max(20, (vh - h) / 2)`) — with `HELP_CARD`'s six-paragraph
   body the card runs straight off the bottom of a landscape iPhone (vh ≈ 375),
@@ -665,7 +665,7 @@ smoke suite green).**
   `"reveal"` branch of `update()` must check "more pages?" before closing.
   Test: at a 568×320 viewport, walk every page of the help card via
   `__doids` and assert the footer line's y stays `< vh`.
-- [ ] **R2. Pause screen: PAUSED overlaps the RESUME row on short viewports.**
+- [x] **R2. Pause screen: PAUSED overlaps the RESUME row on short viewports.**
   `drawPause()` draws PAUSED at `vh * 0.28`, but `pauseRowRect(0)` starts at
   `vh / 2 - 101` — at vh ≤ 420 the heading lands inside the first button.
   Derive the heading position from the rows instead:
@@ -679,7 +679,7 @@ smoke suite green).**
   and `"settings"` it should behave like tapping outside (return to
   `settingsReturnState` / title). Add a smoke assertion: from `"title"` and
   `"help"`, sending Escape/`p` never yields `state === "pause"`.
-- [ ] **R3. Shield button is still too far from FIRE/THRUST.** In the CSS,
+- [x] **R3. Shield button is still too far from FIRE/THRUST.** In the CSS,
   `#btnShield` sits at `right: 64px / bottom: 116px` — its centre is ~98 px
   from FIRE's centre, a full thumb-stretch. Tighten the right-hand cluster
   into an arc around the resting thumb: move SHIELD to
@@ -691,7 +691,7 @@ smoke suite green).**
   rolling the thumb between buttons should transfer instantly. Verify no
   rect+margin overlap makes a button unreachable; screenshot at iPhone SE and
   Pro Max landscape sizes.
-- [ ] **R4. Pause button on the game screen is effectively invisible.** It
+- [x] **R4. Pause button on the game screen is effectively invisible.** It
   exists — `pauseRect()` is 36×18 px at top-centre, stroked at 0.35 alpha,
   directly *under the score readout* — and the owner never saw it. Make it a
   real button: at least 44×30 px (Apple HIG minimum tap target), moved out of
@@ -701,7 +701,7 @@ smoke suite green).**
   the case) and update `pauseRect()` so draw and hit-test stay one source of
   truth. Also honour it during `mercyBreach` and extraction (it already does —
   don't regress).
-- [ ] **R5. Explicit START NEW FLIGHT button on the title.** Tap-anywhere
+- [x] **R5. Explicit START NEW FLIGHT button on the title.** Tap-anywhere
   currently starts a run (`updateMenu()`'s final `else` branch) — the owner
   finds it annoying, and it eats taps meant for pills. Add a
   `startRect()` pill (pattern: `resumeRect()`; centred, `y: vh * 0.63`, width
@@ -714,12 +714,12 @@ smoke suite green).**
   CONTINUE). `"gameover"`/`"win"` keep their existing behaviour. Nudge the
   RESUME pill (when present) directly above START so the two read as a stack:
   resume-first for a checkpointed run, start-new below it.
-- [ ] **R6. Title screen line spacing is uneven.** The three subtitle lines
+- [x] **R6. Title screen line spacing is uneven.** The three subtitle lines
   sit at `vh * 0.40` (cyan), `0.48` (green), `0.54` (yellow) — the yellow line
   is visibly closer to the green than the green is to the cyan. Even them out:
   `0.40 / 0.47 / 0.54`. Check the controller-connected line (`vh * 0.60`) and
   the new START pill (R5) still clear each other on a 320-high viewport.
-- [ ] **R7. Codex: fix cramped line spacing and make entries clickable.**
+- [x] **R7. Codex: fix cramped line spacing and make entries clickable.**
   Two changes in the MINDS tab (`drawCodexMinds`):
   1. *Spacing.* `rowH = Math.min(46, (p.h - 118) / FAMOUS.length)` collapses to
      ~21 px on a 375-high viewport — the era line ("c. 460–370 BC") prints
@@ -740,7 +740,7 @@ smoke suite green).**
      `‹` / `›` arrow rects in the panel's bottom corners and hit-test the four
      entry slots. Update the footer hint copy. Smoke test: open codex, tap a
      found mind, assert a card is showing; tap again, assert back to codex.
-- [ ] **R8. In-flight copy is too small and vanishes too fast.** Banners
+- [x] **R8. In-flight copy is too small and vanishes too fast.** Banners
   (`banner()`, drawn at 22 px for `t: 2.6` s) and floating texts (`addText()`,
   `t: 1.6` s) both under-serve a phone at arm's length. Change: banner font to
   `Math.min(26, vw * 0.05)` px and default life `4.2` s (keep the existing
@@ -750,7 +750,7 @@ smoke suite green).**
   `bodyFontPx` from `base` to `base + 1`, keeping the BIG TEXT +2 on top).
   Re-check the longest banner ("MANIFEST CLOSED…") wraps/fits at 320 vh, and
   that `drawBrief`'s TAP TO LAUNCH line still clears the brief text.
-- [ ] **R9. Saboteur reveal colour reads as famous-Scion gold.** The normal
+- [x] **R9. Saboteur reveal colour reads as famous-Scion gold.** The normal
   palette's `REVEAL` is `#c6ff00` (yellow-lime) — at a glance it is too close
   to the famous gold shimmer (`#ffd54f`), muddling the game's two most
   important colour meanings ("extraordinary — protect" vs "counterfeit —
@@ -765,7 +765,7 @@ smoke suite green).**
   that a saboteur with `!upgrades.antisepsis` renders with the *same* body
   colour as a normal Scion — no colour tell may leak before the upgrade
   (see S7).
-- [ ] **R10. The copy deck.** All player-facing copy now lives, organised and
+- [x] **R10. The copy deck.** All player-facing copy now lives, organised and
   code-anchored, in [COPY_DECK.md](COPY_DECK.md) for owner review and line
   edits. Treat it as a review surface, not a source of truth: when the owner
   returns edits, apply them to `index.html` and re-sync the deck. Add a line
