@@ -84,6 +84,8 @@ function render() {
   if (state === "gameover") drawGameOver(now);
   if (state === "win") drawWin();
 
+  if (resupplyDrone && (state === "play" || state === "dead")) drawDroneMarker(now);
+
   if (bannerMsg && (state === "play" || state === "dead")) {
     ctx.textAlign = "center";
     ctx.font = "800 22px 'Helvetica Neue', Arial, sans-serif";
@@ -401,8 +403,10 @@ function drawWorld(now) {
     if (framed) {
       const h = hangarRect();
       ctx.save();
-      ctx.beginPath(); ctx.rect(h.x0, h.cy - 22, h.x1 - h.x0, 640); ctx.clip();
-      if (ext.done) ctx.globalAlpha = Math.max(0.12, 1 - ext.beatT / 0.5);
+      ctx.beginPath(); ctx.rect(h.x0, h.top, h.x1 - h.x0, 640); ctx.clip();
+      // fully gone before the doors finish shutting, so nothing lingers when the
+      // bay fades back to a clean hull
+      if (ext.done) ctx.globalAlpha = clamp(1 - ext.beatT / 0.55, 0, 1);
       drawShip(now);
       ctx.restore();
     } else drawShip(now);
@@ -552,6 +556,38 @@ function drawShip(now) {
 
 /* the transfusion drone: descends on signal, then holds station with a fuel
    line out — the whole minigame reads from here (window, flow, occlusion) */
+/* an off-screen edge marker for the resupply drone, so you can see where it is
+   and follow it out from / home to MERCY */
+function drawDroneMarker(now) {
+  const rd = resupplyDrone;
+  const t = worldTransform();
+  const sx = saLeft + t.z * (rd.x - t.cx);
+  const sy = t.z * (rd.y - t.cy);
+  const m = 30;
+  if (sx >= saLeft + m && sx <= vw - m && sy >= m && sy <= vh - m) return;   // visible — no marker
+  const ex = clamp(sx, saLeft + m, vw - m), ey = clamp(sy, m, vh - m);
+  const ang = Math.atan2(sy - ey, sx - ex);
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.translate(ex, ey);
+  const pulse = 0.6 + 0.4 * Math.sin(now * 6);
+  // the pointing chevron
+  ctx.save();
+  ctx.rotate(ang);
+  ctx.fillStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
+  ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(12, 0); ctx.lineTo(-6, 7); ctx.lineTo(-6, -7); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // a small label so it reads as the drone, with its current leg — kept on the
+  // inward side of the marker so it never clips off the edge
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = "rgba(255,196,0,.9)";
+  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  const leg = rd.phase === "in" ? "⛽ INBOUND" : rd.phase === "out" ? "⛽ RETURNING" : "⛽ FUEL LINE";
+  ctx.fillText(leg, ex, ey < vh / 2 ? ey + 20 : ey - 14);
+  ctx.restore();
+}
 function drawResupplyDrone(now) {
   const rd = resupplyDrone;
   const bobY = rd.phase === "line" ? rd.y + Math.sin(now * 1.7) * 3 : rd.y;
@@ -1273,37 +1309,44 @@ function drawMothership(now) {
    whatever world transform the caller is already in (drawMothership / drawWorld),
    exactly like the bay beams, so it stays pinned to her through camera shake.
    `active` is the spooling-to-jump hangar; the dim variant is the S4.5 offer. */
+function bayFade() {
+  // once the doors are shut she fades the bay away, so she jets off looking like
+  // her whole self again (the way she does at mission start)
+  const e = level.extraction;
+  return (e && e.done) ? clamp(1 - (e.beatT - 0.9) / 0.2, 0, 1) : 1;
+}
 function drawHangar(now, active) {
   const h = hangarRect();
+  const fade = bayFade();
+  if (fade <= 0) return;
   ctx.save();
   const col = active ? "255,196,0" : "0,229,255";
-  const a = active ? 1 : 0.4;
-  // the OPENED BAY: a dark recess set into her belly. Drawn over the hull fill
+  const a = (active ? 1 : 0.4) * fade;
+  // the OPENED BAY: a dark recess set into her belly, drawn over the hull fill
   // (drawMothership already laid the hull), so it reads as a large zone opened
-  // in the side of the ship — not a box floating half over her. Its top tucks
-  // up inside the hull; its mouth sits just past her belly line.
-  const top = h.cy - 22, bot = h.cy + 24;
-  ctx.fillStyle = "rgba(3,7,16," + (active ? 0.96 : 0.55) + ")";
+  // in the side of the ship — not a box floating below her. Top tucks up inside
+  // the hull; base sits flush with her belly line — never hangs below it.
+  const top = h.top, bot = h.bot;
+  ctx.globalAlpha = (active ? 0.96 : 0.55) * fade;
+  ctx.fillStyle = "rgba(3,7,16,1)";
   ctx.fillRect(h.x0, top, h.x1 - h.x0, bot - top);
   // interior back-wall shading lines, so the recess reads as depth, not a hole
-  ctx.strokeStyle = "rgba(" + col + "," + (active ? 0.18 : 0.1) + ")"; ctx.lineWidth = 1;
+  ctx.globalAlpha = (active ? 0.18 : 0.1) * fade;
+  ctx.strokeStyle = "rgba(" + col + ",1)"; ctx.lineWidth = 1;
   for (let gx = h.x0 + 16; gx < h.x1 - 8; gx += 16) {
-    ctx.beginPath(); ctx.moveTo(gx, top + 3); ctx.lineTo(gx, h.cy - 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, top + 3); ctx.lineTo(gx, top + (bot - top) * 0.55); ctx.stroke();
   }
-  // the bright bay-door frame, with the retracted doors folded back at the mouth
-  ctx.strokeStyle = "rgba(" + col + "," + a + ")"; ctx.lineWidth = 2.5;
-  ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = active ? 14 : 5;
+  // the bright bay-door frame
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "rgba(" + col + "," + a.toFixed(2) + ")"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = (active ? 14 : 5) * fade;
   ctx.strokeRect(h.x0, top, h.x1 - h.x0, bot - top);
-  ctx.lineWidth = 4; ctx.beginPath();
-  ctx.moveTo(h.x0, bot); ctx.lineTo(h.x0 - 11, bot + 9);
-  ctx.moveTo(h.x1, bot); ctx.lineTo(h.x1 + 11, bot + 9);
-  ctx.stroke();
   ctx.shadowBlur = 0;
   // interior guide chevrons pointing UP into her — the way in
   ctx.lineWidth = 2;
   for (let i = 0; i < 3; i++) {
     const ph = (now * 1.2 + i / 3) % 1;
-    ctx.globalAlpha = active ? (0.25 + 0.6 * (1 - ph)) : 0.2;
+    ctx.globalAlpha = (active ? (0.25 + 0.6 * (1 - ph)) : 0.2) * fade;
     const yy = bot - 8 - ph * (bot - top - 12);
     ctx.beginPath();
     ctx.moveTo(h.cx - 11, yy + 6); ctx.lineTo(h.cx, yy); ctx.lineTo(h.cx + 11, yy + 6);
@@ -1315,14 +1358,17 @@ function drawHangar(now, active) {
     ctx.strokeStyle = "rgba(" + col + ",1)"; ctx.shadowColor = "rgba(" + col + ",1)"; ctx.shadowBlur = 10;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(h.cx, h.cy, 20, -Math.PI / 2,
+    ctx.arc(h.cx, h.cy, 18, -Math.PI / 2,
       -Math.PI / 2 + Math.min(1, level.extraction.hold / 1.2) * Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
   }
-  ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
-  ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 20);
+  if (fade > 0.5) {
+    ctx.globalAlpha = fade;
+    ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
+    ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 20);
+  }
   ctx.restore();
 }
 
@@ -1332,11 +1378,13 @@ function drawBayDoors(now) {
   const h = hangarRect();
   const bt = level.extraction.beatT;
   const close = clamp((bt - 0.4) / 0.45, 0, 1);   // shut from ~0.4s to ~0.85s
-  if (close <= 0) return;
-  const top = h.cy - 22, bot = h.cy + 24, halfW = (h.x1 - h.x0) / 2;
+  const fade = bayFade();
+  if (close <= 0 || fade <= 0) return;
+  const top = h.top, bot = h.bot, halfW = (h.x1 - h.x0) / 2;
   const dw = halfW * close;   // each door's reach toward centre
   ctx.save();
-  ctx.fillStyle = "rgba(6,18,26,.98)";           // hull-dark door panels
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = "rgba(6,18,26,1)";           // hull-dark door panels
   ctx.strokeStyle = "rgba(0,229,255,.9)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.lineWidth = 2;
   // left door slides right, right door slides left
