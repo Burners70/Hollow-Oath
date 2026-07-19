@@ -32,6 +32,10 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
   and **run the suite before opening the PR** — it must stay green.
 - **Code anchors** in this document name functions/variables, not line numbers
   (line numbers drift). Everything named lives in `index.html`.
+- **Copy lives in two places.** Player-facing strings are authored in
+  `index.html` and mirrored, organised for review, in
+  [COPY_DECK.md](COPY_DECK.md). Any PR that changes a player-facing string
+  must update COPY_DECK.md in the same PR (see R10).
 
 ### Status key
 
@@ -56,12 +60,20 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | L | Title haunting & epilogue | Narrative payoff | No |
 | M | Remix mode & daily seed | Replay value / price point | No |
 | N | Counterfeit MERCY finale | Glycon's third act | No |
+| R | Playtest fixes (July 2026 feedback) | Bugs & UX corrections | **Yes — ship in launch** |
+| S | Sound, endgame & saboteur upgrades | Feedback improvements | **Owner-requested for launch** |
+| T | Zone identity — width, biomes, weather | Feedback improvements | Core in launch; deep items may slip to 1.1 |
 | O | Store listing & submission | Shipping | **Yes (last)** |
 | P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
 | Q | The deep Hollows | **Locked: free update 1.2** | No (post-launch) |
 
-Minimum viable paid release = **A + B + C + D + E + F + O**. Everything else raises
-the ceiling (and the defensible price).
+Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
+the ceiling (and the defensible price). **Bundles R, S and T are the July 2026
+owner-playtest feedback round** — R is straight bug fixing and blocks submission
+(everything in it was found in a five-minute phone playtest, and App Review will
+find it too); S and T are owner-requested for the launch build, with T's two
+deepest items (destructible scenery, weather systems) explicitly allowed to slip
+to 1.1 if they threaten the date.
 
 ---
 
@@ -614,6 +626,451 @@ ideally J (scan).**
 
 ---
 
+## Bundle R — Playtest fixes (July 2026 feedback round)
+
+**Why:** The owner's phone playtest surfaced a set of straight defects and UX
+gaps — overflowing panels, overlapping text, an invisible pause button, a
+tap-anywhere title that launches runs by accident. All are cheap, none are
+optional: a reviewer holding an iPhone hits every one of these inside five
+minutes. **Priority: before O. Dependencies: none (all web-side; keep the
+smoke suite green).**
+
+- [ ] **R1. HOW TO FLY card overflows the phone screen.** `drawCardPanel()`
+  computes `h = 86 + titleH + bodyLines.length * bodyLH` and only clamps the
+  *top* (`y = Math.max(20, (vh - h) / 2)`) — with `HELP_CARD`'s six-paragraph
+  body the card runs straight off the bottom of a landscape iPhone (vh ≈ 375),
+  hiding the last paragraphs *and* the "tap to continue" line.
+  Fix by paginating inside `drawCardPanel`: if `h > vh - 40`, split
+  `bodyLines` into pages of `maxLines = floor((vh - 40 - 86 - titleH) / bodyLH)`
+  lines (break on paragraph boundaries — empty lines — where possible), render
+  the current page with a `1/3 · tap for more` footer instead of
+  "tap to continue", and advance `card.page` on tap before the tap is allowed
+  to dismiss the card. State: put `page` on the card object itself (reset to 0
+  in `showCard()` and when entering `"help"`); the `case "help"` branch and
+  `"reveal"` branch of `update()` must check "more pages?" before closing.
+  Test: at a 568×320 viewport, walk every page of the help card via
+  `__doids` and assert the footer line's y stays `< vh`.
+- [ ] **R2. Pause screen: PAUSED overlaps the RESUME row on short viewports.**
+  `drawPause()` draws PAUSED at `vh * 0.28`, but `pauseRowRect(0)` starts at
+  `vh / 2 - 101` — at vh ≤ 420 the heading lands inside the first button.
+  Derive the heading position from the rows instead:
+  `const topY = pauseRowRect(0).y - 26` and draw PAUSED there, shrinking the
+  font (`Math.min(38, vw * 0.08, (pauseRowRect(0).y - 10) * 0.9)`) so it can
+  never collide. While in there, harden the state machine so pause can never
+  be seen outside a live run (the owner hit a pause screen offering RESTART
+  SECTOR before ever launching): the `Escape`/`p` keydown branch and
+  `pollPad()`'s Start-button branch both already require `state === "play"`,
+  but make `Escape` *also* close the overlay screens — in `"help"`, `"codex"`
+  and `"settings"` it should behave like tapping outside (return to
+  `settingsReturnState` / title). Add a smoke assertion: from `"title"` and
+  `"help"`, sending Escape/`p` never yields `state === "pause"`.
+- [ ] **R3. Shield button is still too far from FIRE/THRUST.** In the CSS,
+  `#btnShield` sits at `right: 64px / bottom: 116px` — its centre is ~98 px
+  from FIRE's centre, a full thumb-stretch. Tighten the right-hand cluster
+  into an arc around the resting thumb: move SHIELD to
+  `right: calc(88px + env(safe-area-inset-right)); bottom: calc(98px +
+  env(safe-area-inset-bottom))` and bump it to 68×68 px (`line-height: 64px`)
+  so the three buttons form a compact triangle (THRUST bottom-corner, FIRE
+  left of it, SHIELD nestled above-between). The document-level touch tracker
+  already hit-tests with a 14 px margin, so slight visual adjacency is good —
+  rolling the thumb between buttons should transfer instantly. Verify no
+  rect+margin overlap makes a button unreachable; screenshot at iPhone SE and
+  Pro Max landscape sizes.
+- [ ] **R4. Pause button on the game screen is effectively invisible.** It
+  exists — `pauseRect()` is 36×18 px at top-centre, stroked at 0.35 alpha,
+  directly *under the score readout* — and the owner never saw it. Make it a
+  real button: at least 44×30 px (Apple HIG minimum tap target), moved out of
+  the score's way to the left of the ECG bar
+  (`x: vw - bw - 14 - saRight - 54`), stroke alpha ≥ 0.6, `❚❚` glyph at 14 px.
+  Keep the hit-test in `updatePlay()` *before* `input.tap` is cleared (already
+  the case) and update `pauseRect()` so draw and hit-test stay one source of
+  truth. Also honour it during `mercyBreach` and extraction (it already does —
+  don't regress).
+- [ ] **R5. Explicit START NEW FLIGHT button on the title.** Tap-anywhere
+  currently starts a run (`updateMenu()`'s final `else` branch) — the owner
+  finds it annoying, and it eats taps meant for pills. Add a
+  `startRect()` pill (pattern: `resumeRect()`; centred, `y: vh * 0.63`, width
+  `Math.min(300, vw * 0.6)`, h 40) drawn as the *primary* button — replace the
+  pulsing "TAP TO LAUNCH" text with `▶ START NEW FLIGHT` inside the pill.
+  In `updateMenu()`, launch only when the tap lands in `startRect()` (keep all
+  other pill branches; a title tap that hits nothing now does nothing).
+  Keyboard Enter and gamepad A on the title should aim the synthetic tap at
+  `startRect()` (same trick the game-over screen uses to aim Enter at
+  CONTINUE). `"gameover"`/`"win"` keep their existing behaviour. Nudge the
+  RESUME pill (when present) directly above START so the two read as a stack:
+  resume-first for a checkpointed run, start-new below it.
+- [ ] **R6. Title screen line spacing is uneven.** The three subtitle lines
+  sit at `vh * 0.40` (cyan), `0.48` (green), `0.54` (yellow) — the yellow line
+  is visibly closer to the green than the green is to the cyan. Even them out:
+  `0.40 / 0.47 / 0.54`. Check the controller-connected line (`vh * 0.60`) and
+  the new START pill (R5) still clear each other on a 320-high viewport.
+- [ ] **R7. Codex: fix cramped line spacing and make entries clickable.**
+  Two changes in the MINDS tab (`drawCodexMinds`):
+  1. *Spacing.* `rowH = Math.min(46, (p.h - 118) / FAMOUS.length)` collapses to
+     ~21 px on a 375-high viewport — the era line ("c. 460–370 BC") prints
+     nearly on top of the name. Enforce a minimum: `rowH = Math.max(34, …)`,
+     and when `FAMOUS.length * 34` no longer fits the panel, page the list
+     (two pages of 6, same paging pattern as ARCHIVE) instead of squeezing.
+     Keep name and era on separate baselines ≥ 14 px apart.
+  2. *Clickable.* Tapping a **found** row opens that Scion's reveal card — the
+     exact card shown on first delivery (`kicker: "FROM THE CODEX"`,
+     `title: FAMOUS[i].name`, `subtitle: era`, `body: story + "\n\n★ " +
+     upgradeName + " — " + upgradeDesc`, `color: "#ffd54f"`). Likewise in
+     ARCHIVE, tapping an unlocked entry opens the full log / shrine card
+     (shrines re-use their `SHRINES[ci]` card verbatim). Implement as a
+     `codexCard` variable rendered via `drawCardPanel` on top of the codex;
+     while it is open, any tap closes it back to the codex (not the title).
+     ARCHIVE currently pages by tapping the panel's left/right *halves* —
+     that conflicts with entry taps, so replace half-tap paging with explicit
+     `‹` / `›` arrow rects in the panel's bottom corners and hit-test the four
+     entry slots. Update the footer hint copy. Smoke test: open codex, tap a
+     found mind, assert a card is showing; tap again, assert back to codex.
+- [ ] **R8. In-flight copy is too small and vanishes too fast.** Banners
+  (`banner()`, drawn at 22 px for `t: 2.6` s) and floating texts (`addText()`,
+  `t: 1.6` s) both under-serve a phone at arm's length. Change: banner font to
+  `Math.min(26, vw * 0.05)` px and default life `4.2` s (keep the existing
+  alpha fade on the last second); `addText` life to `2.6` s, font +2 px, and
+  slow the float (`y -= 16 * dt` instead of 24). Bump card/brief body base
+  size by +1 (`bodyFontPx(15)` call sites stay, change the base inside
+  `bodyFontPx` from `base` to `base + 1`, keeping the BIG TEXT +2 on top).
+  Re-check the longest banner ("MANIFEST CLOSED…") wraps/fits at 320 vh, and
+  that `drawBrief`'s TAP TO LAUNCH line still clears the brief text.
+- [ ] **R9. Saboteur reveal colour reads as famous-Scion gold.** The normal
+  palette's `REVEAL` is `#c6ff00` (yellow-lime) — at a glance it is too close
+  to the famous gold shimmer (`#ffd54f`), muddling the game's two most
+  important colour meanings ("extraordinary — protect" vs "counterfeit —
+  distrust"). Change `PALETTES.normal.REVEAL` to a magenta-violet —
+  recommended `#ff5ce1` (hot magenta: clearly distinct from famous gold,
+  DANGER pink `#ff4081`, and the Static's soft lavender `#b388ff`; and
+  narratively right — the counterfeit mark wears *Glycon's* serpent hue, not
+  medicine's gold). Sweep every hard-coded `"#c6ff00"` literal (fake-pod
+  touch text, decoy banner/explosion, the third shrine card's `color:`) to
+  use `PAL().REVEAL` where code can call it, or the new hex in data literals.
+  The colorblind palette keeps `#ff6bff`. Add a check (test or assertion)
+  that a saboteur with `!upgrades.antisepsis` renders with the *same* body
+  colour as a normal Scion — no colour tell may leak before the upgrade
+  (see S7).
+- [ ] **R10. The copy deck.** All player-facing copy now lives, organised and
+  code-anchored, in [COPY_DECK.md](COPY_DECK.md) for owner review and line
+  edits. Treat it as a review surface, not a source of truth: when the owner
+  returns edits, apply them to `index.html` and re-sync the deck. Add a line
+  to the "How to work on this" section of this file: **any PR that changes a
+  player-facing string must update COPY_DECK.md in the same PR.**
+
+---
+
+## Bundle S — Sound, endgame & saboteur upgrades (July 2026 feedback round)
+
+**Why:** The owner's verdict after playing: sound effects are "TOO nostalgic"
+(the shot is pure 1982 square wave), the sector endgame "often completes before
+you notice what's happening", and identified saboteurs still *must* be dealt
+with even after the game has told you they're counterfeit. These are the
+feedback items that change how the game *feels* rather than how it looks.
+**Priority: with R, before O. Dependencies: C (audio plumbing), I (surge), J
+(scan pattern), N shipped (all are).**
+
+- [ ] **S1. Sound-effect modernisation (beyond C6's richness pass).**
+  C6 added jitter and harmonics; the owner wants *character*. Three targets,
+  in order of how often they're heard:
+  - **The shot.** `blip(880, 180, 0.12, "square", 0.09)` at the fire call site
+    is the most 1982 sound in the game. Replace with a new `shotSfx()`:
+    a 0.12 s noise burst through a bandpass (~1800 Hz, Q ≈ 3, per-shot
+    `rjit`), over a sine sub-thump 140→60 Hz (the `boom()` sub-oscillator
+    pattern, quieter), plus a very low-gain detuned sawtooth blip for edge.
+    Aim for a muffled energy-dart "thmp", not a laser "pew". Keep it *quiet*
+    (≤ 0.08 peak) — firing is supposed to feel like malpractice, not fun.
+  - **The explosion.** `boom()` gets a decaying tail: second noise source
+    ~0.9 s with a lowpass sweeping 900→180 Hz, gain 0.1 — rubble, not pop.
+  - **The heartbeat wants MORE heartbeats.** The owner's exact note. Make the
+    cabin fill with pulses: while flying with passengers aboard, each
+    non-saboteur passenger contributes a faint heartbeat on its own period —
+    a new `updateCabinPulse(dt)` called from `updatePlay`, giving each
+    passenger index a phase offset and ±5% rate variance around ~1.5 s, and
+    playing `heartbeat(v, true)` (the no-haptic variant) at low volume
+    (total loudness capped: `v = 0.22 / audibleCount`, at most 3 layers
+    audible). An active saboteur's slot stays **silent** — the missing beat
+    in the chorus is the same tell as the boarding dull-thud, now continuous.
+    Do not fire cabin pulses while a card/brief is up or the ship is dead.
+    This is the game's signature (the haptic bundle F2 already mirrors
+    single beats); keep every layer soft enough that the boarding lub-dub /
+    dull-thud read stays unmistakable — that tell is load-bearing (C6 note).
+- [ ] **S2. Vitals-reactive ambience — the score becomes your monitor.**
+  Owner: "could the ambient sound reflect your vitals — more frantic as you
+  take damage / are closer to death?" Yes — and it deepens the existing
+  diagnostic-sound language (the ECG already speeds up as vitals fall).
+  In `updateMusic(dt)` / a small new `updateVitalsAudio(dt)`, drive from
+  `v = ship.vitals / maxVitals()` while `state === "play"`:
+  - motif interval scales `× (0.45 + 0.55 * v)` — sparse when healthy,
+    insistent when hurt (compose with the finale ×2 and the arrhythmia
+    0.5/1.7 multipliers — arrhythmia must stay audibly *irregular*, not just
+    fast);
+  - the drone's filter-LFO rate eases `0.05 → 0.22 Hz` as v → 0 (breathing
+    turns to flutter);
+  - below 35% vitals, add one new quiet layer: a 440 Hz sine with a 6 Hz
+    tremolo through `musicGain`, gain ramping 0 → 0.03 as vitals fall — a
+    far-away monitor alarm. It must *duck to zero* the moment a heartbeat/
+    dull-thud tell plays, and disappear entirely outside `"play"`.
+  Clamp everything so the boarding tells and the Static's tick stay the
+  loudest diagnostic sounds. Expose `vitalsAudioLevel` on `__doids.get()` and
+  smoke-test that it rises when `ship.vitals` is set low.
+- [ ] **S3. Environmental audio — the world has acoustics.** Two parts:
+  - **The Hollows echo.** Give `sfxGain` a wet send: `sfxGain → delay
+    (0.28 s, feedback 0.35, lowpass 1200 Hz) → sfxGain`, with the send's gain
+    at 0 on the surface and ramped to ~0.35 inside caves (`enterCave` /
+    `exitCave` are the anchors; `level.isCave` is the state). Every blip,
+    boom and heartbeat now rings in the rock — no per-callsite changes.
+  - **Cave dressing.** While in a cave: a random drip every 4–9 s (short sine
+    blip 1200→300 Hz through the echo bus at 0.04 gain) and a rare distant
+    rumble (the `boom()` noise shape, 0.05 gain, lowpass 200 Hz, every
+    20–40 s). Anchor in `updatePlay` behind `level.isCave`.
+  Per-biome surface ambience (wind beds etc.) belongs to T3/T5 — build this
+  item so a biome can later set the echo/dressing parameters from `RECIPE`.
+- [ ] **S4. Endgame rework — the last docking should be a docking.**
+  Today `checkSectorClear()` starts the extraction and `updateExtraction()`
+  completes the sector after 1.5 s of *sitting in the same med bay you were
+  probably already parked in* — the owner often "completed before noticing".
+  Make the extraction a distinct flying problem — you don't drop the last
+  Scion off, you **fly into the ship that is leaving**:
+  1. When the manifest closes, MERCY retracts her bay beams (both
+     `bayRects()` become inert for the rest of the sector), **lifts ~140 px**
+     toward jump altitude over ~3 s and drifts on the existing
+     `mxo/myo` sway (keep the quickening Static pulses — they're good).
+     If the player is parked in the bay at that moment, the deck simply
+     rises away from under them — no instant clear (this alone fixes the
+     "completed before I noticed" failure).
+  2. She opens a **ventral hangar**: a slot in her underside ~1.6 ship-widths
+     wide, marked with approach lights (use `PAL()` colours; pattern after
+     the landing guide's always-readable treatment). New `hangarRect()`
+     derived from `mercyPos()`.
+  3. Completion = holding the ship inside the hangar window for a continuous
+     1.2 s **in the air** — reuse the transfusion line's hover-window logic
+     (`xfuseWindowR` pattern: inside = progress ring fills, drift out =
+     resets). This is the sustained-hover skill the transfusion teaches, now
+     as the sector's closing beat — and it is mechanically nothing like a
+     Scion drop-off, which was the owner's request.
+  4. Copy: banner becomes `"MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY
+     INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER"`; on completion,
+     a one-second beat (`"ABOARD — SECTOR " + name + " CLOSED"`) before
+     `sectorClearNow()`.
+  5. **The triage call (owner's "flee at a cost" idea).** Once ≥ 50% of
+     `level.total` are accounted for *and* at least one Scion has been
+     delivered, the hangar also answers **early**: holding in it with the
+     manifest still open brings up a confirm card — `"SIGNAL EARLY
+     EXTRACTION?"` / body: every Scion still waiting is listed as lost
+     (−250 each, famous −500 *by name*), no sector-clear +1000, no
+     Hippocratic bonus. Decline returns to play; accept runs the normal
+     extraction. The next sector's briefing gains one grim line: `"You left
+     N behind on <SECTOR>. The manifest remembers."` This is triage — the
+     medical frame makes retreat *allowed but never free*, and it feeds the
+     existing rank/lost accounting (`runLost`) with zero new score buckets.
+  Guards: the finale keeps its own beacon flow (`checkSectorClear` already
+  early-outs on `isFinale`); breach (`mercyBreach`) must still resolve before
+  the hangar answers; `updateDocking` must ignore retracted bays. Tests:
+  manifest close → bays inert → hangar hold completes; early extraction at
+  50% marks the right losses; a ship parked in the bay at manifest-close does
+  NOT auto-clear.
+- [ ] **S5. Identified saboteurs may be left behind.** `lvl.total =
+  lvl.oids.length` counts saboteurs, so the manifest never closes until every
+  counterfeit is boarded-and-contained or destroyed — even after Antisepsis
+  has *shown* you it's a fake. The owner is right that this is wrong: once
+  you can prove a unit is counterfeit, ignoring it should be a legitimate
+  clinical decision. Design: **you may leave what you can prove.**
+  - Add a third accounting state: `flagged`. A saboteur becomes flaggable
+    when it is *identified*: visibly tinted by Antisepsis, or scanned — reuse
+    Bundle J's landed-scan pattern (land within 60 px of any waiting Scion,
+    hold ~4 s → if it's a saboteur: `"CATALOGUED — COUNTERFEIT +250"`, mark
+    `o.flagged = true`, draw the `?` mark over it permanently; if it's real:
+    `"VITALS VERIFIED — A HEARTBEAT"`, small reassurance, no score). The scan
+    path means even a pilot *without* Semmelweis's upgrade can work the
+    manifest — priced in time and exposure, same philosophy as J.
+  - `checkSectorClear()` counts `delivered + lost + contained + flagged ≥
+    total`. Red-bay containment keeps its +750 (flagging pays +250), so
+    hauling the fake home under quarantine stays the braver, better-paid
+    play; flagging is the safe, patient one. Boarding a flagged unit anyway
+    is allowed (your funeral — all existing sabotage logic unchanged).
+  - Sleepers with no tint and no scan stay unprovable — you carry them or
+    you don't close the manifest. That tension is the game; don't soften it.
+  - Copy: one line added to BRIEFS[3] (where tampering is introduced):
+    `"Prove a unit false — the salvage teams will take it from there. But
+    prove it."` Update HELP_CARD's "Listen to what boards" paragraph.
+  - Tests: flagged saboteur + all real Scions delivered closes the manifest;
+    unflagged sleeper blocks it; scan on a real Scion does not flag.
+- [ ] **S6. Rename the saboteurs? (owner question — recommendation below.)**
+  The owner asks if "saboteur" should be "more redolent of medical
+  misinformation". Recommendation: **yes — call them VECTORS** in all
+  player-facing copy (code identifiers stay `"saboteur"`, like the `doids_`
+  keys). Rationale: a *vector* is the epidemiological term for a carrier
+  that spreads infection while healthy-seeming — exactly what these units
+  are (misinformation carried home by well-meaning hands, GAME_DESIGN §2.4),
+  it pairs with the game's existing quarantine/contaminant language, and it
+  gives briefings a chilling clinical register ("a vector wearing a rescue's
+  face"). Runners-up, for the owner to veto/choose: **NOSTRUMS** (a quack's
+  fake remedy — the truest misinformation word, but obscure); **SHILLS**
+  (historically apt — Alexander of Abonoteichus used crowd-plants — but
+  reads as slang); SIMULACRA (generic sci-fi, avoid). PLACEBO is wrong —
+  placebos are benign. On owner sign-off: sweep BRIEFS[1]/[3], HELP_CARD,
+  the WORKSHOP shrine card, Antisepsis/Inoculation `upgradeDesc`s,
+  GAME_DESIGN.md §2.4/§4, COPY_DECK.md, and the store-listing draft in O2.
+- [ ] **S7. Saboteur effects are too subtle / colour spoils sleepers.** Two
+  halves of one legibility problem:
+  - *Active sabotage is missable.* "FUEL LINE CUT" is a small floating text.
+    Give sabotage a moment: 0.5 s red vignette pulse at the screen edges
+    (respect REDUCED FLASH — alpha halved), the fuel bar flashes, a new
+    short hiss SFX (noise through a highpass, 0.3 s), `haptic.heavy()`, and
+    promote passenger kills from `addText` to a full `banner("A PASSENGER IS
+    DEAD — IT'S IN THE CABIN", DANGER)`. The player should never discover a
+    kill from the score readout.
+  - *Colour must not spoil what behaviour should reveal.* The owner clocked
+    sleepers "due to colour" — before Semmelweis's upgrade there must be NO
+    colour difference (verify: `doidFigure`'s tint is already gated on
+    `upgrades.antisepsis`; add the R9 regression test), and after R9 the
+    reveal tint is magenta, not gold-adjacent. The intended pre-upgrade
+    tells stay behavioural only: the too-eager walk (40 vs 34), the
+    mechanical wave, the boarding thud. Consider adding the two specced
+    ground-tells from ROADMAP.md future ideas (refusing to panic near
+    explosions; standing unnaturally still) since S5 now rewards *watching*
+    Scions before committing to a rescue.
+- [ ] **S8. "If they were fake — where are our Scions?" (the 1.2 teaser).**
+  The owner's sharpest narrative catch: the Workshop shrine proves the
+  saboteurs were *built, not corrupted* — so the real units they impersonate
+  were never rescued. Thread it, cheaply, now; pay it off in Q:
+  - After any resolved ending where the WORKSHOP shrine (`shrinesSeen` has
+    cave 1) was found, append one line to the ending card:
+    `"And one line nobody signs off: if the counterfeits were never our
+    Scions — where are ours? MERCY's manifest still lists the missing."`
+  - Add it as a locked codex tease: the ARCHIVE tab's final row shows
+    `"MANIFEST DISCREPANCY // — file remains open —"` once the Workshop is
+    seen (a 15th, unresolvable entry — the itch 1.2 scratches).
+  - In [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md), note that
+    **THE WARD** (already a specced 1.2 cave) is where the originals are
+    found — held in cells, recovered with Bundle P's pendulum sling
+    ("pendulum them out", exactly the owner's instinct). 1.1 ships the sling
+    skill, 1.2 gives it its emotional payload. No launch-build work beyond
+    the two copy lines above.
+
+---
+
+## Bundle T — Zone identity: width, biomes, weather (July 2026 feedback round)
+
+**Why:** The owner wants sectors that feel like *places*: progressively wider
+maps, visually distinct landscapes with their own ornamentation, and eventually
+weather and destructible terrain-objects. Today every sector shares one violet
+palette (`buildHeightTile` hardcodes the gradient and stroke) and one width
+formula. **Priority: T1–T3 + T6 in the launch build; T4–T5 are
+explicitly allowed to slip to 1.1 if they threaten the date (they change
+difficulty balance and need device-perf validation on top of Bundle D's
+budget). Dependencies: D4 (terrain tiles — palettes thread through it), C/S3
+(audio beds), I (surge), M1 (seed plumbing — widths change the golden
+checksum deliberately).**
+
+- [ ] **T1. Progressive sector widths.** `genLevel` currently uses
+  `W = 2600 + Math.min(n, 5) * 400` (finale 4400) — the owner finds them too
+  small, and the cap flattens 5–7. Change to `W = 2200 + n * 550`
+  (sector 0: 2200 — *smaller* than today, it's the teaching sector; sector 6:
+  5500; finale: keep 4400, it's dense and dark by design). Fuel must scale
+  with distance — that's the point ("this will require refuel calls or local
+  fuel pods"): give sectors 1–2 their first fuel pods (RECIPE `pods: 0 → 1`
+  and `2`), and add +1 pod per full 800 px above 3000 in `genLevel` (placed
+  via the existing `pick()`), so remix/daily widths stay survivable. The
+  transfusion drone already provides the "refuel call" everywhere as the
+  backstop. Consequences to handle deliberately: the M1 golden heightmap
+  checksum changes — update the test value in the same PR and say so in the
+  PR body; `spots`/`pick` min-distances can stay (more room, same counts =
+  emptier ≠ wider, so ALSO scale `oids`/`turrets` on sectors 4+ by ~+1 each);
+  Curie's compass and Radiosense matter more at width — no change needed,
+  but verify black boxes stay findable (they blink stronger when near).
+- [ ] **T2. Per-sector terrain palettes.** Add a `pal` entry to each
+  `RECIPE[n]`: `{ grad: [top, bottom], stroke, glow }`, threaded through
+  `drawWorld`'s `getTiles(...)` call into `buildHeightTile` (which currently
+  hardcodes `["#1b1040", "#0c0820"]` fill and `#b388ff`/`#7c4dff` stroke).
+  Caves keep the current violet (the Hollows should stay the Static's
+  colour). Suggested palette map — each sector's landscape echoing its
+  healer, so the biome *is* the narrative:
+  | # | Sector | Ground | Rationale |
+  |---|--------|--------|-----------|
+  | 0 | ASCLEPION | soft teal-greens | temple calm, the tutorial breathes |
+  | 1 | VESALIUS RIDGE | rust reds / ochre | anatomy, exposed muscle of the land |
+  | 2 | NIGHTINGALE BASIN | deep indigo | her sector is the dark one |
+  | 3 | SEMMELWEIS DEEP | cold antiseptic grey-green | the scrubbed ward |
+  | 4 | CURIE FIELDS | luminous violet-green | radium glow (keep anomaly violet) |
+  | 5 | AVICENNA SHOALS | sand / amber | the Persian desert, his crossing |
+  | 6 | JENNER TERRACES | pale pastoral green | cowpox country — the calm that lies |
+  | 7 | THE NULLWAVE | near-black violet | as now — the Static's home |
+  Also tint the darkness overlay and star field subtly per sector (one
+  multiply each). Keep every palette *behind* the HUD's semantic colours —
+  run the landing guide / ECG over each ground colour and check contrast in
+  both PALETTES (H1).
+- [ ] **T3. Ornamentation sets — zone the levels visually.** The scenery
+  system (`RECIPE[].scn`, `drawScenery`) already varies counts; give it
+  *types* per biome, so L1 stops being "very plain" (owner). Additions, all
+  decorative-first (collision comes in T4): **boulder stacks** (Vesalius —
+  bump `rocks`, add a stacked-boulder draw variant), **reed clusters + dim
+  ward-lanterns** (Nightingale — lights matter in the dark sector),
+  **ice spires with internal glow** (Curie — reuse the glow-tree code with a
+  crystalline silhouette), **dune-banded rocks + salt pans** (Avicenna),
+  **hedgerows and a ruined village** (Jenner — pastoral, with `ruin` count
+  up), extra wreck density on the Nullwave (already). Implementation:
+  extend the `scn` object with new type counts, one draw function per type
+  in `drawScenery` (respect the D-bundle rule: `glowStroke`, no shadowBlur
+  in loops), and authored per-sector in `RECIPE`. Ambient audio per biome:
+  S3's bus gains a per-sector bed (wind for desert, insect-shimmer for the
+  terraces, silence + drips for dark sectors) — one small gain-node loop
+  each, set in `toBriefing`/`genLevel`. Screenshot all 8 sectors for the O4
+  store-shot pass — this bundle is what makes those screenshots sell.
+- [ ] **T4. Destructible, collidable scenery.** *(Launch-stretch — may slip
+  to 1.1, owner has pre-approved the slip; do not let it block O.)* Tall
+  scenery becomes real: trees, buildings, ice spires get `solid: true` —
+  ship collision behaves like terrain contact (crash or shield-bounce;
+  shield already saves cave-roof hits, reuse that check), and shots destroy
+  them: trees burn (2 s flame particles, leave a charred stump variant),
+  buildings erode through 3 damage states before rubble, spires shatter.
+  THE CRITICAL RULE: destroying scenery increments `firedShots`/`runFired`
+  like any shot (it already would — verify nothing special-cases it) and
+  exhaust near a tree can ignite it (reuse the friendly-fire exhaust check
+  pattern in `updatePlay`) — *do-no-harm now extends to the world*, which is
+  exactly the game's thesis; a scorched-earth approach path costs you the
+  Hippocratic bonus. Fairness pass required (the sector-1–2 turret-cover
+  rule is precedent): no Scion may wait where the only safe landing lane
+  demands destroying scenery. Perf: burning/erosion must stay within D's
+  frame budget on the finale — measure with `?perf=1` before merging.
+  Lure-trees keep their special reveal behaviour — a *burning* lure-tree
+  should still count as `firedAtSecret`, not vanish silently.
+- [ ] **T5. Weather & atmospheric conditions.** *(Launch-stretch, same
+  pre-approved slip as T4.)* One condition per sector max, authored via a
+  new `RECIPE[].wx` key, each with an audio bed (S3) and a REDUCED FLASH-
+  aware visual: **crosswinds + dust devils** on Avicenna (a steady lateral
+  force ±20 px/s² with gusts, telegraphed by streaking particles; dust
+  devils = slow-moving anomaly-force columns, reuse the anomaly pull code
+  with an x-drift), **rain + lightning** on Vesalius or Jenner (rain
+  streaks; lightning = 120 ms sky flash + delayed rumble, min 8 s apart,
+  suppressed by REDUCED FLASH), **snow blizzards** on Curie-as-ice-fields
+  (visibility swirls — reuse the darkness-overlay machinery with a soft
+  white noise mask instead of black; lamp radius logic applies). Winds
+  interact deliciously with the transfusion hover and (1.1) the pendulum —
+  note the interaction in PENDULUM_SPEC when this lands. Daily-mod synergy:
+  add `wx`-based mods to `DAILY_MODS` ("HEADWINDS — crosswinds in every
+  sector") once stable. Each condition needs: tunable strength, a briefing
+  sentence teaching it, and a smoke test that the force applies only in its
+  sector.
+- [ ] **T6. Stage the darkness — give night a scarier entrance.** The owner
+  loves the dark sector but feels it "deserves a scarier intro" and maybe a
+  later slot. Moving it breaks two locked structures (each sector introduces
+  exactly one element; Nightingale = the Lamp is canon — she IS the Lady
+  with the Lamp), so instead **stage nightfall inside the sector**: Basin
+  starts at dusk (darkness overlay alpha ~0.4), and over the first ~20 s —
+  or at first boarding, whichever comes first — night *falls* (alpha ramps
+  to full over 6 s) with a banner (`"NIGHT COMES DOWN ON THE BASIN"`), a
+  long low drone swell (S3 bed), and the lamp flickering on. Rewrite
+  BRIEFS[2] to foreshadow dread rather than describe dust: e.g. *"Dust
+  occlusion across the basin — and night coming down fast. Your lamp is
+  your lifeline. And captain… the dark out here listens back."* (final copy
+  via COPY_DECK review). Keep full darkness available later anyway: the
+  BLACKOUT ROTATION daily mod and the finale already reprise it. Test: alpha
+  ramp fires once, REDUCED FLASH halves the flicker, resume mid-sector
+  restores the post-nightfall state.
+
+---
+
 ## Bundle O — Store listing & submission (last)
 
 **Why:** The actual shipping checklist. **Priority: last. Dependencies: A–F
@@ -707,12 +1164,17 @@ level cache lands best on a settled base); J, K, I, M, A all shipped.**
 
 ```
 A ──┬──────────────► E ──► F ──► G ──► O
-B ──┤ (parallel)     ▲
-C ──┤                │
-D ──┴────────────────┘
+B ──┤ (parallel)     ▲                 ▲
+C ──┤                │                 │
+D ──┴────────────────┘                 │
       then, in any order alongside E–G:
       H, I, J, K, L   → price floor $2.99
       then M, N       → price point $4.99 at launch
+      then the July 2026 feedback round, before O:
+      R (fixes — blocks submission)
+      S (sound / endgame / saboteurs — owner-requested for launch)
+      T1–T3 + T6 (zone identity core — launch)
+      T4, T5 (destructible scenery, weather — launch-stretch; slip to 1.1 if needed)
       after launch:
       P (1.1 — THE PENDULUM) → Q (1.2 — THE DEEP HOLLOWS)   → both free
 ```
@@ -727,6 +1189,15 @@ locked. What's left needs hands on the Mac itself: run `app/setup-mac.sh`,
 sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5), then the
 on-device passes — E8 (matrix in §7), F3 (§8) — and Bundle O. The game already
 plays at the $4.99 feature bar.
+**The July 2026 owner-playtest feedback round is now bundled as R, S and T**
+(above): R is pure defect-fixing and joins the submission-blocking set; S
+(sound character, the extraction-hangar endgame, leavable identified
+saboteurs, the VECTOR rename question, the 1.2 manifest teaser) and the core
+of T (progressive sector widths, per-sector biome palettes and ornamentation,
+staged nightfall on the Basin) are owner-requested for the launch build. T4
+(destructible scenery) and T5 (weather) are launch-stretch with a
+pre-approved slip to 1.1. All player-facing copy is now mirrored for owner
+review in [COPY_DECK.md](COPY_DECK.md) (R10).
 **P and Q are specced and locked** (owner decision, July 2026) as the free
 1.1 and 1.2 post-launch updates — see their bundle sections above and
 [PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
