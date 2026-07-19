@@ -132,6 +132,7 @@ const CAPACITY = 6;
 
 let level, ship, camera, particles, texts, stars;
 let resupplyDrone = null;   // the graceful bail-out for a ship stranded at 0 fuel
+let runRefuels = 0;         // U2 — field resupplies used this run; each fill carries less
 let liftTransit = null;     // in-progress lift descent/ascent animation
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
@@ -988,6 +989,7 @@ function resetRun() {
   clearCards = []; revealCard = null; confirmCard = null; leftBehindNote = null; surfaceCtx = null;
   checkpoint = null;
   runSeed = 0; runMode = "campaign"; famousMap = null;
+  runRefuels = 0;   // U2 — the diminishing field-resupply allowance resets each run
   rollDailyMods();
   clearRun();
 }

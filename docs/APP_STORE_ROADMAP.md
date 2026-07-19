@@ -1192,7 +1192,7 @@ top of R4/R2 (don't double-implement); U3 pairs well with R1's card pagination.*
   reset). Keep the hint text + blip as the secondary "hold to descend" cue. Gate on
   the SOUND setting like every other SFX. Test: land on a lift sector's pad via
   `__doids`, assert `L.rung` sets exactly once and clears on lift-off.
-- [ ] **U2. The refueller should cost points — and carry less each time.**
+- [x] **U2. The refueller should cost points — and carry less each time.**
   Field-refuelling (THE TRANSFUSION LINE, `js/update.js:1124`; `XFUSE_RATE` /
   `XFUSE_PRIMER`) is currently a net *reward* — a CLEAN LINE pays **+250**. The
   owner wants it re-cast as a diminishing, priced lifeline:

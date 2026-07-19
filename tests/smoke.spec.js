@@ -1063,3 +1063,42 @@ test("U4: the pause button clears the score and the FUEL/ECG bars at 320-high", 
   expect(errs).toEqual([]);
   await ctx.close();
 });
+
+test("U2: the field refueller costs points, delivers less each time, never soft-locks", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(1); __doids.launch();
+    level.turrets.forEach(t => { t.alive = false; });
+    level.drones.forEach(d => { d.alive = false; });
+    level.oids = []; level.pods = [];   // isolate scoring to the refuel line only
+    score = 5000;            // a tally for the crutch to drain
+    __doids.strand();
+    input.thrust = true;     // stranded-hold signals for resupply
+  });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).phase === "line", null, { timeout: 6000 });
+  await page.evaluate(() => { input.thrust = false; });
+  // the first fill's ceiling: ~full, but never below the safety floor and never
+  // above the tank — and refuels is still 0 until the line actually catches
+  const cap1 = await page.evaluate(() => resupplyDrone.cap);
+  const mf = await page.evaluate(() => __doids.get().maxFuel);
+  expect(cap1).toBeGreaterThanOrEqual(35);
+  expect(cap1).toBeLessThanOrEqual(mf);
+  expect(await page.evaluate(() => __doids.get().runRefuels)).toBe(0);
+  // pin the ship in the capture window so the line flows to the cap
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      if (!resupplyDrone) return;
+      const cp = capturePoint(resupplyDrone);
+      ship.x = cp.x; ship.y = cp.y; ship.vx = ship.vy = 0; ship.landed = false;
+    }, 30);
+  });
+  await page.waitForFunction(() => (__doids.get().resupplyDrone || {}).phase === "out", null, { timeout: 15000 });
+  await page.evaluate(() => clearInterval(window.__pin));
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.score).toBeLessThan(5000);       // the crutch cost points, it did not pay them
+  expect(s.score).toBeGreaterThanOrEqual(0);// the charge floors at 0 — no soft-lock
+  expect(s.runRefuels).toBe(1);             // exactly one field resupply counted
+  // the NEXT resupply must cap lower than this one (diminishing supply)
+  const cap2 = await page.evaluate(() =>
+    Math.max(35, Math.round(__doids.get().maxFuel * Math.pow(0.9, __doids.get().runRefuels))));
+  expect(cap2).toBeLessThanOrEqual(cap1);
+});

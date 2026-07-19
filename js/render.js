@@ -2834,7 +2834,7 @@ window.__doids = {
     resetArmed, settingsRows: SETTINGS_ROWS, buildTag: BUILD_TAG,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
-    perfFrameMs, perfFps, resupplyDrone, liftTransit,
+    perfFrameMs, perfFps, resupplyDrone, liftTransit, runRefuels,
     staticClock, staticSurge,
     vitalsAudioLevel, cabinMedicRate,   // S2 / S9
     confirmOpen: !!confirmCard,          // S4.5

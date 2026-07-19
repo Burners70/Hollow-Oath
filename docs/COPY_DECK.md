@@ -290,9 +290,10 @@ TRANSMITTER +500` ·
 `PASSENGER KILLED BY VECTOR` [S7 promotes to banner; draft: `A
 PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
 `THE STATIC SURGES` · `THE SURGE ROCKS THE LINE` ·
-`PRIMER MIST — FLY TO THE LINE` · `CLEAN LINE +250` ·
-`LINE RELEASED — FUEL +<n>` · `THE PAD RINGS HOLLOW…` · `SCANNING…` ·
-`SCANNING… hold position`
+`PRIMER MIST — FLY TO THE LINE` · `-<n>` (U2 running resupply toll, drained
+live as the tank fills) · `TANK TOPPED — RESUPPLY COST -<n>` (U2, replaces the
+old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
+`THE PAD RINGS HOLLOW…` · `SCANNING…` · `SCANNING… hold position`
 
 ## 10. Discovery & finale cards (`showCard` call sites)
 

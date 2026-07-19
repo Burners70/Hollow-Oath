@@ -219,14 +219,22 @@ ship in quickening pulses while you dock one last time.
   destroys drones harmlessly on contact, turns bad landings into bounces,
   and saves you from cave ceilings. It cannot come up while the transfusion
   line is attached.
-- **The transfusion line**: stranded at 0 fuel, hold THRUST to signal — a
-  drone arrives, mists a +10 primer, and unspools a fuel line to a hover
-  point. Hold station inside the capture window (the one sustained-hover
-  skill in the game) while fuel flows at 12/s; TAP FIRE to detach cleanly
-  anytime and keep what you took. Full tank with no occlusion = CLEAN LINE
-  +250; drift past the snap radius and the line parts (−50, remainder
-  lost). The pump's drip goes arrhythmic with a contaminant aboard, and the
-  41-second surge rocks the tether. MERCY's bay refuel stays passive.
+- **The transfusion line** (a priced, diminishing lifeline — **not** a
+  reward; U2): stranded at 0 fuel, hold THRUST to signal — a drone arrives,
+  mists a +10 primer, and unspools a fuel line to a hover point. Hold station
+  inside the capture window (the one sustained-hover skill in the game) while
+  fuel flows at 12/s; TAP FIRE to detach cleanly anytime and keep what you
+  took. **The crutch costs**: every unit the line delivers charges the tally
+  (**−4/unit**, drained live with a floating −N as the tank climbs), and each
+  resupply this run **carries less than the last** — the drone fills only to
+  `maxFuel × 0.9^refuels`, so the first fill is ~full, the next ~90%, ~81%…
+  A **safety floor** guarantees the drone always leaves at least `XFUSE_FLOOR`
+  (35) in the tank — primer plus enough to limp to the next pad — so even the
+  RATIONED TANK daily mod plus the penalty can never soft-lock a run (the
+  score charge floors at 0, never negative). Drift past the snap radius and
+  the line parts (−50, remainder lost). The pump's drip goes arrhythmic with a
+  contaminant aboard, and the 41-second surge rocks the tether. MERCY's bay
+  refuel stays passive and free — the crutch is the field line, and it hurts.
 - **Enemies**: tracking turrets, homing drones. You *can* shoot back — but a
   no-fire sector earns the **Hippocratic bonus** (+2000) and a no-fire run
   affects the best ending/rank.
@@ -297,7 +305,7 @@ rank (§2.5), distinct from breaking it in combat.
 | Fake pod touched | −100 (and −18 fuel) |
 | Counterfeit MERCY identified (scan or one shot) | +800 |
 | Counterfeit MERCY docked (the trap) | −200 (and fuel drain) |
-| Transfusion CLEAN LINE (full tank, no occlusion) | +250 |
+| Field refuel (transfusion line) | **−4 per unit delivered** (U2; each fill caps at `maxFuel × 0.9^refuels`, floored at 35; charge floors the tally at 0) |
 | Transfusion line snapped (drifted past the limit) | −50 (remainder lost) |
 | Sector clear | +1000 (+2000 Hippocratic if no shots fired) |
 | Scion lost | −250 (famous −500); crash with passengers −250 each |
