@@ -233,7 +233,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
 test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", async ({ page }) => {
   await page.evaluate(() => __doids.go(1));
   let sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(204786080);   // golden checksum: authored VESALIUS RIDGE terrain
+  expect(sum).toBe(1488047869);   // golden checksum: authored VESALIUS RIDGE terrain (T1 widths)
   // remix: fresh seed, 7 famous minds drawn from the wider pool, briefing up
   await page.evaluate(() => __doids.remix());
   let s = await page.evaluate(() => __doids.get());
@@ -243,11 +243,11 @@ test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", as
   expect(s.state).toBe("brief");
   await page.evaluate(() => __doids.go(1));
   const remixSum = await page.evaluate(() => __doids.heightChecksum());
-  expect(remixSum).not.toBe(204786080);
+  expect(remixSum).not.toBe(1488047869);
   // a fresh campaign run restores seed 0 and the exact authored terrain
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
   sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(204786080);
+  expect(sum).toBe(1488047869);
 });
 
 test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page }) => {
@@ -734,8 +734,11 @@ test("S9: a living cabin heals the ship, scaled by who is aboard and capped at 8
   await page.evaluate(() => {
     ship.x = 900; ship.y = __doids.ground(900) - 11; ship.vx = 0; ship.vy = 0; ship.landed = true;
   });
-  // two ordinary Scions aboard at low vitals → rate 2×0.5, vitals climb
+  // two ordinary Scions aboard at low vitals → rate 2×0.5, vitals climb.
+  // Clear the field first so no stranded Scion walks up and boards mid-wait
+  // (T1's wider maps re-site spawns; this test is about the rate math only).
   await page.evaluate(() => {
+    level.oids = [];
     ship.vitals = 20; ship.dead = false;
     ship.passengers = [{ role: "normal" }, { role: "normal" }];
   });
@@ -916,4 +919,72 @@ test("FIELD MEDIC runs stay off the Game Center boards (H3 gate)", async ({ page
   // achievements still earnable on easy mode; the boards are not
   expect(s.gcReports.filter(r => r.method === "submitScore")).toHaveLength(0);
   expect(s.gcReports.filter(r => r.method === "reportAchievement").length).toBeGreaterThan(0);
+});
+
+/* ===== Bundle T — zone identity: width, biomes, staged darkness ===== */
+
+test("T1: sectors widen with depth and early sectors carry fuel pods", async ({ page }) => {
+  const widths = await page.evaluate(() => {
+    const w = [];
+    for (let n = 0; n <= 7; n++) { __doids.go(n); w.push(level.W); }
+    return w;
+  });
+  expect(widths[0]).toBe(2200);           // the teaching sector is the smallest
+  expect(widths[1]).toBe(2750);
+  expect(widths[6]).toBe(5500);
+  expect(widths[7]).toBe(4400);           // finale kept dense-and-dark, not wide
+  for (let n = 1; n <= 6; n++) expect(widths[n]).toBeGreaterThan(widths[n - 1]);
+  // sectors 1 and 2 now seed their first surface fuel pods (fuel scales w/ dist)
+  const pods = await page.evaluate(() => {
+    __doids.go(1); const p1 = level.pods.length;
+    __doids.go(2); const p2 = level.pods.length;
+    return [p1, p2];
+  });
+  expect(pods[0]).toBeGreaterThan(0);
+  expect(pods[1]).toBeGreaterThan(0);
+});
+
+test("T2: every sector carries its own biome terrain palette", async ({ page }) => {
+  const ok = await page.evaluate(() => RECIPE.every(r =>
+    r.pal && Array.isArray(r.pal.grad) && r.pal.grad.length === 2 &&
+    typeof r.pal.stroke === "string" && typeof r.pal.glow === "string" &&
+    Array.isArray(r.pal.night) && Array.isArray(r.pal.star)));
+  expect(ok).toBe(true);
+  // the Nullwave keeps the Static's violet; Asclepion does not (distinct biomes)
+  const distinct = await page.evaluate(() =>
+    RECIPE[7].pal.stroke === "#b388ff" && RECIPE[0].pal.stroke !== RECIPE[7].pal.stroke);
+  expect(distinct).toBe(true);
+});
+
+test("T3: biome sectors seed their own ornamentation types", async ({ page }) => {
+  const grab = n => page.evaluate((nn) => {
+    __doids.go(nn); return [...new Set(level.scenery.map(s => s.type))];
+  }, n);
+  expect(await grab(1)).toContain("boulder");    // Vesalius
+  const basin = await grab(2);                    // Nightingale
+  expect(basin).toContain("reed");
+  expect(basin).toContain("lantern");
+  expect(await grab(4)).toContain("spire");       // Curie
+  expect(await grab(5)).toContain("dune");        // Avicenna
+  expect(await grab(6)).toContain("hedge");       // Jenner
+});
+
+test("T6: the Basin opens at dusk and night falls once to full dark", async ({ page }) => {
+  let s = await page.evaluate(() => { __doids.go(2); __doids.launch(); return __doids.get(); });
+  expect(s.darkAlpha).toBeCloseTo(0.4, 1);        // dusk
+  expect(s.nightFell).toBe(false);
+  // trip the 20-second trigger, then let the 6s ramp run to full dark
+  await page.evaluate(() => { level.nightT = 21; });
+  await page.waitForFunction(() => __doids.get().nightFell === true, null, { timeout: 3000 });
+  await page.evaluate(() => { level.nightRamp = 10; });   // jump the ramp to the cap
+  await page.waitForFunction(() => __doids.get().darkAlpha >= 0.89, null, { timeout: 3000 });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.darkAlpha).toBeLessThanOrEqual(0.9);   // never past full dark
+  expect(s.nightFell).toBe(true);
+  // the finale is dark too, but it does NOT stage — it sits at full dark at once
+  const fin = await page.evaluate(() => {
+    __doids.go(7); return { staged: !!level.nightStaged, da: level.darkAlpha };
+  });
+  expect(fin.staged).toBe(false);
+  expect(fin.da).toBeUndefined();
 });

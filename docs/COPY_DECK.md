@@ -15,9 +15,10 @@ for the counterfeit "Scions" is **Vectors**, singular **Vector** — applied
 throughout this deck and in `index.html`. Code identifiers stay `"saboteur"`
 (the `role` value, variable names) — same rule as the `doids_` prefix.
 
-Pending copy decisions that will touch lines below:
-- **T6 (roadmap):** BRIEFS[2] (Nightingale Basin) gets a scarier rewrite when
-  staged nightfall lands. Marked `[T6]`.
+Landed (July 2026, Bundle T):
+- **T6:** BRIEFS[2] (Nightingale Basin) rewritten for staged nightfall (see §7),
+  and a new in-flight banner `NIGHT COMES DOWN ON THE BASIN` fires as the dark
+  falls (see §8).
 
 Landed (July 2026, Bundle S):
 - **S4:** the extraction banner is now `MANIFEST CLOSED — MERCY IS SPOOLING TO
@@ -120,11 +121,9 @@ continue`. Short cards show a single `tap to continue` as before.
    Carriers, not survivors. / If a rescue feels wrong — the wave wrong, the
    heartbeat missing — trust your instincts. The red quarantine bay is open.
    Do NOT bring contaminated units into the recovery bay."
-2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin. Visibility near
-   zero. / Your lamp is your lifeline — and theirs. Listen for them in the
-   dark." [T6 — rewrite pending; draft: *"Dust occlusion across the basin —
-   and night coming down fast. Your lamp is your lifeline. And captain… the
-   dark out here listens back."*]
+2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin — and night coming
+   down fast. Your lamp is your lifeline, and theirs. Listen for them in the
+   dark. / And captain… the dark out here listens back." [T6 — shipped]
 3. **SEMMELWEIS DEEP** — "Supply lines are cut; the deep is rationed. Scavenge
    surface fuel pods where you find them. / And captain — we found tampering
    in the recovery bay overnight. Watch your passengers. Watch all of them."
@@ -238,6 +237,7 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | Sector start | `<SECTOR NAME>` |
 | Lift descent | `SECRET LIFT — DESCENDING INTO THE HOLLOWS` |
 | Cave exit | `SURFACE — <SECTOR NAME>` |
+| Nightfall on the Basin (T6) | `NIGHT COMES DOWN ON THE BASIN` |
 | Manifest closes | `MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP / DOCK IN THE RECOVERY BAY BEFORE THE STATIC REACHES HER` *(S4 changes to the ventral-hangar wording)* |
 | Breach | `SECURITY BREACH ABOARD MERCY / DOCK AT THE RED BAY TO CONTAIN IT` |
 | Breach contained | `CONTAMINANT CONTAINED  +750 / LOCKDOWN LIFTED` |

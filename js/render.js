@@ -154,7 +154,7 @@ function tileTouch(map, key, tile) {
 
 /* closeAt: "bottom" for terrain (solid ground below the surface line) or
    "top" for a cave roof (solid rock above the ceiling line). */
-function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops) {
+function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops, stroke, glow) {
   const ov = STEP * 2;
   const sx0 = Math.max(0, x0 - ov), sx1 = Math.min((arr.length - 1) * STEP, x1 + ov);
   const i0 = Math.max(0, Math.floor(sx0 / STEP)), i1 = Math.min(arr.length - 1, Math.ceil(sx1 / STEP));
@@ -176,12 +176,12 @@ function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gra
   const grad = tctx.createLinearGradient(0, gradFrom, 0, gradTo);
   grad.addColorStop(0, gradStops[0]); grad.addColorStop(1, gradStops[1]);
   tctx.fillStyle = grad; tctx.fill();
-  tctx.shadowColor = "#7c4dff"; tctx.shadowBlur = 12;
-  tctx.strokeStyle = "#b388ff"; tctx.lineWidth = 2; tctx.stroke();
+  tctx.shadowColor = glow || "#7c4dff"; tctx.shadowBlur = 12;
+  tctx.strokeStyle = stroke || "#b388ff"; tctx.lineWidth = 2; tctx.stroke();
   return { canvas: c, x0, y0: top, w: x1 - x0, h: bottom - top };
 }
 
-function getTiles(lvl, cacheKey, arr, xLo, xHi, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops) {
+function getTiles(lvl, cacheKey, arr, xLo, xHi, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops, stroke, glow) {
   if (!lvl[cacheKey]) lvl[cacheKey] = new Map();
   const map = lvl[cacheKey];
   const t0 = Math.max(0, Math.floor(xLo / TILE_W)), t1 = Math.floor(clamp(xHi, 0, lvl.W) / TILE_W);
@@ -189,10 +189,18 @@ function getTiles(lvl, cacheKey, arr, xLo, xHi, padAbove, padBelow, closeAt, gra
   for (let ti = t0; ti <= t1; ti++) {
     const x0 = ti * TILE_W, x1 = Math.min(x0 + TILE_W, lvl.W);
     let tile = map.get(ti);
-    if (!tile) tile = buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops);
+    if (!tile) tile = buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gradTo, gradStops, stroke, glow);
     out.push(tileTouch(map, ti, tile));
   }
   return out;
+}
+
+/* T2 — the Hollows keep the Static's violet regardless of which sector's lift
+   opened them. Surface biomes come from RECIPE[n].pal. */
+const CAVE_PAL = { grad: ["#1b1040", "#0c0820"], stroke: "#b388ff", glow: "#7c4dff",
+                   night: [2, 3, 10], star: [200, 220, 255] };
+function biomePal() {
+  return level.isCave ? CAVE_PAL : ((RECIPE[level.n] && RECIPE[level.n].pal) || CAVE_PAL);
 }
 
 /* the zone's containment field — the hard edges updatePlay clamps ship.x/y
@@ -229,26 +237,29 @@ function drawWorld(now) {
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
   const viewW = (vw - saLeft) / z;
 
+  const pal = biomePal();
   if (!level.isCave) {
     ctx.save();
     ctx.translate(cx * 0.35, cy * 0.35);
+    const sr = pal.star;   // T2 — per-biome starfield tint
     for (const st of stars) {
       const a = 0.4 + 0.6 * Math.abs(Math.sin(now * 0.8 + st.tw));
-      ctx.fillStyle = "rgba(200,220,255," + a.toFixed(2) + ")";
+      ctx.fillStyle = "rgba(" + sr[0] + "," + sr[1] + "," + sr[2] + "," + a.toFixed(2) + ")";
       ctx.fillRect(st.x, st.y, st.s, st.s);
     }
     ctx.restore();
   }
 
-  // terrain — cached per 512px chunk (Bundle D4), not retraced every frame
+  // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
+  // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
   for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
-      40, 220, "bottom", 700, WORLD_H, ["#1b1040", "#0c0820"]))
+      40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
     ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
 
-  // cave roof, hanging overhead — same tile cache
+  // cave roof, hanging overhead — same tile cache; always the Hollows' violet
   if (level.roof) {
     for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
-        350, 40, "top", 500, 1100, ["#0c0820", "#1b1040"]))
+        350, 40, "top", 500, 1100, ["#0c0820", "#1b1040"], CAVE_PAL.stroke, CAVE_PAL.glow))
       ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
   }
 
@@ -453,7 +464,11 @@ function drawDarkness(now) {
   const toScreen = (wx, wy) => [(saLeft + (wx - cx) * z) * dpr, (wy - cy) * z * dpr];
   dctx.setTransform(1, 0, 0, 1, 0, 0);
   dctx.clearRect(0, 0, darkCanvas.width, darkCanvas.height);
-  dctx.fillStyle = "rgba(2,3,10,0.9)";
+  // T2 — the night is tinted by the biome; T6 — the Basin ramps its own alpha
+  // as night falls (level.darkAlpha), otherwise full dark at 0.9
+  const nb = biomePal().night;
+  const da = level.darkAlpha != null ? level.darkAlpha : 0.9;
+  dctx.fillStyle = "rgba(" + nb[0] + "," + nb[1] + "," + nb[2] + "," + da.toFixed(3) + ")";
   dctx.fillRect(0, 0, darkCanvas.width, darkCanvas.height);
   dctx.globalCompositeOperation = "destination-out";
   const punch = (wx, wy, r, strength) => {
@@ -467,7 +482,13 @@ function drawDarkness(now) {
     dctx.drawImage(sp, sx - rr, sy - rr, rr * 2, rr * 2);
     dctx.globalAlpha = 1;
   };
-  if (!ship.dead) punch(ship.x, ship.y, lampRadius(), 1);
+  // T6 — the lamp gutters on as night falls (REDUCED FLASH halves the flicker)
+  let lampS = 1;
+  if (level.nightStaged && level.nightFell && level.darkAlpha < 0.9) {
+    const amp = reducedFlash ? 0.15 : 0.3;
+    lampS = (1 - amp) + amp * Math.abs(Math.sin(now * 22));
+  }
+  if (!ship.dead) punch(ship.x, ship.y, lampRadius(), lampS);
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
   if (level.fakeMercy && !level.fakeMercy.dead)   // lit exactly like her (N1)
     punch(level.fakeMercy.x, level.fakeMercy.y + 40, 260, 0.9);
@@ -477,6 +498,9 @@ function drawDarkness(now) {
     if (o.state === "wait" || o.state === "walk" || o.state === "panic")
       punch(o.x, o.y - 10, 46, 0.55 + 0.3 * Math.abs(Math.sin(now * 2 + o.wave)));
   }
+  for (const c of level.scenery)   // T3 — ward-lanterns carve small pools of light
+    if (c.type === "lantern" && !c.dead)
+      punch(c.x, c.y - c.pole * c.s, 72, 0.4 + 0.15 * Math.abs(Math.sin(now * 3 + c.ph)));
   if (level.beacon && !level.beacon.resolved) punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
   if (level.blackbox && !level.blackbox.found) punch(level.blackbox.x, level.blackbox.y, 36, 0.4);
   if (level.isCave) {   // the Hollows keep their own faint lights
@@ -856,6 +880,12 @@ function drawScenery(now) {
       case "ruin":   drawBuilding(sc, now, true); break;
       case "wreckM": drawWreckM(sc, now); break;
       case "wreckS": drawWreckS(sc, now); break;
+      case "boulder": drawBoulder(sc, now); break;   // T3 biome ornaments
+      case "reed":    drawReed(sc, now); break;
+      case "lantern": drawLantern(sc, now); break;
+      case "spire":   drawSpire(sc, now); break;
+      case "dune":    drawDune(sc, now); break;
+      case "hedge":   drawHedge(sc, now); break;
     }
     // an in-progress landed scan (Bundle J) — same ring language as the
     // black box and the shrine
@@ -874,6 +904,109 @@ function drawScenery(now) {
       ctx.restore();
     }
   }
+}
+
+/* ===== T3 biome ornaments ===== */
+/* VESALIUS — stacked boulders, the exposed rubble of the ridge */
+function drawBoulder(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.scale(sc.s, sc.s);
+  for (const b of sc.stack) {
+    ctx.beginPath(); ctx.arc(b.dx, b.dy, b.r, 0, 7);
+    ctx.fillStyle = "#1b0f06"; ctx.fill();
+    glowStroke("rgba(224,151,90,.5)", 1.6);
+  }
+  ctx.restore();
+}
+/* NIGHTINGALE — reed clusters bending in the basin dark */
+function drawReed(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.lineCap = "round";
+  for (const bl of sc.blades) {
+    const sway = Math.sin(now * 1.3 + bl.ph) * 3;
+    ctx.beginPath();
+    ctx.moveTo(bl.dx, 0);
+    ctx.quadraticCurveTo(bl.dx + bl.bend * 0.5 + sway, -bl.len * 0.6,
+                         bl.dx + bl.bend + sway, -bl.len);
+    glowStroke("rgba(131,144,255,.45)", 1.3);
+  }
+  ctx.restore();
+}
+/* NIGHTINGALE — ward-lanterns: dim warm lights that matter in the dark
+   (they also punch the darkness overlay in drawDarkness) */
+function drawLantern(sc, now) {
+  const flick = 0.7 + 0.3 * Math.abs(Math.sin(now * 3 + sc.ph));
+  const ly = sc.y - sc.pole * sc.s;
+  ctx.save();
+  ctx.strokeStyle = "rgba(131,144,255,.5)"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(sc.x, sc.y); ctx.lineTo(sc.x, ly); ctx.stroke();
+  ctx.restore();
+  drawGlow(sc.x, ly, 14, "#ffcf7a", flick);
+  ctx.fillStyle = "rgba(255,207,122," + (0.6 * flick).toFixed(2) + ")";
+  ctx.beginPath(); ctx.arc(sc.x, ly, 2.6, 0, 7); ctx.fill();
+}
+/* CURIE — ice spires with a faint internal glow (radium light in crystal) */
+function drawSpire(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.scale(sc.s, sc.s);
+  const h = sc.sh, w = sc.sw;
+  ctx.beginPath();
+  ctx.moveTo(-w, 0); ctx.lineTo(-w * 0.4, -h * 0.55); ctx.lineTo(0, -h);
+  ctx.lineTo(w * 0.4, -h * 0.5); ctx.lineTo(w, 0);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(120,110,200,.16)"; ctx.fill();
+  glowStroke("rgba(166,255,156,.5)", 1.6);
+  ctx.restore();
+  const g = 0.3 + 0.2 * Math.abs(Math.sin(now * 1.2 + sc.ph));
+  drawGlow(sc.x, sc.y - sc.sh * 0.5 * sc.s, 10, "#a6ff9c", g);
+}
+/* AVICENNA — banded dunes and the odd pale salt pan */
+function drawDune(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  const w = sc.dw;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, 0);
+  ctx.quadraticCurveTo(-w * 0.15, -w * 0.16, 0, -w * 0.2);
+  ctx.quadraticCurveTo(w * 0.25, -w * 0.16, w / 2, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#1c1608"; ctx.fill();
+  glowStroke("rgba(230,200,95,.4)", 1.4);
+  ctx.save();
+  ctx.globalAlpha = 0.3; ctx.strokeStyle = "rgba(230,200,95,.5)"; ctx.lineWidth = 1;
+  for (let b = 1; b <= sc.bands; b++) {
+    const yy = -w * 0.2 * (b / (sc.bands + 1));
+    ctx.beginPath(); ctx.moveTo(-w / 2 + b * 4, yy); ctx.lineTo(w / 2 - b * 4, yy); ctx.stroke();
+  }
+  ctx.restore();
+  if (sc.pan) {
+    ctx.fillStyle = "rgba(240,230,190,.14)";
+    ctx.beginPath(); ctx.ellipse(0, 2, w * 0.42, 4, 0, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+/* JENNER — hedgerows; the pastoral calm that lies */
+function drawHedge(sc, now) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt * 0.4);
+  const w = sc.hw, sway = Math.sin(now * 0.7 + sc.ph) * 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, 0);
+  for (let b = 0; b <= sc.bumps; b++) {
+    const bx = -w / 2 + (w * b) / sc.bumps;
+    ctx.quadraticCurveTo(bx - w / sc.bumps / 2, -16 - (b % 2) * 5 + sway, bx, -12);
+  }
+  ctx.lineTo(w / 2, 0);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(20,38,15,.9)"; ctx.fill();
+  glowStroke("rgba(168,227,154,.4)", 1.4);
+  ctx.restore();
 }
 
 /* alien glow-flora. The lure-trees keep perfect mechanical time —
@@ -2681,6 +2814,7 @@ window.__doids = {
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
     rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect() },
     decoyOutcome, fakeMercy: level && level.fakeMercy,
+    darkAlpha: level && level.darkAlpha, nightFell: level && !!level.nightFell,   // T6
     gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
   go: toBriefing,
   // R9 / S5 (owner steer): a Vector is NEVER given away by colour — with or
