@@ -1050,7 +1050,18 @@ budget). Dependencies: D4 (terrain tiles — palettes thread through it), C/S3
 (audio beds), I (surge), M1 (seed plumbing — widths change the golden
 checksum deliberately).**
 
-- [ ] **T1. Progressive sector widths.** `genLevel` currently uses
+**Status (shipped):** the launch core **T1–T3 + T6 are done** on the web build.
+Progressive widths + distance-scaled fuel pods (golden checksum updated to
+`1488047869`), per-sector biome palettes (grad/stroke/glow + `night`/`star`
+tints, caves keep the Static violet), biome ornamentation (boulders, reeds +
+ward-lanterns that light the dark, ice spires, banded dunes, hedgerows) with
+per-sector surface ambience (wind on the shoals, insect shimmer over the
+terraces), and staged nightfall on the Basin (dusk → full dark with a banner,
+a drone swell and a guttering lamp). Smoke tests added for all four. **T4
+(destructible scenery) and T5 (weather) remain** — the pre-approved slip to
+1.1 stands.
+
+- [x] **T1. Progressive sector widths.** `genLevel` currently uses
   `W = 2600 + Math.min(n, 5) * 400` (finale 4400) — the owner finds them too
   small, and the cap flattens 5–7. Change to `W = 2200 + n * 550`
   (sector 0: 2200 — *smaller* than today, it's the teaching sector; sector 6:
@@ -1066,7 +1077,7 @@ checksum deliberately).**
   emptier ≠ wider, so ALSO scale `oids`/`turrets` on sectors 4+ by ~+1 each);
   Curie's compass and Radiosense matter more at width — no change needed,
   but verify black boxes stay findable (they blink stronger when near).
-- [ ] **T2. Per-sector terrain palettes.** Add a `pal` entry to each
+- [x] **T2. Per-sector terrain palettes.** Add a `pal` entry to each
   `RECIPE[n]`: `{ grad: [top, bottom], stroke, glow }`, threaded through
   `drawWorld`'s `getTiles(...)` call into `buildHeightTile` (which currently
   hardcodes `["#1b1040", "#0c0820"]` fill and `#b388ff`/`#7c4dff` stroke).
@@ -1087,7 +1098,7 @@ checksum deliberately).**
   multiply each). Keep every palette *behind* the HUD's semantic colours —
   run the landing guide / ECG over each ground colour and check contrast in
   both PALETTES (H1).
-- [ ] **T3. Ornamentation sets — zone the levels visually.** The scenery
+- [x] **T3. Ornamentation sets — zone the levels visually.** The scenery
   system (`RECIPE[].scn`, `drawScenery`) already varies counts; give it
   *types* per biome, so L1 stops being "very plain" (owner). Additions, all
   decorative-first (collision comes in T4): **boulder stacks** (Vesalius —
@@ -1139,7 +1150,7 @@ checksum deliberately).**
   sector") once stable. Each condition needs: tunable strength, a briefing
   sentence teaching it, and a smoke test that the force applies only in its
   sector.
-- [ ] **T6. Stage the darkness — give night a scarier entrance.** The owner
+- [x] **T6. Stage the darkness — give night a scarier entrance.** The owner
   loves the dark sector but feels it "deserves a scarier intro" and maybe a
   later slot. Moving it breaks two locked structures (each sector introduces
   exactly one element; Nightingale = the Lamp is canon — she IS the Lady

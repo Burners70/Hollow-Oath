@@ -808,6 +808,7 @@ function updatePlay(dt) {
   }
 
   sectorT += dt;
+  updateNightfall(dt);    // T6 — dusk → full dark on the Basin
   updateOids(dt, now);
   updateEnemies(dt);
   updateSabotage(dt);
@@ -1229,6 +1230,30 @@ function updateCaveAudio(dt) {
   if (!level.isCave || ship.dead || state !== "play") { caveDripT = 0; caveRumbleT = 0; return; }
   if ((caveDripT -= dt) <= 0) { caveDripT = 4 + Math.random() * 5; caveDrip(); }
   if ((caveRumbleT -= dt) <= 0) { caveRumbleT = 20 + Math.random() * 20; caveRumble(); }
+}
+
+/* T6 — night comes down on Nightingale Basin. The sector opens at dusk
+   (darkAlpha 0.4) and, at 20s or the first Scion aboard (whichever is first),
+   the dark falls to full (0.9) over 6s with a banner, a low drone swell and
+   the lamp guttering on. The finale and BLACKOUT rotations skip all this and
+   sit at full dark — they never set nightStaged. */
+function updateNightfall(dt) {
+  const L = level;
+  if (!L.nightStaged) return;
+  if (!L.nightFell) {
+    L.nightT += dt;
+    if (L.nightT >= 20 || ship.passengers.length > 0) {
+      L.nightFell = true;
+      L.nightRamp = 0;
+      banner("NIGHT COMES DOWN ON THE BASIN", "#8390ff");
+      nightfallSwell();
+    }
+    return;
+  }
+  if (L.darkAlpha < 0.9) {
+    L.nightRamp += dt;
+    L.darkAlpha = lerp(0.4, 0.9, clamp(L.nightRamp / 6, 0, 1));
+  }
 }
 
 /* S9 — Scions gently repair the ship while aboard. A slow passive regen driven

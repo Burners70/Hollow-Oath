@@ -35,7 +35,7 @@ const NBOX = FINALE_IDX;                      // one hidden black box per campai
 const BRIEFS = [
   "MERCY to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
   "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
-  "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
+  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\nAnd captain… the dark out here listens back.",
   "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
@@ -518,29 +518,60 @@ function flatten(heights, cx, halfW) {
 /* per-sector recipe: each sector introduces one new element.
    scn = decorative scenery counts; fakes = Glycon's counterfeit fuel pods;
    lift marks the sectors whose ground hides a secret lift into the Hollows. */
+/* T2/T3 — each sector carries its own biome: a terrain palette (grad/stroke/
+   glow, plus a `night` darkness tint and `star` field tint) and its own
+   ornamentation counts. The landscape echoes its healer, so the biome IS the
+   narrative. Caves keep the Static's violet (CAVE_PAL in render.js). */
 const RECIPE = [
+  // 0 · ASCLEPION — temple calm, soft teal-greens; the tutorial breathes
   { oids: 3, turrets: 2, sabs: 0, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,
-    lift: false, scn: { trees: 9, rocks: 5, bld: 2, ruin: 0, wreck: 0 } },
-  { oids: 5, turrets: 4, sabs: 1, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,
-    lift: true,  scn: { trees: 7, rocks: 6, bld: 1, ruin: 1, wreck: 1 } },
-  { oids: 6, turrets: 4, sabs: 1, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: true,
-    lift: false, scn: { trees: 5, rocks: 6, bld: 0, ruin: 2, wreck: 1 } },
+    lift: false, scn: { trees: 9, rocks: 5, bld: 2, ruin: 0, wreck: 0 },
+    pal: { grad: ["#0d2926", "#05130f"], stroke: "#5fe3c8", glow: "#1f8f7a",
+           night: [2, 9, 8], star: [180, 230, 215] } },
+  // 1 · VESALIUS RIDGE — anatomy; rust reds / ochre, the exposed muscle of land
+  { oids: 5, turrets: 4, sabs: 1, drones: 0, pods: 1, fakes: 0, anomalies: 0, dark: false,
+    lift: true,  scn: { trees: 7, rocks: 6, bld: 1, ruin: 1, wreck: 1, boulders: 4 },
+    pal: { grad: ["#2a1509", "#160a04"], stroke: "#e0975a", glow: "#8f4a1f",
+           night: [9, 4, 2], star: [235, 205, 180] } },
+  // 2 · NIGHTINGALE BASIN — her sector is the dark one; deep indigo
+  { oids: 6, turrets: 4, sabs: 1, drones: 0, pods: 2, fakes: 0, anomalies: 0, dark: true,
+    lift: false, scn: { trees: 5, rocks: 6, bld: 0, ruin: 2, wreck: 1, reeds: 5, lanterns: 3 },
+    pal: { grad: ["#141240", "#080622"], stroke: "#8390ff", glow: "#3b3f9f",
+           night: [4, 4, 14], star: [200, 210, 255] } },
+  // 3 · SEMMELWEIS DEEP — the scrubbed ward; cold antiseptic grey-green
   { oids: 7, turrets: 6, sabs: 2, drones: 1, pods: 3, fakes: 0, anomalies: 0, dark: false,
-    lift: true,  scn: { trees: 4, rocks: 7, bld: 0, ruin: 2, wreck: 1 } },
+    lift: true,  scn: { trees: 4, rocks: 7, bld: 0, ruin: 2, wreck: 1 },
+    pal: { grad: ["#16241f", "#0a120e"], stroke: "#8fd6b8", glow: "#3f7a5f",
+           night: [3, 8, 7], star: [205, 225, 215] } },
+  // 4 · CURIE FIELDS — radium glow; luminous violet-green (anomaly violet kept)
   { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 4, fakes: 0, anomalies: 3, dark: false,
-    lift: false, scn: { trees: 3, rocks: 8, bld: 0, ruin: 3, wreck: 2 } },
+    lift: false, scn: { trees: 3, rocks: 8, bld: 0, ruin: 3, wreck: 2, spires: 5 },
+    pal: { grad: ["#1a1442", "#0b0820"], stroke: "#a6ff9c", glow: "#6a4dcf",
+           night: [5, 3, 13], star: [205, 235, 205] } },
+  // 5 · AVICENNA SHOALS — the Persian crossing; sand / amber
   { oids: 8, turrets: 7, sabs: 2, drones: 2, pods: 3, fakes: 3, anomalies: 2, dark: false,
-    lift: true,  scn: { trees: 6, rocks: 6, bld: 0, ruin: 2, wreck: 1 } },
+    lift: true,  scn: { trees: 6, rocks: 6, bld: 0, ruin: 2, wreck: 1, dunes: 4 },
+    pal: { grad: ["#2a2109", "#161004"], stroke: "#e6c85f", glow: "#8f6a1f",
+           night: [10, 7, 3], star: [240, 225, 180] } },
+  // 6 · JENNER TERRACES — cowpox country, the calm that lies; pale pastoral green
   { oids: 9, turrets: 8, sabs: 3, drones: 2, pods: 4, fakes: 3, anomalies: 2, dark: false,
-    lift: false, scn: { trees: 2, rocks: 7, bld: 0, ruin: 4, wreck: 2 } },
+    lift: false, scn: { trees: 2, rocks: 7, bld: 0, ruin: 4, wreck: 2, hedges: 4 },
+    pal: { grad: ["#15260f", "#0a1607"], stroke: "#a8e39a", glow: "#4a8f3a",
+           night: [4, 9, 4], star: [210, 235, 200] } },
+  // 7 · THE NULLWAVE — the Static's home; near-black violet, as it always was
   { oids: 2, turrets: 6, sabs: 0, drones: 3, pods: 3, fakes: 2, anomalies: 2, dark: true,
-    lift: false, scn: { trees: 0, rocks: 8, bld: 0, ruin: 3, wreck: 3 } }
+    lift: false, scn: { trees: 0, rocks: 8, bld: 0, ruin: 3, wreck: 3 },
+    pal: { grad: ["#1b1040", "#0c0820"], stroke: "#b388ff", glow: "#7c4dff",
+           night: [2, 3, 10], star: [200, 220, 255] } }
 ];
 const LIFT_CAVE = { 1: 0, 3: 1, 5: 2 };  // which sector's lift opens which cave
 
 function genLevel(n) {
   const r = RECIPE[n];
-  const W = n === FINALE_IDX ? 4400 : 2600 + Math.min(n, 5) * 400;
+  // T1 — progressive widths: sectors grow with n so the maps feel like places.
+  // Sector 0 is the smallest (the teaching sector); the finale keeps 4400 —
+  // it is dense and dark by design, not wide.
+  const W = n === FINALE_IDX ? 4400 : 2200 + n * 550;
   const rng = mulberry32(1013 * (n + 3) + 77 + runSeed);
   const count = Math.floor(W / STEP) + 2;
 
@@ -569,6 +600,18 @@ function genLevel(n) {
     dark: r.dark || dailyMod("dark"), isFinale: n === FINALE_IDX,
     contamKnown: false, fragmentsHere: [] };
 
+  // T6 — the Basin stages its own nightfall: it opens at dusk and the dark
+  // comes down over the first ~20s (or at first boarding, whichever is first).
+  // Every other dark level (finale, a BLACKOUT rotation) stays full-dark from
+  // the first frame — darkAlpha left undefined means drawDarkness uses 0.9.
+  if (n === 2) {
+    lvl.nightStaged = true;
+    lvl.nightFell = false;
+    lvl.nightT = 0;
+    lvl.nightRamp = 0;
+    lvl.darkAlpha = 0.4;   // dusk
+  }
+
   const spots = [];
   const pick = minDist => {
     for (let tries = 0; tries < 80; tries++) {
@@ -583,7 +626,10 @@ function genLevel(n) {
     role, sleeper: false, famousId: -1, carrier: false, panicT: 0, sabT: 0,
     persona: PERSONAS[Math.floor(rng() * PERSONAS.length)],
     scale: 0.95 + rng() * 0.3, gait: 30 + rng() * 12, nearShip: false });
-  for (let i = 0; i < r.oids; i++) {
+  // T1 — the wide campaign sectors (4–6) get +1 Scion and +1 turret each, so
+  // the extra room reads as denser wilderness, not emptier ground.
+  const wideBump = (n >= 4 && n < FINALE_IDX) ? 1 : 0;
+  for (let i = 0; i < r.oids + wideBump; i++) {
     const x = pick(280);
     const y = flatten(heights, x, 80);
     lvl.oids.push(newOid(x, y, "normal"));
@@ -610,7 +656,7 @@ function genLevel(n) {
   }
   lvl.total = lvl.oids.length;
 
-  for (let i = 0; i < r.turrets; i++) {
+  for (let i = 0; i < r.turrets + wideBump; i++) {
     const x = pick(220);
     const y = flatten(heights, x, 40);
     lvl.turrets.push({ x, y, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
@@ -645,7 +691,11 @@ function genLevel(n) {
     lvl.drones.push({ x: 900 + rng() * (W - 1200), y: 400 + rng() * 250,
       vx: 0, vy: 0, alive: true, bob: rng() * 6 });
   }
-  for (let i = 0; i < r.pods; i++) {
+  // T1 — fuel must scale with distance: +1 pod per full 800px of width above
+  // 3000, so wider remix/daily maps stay survivable (the transfusion drone is
+  // the everywhere-backstop for the rest).
+  const extraPods = Math.max(0, Math.floor((W - 3000) / 800));
+  for (let i = 0; i < r.pods + extraPods; i++) {
     const x = pick(200);
     lvl.pods.push({ x, y: flatten(heights, x, 30), taken: false, ph: rng() * 7 });
   }
@@ -733,6 +783,35 @@ function genLevel(n) {
   }
   for (let i = 0; i < sc.wreck; i++)
     deco(rng() < 0.5 ? "wreckM" : "wreckS", 6, { lean: (rng() - 0.5) * 0.7 });
+  // T3 — biome ornamentation. Decorative-first (collision is T4); each type is
+  // authored per-sector in RECIPE[].scn so a landscape reads as its own place.
+  for (let i = 0; i < (sc.boulders || 0); i++) {   // VESALIUS — stacked boulders
+    const stack = [];
+    const k = 2 + Math.floor(rng() * 3);
+    let dy = 0;
+    for (let b = 0; b < k; b++) {
+      const rr = Math.max(4, 10 + rng() * 7 - b * 1.6);
+      stack.push({ dx: (rng() - 0.5) * 7, dy, r: rr });
+      dy -= rr * 1.25;
+    }
+    deco("boulder", 2, { stack });
+  }
+  for (let i = 0; i < (sc.reeds || 0); i++) {      // NIGHTINGALE — reed clusters
+    const blades = [];
+    const k = 4 + Math.floor(rng() * 4);
+    for (let b = 0; b < k; b++)
+      blades.push({ dx: (rng() - 0.5) * 18, len: 14 + rng() * 18,
+        bend: (rng() - 0.5) * 7, ph: rng() * 7 });
+    deco("reed", 1, { blades });
+  }
+  for (let i = 0; i < (sc.lanterns || 0); i++)     // NIGHTINGALE — ward-lanterns
+    deco("lantern", 4, { pole: 22 + rng() * 14 });
+  for (let i = 0; i < (sc.spires || 0); i++)       // CURIE — glowing ice spires
+    deco("spire", 3, { sh: 42 + rng() * 46, sw: 7 + rng() * 8 });
+  for (let i = 0; i < (sc.dunes || 0); i++)        // AVICENNA — banded dunes / salt pans
+    deco("dune", 5, { dw: 64 + rng() * 74, bands: 3 + Math.floor(rng() * 3), pan: rng() < 0.5 });
+  for (let i = 0; i < (sc.hedges || 0); i++)       // JENNER — hedgerows
+    deco("hedge", 5, { hw: 46 + rng() * 52, bumps: 4 + Math.floor(rng() * 4) });
   // where Glycon seeds lures he also plants a lure-tree: a transmitter
   // disguised as flora, swaying in perfect mechanical time. In the
   // nullwave it is the only tree standing at all.
@@ -834,6 +913,7 @@ function enterCave(L) {
   blip(220, 70, 0.9, "sawtooth", 0.16);
   staticTick();
   setCaveEcho(true);   // S3 — every sound now rings in the rock
+  setBiomeBed(-1);     // T3 — the Hollows have no surface bed
 }
 
 function exitCave() {
@@ -853,6 +933,7 @@ function exitCave() {
   banner("SURFACE — " + SECTOR_NAMES[levelIdx], "#00e5ff");
   blip(160, 520, 0.6, "sine", 0.12);
   setCaveEcho(false);   // S3 — back to the dry surface
+  setBiomeBed(levelIdx);   // T3 — the sector's ambience returns
 }
 
 function maxVitals() { return upgrades.fabrica ? 125 : 100; }
@@ -895,6 +976,7 @@ function toBriefing(n) {
   level = genLevel(n);
   sectorT = 0;
   setCaveEcho(false);   // S3 — every sector starts on the dry surface
+  setBiomeBed(n);       // T3 — the sector's own surface ambience
   spawnShip();
   camera = { x: ship.x, y: ship.y, shake: 0 };
   particles = []; texts = [];

@@ -344,9 +344,13 @@ reload. Deliberate order inside the `<script>`:
 3. **Story data** — `SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`,
    `FAMOUS`, `INTRO`. `FINALE_IDX` / `NBOX` derive from `SECTOR_NAMES`.
 4. **World gen** — `RECIPE[]` (per-sector counts incl. `scn` scenery and
-   `fakes`; `lift` flags), `genLevel(n)`, `genCave(ci)` (`LIFT_CAVE` maps
-   sector→cave), `enterCave()/exitCave()` (swap `level`, keep `surfaceCtx`),
-   `acctLevel()` (sector accounting always lands on the surface level).
+   `fakes`; `lift` flags; a `pal` biome palette — Bundle T2), `genLevel(n)`
+   (progressive widths `W = 2200 + n*550`, finale 4400, with distance-scaled
+   fuel pods — Bundle T1), `genCave(ci)` (`LIFT_CAVE` maps sector→cave),
+   `enterCave()/exitCave()` (swap `level`, keep `surfaceCtx`), `acctLevel()`
+   (sector accounting always lands on the surface level). The Basin stages its
+   own nightfall (`level.darkAlpha`/`nightFell`, driven by `updateNightfall` —
+   Bundle T6).
 5. **Simulation** — `updatePlay` and friends (`updateOids`, `updateEnemies`,
    `updateSabotage`, `updateDocking`, `updateBlackbox`, `updatePods`,
    `updateLift`, `updateShrine`, `updateBeacon`, `updateExtraction`).

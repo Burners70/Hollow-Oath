@@ -131,6 +131,43 @@ function setCaveEcho(on, wet) {
   if (!echoSend || !AC) return;
   echoSend.gain.setTargetAtTime(on ? (wet || 0.35) : 0, AC.currentTime, 0.4);
 }
+/* T3 — per-biome surface ambience: one small looping bed per sector, routed
+   through musicGain so the MUSIC setting governs it. Wind on the shoals,
+   an insect shimmer over the terraces; every other sector stays quiet (the
+   dark sectors get their silence + the cave dressing when underground). */
+let biomeBedSrc = null, biomeBedGain = null, biomeBedLfo = null;
+function stopBiomeBed() {
+  if (AC && biomeBedGain) biomeBedGain.gain.setTargetAtTime(0, AC.currentTime, 0.5);
+  biomeBedSrc = null; biomeBedGain = null; biomeBedLfo = null;
+}
+function setBiomeBed(n) {
+  if (!AC || !musicGain) return;
+  stopBiomeBed();
+  const kind = n === 5 ? "wind" : n === 6 ? "insects" : null;
+  if (!kind) return;
+  const dur = 2, sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = Math.random() * 2 - 1;
+  const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+  const filt = AC.createBiquadFilter();
+  const g = AC.createGain(); g.gain.value = 0;
+  if (kind === "wind") {
+    filt.type = "bandpass"; filt.frequency.value = 480; filt.Q.value = 0.7;
+    src.connect(filt); filt.connect(g); g.connect(musicGain);
+    src.start(); g.gain.setTargetAtTime(0.035, AC.currentTime, 1.2);
+  } else {   // insects — a high shimmer with a slow 7 Hz tremolo
+    filt.type = "highpass"; filt.frequency.value = 5200;
+    const trem = AC.createGain(); trem.gain.value = 0.5;
+    const lfo = AC.createOscillator(); lfo.frequency.value = 7;
+    const ld = AC.createGain(); ld.gain.value = 0.5;
+    lfo.connect(ld); ld.connect(trem.gain); lfo.start();
+    src.connect(filt); filt.connect(trem); trem.connect(g); g.connect(musicGain);
+    src.start(); g.gain.setTargetAtTime(0.02, AC.currentTime, 1.2);
+    biomeBedLfo = lfo;
+  }
+  biomeBedSrc = src; biomeBedGain = g;
+}
 /* S3 — cave dressing, played through sfxGain so both ring in the echo bus */
 function caveDrip() {
   if (!AC) return;
@@ -267,6 +304,22 @@ function startMusic() {
   droneOsc1.connect(droneFilter); droneOsc2.connect(droneFilter);
   droneFilter.connect(droneGain); droneGain.connect(musicGain);
   droneOsc1.start(); droneOsc2.start(); droneLfo.start();
+}
+/* T6 — the long low swell as night comes down on the Basin: a sub drone that
+   rises then settles under the ambient bed. Routed through musicGain so the
+   MUSIC setting governs it, like every other bed. */
+function nightfallSwell() {
+  if (!AC || !musicGain) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain();
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 220;
+  o.type = "sine"; o.frequency.value = 44;
+  o2.type = "triangle"; o2.frequency.value = 66;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.12, t + 2.2);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 6.5);
+  o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(musicGain);
+  o.start(t); o2.start(t); o.stop(t + 6.8); o2.stop(t + 6.8);
 }
 /* S2 — the monitor alarm: a 440 Hz sine amplitude-modulated at 6 Hz, created
    lazily the first time vitals fall far enough to need it, then left running
