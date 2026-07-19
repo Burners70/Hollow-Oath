@@ -194,14 +194,22 @@ ship in quickening pulses while you dock one last time.
   approach guide with reason text). Optional landing assist (auto-level).
 - **Rescue**: land near a waiting Scion; it walks over and climbs aboard
   (capacity 6). Delivering to MERCY's cyan **recovery bay** heals, refuels
-  and scores; famous Scions step out last for the reveal.
+  and scores; famous Scions step out last for the reveal. A **living cabin**
+  gives a slow passive heal while genuine Scions ride (S9): ~0.5 vitals/s per
+  ordinary Scion, +1.0 with a famous mind aboard, capped at 85% of max — the
+  bay stays the only way to *finish* a repair. Counterfeits lend nothing.
 - **Vectors**: indistinguishable at distance. Tells: mechanically perfect
   wave/blink rhythm, slightly-too-eager walk, a **dull thud** instead of a
-  heartbeat on boarding, ECG **arrhythmia** while an active one is aboard.
-  Active ones cut fuel lines and kill passengers; **sleepers** wait and slip
-  into MERCY at delivery → timed breach (dock at the **red quarantine bay**
-  within 45s or healing goes offline). Containing a Vector in the red bay
-  = +750.
+  heartbeat on boarding, a **silent slot in the cabin heartbeat chorus** (S1),
+  ECG **arrhythmia** while an active one is aboard. Active ones cut fuel lines
+  and kill passengers (a screen-edge red pulse + a full DANGER banner, S7);
+  **sleepers** wait and slip into MERCY at delivery → timed breach (dock at
+  the **red quarantine bay** within 45s or healing goes offline). Containing a
+  Vector in the red bay = +750. **You may leave what you can prove (S5)**: a
+  Vector identified by ANTISEPSIS's tint, or catalogued by a landed 4-second
+  scan (+250, works without the upgrade), may be left on the ground and still
+  close the manifest. Unproven sleepers must be carried, or the manifest stays
+  open.
 - **Force field** (SHIELD, hold): drains fuel ~7/s; deflects turret fire,
   destroys drones harmlessly on contact, turns bad landings into bounces,
   and saves you from cave ceilings. It cannot come up while the transfusion
@@ -220,7 +228,20 @@ ship in quickening pulses while you dock one last time.
 - **Friendly fire is malpractice**: your exhaust and stray shots can kill
   the very Scions you came for (score penalties, named famous casualties).
 - **ECG health bar**: beat rate rises as vitals fall; arrhythmia is
-  diagnostic information.
+  diagnostic information. The ambient score tracks it too (S2): the motif
+  thins when healthy and crowds in when hurt, and below 35% a far-away
+  6 Hz monitor alarm fades in, ducking under any real heartbeat/dull-thud tell.
+- **Sector endgame (S4)**: when the manifest closes, MERCY retracts her bays,
+  lifts ~140 px toward jump altitude and opens a **ventral hangar**. The
+  sector closes only when you **fly into her and hold the hover** for 1.2 s in
+  the air (the sustained-hover skill the transfusion teaches) — not by parking
+  in a bay. **Triage retreat (S4.5)**: once ≥50% of the manifest is accounted
+  for and at least one Scion is home, hovering in the hangar with an empty
+  deliverable cabin offers an **early extraction** — abandon everyone still
+  waiting (logged lost, −250 each / −500 famous, no sector-clear or Hippocratic
+  bonus). Retreat is allowed, never free; the next briefing remembers it.
+- **Cave acoustics (S3)**: down in the Hollows every sound rings in the rock
+  (a wet echo send), with occasional drips and a distant rumble.
 
 ## 5. Controls
 

@@ -36,7 +36,7 @@ const BRIEFS = [
   "MERCY to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
   "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin. Visibility near zero.\nYour lamp is your lifeline — and theirs. Listen for them in the dark.",
-  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.",
+  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
   "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
@@ -164,6 +164,8 @@ let upgrades = {};
 let mercyBreach = null, mercyDamaged = false;
 let endingType = null;
 let clearCards = [], revealCard = null;
+let confirmCard = null;            // S4 — a two-choice confirm (early extraction)
+let leftBehindNote = null;         // S4 — grim next-briefing line after a triage retreat
 let briefChars = 0;
 let checkpoint = null;   // captured run-start snapshot, offered as CONTINUE on game over
 let savedRun = null;     // resume-from-title snapshot (doids_run), kept in sync with localStorage
@@ -482,11 +484,17 @@ function settingsRowRect(i) {
   const col = i % cols, row = (i - col) / cols;
   return { x: x0 + col * (cw + gapX), y: y0 + row * (h + gapY), w: cw, h };
 }
+/* S4 — the early-extraction confirm has two rows: SIGNAL (0) and RETURN (1) */
+function confirmRowRect(i) {
+  const w = Math.min(300, vw * 0.7), h = 44, gap = 16;
+  const y0 = vh * 0.62;
+  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
+}
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on in SETTINGS.",
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is quarantine — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nSuspect a unit? Park right on top of it and hold still to read its vitals — a real Scion's heartbeat verifies and it boards; a proven counterfeit is catalogued and can be left where it lies. Land a step away instead to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be switched on in SETTINGS.",
   color: "#00e5ff"
 };
 
@@ -825,6 +833,7 @@ function enterCave(L) {
   banner("SECRET LIFT — DESCENDING INTO THE HOLLOWS", "#b388ff");
   blip(220, 70, 0.9, "sawtooth", 0.16);
   staticTick();
+  setCaveEcho(true);   // S3 — every sound now rings in the rock
 }
 
 function exitCave() {
@@ -843,6 +852,7 @@ function exitCave() {
   surfaceCtx = null;
   banner("SURFACE — " + SECTOR_NAMES[levelIdx], "#00e5ff");
   blip(160, 520, 0.6, "sine", 0.12);
+  setCaveEcho(false);   // S3 — back to the dry surface
 }
 
 function maxVitals() { return upgrades.fabrica ? 125 : 100; }
@@ -871,7 +881,7 @@ function resetRun() {
   firedAtSecret = false; firedAtCombat = false; scannedSecret = false;
   runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
-  clearCards = []; revealCard = null; surfaceCtx = null;
+  clearCards = []; revealCard = null; confirmCard = null; leftBehindNote = null; surfaceCtx = null;
   checkpoint = null;
   runSeed = 0; runMode = "campaign"; famousMap = null;
   rollDailyMods();
@@ -884,6 +894,7 @@ function toBriefing(n) {
   surfaceCtx = null;
   level = genLevel(n);
   sectorT = 0;
+  setCaveEcho(false);   // S3 — every sector starts on the dry surface
   spawnShip();
   camera = { x: ship.x, y: ship.y, shake: 0 };
   particles = []; texts = [];
