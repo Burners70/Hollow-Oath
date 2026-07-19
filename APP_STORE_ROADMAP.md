@@ -949,6 +949,69 @@ feedback items that change how the game *feels* rather than how it looks.
     ("pendulum them out", exactly the owner's instinct). 1.1 ships the sling
     skill, 1.2 gives it its emotional payload. No launch-build work beyond
     the two copy lines above.
+- [ ] **S9. Scions gently repair the ship while aboard (owner-requested,
+  July 2026).** A living crew should feel like one — carrying Scions should
+  itself be a small kindness back, not just cargo. Add a slow passive vitals
+  regen driven by who is currently riding, stacking with more aboard and
+  reading a little stronger with a famous mind in the cabin.
+  - **Where it lives:** a new `updateCabinMedic(dt)` call from `updatePlay`,
+    right beside the existing Fleming self-heal block (`upgrades.penicillin`
+    check, anchor: the comment `// Fleming: the hull cultures its own repair
+    while vitals sit below half`). Same `s.vitals = Math.min(maxVitals(),
+    s.vitals + rate * dt)` shape, so it composes with Fleming (additive,
+    both are dt-scaled heals) without any special-casing.
+  - **Who counts.** Only genuine Scions contribute — filter `s.passengers`
+    with `p.role !== "saboteur"`, the same predicate `updateDocking`'s
+    `deliverable` and the friendly-fire victim list already use. This isn't
+    just code reuse: it's the same thematic point the WORKSHOP shrine makes
+    ("dull chests, no hearts to tick") — a hollow counterfeit has no medical
+    mind to lend, so it silently contributes nothing. A run with an
+    unrevealed sleeper aboard heals a hair slower than the passenger count
+    suggests, a fully passive, non-spoiling extension of the existing tell
+    language (nothing new to render — the deficit is only ever felt, never
+    flagged).
+  - **The formula.** `rate = realCount * BASE_MEDIC_RATE + famousCount *
+    FAMOUS_MEDIC_BONUS`, tuned slow on purpose: suggested
+    `BASE_MEDIC_RATE = 0.5` (vitals/s per ordinary Scion — six aboard is
+    3/s, a fraction of the med bay's 24–40/s) and `FAMOUS_MEDIC_BONUS = 1.0`
+    extra per famous Scion currently riding (there is normally at most one
+    per campaign sector, so in practice this reads as "a little stronger
+    with someone extraordinary aboard," exactly the ask, without a second
+    tunable to balance against remix's shuffled spawns). Stacking is
+    already implicit — more real Scions aboard sums to a higher `rate`,
+    capacity 6 caps it naturally.
+  - **A cap that keeps the bay meaningful.** Don't let cabin healing reach
+    full vitals — MERCY's bay must stay the only way to *finish* a repair,
+    or the risk/reward of ferrying a full ship quietly dissolves. Clamp the
+    target to `Math.min(maxVitals() * 0.85, s.vitals + rate * dt)` (a new
+    ceiling distinct from Fleming's 50%-while-below-half rule; the two
+    ceilings don't conflict since Fleming's is lower and only applies below
+    half vitals — cabin medic can carry a hurt ship the rest of the way to
+    85%, then real healing still requires docking).
+  - **Guards.** No effect while `s.dead`, while `level.isCave` is irrelevant
+    (Scions ride through cave transit fine, keep it active there too), and
+    it must not fire during `mercyBreach`, `level.extraction`, or while
+    inside the counterfeit MERCY's bay (`decoySnared()`) — those are
+    already-tense states where a quiet heal would undercut the moment; gate
+    on `state === "play"` the same way `updateVitalsAudio` (S2) will.
+  - **Feel/audio hook (pairs with S1's cabin heartbeat chorus):** worth a
+    one-line pass once S1 lands — the same per-passenger heartbeat layer
+    that reads "who's aboard" could very slightly brighten in tone while
+    cabin medic is actively healing, so the two features read as one
+    system (a living cabin, heard and felt) rather than two unrelated
+    numbers. Not required for S9 to ship; note it, don't block on it.
+  - **Copy:** one line added to HELP_CARD's rescue paragraph — "A full
+    cabin steadies you, a little, between drop-offs" — and a mention in
+    GAME_DESIGN.md §4 (Core mechanics) alongside the existing bay-heal
+    description. Add both to COPY_DECK.md in the same PR (per the standing
+    rule).
+  - **Tests:** board N ordinary Scions at reduced vitals, advance sim time,
+    assert `ship.vitals` rises at the predicted `rate` and never exceeds
+    85% of `maxVitals()` from this effect alone; board a famous Scion and
+    assert the higher rate; board a (non-sleeper) saboteur alongside real
+    Scions and assert it contributes zero to `rate`. Expose the live `rate`
+    on `__doids.get()` (e.g. `cabinMedicRate`) so the smoke suite can assert
+    directly instead of inferring it from vitals deltas.
 
 ---
 

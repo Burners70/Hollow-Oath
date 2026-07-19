@@ -20,6 +20,9 @@ Pending copy decisions that will touch lines below:
   staged nightfall lands. Marked `[T6]`.
 - **S4/S5 (roadmap):** new extraction-hangar and catalogue-scan strings will be
   added; drafts are in those roadmap items.
+- **S9 (roadmap):** a new HELP_CARD line for the passive cabin-medic heal
+  ("A full cabin steadies you, a little, between drop-offs" — draft, not
+  final) will be added to §3 once built.
 
 ---
 
