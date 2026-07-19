@@ -451,6 +451,19 @@ difficulty dial. **Priority: 8. Dependencies: C4 (settings panel).**
 - [x] **H4. Text size.** The card/brief body font sizes (`drawCardPanel`,
   `drawBrief`, captions in `drawIntroScreen`) get +2px when `doids_bigtext` is
   on. Wrap widths already derive from measured text, so this is low-risk.
+- [ ] **H5. Hide virtual touch controls while a gamepad is active.**
+  `updateCtlVisibility()` only ever looks at `state` (`want = state === "play"
+  || state === "dead"`) — it never checks `pad.connected`, which `pollPad()`
+  already sets every frame from the Gamepad API. Fold `!pad.connected` into
+  `want` so the on-screen thrust/fire/shield buttons disappear the instant a
+  controller is detected, decluttering the one screen a paid game can't
+  afford to look unfinished on. Bring them back the moment `pad.connected`
+  goes false (a mid-run disconnect shouldn't strand the player with no way to
+  fly) — that direction is free, since `updateCtlVisibility()` already runs
+  every tick. TILT is unaffected; it writes to `input` directly and was never
+  gated by `ctlShown`. **Stretch, if it proves annoying in testing:** also
+  restore the buttons on the first `touchstart` even while a controller stays
+  paired, for players who switch back and forth without unplugging.
 
 ---
 

@@ -71,6 +71,35 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
   ROTATION CHART (return to cleared sectors, cached as-left), three new
   caves with new discoveries. Spec:
   [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+- **A Mac desktop build (keyboard/gamepad-first) — proposed, not built.**
+  Nothing about the *input* is missing: `keyMap` already covers arrows/`x`/
+  `z`/`Shift`/`c`, and `pollPad()` (Gamepad API) already drives `pad`. This is
+  a packaging question, not a design one, and it splits into two genuinely
+  different products depending on what "a Mac version" is for:
+  - **Mac Catalyst on Bundle E's Xcode project (recommended if the goal is a
+    Mac App Store listing).** Once `app/ios/` exists, Catalyst is a checkbox
+    on the same target — iCloud sync (E4), Game Center (G), and haptics (F,
+    where Catalyst maps it to nothing gracefully) mostly carry over
+    unmodified. Needs: the on-screen touch-button HUD (`btnEls`,
+    `updateCtlVisibility()`) hidden entirely under Catalyst rather than just
+    de-emphasised — touch buttons on a trackpad-driven window read as a bug,
+    not a feature, so this wants its own platform check alongside `NATIVE`
+    (e.g. detect Catalyst via `navigator.maxTouchPoints === 0` on the native
+    bridge, or a flag the wrapper injects), not just Bundle H5's
+    controller-only hide. Also needs a resizable-window layout pass — the
+    game currently assumes one fixed landscape viewport sized off
+    `env(safe-area-inset-*)`, which Catalyst windows don't provide.
+  - **Ship the existing web build, promoted as "the desktop way to play."**
+    The game already runs fullscreen with full keyboard control in any
+    desktop browser today, for free, with zero extra engineering. Not
+    installable, and doesn't get Game Center/iCloud/haptics, but it's the
+    entire scope if the goal is just "let people play at a keyboard," not "a
+    second paid SKU."
+  - **Owner decision needed before scoping this further:** is the target a
+    Mac App Store release (own price-point conversation, its own review
+    cycle) or just surfacing the free web build for keyboard players? That
+    answer decides whether this rides on Bundle E's Xcode project or is a
+    same-day README/store-listing addition.
 - Persistent codex / rescue-log gallery across runs (who you've found).
 - More famous Scions per sector, randomised from a larger pool.
 - Caves/overhangs (needs non-heightmap terrain), moving rescue targets.
