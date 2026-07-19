@@ -63,6 +63,7 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | R | Playtest fixes (July 2026 feedback) | Bugs & UX corrections | **Yes — ship in launch** |
 | S | Sound, endgame & saboteur upgrades | Feedback improvements | **Owner-requested for launch** |
 | T | Zone identity — width, biomes, weather | Feedback improvements | Core in launch; deep items may slip to 1.1 |
+| QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness | No (recommended before O) |
 | O | Store listing & submission | Shipping | **Yes (last)** |
 | P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
 | Q | The deep Hollows | **Locked: free update 1.2** | No (post-launch) |
@@ -1146,6 +1147,61 @@ checksum deliberately).**
   BLACKOUT ROTATION daily mod and the finale already reprise it. Test: alpha
   ramp fires once, REDUCED FLASH halves the flicker, resume mid-sector
   restores the post-nightfall state.
+
+---
+
+## Bundle QA — Playtest QA: legibility & level-generation fairness
+
+**Why:** Three issues from owner playtesting that don't fit neatly into the
+bundles above — two are legibility bugs and one was a fairness bug that broke a
+stated design pillar. **Priority: no fixed slot, but land P-QA1/P-QA3 before O.
+None blocks Apple review on its own. Dependencies: none.**
+
+> Rescued from the abandoned branch `claude/roadmap-bundle-e-ffntf9`, where these
+> notes were originally filed as "Bundle P" — a label since taken by the pendulum
+> sling. Renumbered here so nothing is lost. QA2 has since been fixed; see below.
+
+- [x] **QA2 (DONE). Level generation could silently pack a Scion inside
+  point-blank turret range.** `pick(minDist)` in `genLevel` gave up its spacing
+  check after 80 failed tries and returned an unchecked random x — a headless
+  probe of the shipped seed-0 campaign found sector 1 (Vesalius Ridge) placing a
+  Scion 6px and 43px from two of its four turrets, all within firing range,
+  working against the pacifist-route pillar (OATH KEEPER/HOLLOW KEEPER).
+  **Fixed in the July 2026 release-readiness polish pass (PR #6):** early-sector
+  turret placement is now re-sited/retired so no waiting Scion in sectors 0–2
+  sits inside more than one turret's cover, and a regression test guards it
+  (`tests/smoke.spec.js` → "early sectors never pocket a Scion under interlocking
+  turret cover", asserting ≤1 turret within 380px of any oid in sectors 0–2).
+  *Remaining option, if ever wanted:* extend the same guard across all 8 sectors
+  (denser later sectors fail the spacing search more often).
+- [ ] **QA1. Colour/render cues for "you can fly through this" vs. "this kills
+  you."** Every scenery entry (`deco()` in `genLevel` — trees, rocks,
+  buildings/ruins, both wreck types) is purely decorative: `drawScenery()` has no
+  ship-collision check at all. Only `groundAt()`/`roofAt()` (terrain),
+  `level.turrets`/`level.drones`/bullets, and the `fake`/`hollow` scenery flags
+  (shootable, not collidable) can end a flight. A building rendered as a solid
+  `rgba(8,12,30,.9)` fill (`drawBuilding`) or an opaque wreck hull reads exactly
+  like the terrain silhouette next to it — nothing tells the player it's passable
+  air, not a wall. Give truly-decorative scenery a visibly different render
+  language from terrain/hazards (desaturate, thin the stroke, drop the solid fill
+  for a wireframe/low-alpha treatment) — whatever reads at a glance as "flavour,
+  not physics." Coordinate with Bundle H's colour-cue work (H1/H2) so this
+  doesn't invent a second, competing palette language.
+- [ ] **QA3. Wreck art reads as "the intact vehicle, tipped over," not
+  wreckage.** `drawWreckM` renders `mercyHullPath()` — the same unbroken hull
+  outline `drawMothership` uses for the *live* station — at `sc.s * 0.62` scale,
+  with a couple of stroked "breach" lines drawn on top of the fill rather than
+  cut through it, so the silhouette never actually breaks apart. `drawWreckS` is
+  the identical path to `drawShip`, just rotated onto its side at `sc.s * 2.1`
+  scale — the player's own ship, inflated ~1.7–3×. Both wrecks also anchor to a
+  single ground-height sample (`sc.y`), so on sloped ground a hull that wide can
+  float clear of the terrain or clip into it. Rework both to read as downed:
+  split the hull fill along the breach into two offset paths; give jagged/torn
+  edges in the spirit of `drawBuilding`'s ruin silhouette; settle each wreck into
+  the ground with multi-point contact instead of one centre anchor; and bring
+  `drawWreckS` back toward the live ship's real proportions (or, if it's a
+  distinct rescue-dart class, say so in `GAME_DESIGN.md` rather than silently
+  reusing the player's exact silhouette at a different size).
 
 ---
 
