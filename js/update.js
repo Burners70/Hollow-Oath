@@ -9,6 +9,7 @@ let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: seconds after the shield snaps up in which a hit reflects
+const EJECT_WARN = 1.6;    // E2: telegraph before a loose Vector hurls a Scion out
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -839,6 +840,7 @@ function updatePlay(dt) {
   updateOids(dt, now);
   updateEnemies(dt);
   updateSabotage(dt);
+  updateEject(dt);        // E2 — complete a telegraphed Scion-throw
   updateDocking(dt);
   updateBlackbox(dt);
   updatePods();
@@ -884,6 +886,39 @@ function updateOids(dt, now) {
   const s = ship;
   for (const o of level.oids) {
     o.wave += dt;
+    if (o.state === "thrown") {
+      // E2 — a Scion hurled from the cabin, falling. Fly into them to catch and
+      // re-board; if they hit the ground they're lost (Field Medic: they survive).
+      o.vy += GRAV * 1.2 * dt;
+      o.x += o.vx * dt; o.y += o.vy * dt;
+      if (o.throwLock > 0) o.throwLock -= dt;
+      if ((o.throwLock || 0) <= 0 && !s.dead && s.passengers.length < CAPACITY &&
+          Math.hypot(o.x - s.x, o.y - s.y) < SHIP_R + 18) {
+        o.state = "aboard"; s.passengers.push(o);
+        heartbeat(); haptic.medium();
+        addText(s.x, s.y - 40, "CAUGHT — SCION SAFE", "#69f0ae");
+        continue;
+      }
+      const g = groundAt(o.x);
+      if (o.y >= g) {
+        o.y = g; o.vx = 0; o.vy = 0;
+        if (easyMode) {   // Field Medic: they survive the drop, back on the ground
+          o.state = "wait"; o.panicT = 1.4;
+          addText(o.x, o.y - 40, "SURVIVED THE FALL", "#69f0ae");
+          heartbeat(0.5, true);
+        } else {
+          o.state = "lost"; acctLevel().lost++; runLost++;
+          const fam = o.role === "famous";
+          score = Math.max(0, score - (fam ? 500 : 250));
+          addText(o.x, o.y - 40,
+            (fam ? FAMOUS[o.famousId].name + " LOST" : "SCION LOST") + " — HIT THE GROUND",
+            fam ? "#ffd54f" : "#ff4081");
+          explode(o.x, o.y - 8, "#ff4081", 14);
+          checkSectorClear();
+        }
+      }
+      continue;
+    }
     if (o.state === "dying") {
       o.deathT += dt;
       if (o.deathType === "torched") {
@@ -1161,20 +1196,48 @@ function updateSabotage(dt) {
       addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
       blip(140, 60, 0.25, "sawtooth", 0.12);
     } else {
+      // E2 — instead of an instant kill, the Vector drags a Scion to the airlock
+      // to HURL them out. Telegraph it first (updateEject completes the throw), so
+      // you have a moment to react and can then catch them before they hit ground.
       const victims = s.passengers.filter(q => q.role !== "saboteur");
-      if (victims.length) {
+      if (victims.length && !level.eject) {
         const v = victims[Math.floor(Math.random() * victims.length)];
-        s.passengers.splice(s.passengers.indexOf(v), 1);
-        v.state = "lost";
-        acctLevel().lost++; runLost++;
-        if (v.role === "famous")
-          addText(s.x, s.y - 48, FAMOUS[v.famousId].name + " WAS KILLED", "#ffd54f");
-        // S7 — a kill is never discovered from the score readout: a full banner
-        banner("A PASSENGER IS DEAD — IT'S IN THE CABIN", PAL().DANGER);
+        level.eject = { o: v, t: EJECT_WARN };
+        banner("VECTOR LOOSE — DRAGGING A SCION TO THE AIRLOCK", PAL().DANGER);
         dullThud();
-        checkSectorClear();
+      } else if (!victims.length) {
+        // no one left to throw — the sabotage still bites at the fuel line
+        s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
+        addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
+        blip(140, 60, 0.25, "sawtooth", 0.12);
       }
     }
+  }
+}
+
+/* E2 — the throw itself. After the telegraph, the Vector hurls the grabbed Scion
+   clear of the ship: they become a falling body (oid state "thrown") you can fly
+   into to catch. Cancels cleanly if the Scion already left the cabin. */
+function updateEject(dt) {
+  const e = level.eject;
+  if (!e) return;
+  const s = ship;
+  if (s.dead || mercyBreach || s.passengers.indexOf(e.o) < 0) { level.eject = null; return; }
+  sabotageFlash = Math.max(sabotageFlash, 0.35);   // the struggle keeps the edges pulsing
+  e.t -= dt;
+  if (e.t <= 0) {
+    const o = e.o;
+    s.passengers.splice(s.passengers.indexOf(o), 1);
+    o.state = "thrown";
+    const side = Math.random() < 0.5 ? -1 : 1;
+    o.x = s.x + side * 22; o.y = s.y - 8;   // clear of the hull so it isn't instantly re-caught
+    o.vx = side * (55 + Math.random() * 30);
+    o.vy = -35 - Math.random() * 25;
+    o.throwLock = 0.45;   // brief window where it can't be caught — it has to separate first
+    o.panicT = 0;
+    level.eject = null;
+    banner("A SCION IS THROWN — CATCH THEM!", PAL().DANGER);
+    haptic.heavy(); dullThud();
   }
 }
 

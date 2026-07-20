@@ -1188,3 +1188,47 @@ test("E3: a perfect-timed shield parry reflects a bullet back and kills its fire
   expect(r.runFired, "reflecting is not firing — the oath is intact").toBe(0);
   await page.evaluate(() => { input.shield = false; });
 });
+
+test("E2: a Vector throws a Scion; catching re-boards, hitting the ground loses them", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(150);
+  // the telegraphed throw completes → the Scion becomes a falling body
+  await page.evaluate(() => {
+    const s = ship; s.dead = false; s.passengers = [];
+    const o = { role: "normal", state: "aboard", x: s.x, y: s.y, wave: 0, vx: 0, vy: 0 };
+    level.oids.push(o); s.passengers.push(o);
+    level.eject = { o, t: 0.001 };
+  });
+  await page.waitForTimeout(120);
+  const st1 = await page.evaluate(() => {
+    const o = level.oids[level.oids.length - 1];
+    return { state: o.state, inPax: ship.passengers.includes(o) };
+  });
+  expect(st1.state, "the Scion is thrown clear").toBe("thrown");
+  expect(st1.inPax, "and off the manifest while falling").toBe(false);
+  // flying into the falling Scion catches them → re-boarded
+  await page.evaluate(() => {
+    // move well clear of MERCY's bays so a re-boarded Scion isn't instantly delivered
+    ship.x = level.mx + 460; ship.y = groundAt(ship.x) - 40;
+    ship.landed = true; ship.vx = 0; ship.vy = 0;
+    const o = level.oids[level.oids.length - 1];
+    o.x = ship.x; o.y = ship.y; o.vx = 0; o.vy = 0; o.throwLock = 0;   // clear the post-throw lock
+  });
+  await page.waitForTimeout(120);
+  const st2 = await page.evaluate(() => {
+    const o = level.oids[level.oids.length - 1];
+    return { state: o.state, inPax: ship.passengers.includes(o) };
+  });
+  expect(st2.state, "flying into the thrown Scion catches them").toBe("aboard");
+  expect(st2.inPax).toBe(true);
+  // a thrown Scion that reaches the ground (Field Medic off) is lost
+  await page.evaluate(() => {
+    easyMode = false;
+    const ox = ship.x + 320;
+    const o = { role: "normal", state: "thrown", x: ox, y: groundAt(ox) - 12, wave: 0, vx: 0, vy: 160 };
+    level.oids.push(o);
+  });
+  await page.waitForTimeout(250);
+  const st3 = await page.evaluate(() => level.oids[level.oids.length - 1].state);
+  expect(st3, "a thrown Scion that lands is lost").toBe("lost");
+});
