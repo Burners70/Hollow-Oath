@@ -85,7 +85,7 @@ Landed (July 2026, Bundle S):
 > watch ↓ descent and ↔ drift.
 >
 > Ferry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The
-> RED BAY is quarantine — you'll know when you need it.
+> RED BAY is isolation — you'll know when you need it.
 >
 > Listen to what boards. Watch how they wave. Watch your own ECG. A full cabin
 > steadies you, a little, between drop-offs. _(S9)_
@@ -252,7 +252,7 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | FLORENCE NIGHTINGALE | 1820–1910 | "The Lady with the Lamp — she proved with statistics that sanitation saves more soldiers than surgery." | **THE LAMP** — "Your light reaches much further in the dark." |
 | IGNAZ SEMMELWEIS | 1818–1865 | "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades." | **ANTISEPSIS** — "Vectors are now revealed by a sickly tint. You can see the contamination." |
 | MARIE CURIE | 1867–1934 | "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War." | **RADIOSENSE** — "A compass now points toward unrecovered black boxes." |
-| IBN SINA · AVICENNA | 980–1037 | "The Persian polymath whose Canon of Medicine taught physicians on three continents for six hundred years — observation, evidence, and honest doubt." | **CANON OF TRUTH** — "Counterfeits are unmasked — Glycon's lures and lure-trees are marked for what they are." |
+| IBN SINA · AVICENNA | 980–1037 | "The Persian polymath whose Canon of Medicine taught physicians on three continents for six hundred years — observation, evidence, and honest doubt." | **CANON OF TRUTH** — "Counterfeits are unmasked — the counterfeiter's lures and lure-trees are marked for what they are." |
 | EDWARD JENNER | 1749–1823 | "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known." | **INOCULATION** — "Your passengers are immunised — Vectors aboard can no longer kill them." |
 | ELIZABETH BLACKWELL | 1821–1910 | "Rejected by ten medical schools for being a woman, she graduated first in her class anyway — the first woman M.D. in America — and then opened the door for every one who followed." | **OPEN DOORS** — "MERCY's bay doors open wider — dock at approach speeds that would once have waved you off." |
 | RUDOLF VIRCHOW | 1821–1902 | "The father of cellular pathology — omnis cellula e cellula — who insisted every disease begins somewhere specific, and that medicine's job is to look until it finds where." | **CELL DOCTRINE** — "Diagnosis comes faster — black boxes, shrines and counterfeit scans complete in two-thirds the time." |
