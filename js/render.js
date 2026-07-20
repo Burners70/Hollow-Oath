@@ -2972,6 +2972,7 @@ window.__doids = {
   ground: groundAt,
   evalLanding: landingEval,
   logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body
+  btnHit: (x, y) => buttonsAt(x, y),              // C1 — touch-button hit test
   give: k => { upgrades[k] = true; },
   strand: () => { ship.x = level.W / 2; ship.y = groundAt(ship.x) - SHIP_R;
     ship.landed = true; ship.vx = ship.vy = 0; ship.fuel = 0; },

@@ -1137,3 +1137,32 @@ test("A6: log reveal cards break one sentence per line, ellipses intact", async 
   expect(log6).toContain("matches... us.");
   expect(log6).not.toContain("matches...\nus");
 });
+
+test("C1: turn/thrust touch zones are forgiving but never overlap at the seam", async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });   // landscape → controls visible
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(250);   // let a frame drop the `noctl` class so buttons lay out
+  const data = await page.evaluate(() => {
+    const rect = id => { const r = document.getElementById(id).getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+               cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2, w: r.width }; };
+    const L = rect("btnL"), R = rect("btnR"), T = rect("btnThrust"), F = rect("btnFire");
+    return {
+      Lw: L.w,
+      seamLR: __doids.btnHit((L.right + R.left) / 2, L.cy),        // between turn buttons
+      seamTF: __doids.btnHit((F.left + T.right) / 2, T.cy),        // between fire & thrust
+      aboveL: __doids.btnHit(L.cx, L.top - 22),                    // stab 22px above btnL
+      aboveThrust: __doids.btnHit(T.cx, T.top - 22),               // stab 22px above thrust
+      centerL: __doids.btnHit(L.cx, L.cy)
+    };
+  });
+  expect(data.Lw, "controls are laid out (landscape, in-flight)").toBeGreaterThan(0);
+  // the seam between the two turn buttons must never press both at once
+  expect(data.seamLR.filter(k => k === "left" || k === "right").length).toBeLessThanOrEqual(1);
+  // reaching THRUST must not also commit FIRE (malpractice)
+  expect(data.seamTF).not.toContain("fire");
+  // vertical forgiveness: a stab just above the button still registers
+  expect(data.aboveL).toContain("left");
+  expect(data.aboveThrust).toContain("thrust");
+  expect(data.centerL).toContain("left");
+});
