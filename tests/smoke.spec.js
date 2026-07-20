@@ -1166,3 +1166,25 @@ test("C1: turn/thrust touch zones are forgiving but never overlap at the seam", 
   expect(data.aboveThrust).toContain("thrust");
   expect(data.centerL).toContain("left");
 });
+
+test("E3: a perfect-timed shield parry reflects a bullet back and kills its firer", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => {
+    // isolate the scenario: one turret to the right, one incoming bullet, no drones
+    level.drones = [];
+    ship.vx = 0; ship.vy = 0; ship.dead = false;
+    level.turrets = [{ x: ship.x + 70, y: ship.y, ang: Math.PI, cd: 999, alive: true }];
+    level.bullets = [{ x: ship.x + 16, y: ship.y, vx: -150, vy: 0, t: 4 }];
+    // raise the shield THIS instant → rising edge opens the parry window
+    input.shield = true;
+  });
+  await page.waitForTimeout(500);   // let the reflected round fly back to the turret
+  const r = await page.evaluate(() => ({
+    turretAlive: level.turrets[0] ? level.turrets[0].alive : null,
+    runFired: __doids.get().runFired
+  }));
+  expect(r.turretAlive, "the turret is destroyed by its own reflected bullet").toBe(false);
+  expect(r.runFired, "reflecting is not firing — the oath is intact").toBe(0);
+  await page.evaluate(() => { input.shield = false; });
+});

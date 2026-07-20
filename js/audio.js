@@ -333,6 +333,31 @@ function shieldAbsorb() {
   o.connect(og); og.connect(sfxGain);
   o.start(t); o.stop(t + dur + 0.02);
 }
+/* E3 — the PARRY: a bullet caught in the shield's perfect window and flung back.
+   A bright metallic reflect — a fast up-chirp with a highpassed tick — the sharp
+   opposite of shieldAbsorb's soft down-swept whumpf, so parry and absorb never
+   sound alike. */
+function shieldParry() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(); o.type = "triangle";
+  o.frequency.setValueAtTime(880, t);
+  o.frequency.exponentialRampToValueAtTime(2200, t + 0.09);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.17, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+  o.connect(g); g.connect(sfxGain);
+  o.start(t); o.stop(t + 0.24);
+  const dur = 0.05, sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const hp = AC.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 3200;
+  const ng = AC.createGain(); ng.gain.value = 0.12;
+  s.connect(hp); hp.connect(ng); ng.connect(sfxGain); s.start();
+}
 /* B2 — MERCY jumps out: a rising engine surge/whoosh. Filtered noise sweeping
    UP under a climbing sine, building over ~1.4 s into the jump streak. */
 function departureSurge() {

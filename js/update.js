@@ -8,6 +8,7 @@ const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
+const PARRY_WINDOW = 0.18; // E3: seconds after the shield snaps up in which a hit reflects
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -742,7 +743,12 @@ function updatePlay(dt) {
   }
 
   // force field: eats fuel, stops bullets, drones, rough ground and cave roofs
-  s.shield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  // E3 — the parry: for a brief window right after the field snaps up, a bullet
+  // caught in it is REFLECTED, not just absorbed. Timed on the rising edge.
+  if (wantShield && !s.shield) s.parryT = PARRY_WINDOW;
+  s.shield = wantShield;
+  if (s.parryT > 0) s.parryT = Math.max(0, s.parryT - dt);
   if (s.shield) s.fuel = Math.max(0, s.fuel - 7 * dt);
 
   const thrusting = (input.thrust || pad.thrust) && s.fuel > 0;
@@ -1022,7 +1028,39 @@ function updateEnemies(dt) {
     const b = level.bullets[i];
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.t <= 0 || b.y > groundAt(b.x)) { level.bullets.splice(i, 1); continue; }
+    // E3 — a reflected bullet is now friendly: it hunts the turret/drone that
+    // fired it and ignores the ship. (Reflecting isn't firing your own weapon,
+    // so it never counts as malpractice / breaks the oath.)
+    if (b.reflected) {
+      let gone = false;
+      for (const t of level.turrets) {
+        if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
+          t.alive = false; gone = true; score += 250;
+          explode(t.x, t.y - 8, "#ffc400", 30); addText(t.x, t.y - 40, "REFLECTED +250", "#eaff6b");
+        }
+      }
+      for (const dr of level.drones) {
+        if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
+          dr.alive = false; gone = true; score += 150;
+          explode(dr.x, dr.y, "#ff4081", 22); addText(dr.x, dr.y - 30, "REFLECTED +150", "#eaff6b");
+        }
+      }
+      if (gone) level.bullets.splice(i, 1);
+      continue;
+    }
     if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + (s.shield ? 10 : 3)) {
+      if (s.shield && s.parryT > 0) {
+        // E3 — PARRY: caught in the shield's opening window. Fling it back the
+        // way it came (a touch faster) as a friendly projectile.
+        b.reflected = true;
+        b.vx = -b.vx * 1.3; b.vy = -b.vy * 1.3;
+        b.t = Math.max(b.t, 1.3);
+        explode(b.x, b.y, "#eaff6b", 6, true);
+        shieldParry(); haptic.heavy();
+        camera.shake += 4;
+        addText(s.x, s.y - 30, "PARRY!", "#eaff6b");
+        continue;
+      }
       level.bullets.splice(i, 1);
       if (s.shield) {
         // B1 — bullet soaked by the field: green spark + absorption whumpf

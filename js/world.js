@@ -994,7 +994,7 @@ function spawnShip() {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
-    shield: false, signalT: 0, scuttleT: 0
+    shield: false, parryT: 0, signalT: 0, scuttleT: 0
   };
 }
 

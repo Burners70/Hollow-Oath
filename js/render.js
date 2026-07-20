@@ -394,8 +394,11 @@ function drawWorld(now) {
   }
 
   for (const b of level.bullets) {
-    drawGlow(b.x, b.y, 8, "#ff4081");
-    ctx.fillStyle = "#ff8ab3";
+    // E3 — a parried bullet flies home as a friendly (yellow) round
+    const glow = b.reflected ? "#eaff6b" : "#ff4081";
+    const core = b.reflected ? "#f7ffd0" : "#ff8ab3";
+    drawGlow(b.x, b.y, 8, glow);
+    ctx.fillStyle = core;
     ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
   }
   for (const b of level.shots) {
