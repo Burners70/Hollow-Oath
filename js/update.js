@@ -1676,8 +1676,13 @@ function updateTransfusion(dt, rd) {
       rd.dripT = 0; rd.dripFlip = !rd.dripFlip;
       blip(660, 590, 0.05, "sine", 0.045);
       haptic.light();
-      // U2 — the running toll: points visibly draining as the tank climbs
-      if (rd.charged >= 1) addText(s.x, s.y - 40, "-" + Math.round(rd.charged), "#ff4081");
+      // U2 — the running toll: points visibly draining as the tank climbs.
+      // Sit it out to the side, opposite the drone, so the rising floater never
+      // covers the drone, its fuel line or the transfusion status line.
+      if (rd.charged >= 1) {
+        const side = rd.x >= s.x ? -1 : 1;
+        addText(s.x + side * 66, s.y - 6, "-" + Math.round(rd.charged), "#ff4081");
+      }
     }
   } else if (rd.everAttached) {
     if (d >= XFUSE_SNAP_R) {   // wandered too far — the line parts
