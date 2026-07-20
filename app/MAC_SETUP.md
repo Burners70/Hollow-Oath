@@ -117,10 +117,10 @@ configured → the report is dropped, play is never blocked.
 
 | Check | iPhone (A11–A13, iOS 16) | Recent iPhone | iPad |
 |---|---|---|---|
-| Touch controls |  |  |  |
+| Touch controls | X |  |  |
 | Gyro/TILT permission flow |  |  |  |
-| Pause on background / resume |  |  |  |
-| Silent switch respected |  |  |  |
+| Pause on background / resume | X |  |  |
+| Silent switch respected | X |  |  |
 | 60 fps in sector 5 (`?perf=1`) |  |  |  |
 | iCloud save round-trip |  |  |  |
 | Game Center auth + report |  |  |  |
