@@ -305,6 +305,92 @@ function ringHollow() {
   o1.start(t); o2.start(t);
   o1.stop(t + 0.95); o2.stop(t + 0.95);
 }
+/* B1 — a shot or drone SOAKED by the force field: a soft, cushioned "whumpf",
+   not the old explosion. Down-swept lowpass noise (energy dissipating inward)
+   under a sine that dips and settles as the field flexes. Kept quiet. */
+function shieldAbsorb() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const dur = 0.18, sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass";
+  lp.frequency.setValueAtTime(rjit(1200, 0.08), t);
+  lp.frequency.exponentialRampToValueAtTime(300, t + dur);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.13, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(lp); lp.connect(g); g.connect(sfxGain); s.start();
+  const o = AC.createOscillator(); o.type = "sine";
+  o.frequency.setValueAtTime(rjit(420, 0.04), t);
+  o.frequency.exponentialRampToValueAtTime(180, t + 0.16);
+  const og = AC.createGain();
+  og.gain.setValueAtTime(0.1, t);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(og); og.connect(sfxGain);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+/* B2 — MERCY jumps out: a rising engine surge/whoosh. Filtered noise sweeping
+   UP under a climbing sine, building over ~1.4 s into the jump streak. */
+function departureSurge() {
+  if (!AC) return;
+  const t = AC.currentTime, dur = 1.4;
+  const sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.8;
+  bp.frequency.setValueAtTime(200, t);
+  bp.frequency.exponentialRampToValueAtTime(2600, t + dur);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.16, t + dur * 0.8);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(bp); bp.connect(g); g.connect(sfxGain); s.start();
+  // the drive itself — a climbing sine that whooshes off at the top
+  const o = AC.createOscillator(); o.type = "sawtooth";
+  o.frequency.setValueAtTime(90, t);
+  o.frequency.exponentialRampToValueAtTime(720, t + dur);
+  const og = AC.createGain();
+  og.gain.setValueAtTime(0.0001, t);
+  og.gain.exponentialRampToValueAtTime(0.09, t + dur * 0.7);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.1);
+  o.connect(og); og.connect(sfxGain);
+  o.start(t); o.stop(t + dur + 0.12);
+}
+/* B3 — the isolation airlock: heavy metal gates slamming shut. A bright metallic
+   transient (highpassed noise) over two detuned low partials with a hard attack
+   and a short, dead decay — a clang, not the old square blip. */
+function gateSlam() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  // the clang transient
+  const dur = 0.14, sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const hp = AC.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1400;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(hp); hp.connect(g); g.connect(sfxGain); s.start();
+  // two detuned low partials — the mass of the doors meeting
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700;
+  const bg = AC.createGain();
+  bg.gain.setValueAtTime(0.24, t);
+  bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  lp.connect(bg); bg.connect(sfxGain);
+  const o1 = AC.createOscillator(); o1.type = "square"; o1.frequency.value = rjit(70, 0.04);
+  const o2 = AC.createOscillator(); o2.type = "triangle"; o2.frequency.value = rjit(104, 0.04);
+  o1.connect(lp); o2.connect(lp);
+  o1.start(t); o2.start(t);
+  o1.stop(t + 0.42); o2.stop(t + 0.42);
+}
 
 /* ---------------- generative ambient score ---------------- */
 const PENTATONIC = [220.00, 261.63, 293.66, 329.63, 392.00];

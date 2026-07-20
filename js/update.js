@@ -55,20 +55,22 @@ function grantFragment(queueForClear) {
   return frag;
 }
 
-function explode(x, y, color, n) {
+function explode(x, y, color, n, silent) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 220;
     particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
       t: 0.5 + Math.random() * 0.8, max: 1.3, color, size: 1.5 + Math.random() * 3 });
   }
-  camera.shake = Math.min(camera.shake + 14, 26);
+  camera.shake = Math.min(camera.shake + (silent ? 4 : 14), 26);
   // nearby grounded Scions panic
   if (level) for (const o of level.oids) {
     if ((o.state === "wait" || o.state === "walk") && Math.abs(o.x - x) < 160 && Math.abs(o.y - y) < 160) {
       o.state = "panic"; o.panicT = 1.6 + Math.random();
     }
   }
-  boom();
+  // `silent` lets the caller supply its own cue (a shield absorb, a gate slam)
+  // instead of the generic explosion boom.
+  if (!silent) boom();
 }
 
 function goldBurst(x, y) {
@@ -250,7 +252,10 @@ function updateExtraction(dt) {
       e.done = true; e.beatT = 0;
       banner("ABOARD — SECTOR " + SECTOR_NAMES[levelIdx] + " CLOSED", "#69f0ae");
       blip(440, 1760, 0.4, "sine", 0.14);
-      haptic.medium();
+      // B2 — MERCY spools up and jumps out: a rising engine surge/whoosh that
+      // builds into the jump streak. A heavy haptic marks the departure (B4).
+      departureSurge();
+      haptic.heavy();
     }
   } else e.hold = Math.max(0, e.hold - dt * 1.5);
 }
@@ -998,10 +1003,14 @@ function updateEnemies(dt) {
     if (level.roof) dr.y = Math.max(dr.y, roofAt(dr.x) + 26);
     if (!s.dead && d < SHIP_R + (s.shield ? 14 : 10)) {
       dr.alive = false;
-      explode(dr.x, dr.y, "#ff4081", 24);
       if (s.shield) {
+        // B1 — the field SOAKS the hit: a green spark + an absorption whumpf,
+        // not the explosion boom. Haptic so it reads with sound off (B4).
+        explode(dr.x, dr.y, "#69f0ae", 18, true);
+        shieldAbsorb(); haptic.medium();
         addText(s.x, s.y - 30, "SHIELD HELD", "#69f0ae");
       } else {
+        explode(dr.x, dr.y, "#ff4081", 24);
         s.vitals -= 40;
         addText(s.x, s.y - 30, "-40", "#ff4081");
         if (s.vitals <= 0) { shipDie(); return; }
@@ -1016,8 +1025,10 @@ function updateEnemies(dt) {
     if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + (s.shield ? 10 : 3)) {
       level.bullets.splice(i, 1);
       if (s.shield) {
-        explode(b.x, b.y, "#69f0ae", 8);
-        blip(500, 900, 0.08, "sine", 0.08);
+        // B1 — bullet soaked by the field: green spark + absorption whumpf
+        // (no explosion boom), and a light haptic for sound-off play (B4).
+        explode(b.x, b.y, "#69f0ae", 8, true);
+        shieldAbsorb(); haptic.light();
         continue;
       }
       s.vitals -= 26; camera.shake += 8;
@@ -1406,6 +1417,7 @@ function updateDocking(dt) {
       score += 300;
       addText(level.mx, level.my + 40, "DELIVERED +300", "#69f0ae");
       blip(520, 1040, 0.2, "sine", 0.12);
+      haptic.medium();   // B4 — confirm a successful drop-off with sound off
       if (p.carrier) {
         const frag = grantFragment(true);
         if (frag) addText(level.mx, level.my + 56, "LOG FRAGMENT RECOVERED", "#00e5ff");
@@ -1452,8 +1464,10 @@ function updateDocking(dt) {
       level.contained++; // accounted for, but not a casualty
       score += 750;
       addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", "#ff4081");
-      explode(level.mx + 65, level.my + 60, "#ff4081", 14);
-      blip(220, 660, 0.3, "square", 0.12);
+      // B3 — the isolation airlock: heavy metal gates slam shut. Silent spark
+      // (gateSlam carries the impact) + a heavy haptic for sound-off play (B4).
+      explode(level.mx + 65, level.my + 60, "#ff4081", 14, true);
+      gateSlam(); haptic.heavy();
       checkSectorClear();
     }
     if (mercyBreach) {
