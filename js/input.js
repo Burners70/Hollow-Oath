@@ -110,19 +110,15 @@ for (const b of btnEls) {
   b.el.addEventListener("mouseleave", up);
 }
 
-/* the tilt pill needs handling inside the raw gesture handler: iOS only
-   grants DeviceOrientation permission from a real user gesture */
+// TILT is pulled from Settings entirely for now — DeviceOrientationEvent.
+// requestPermission() has no system prompt to grant against inside a bare
+// Capacitor WKWebView (no per-site permission store the way Safari has), so
+// it silently denies every time. The underlying gyro plumbing below
+// (tilt/gyro/enableGyro/toggleTilt) stays in place for when a proper
+// CoreMotion-backed native bridge lands; there's just no UI entry point to
+// it right now.
 function canvasTap(x, y) {
   initAudio();
-  // TILT permission must be requested from this synchronous gesture handler
-  // (iOS DeviceOrientation rule) — never route it through the deferred
-  // input.tap flag consumed later in the update() loop.
-  // TILT is web-only: DeviceOrientationEvent.requestPermission() has no
-  // system prompt to grant against inside a bare Capacitor WKWebView (no
-  // per-site permission store the way Safari has), so it silently denies
-  // every time — the row is disabled on native rather than shipping a
-  // toggle that looks broken.
-  if (!NATIVE && state === "settings" && inRect(settingsRowRect(4), x, y)) { toggleTilt(); return; }
   input.tap = true; input.tapX = x; input.tapY = y;
 }
 canvas.addEventListener("touchstart", e => {
@@ -282,10 +278,10 @@ function pollPad() {
 window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED", "#69f0ae"));
 
 /* ---------------- gyro / tilt steering ---------------- */
+// pulled from Settings entirely for now (see canvasTap) — always off, and a
+// stale "on" value from before this change is never honored, since there is
+// no UI left to turn it back off
 let tilt = false;
-// TILT is web-only (see canvasTap) — never honor a stale "on" preference
-// carried over from a web/PWA install of the same save data
-if (!NATIVE) { try { tilt = localStorage.getItem("doids_tilt") === "1"; } catch (e) {} }
 const gyro = { ok:false, beta:0, gamma:0 };
 let gyroBound = false;
 function startGyro() {

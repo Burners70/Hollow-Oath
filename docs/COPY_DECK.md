@@ -102,8 +102,7 @@ Landed (July 2026, Bundle S):
 > long enough. Explore.
 >
 > 🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields.
-> Keyboard: arrows + space · X fire · C/⇧/↓ shield. TILT steering can be
-> switched on in SETTINGS.
+> Keyboard: arrows + space · X fire · C/⇧/↓ shield.
 
 On a short landscape phone this card paginates (R1): the footer reads
 `<page>/<pages> · tap for more` and, on the last page, `<page>/<pages> · tap to
@@ -357,7 +356,9 @@ old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
   `SETTINGS` · `QUIT TO TITLE` · `◎ WHAT YOU'RE LOOKING AT` (link into the HUD
   legend, U3).
 - **Settings** (`drawSettings`): `SETTINGS` · rows `SOUND / MUSIC / HAPTICS /
-  ASSIST / TILT / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
+  ASSIST / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
+  (TILT pulled for now — see APP_STORE_ROADMAP.md; re-add once a native
+  CoreMotion bridge exists)
   · `RESET PROGRESS` → `TAP AGAIN TO WIPE` · footers "field medic: gentler, 5
   lives, next run · reset wipes scores & codex, keeps settings" and "Hollow
   Oath · v1.0 · b2026-07 · no ads, no tracking · tap outside to close".

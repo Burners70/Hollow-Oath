@@ -42,8 +42,7 @@ Landscape is best.
 - **Right thumb**: THRUST and FIRE, plus a SHIELD force field that burns fuel but
   stops bullets, drones and rough landings (keyboard: arrows + space/X, C/Shift/↓
   for shield)
-- **Gamepads** are supported (stick/d-pad steer, A thrust, X fire, LB/B shield),
-  and **TILT steering** (gyro) can be switched on at the title screen.
+- **Gamepads** are supported (stick/d-pad steer, A thrust, X fire, LB/B shield).
 - Gravity is always pulling you down; thrust burns fuel.
 - Land gently (slow, upright, on flattish ground) near a stranded **Scion** and it
   will walk over and climb aboard.

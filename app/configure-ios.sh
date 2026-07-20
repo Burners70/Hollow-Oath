@@ -34,13 +34,15 @@ set_bool UIViewControllerBasedStatusBarAppearance false
 set_bool UIRequiresFullScreen true
 echo "✓ Info.plist: landscape-only, status bar hidden, requires full screen (E2)"
 
-# --- TILT steering: DeviceOrientationEvent.requestPermission() silently
-# denies on iOS (no prompt, no error) without this usage-description key —
-# without it, tapping TILT looks like it turns on for an instant then
-# reverts, since the permission promise resolves "denied" almost immediately ---
+# --- TILT: pulled from the app entirely for this release (owner decision,
+# July 2026) — DeviceOrientationEvent.requestPermission() silently denies
+# every time inside a bare Capacitor WKWebView regardless of this plist key
+# (no per-site permission store the way Safari has), so the feature needs a
+# real CoreMotion-backed native plugin before it's worth shipping again. Not
+# declaring NSMotionUsageDescription here on purpose: an unused permission
+# is its own App Review red flag. Re-add both this and the Settings row
+# together if/when that plugin lands — see app/MAC_SETUP.md.
 $PB -c "Delete :NSMotionUsageDescription" "$PLIST" 2>/dev/null || true
-$PB -c "Add :NSMotionUsageDescription string Hollow Oath uses tilt for optional gyroscope steering — you can leave it off and fly with the on-screen controls instead." "$PLIST"
-echo "✓ Info.plist: NSMotionUsageDescription (TILT steering permission)"
 
 # --- E5: export compliance — no encryption beyond HTTPS (exempt), so
 # TestFlight builds skip the manual compliance question on every upload ----

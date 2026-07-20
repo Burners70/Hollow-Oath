@@ -511,7 +511,7 @@ function pauseLegendRect() {
 /* two-column grid so all ten rows fit even a 320-high landscape viewport
    (the old single column of 8 already clipped its hints at vh ≤ 375, and
    REDUCED FLASH + RESET PROGRESS would have run right off the screen). */
-const SETTINGS_ROWS = 10;
+const SETTINGS_ROWS = 9;
 function settingsRowRect(i) {
   const cols = 2, rows = Math.ceil(SETTINGS_ROWS / cols);
   const cw = Math.min(240, vw * 0.42), h = 30, gapX = 12, gapY = 7;
@@ -530,10 +530,7 @@ const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y +
 
 const HELP_CARD = {
   kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is isolation — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nRescue the right healer and you learn to read a grounded unit's vitals: park on it and hold to confirm a heartbeat, or catalogue a counterfeit and leave it where it lies. Land a step away to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield." +
-    // TILT has no iOS-native permission path (see input.js canvasTap) — only
-    // advertise it where it can actually work
-    (NATIVE ? "" : " TILT steering can be switched on in SETTINGS."),
+  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is isolation — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nRescue the right healer and you learn to read a grounded unit's vitals: park on it and hold to confirm a heartbeat, or catalogue a counterfeit and leave it where it lies. Land a step away to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield.",
   color: "#00e5ff"
 };
 

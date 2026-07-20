@@ -750,10 +750,9 @@ function updateSettings() {
   if (input.tap && stateT > 0.3) {
     let hit = false;
     for (let i = 0; i < SETTINGS_ROWS; i++) {
-      if (i === 4) continue;   // TILT is handled synchronously in canvasTap()
       if (inRect(settingsRowRect(i), input.tapX, input.tapY)) {
         hit = true;
-        if (i !== 9) resetArmed = false;   // any other tap disarms the wipe
+        if (i !== 8) resetArmed = false;   // any other tap disarms the wipe
         if (i === 0) {
           sound = !sound;
           try { localStorage.setItem("doids_snd", sound ? "1" : "0"); } catch (e) {}
@@ -771,26 +770,26 @@ function updateSettings() {
           assist = !assist;
           try { localStorage.setItem("doids_assist", assist ? "1" : "0"); } catch (e) {}
           blip(assist ? 440 : 300, assist ? 660 : 200, 0.12, "sine", 0.1);
-        } else if (i === 5) {
+        } else if (i === 4) {
           colorblind = !colorblind;
           try { localStorage.setItem("doids_cb", colorblind ? "1" : "0"); } catch (e) {}
           blip(440, 660, 0.1, "sine", 0.08);
-        } else if (i === 6) {
+        } else if (i === 5) {
           // FIELD MEDIC applies to the NEXT run — a live run keeps the
           // difficulty it launched with (lives/tolerances mid-run would
           // be a silent cheat toggle otherwise)
           easyMode = !easyMode;
           try { localStorage.setItem("doids_easy", easyMode ? "1" : "0"); } catch (e) {}
           blip(easyMode ? 440 : 300, easyMode ? 660 : 200, 0.12, "sine", 0.1);
-        } else if (i === 7) {
+        } else if (i === 6) {
           bigText = !bigText;
           try { localStorage.setItem("doids_bigtext", bigText ? "1" : "0"); } catch (e) {}
           blip(440, 660, 0.1, "sine", 0.08);
-        } else if (i === 8) {
+        } else if (i === 7) {
           reducedFlash = !reducedFlash;
           try { localStorage.setItem("doids_flash", reducedFlash ? "1" : "0"); } catch (e) {}
           blip(440, 660, 0.1, "sine", 0.08);
-        } else if (i === 9) {
+        } else if (i === 8) {
           if (resetArmed) {
             resetProgress(); resetArmed = false;
             blip(200, 80, 0.4, "sawtooth", 0.14);

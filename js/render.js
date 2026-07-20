@@ -3039,36 +3039,30 @@ function drawSettings(now) {
   ctx.shadowBlur = 0;
   const rows = [
     ["SOUND", sound], ["MUSIC", music], ["HAPTICS", haptics],
-    ["ASSIST", assist], ["TILT", tilt], ["COLORBLIND", colorblind],
+    ["ASSIST", assist], ["COLORBLIND", colorblind],
     ["FIELD MEDIC", easyMode], ["BIG TEXT", bigText],
     ["REDUCED FLASH", reducedFlash], ["RESET PROGRESS", null]
   ];
   for (let i = 0; i < rows.length; i++) {
     const [label, on] = rows[i];
     const r = settingsRowRect(i);
-    const isReset = i === 9;
-    // TILT has no native-side fix (no WKWebView permission prompt to grant
-    // against) — shown disabled rather than as a toggle that silently fails
-    const isDisabledTilt = i === 4 && NATIVE;
-    const stroke = isDisabledTilt ? "rgba(255,255,255,.15)"
-      : isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
+    const isReset = i === 8;
+    const stroke = isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
       : on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
     ctx.strokeStyle = stroke;
     ctx.shadowColor = isReset ? (resetArmed ? "#ff4081" : "transparent") : (on ? "#69f0ae" : "transparent");
-    ctx.shadowBlur = isDisabledTilt ? 0 : (isReset ? resetArmed : on) ? 8 : 0;
+    ctx.shadowBlur = (isReset ? resetArmed : on) ? 8 : 0;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = isDisabledTilt ? "rgba(255,255,255,.25)"
-      : isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
+    ctx.fillStyle = isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
       : on ? "#69f0ae" : "rgba(255,255,255,.5)";
     ctx.font = "700 12px Menlo, monospace";
-    const txt = isDisabledTilt ? "TILT · WEB ONLY"
-      : isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
+    const txt = isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
       : label + " · " + (on ? "ON" : "OFF");
     ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
-  const footY = settingsRowRect(9).y + settingsRowRect(9).h + 14;
+  const footY = settingsRowRect(8).y + settingsRowRect(8).h + 14;
   ctx.font = "600 10px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255,.4)";
   ctx.fillText("field medic: gentler, 5 lives, next run · reset wipes scores & codex, keeps settings",

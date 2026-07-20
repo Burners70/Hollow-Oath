@@ -513,34 +513,24 @@ test("REDUCED FLASH persists and RESET PROGRESS double-tap wipes progress but ke
   });
   await page.reload();
   await page.waitForFunction(() => window.__doids !== undefined);
-  // open settings, turn on REDUCED FLASH (row 8), reload → it persists
+  // open settings, turn on REDUCED FLASH (row 7 — TILT was pulled from the
+  // 10-row layout, so REDUCED FLASH/RESET PROGRESS shifted from 8/9 to 7/8),
+  // reload → it persists
   await page.evaluate(() => { state = "settings"; settingsReturnState = "title"; stateT = 1; });
-  await page.evaluate(() => {
-    const r = __doids.get().rects; // not used, compute row rect via a tap
-  });
-  await page.evaluate(() => {
-    // tap row 8 (REDUCED FLASH)
-    const rr = (function(){ return null; })();
+  const tapSettingsRow = (i) => page.evaluate((i) => {
     input.tap = true;
-    // recompute settingsRowRect(8) the same way the game does
-    const cols = 2, rows = Math.ceil(10 / cols);
+    // recompute settingsRowRect(i) the same way the game does (9 rows now)
+    const cols = 2, rows = Math.ceil(9 / cols);
     const cw = Math.min(240, innerWidth * 0.42), h = 30, gapX = 12, gapY = 7;
     const totalW = cw*cols+gapX, totalH = h*rows+gapY*(rows-1);
     const x0 = innerWidth/2 - totalW/2, y0 = innerHeight/2 - totalH/2 + 14;
-    const col = 8 % cols, row = (8-col)/cols;
+    const col = i % cols, row = (i-col)/cols;
     input.tapX = x0 + col*(cw+gapX) + cw/2; input.tapY = y0 + row*(h+gapY) + h/2;
-  });
+  }, i);
+  await tapSettingsRow(7);
   await page.waitForFunction(() => __doids.get().reducedFlash === true, null, { timeout: 2000 });
-  // RESET PROGRESS (row 9) needs two taps
-  const tapRow9 = () => page.evaluate(() => {
-    input.tap = true;
-    const cols = 2, rows = Math.ceil(10 / cols);
-    const cw = Math.min(240, innerWidth * 0.42), h = 30, gapX = 12, gapY = 7;
-    const totalW = cw*cols+gapX, totalH = h*rows+gapY*(rows-1);
-    const x0 = innerWidth/2 - totalW/2, y0 = innerHeight/2 - totalH/2 + 14;
-    const col = 9 % cols, row = (9-col)/cols;
-    input.tapX = x0 + col*(cw+gapX) + cw/2; input.tapY = y0 + row*(h+gapY) + h/2;
-  });
+  // RESET PROGRESS (row 8) needs two taps
+  const tapRow9 = () => tapSettingsRow(8);
   await tapRow9();
   await page.waitForFunction(() => __doids.get().resetArmed === true, null, { timeout: 2000 });
   await tapRow9();
