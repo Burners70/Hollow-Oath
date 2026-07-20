@@ -73,7 +73,7 @@ function render() {
 
   if (state === "title") drawTitle(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
-  if (state === "legend") drawCardPanel(LEGEND_CARD, now);
+  if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
@@ -161,8 +161,15 @@ function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gra
   const i0 = Math.max(0, Math.floor(sx0 / STEP)), i1 = Math.min(arr.length - 1, Math.ceil(sx1 / STEP));
   let lo = Infinity, hi = -Infinity;
   for (let i = i0; i <= i1; i++) { const v = arr[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
-  const top = lo - padAbove, bottom = hi + padBelow;
-  const closeY = closeAt === "bottom" ? bottom + 100 : top - 20;
+  const top = lo - padAbove;
+  // Terrain (closeAt "bottom") fills to the world floor, not to a fixed pad below
+  // the LOCAL surface: a tile of high ground (a plateau, or the raised map edges)
+  // otherwise stops its fill above the screen bottom and the sky shows THROUGH the
+  // ground at the bottom of the view. +30 puts the closing edge just past the
+  // deepest the camera can ever show (cy + ch ≤ WORLD_H). Cave roofs ("top") keep
+  // their local band — their gap would be at the top, not the bottom.
+  const bottom = closeAt === "bottom" ? WORLD_H + 30 : hi + padBelow;
+  const closeY = closeAt === "bottom" ? bottom : top - 20;
   const sc = dpr;
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.ceil((x1 - x0) * sc));
@@ -387,8 +394,11 @@ function drawWorld(now) {
   }
 
   for (const b of level.bullets) {
-    drawGlow(b.x, b.y, 8, "#ff4081");
-    ctx.fillStyle = "#ff8ab3";
+    // E3 — a parried bullet flies home as a friendly (yellow) round
+    const glow = b.reflected ? "#eaff6b" : "#ff4081";
+    const core = b.reflected ? "#f7ffd0" : "#ff8ab3";
+    drawGlow(b.x, b.y, 8, glow);
+    ctx.fillStyle = core;
     ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
   }
   for (const b of level.shots) {
@@ -489,7 +499,17 @@ function drawDarkness(now) {
     const amp = reducedFlash ? 0.15 : 0.3;
     lampS = (1 - amp) + amp * Math.abs(Math.sin(now * 22));
   }
-  if (!ship.dead) punch(ship.x, ship.y, lampRadius(), lampS);
+  if (!ship.dead) {
+    // T-Hollows / owner steer: underground the reveal reads as light spilling
+    // from the ship's three points (nose + engine corners), not one flat disc.
+    // Flo's lamp widens each pool; on the surface the single disc is unchanged.
+    if (level.isCave) {
+      const r = lampRadius() * 0.72;
+      for (const [px, py] of shipGlowPoints()) punch(px, py, r, lampS);
+    } else {
+      punch(ship.x, ship.y, lampRadius(), lampS);
+    }
+  }
   if (!level.isCave) punch(level.mx, level.my + 40, 260, 0.9);
   if (level.fakeMercy && !level.fakeMercy.dead)   // lit exactly like her (N1)
     punch(level.fakeMercy.x, level.fakeMercy.y + 40, 260, 0.9);
@@ -514,8 +534,27 @@ function drawDarkness(now) {
   ctx.drawImage(darkCanvas, 0, 0);
 }
 
+/* the ship's three light points in WORLD space — nose and the two engine
+   corners of the hull, rotated by heading. Used by the Hollows lamp reveal
+   (drawDarkness) and the visible glow that spills from them (drawShip). */
+function shipGlowPoints() {
+  const s = ship, c = Math.cos(s.ang), sn = Math.sin(s.ang);
+  const local = [[0, -11], [-8, 8], [8, 8]];
+  return local.map(([lx, ly]) => [s.x + lx * c - ly * sn, s.y + lx * sn + ly * c]);
+}
+
 function drawShip(now) {
   const s = ship;
+  // underground, warm cyan pools bloom from each of the ship's three points —
+  // Flo's lamp burns them brighter. Drawn under the hull so the reveal reads as
+  // light leaving the ship, not a ring around it.
+  if (level.isCave && !s.dead) {
+    const lamp = upgrades.lamp;
+    for (const [px, py] of shipGlowPoints()) {
+      drawGlow(px, py, lamp ? 42 : 30, "#00e5ff", lamp ? 0.55 : 0.4);   // halo
+      drawGlow(px, py, lamp ? 15 : 11, "#aef4ff", lamp ? 0.75 : 0.55);  // bright core
+    }
+  }
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.ang);
@@ -546,19 +585,33 @@ function drawShip(now) {
     ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
     ctx.shadowBlur = 0;
   }
-  // stranded at zero fuel — hold THRUST to call a resupply drone
+  // stranded at zero fuel — hold THRUST to call a resupply drone, except in the
+  // Hollows where no signal reaches you and THRUST arms the scuttle charge
   if (s.landed && s.fuel <= 0 && !s.dead && !resupplyDrone) {
     ctx.textAlign = "center";
     ctx.font = "700 10px Menlo, monospace";
-    ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 8;
-    ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
-    ctx.shadowBlur = 0;
-    if (s.signalT > 0) {
-      const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
-      ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
-      glowStroke("#ffc400", 2.4);
+    if (level.isCave) {
+      ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 8;
+      ctx.fillText("SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT", s.x, s.y - 52);
+      ctx.fillText("HOLD THRUST TO SCUTTLE", s.x, s.y - 40);
+      ctx.shadowBlur = 0;
+      if (s.scuttleT > 0) {
+        const p = clamp(s.scuttleT / SCUTTLE_HOLD_T, 0, 1);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - 68, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+        glowStroke("#ff4081", 2.4);
+      }
+    } else {
+      ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 8;
+      ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
+      ctx.shadowBlur = 0;
+      if (s.signalT > 0) {
+        const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
+        ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+        glowStroke("#ffc400", 2.4);
+      }
     }
   }
   // Curie's compass to the nearest unrecovered black box
@@ -594,23 +647,25 @@ function drawDroneMarker(now) {
   const ang = Math.atan2(sy - ey, sx - ex);
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.translate(ex, ey);
+  // A3 — only the pointing chevron tracks the drone around the screen edge.
   const pulse = 0.6 + 0.4 * Math.sin(now * 6);
-  // the pointing chevron
   ctx.save();
+  ctx.translate(ex, ey);
   ctx.rotate(ang);
   ctx.fillStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
   ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
   ctx.beginPath();
   ctx.moveTo(12, 0); ctx.lineTo(-6, 7); ctx.lineTo(-6, -7); ctx.closePath(); ctx.fill();
   ctx.restore();
-  // a small label so it reads as the drone, with its current leg — kept on the
-  // inward side of the marker so it never clips off the edge
-  ctx.shadowBlur = 6;
-  ctx.fillStyle = "rgba(255,196,0,.9)";
-  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  // ...while the status message stays PUT — pinned centred just under the top
+  // HUD band with a dark halo — so it's readable in a panic instead of sliding
+  // around the edge with the arrow.
+  ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 3;
+  ctx.fillStyle = "rgba(255,196,0,.95)";
+  ctx.font = "700 " + bodyFontPx(10) + "px Menlo, monospace"; ctx.textAlign = "center";
   const leg = rd.phase === "in" ? "⛽ INBOUND" : rd.phase === "out" ? "⛽ RETURNING" : "⛽ FUEL LINE";
-  ctx.fillText(leg, ex, ey < vh / 2 ? ey + 20 : ey - 14);
+  ctx.fillText(leg, vw / 2, 78);
+  ctx.shadowBlur = 0;
   ctx.restore();
 }
 function drawResupplyDrone(now) {
@@ -719,14 +774,14 @@ function drawLandingGuide() {
   ctx.moveTo(s.x - 14, groundAt(s.x - 14));
   ctx.lineTo(s.x + 14, groundAt(s.x + 14));
   ctx.stroke();
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = "700 " + bodyFontPx(11) + "px Menlo, monospace";
   ctx.textAlign = "left";
   ctx.fillStyle = color;
   const vArrow = s.vy >= 0 ? "↓" : "↑";
   ctx.fillText(glyph + " " + vArrow + Math.abs(Math.round(s.vy)) + "  ↔" + Math.abs(Math.round(s.vx)), s.x + 20, s.y - 2);
   if (!ev.soft && ev.reason) {
-    ctx.font = "600 9px Menlo, monospace";
-    ctx.fillText(ev.reason, s.x + 20, s.y + 10);
+    ctx.font = "600 " + bodyFontPx(8) + "px Menlo, monospace";
+    ctx.fillText(ev.reason, s.x + 20, s.y + 11);
   }
   ctx.restore();
 }
@@ -761,25 +816,27 @@ function doidFigure(p) {
   ctx.translate(0, -11.3);
   drawAsclepius(4.6, p.emblemCol, true);
   ctx.restore();
-  // head
+  // head — owner steer: smaller, hooded dome instead of a big baby head, so the
+  // figure reads as a suited healer, not a toy
   ctx.beginPath();
-  ctx.moveTo(-3.5, -15.5);
-  ctx.lineTo(-3.5, -19); ctx.arcTo(-3.5, -21, -1.5, -21, 2);
-  ctx.lineTo(1.5, -21); ctx.arcTo(3.5, -21, 3.5, -19, 2);
-  ctx.lineTo(3.5, -15.5);
+  ctx.moveTo(-2.9, -15.5);
+  ctx.lineTo(-2.9, -18.6); ctx.arcTo(-2.9, -20.3, -1.3, -20.3, 1.6);
+  ctx.lineTo(1.3, -20.3); ctx.arcTo(2.9, -20.3, 2.9, -18.6, 1.6);
+  ctx.lineTo(2.9, -15.5);
   ctx.closePath();
   ctx.fillStyle = p.fill; ctx.fill();
   glowStroke(p.col, 2);
-  // eyes (they blink)
+  // a single visor slit rather than two cartoon eyes — it dims on "blink"
   ctx.fillStyle = p.col;
-  if (p.blink) { ctx.fillRect(-2.4, -18.1, 1.7, 0.9); ctx.fillRect(0.7, -18.1, 1.7, 0.9); }
-  else { ctx.fillRect(-2.3, -18.9, 1.6, 2); ctx.fillRect(0.7, -18.9, 1.6, 2); }
-  // antenna with swaying bobble
+  ctx.globalAlpha = p.blink ? 0.35 : 1;
+  ctx.fillRect(-2, -18.4, 4, 1.1);
+  ctx.globalAlpha = 1;
+  // a short antenna with a small swaying tip — subtler than the old bobble
   ctx.beginPath();
-  ctx.moveTo(0, -21); ctx.lineTo(p.sway, -25);
+  ctx.moveTo(0, -20.3); ctx.lineTo(p.sway * 0.6, -23.2);
   glowStroke(p.col, 2);
   ctx.fillStyle = p.col;
-  ctx.beginPath(); ctx.arc(p.sway, -26, 1.4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.sway * 0.6, -23.8, 1.0, 0, 7); ctx.fill();
 }
 
 /* Each Scion has a persona — big wavers, two-arm wavers, jumpers,
@@ -788,7 +845,7 @@ function doidFigure(p) {
 function drawOid(o, now) {
   const mech = o.role === "saboteur";
   const t = now + o.wave * 3;
-  const sc = 1.2 * (o.scale || 1);
+  const sc = 1.0 * (o.scale || 1);   // owner steer: smaller on the ground, less toy-like
   const osc = f => mech ? Math.sign(Math.sin(t * f)) * 0.85 : Math.sin(t * f);
   const dying = o.state === "dying";
   const panic = o.state === "panic" || (dying && o.deathType === "torched");
@@ -914,8 +971,20 @@ function drawBoulder(sc, now) {
   ctx.translate(sc.x, sc.y);
   ctx.rotate(sc.tilt);
   ctx.scale(sc.s, sc.s);
+  // half-buried: clip away everything below the (rotated) ground line so the
+  // base sinks INTO the slope instead of being painted over it. +3 keeps a
+  // hair of overlap so there's no seam between rock and terrain.
+  ctx.beginPath(); ctx.rect(-60, -300, 120, 303); ctx.clip();
   for (const b of sc.stack) {
-    ctx.beginPath(); ctx.arc(b.dx, b.dy, b.r, 0, 7);
+    ctx.beginPath();
+    const vs = b.verts;
+    if (vs) {
+      ctx.moveTo(b.dx + vs[0][0], b.dy + vs[0][1]);
+      for (let i = 1; i < vs.length; i++) ctx.lineTo(b.dx + vs[i][0], b.dy + vs[i][1]);
+      ctx.closePath();
+    } else {
+      ctx.arc(b.dx, b.dy, b.r, 0, 7);   // legacy fallback
+    }
     ctx.fillStyle = "#1b0f06"; ctx.fill();
     glowStroke("rgba(224,151,90,.5)", 1.6);
   }
@@ -1114,7 +1183,15 @@ function drawBuilding(sc, now, ruined) {
 /* a MERCY-class sister, down and half-dark — her emblem still flickers */
 function drawWreckM(sc, now) {
   ctx.save();
-  ctx.translate(sc.x, sc.y + 4);
+  // sink the broken hull into the ridge rather than perching it on the crust:
+  // set a ground-line clip (in the ground-aligned frame), then undo the tilt and
+  // re-apply the original transform so the hull below the surface is buried while
+  // everything above — breach, emblem, hull tag — renders exactly as before.
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.beginPath(); ctx.rect(-200, -500, 400, 506); ctx.clip();
+  ctx.rotate(-sc.tilt);
+  ctx.translate(0, 4);
   ctx.rotate(sc.tilt + sc.lean * 0.5);
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
   ctx.fillStyle = "rgba(8,12,26,.85)";
@@ -1143,12 +1220,21 @@ function drawWreckM(sc, now) {
     t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
 }
 
-/* one of ours — a rescue dart that didn't make it */
+/* one of ours — a rescue dart that didn't make it. It's the SAME hull the player
+   flies (identical path to drawShip), so it's drawn at the ship's own scale, not
+   oversized — and half-buried like the boulders rather than perched on the crust. */
 function drawWreckS(sc, now) {
   ctx.save();
-  ctx.translate(sc.x, sc.y - 4);
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  // half-buried: clip away everything below the ground line so the wreck sinks
+  // INTO the slope. +5 keeps a hair of overlap so there's no seam.
+  ctx.beginPath(); ctx.rect(-80, -300, 160, 305); ctx.clip();
   ctx.rotate(2.35 + sc.lean);
-  ctx.scale(sc.s * 2.1, sc.s * 2.1);
+  // never bigger than the ship the player flies (sc.s runs 0.8–1.5); a downed
+  // dart reads as ship-sized or a touch smaller, collapsed.
+  const ws = Math.min(1.0, sc.s);
+  ctx.scale(ws, ws);
   ctx.strokeStyle = "rgba(0,229,255,.32)";
   ctx.fillStyle = "rgba(6,10,22,.8)";
   ctx.lineWidth = 1.6;
@@ -1193,11 +1279,15 @@ function drawLift(now) {
     ctx.fillText("RETURN LIFT — land and hold", 0, -52);
   } else {
     const glint = Math.sin(now * 0.43 + L.x) > 0.988 ? 0.4 : 0;
-    const a = 0.13 + glint;
+    // C2 — a slow "breathing" so the seam has faint life between the rare
+    // glints, and (below) an occasional mote rising from the pad. Motion is
+    // what the eye catches; both stay dim so the lift is findable, not blatant.
+    const breathe = 0.05 * (0.5 + 0.5 * Math.sin(now * 1.15 + L.x));
+    const a = 0.13 + glint + breathe;
     // a subtly thicker plate of ground under the pad — visible if you look,
     // not blatant if you don't
     const thickG = ctx.createLinearGradient(0, 2, 0, 11);
-    thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25).toFixed(2) + ")");
+    thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25 + breathe).toFixed(2) + ")");
     thickG.addColorStop(1, "rgba(179,136,255,0)");
     ctx.fillStyle = thickG;
     ctx.fillRect(-44, 2, 88, 9);
@@ -1209,6 +1299,12 @@ function drawLift(now) {
     ctx.stroke();
     ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
     for (const rx of [-36, -12, 12, 36]) ctx.fillRect(rx - 1, 0, 2, 2);
+    // a rare, dim mote lifting off the seam — world-space, so pushed with
+    // absolute coords. ~0.5/s, faint and small: a glance-catcher, not a beacon.
+    if (Math.random() < 0.009) particles.push({
+      x: L.x + (Math.random() - 0.5) * 74, y: L.y + 1,
+      vx: (Math.random() - 0.5) * 3, vy: -7 - Math.random() * 5,
+      t: 0.9, max: 1.7, color: "#b388ff", size: 0.8 + Math.random() * 0.6 });
   }
   if (L.holdT > 0) {   // the hold ring, once you've noticed
     ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
@@ -1425,14 +1521,19 @@ function drawMothership(now) {
   // recovery bay: a beam hanging under the hull, dispensing outward
   const medRGB = mercyBreach ? "255,64,129" : "0,229,255";
   drawTractorBeam(bays.med, medRGB, now, true, false);
-  ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(0,229,255,.6)";
+  // Bay labels: bigger (BIG-TEXT aware) and higher-contrast for mobile. A dark
+  // halo lifts them off the hull and terrain; the isolation label uses a lighter,
+  // more luminous red — pure #ff1744 was near-invisible against the dark ground.
+  ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4;
+  ctx.fillStyle = mercyBreach ? "rgba(255,90,120,.98)" : "rgba(120,240,255,.98)";
   ctx.fillText(mercyBreach ? "LOCKDOWN" : "RECOVERY BAY",
-    (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 14);
+    (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 15);
   // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
   drawTractorBeam(bays.red, "255,23,68", now, false, true);
-  ctx.fillStyle = "rgba(255,23,68,.7)";
-  ctx.fillText("RED BAY · QUARANTINE", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
+  ctx.fillStyle = "rgba(255,110,132,.98)";
+  ctx.fillText("RED BAY · ISOLATION AIRLOCK", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 15);
+  ctx.shadowBlur = 0;
   ctx.restore();
 
   // S4.5 — a faint ventral hangar hint once the triage retreat is on offer
@@ -1766,10 +1867,18 @@ function drawHUD(now) {
   ctx.shadowBlur = 0;
 
   const tl = acctLevel();
+  // A Vector is not a Scion to be saved — once you've identified one (contained
+  // it in the red bay, or scanned-and-flagged it to leave on the ground) it
+  // drops out of the "to save" denominator, so the tally counts genuine
+  // survivors, not MERCY's opening headcount: 5/6 with one contained reads 5/5.
+  let vectorsKnown = tl.contained;
+  for (const o of tl.oids)
+    if (o.role === "saboteur" && o.state === "wait" && o.flagged) vectorsKnown++;
+  const savable = Math.max(tl.delivered, tl.total - vectorsKnown);
   ctx.textAlign = "left";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
-  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + tl.total;
+  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + savable;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
   if (tl.lost > 0) {
@@ -1788,7 +1897,14 @@ function drawHUD(now) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.font = "800 14px Menlo, monospace";
-    ctx.fillText("⚠ BREACH — RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
+    // E1 — two-step: retrieve at the recovery bay (timed), then ferry it to
+    // isolation. Once retrieved the timer stops; the struggle is the pressure.
+    const msg = !mercyBreach.retrieved
+      ? "⚠ BREACH — RETRIEVE AT THE RECOVERY BAY " + Math.ceil(mercyBreach.t) + "s"
+      : mercyBreach.struggle
+        ? "⚠ IT'S FIGHTING — LET GO OF THE CONTROLS"
+        : "⚠ CARRY IT TO THE RED ISOLATION BAY";
+    ctx.fillText(msg, vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if (level.extraction && !level.extraction.done && state === "play" && Math.sin(now * 5) > -0.3) {
     ctx.textAlign = "center";
@@ -1800,7 +1916,7 @@ function drawHUD(now) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.font = "800 13px Menlo, monospace";
-    ctx.fillText("⚠ CONTAMINANT ABOARD — RED BAY", vw / 2, topPad + 44);
+    ctx.fillText("⚠ CONTAMINANT ABOARD — SEAL IT IN THE RED BAY", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if ((s.fuel < 20 || s.vitals < 30) && Math.sin(now * 8) > 0 && state === "play") {
     ctx.textAlign = "center";
@@ -1868,6 +1984,95 @@ function drawECG(x, y, w, h, frac, now) {
   ctx.fillStyle = "rgba(255,255,255,.6)";
   ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "right";
   ctx.fillText("VITALS " + Math.max(0, Math.round(frac * 100)) + "%", x + w, y + h + 9);
+}
+
+/* U3 (annotated) — the HUD guide. Instead of a wall of prose it lays the real
+   readouts out where they actually sit on screen and names each one, so a new
+   player can map word to widget. No spoilers (the Static clock is learned in
+   play, not here); every element is covered, ASSIST included. */
+function drawHudGuide(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.96)";
+  ctx.fillRect(0, 0, vw, vh);
+  const L = saLeft, R = saRight, cyan = "#00e5ff";
+  const head = "#bfefff", dim = "rgba(199,232,255,.62)";
+  const bw = Math.min(150, vw * 0.3);
+  const F = b => "700 " + bodyFontPx(b) + "px Menlo, monospace";
+  const Fd = b => "600 " + bodyFontPx(b) + "px Menlo, monospace";
+  // a widget-adjacent label: bright title, dimmer wrapped description
+  function lab(x, y, align, title, desc, descW) {
+    ctx.textAlign = align;
+    ctx.fillStyle = head; ctx.font = F(8);
+    ctx.fillText(title, x, y);
+    ctx.fillStyle = dim; ctx.font = Fd(8);
+    wrapText(desc, descW || 160).slice(0, 3).forEach((ln, i) => ctx.fillText(ln, x, y + 13 + i * 11));
+  }
+
+  // ---- header ----
+  ctx.textAlign = "center";
+  ctx.fillStyle = cyan; ctx.shadowColor = cyan; ctx.shadowBlur = 8; ctx.font = F(11);
+  ctx.fillText("◎ HUD GUIDE — what every readout means", vw / 2, 18);
+  ctx.shadowBlur = 0;
+
+  // ---- the real top band, drawn where it sits in flight ----
+  const topY = 32;
+  drawBar(14 + L, topY, bw, 10, 0.62, "#ffc400", "");
+  drawECG(vw - bw - 14 - R, topY, bw, 26, 0.86, now);
+  const pX = vw - bw - 14 - R - 40;   // pause pill, just left of the ECG
+  ctx.fillStyle = "rgba(0,120,150,.6)"; ctx.strokeStyle = "rgba(130,242,255,.95)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.rect(pX, topY - 2, 30, 20); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#eaffff"; ctx.font = F(9); ctx.textAlign = "center"; ctx.fillText("❚❚", pX + 15, topY + 12);
+  ctx.fillStyle = "#9beaf9"; ctx.shadowColor = cyan; ctx.shadowBlur = 6; ctx.font = F(11); ctx.textAlign = "center";
+  ctx.fillText("004200", vw / 2, topY + 8); ctx.shadowBlur = 0;
+  ctx.font = Fd(8); ctx.fillStyle = "rgba(155,234,249,.7)";
+  ctx.fillText("VESALIUS RIDGE · ♥3 · ASSIST · ◈2/7", vw / 2, topY + 20);
+
+  // ---- labels for the top band (below the ECG's own VITALS% readout) ----
+  const topLabY = topY + 54;
+  lab(14 + L, topLabY, "left", "FUEL",
+    "Thrust and shield burn it. Run dry and you're grounded until you signal a resupply line.", Math.max(160, bw + 50));
+  lab(vw / 2, topLabY, "center", "SCORE LINE",
+    "Score · sector name · ♥ lives · ◈ black boxes. ASSIST shows when gentler capture is on (toggle in SETTINGS).", 250);
+  lab(vw - 14 - R, topLabY, "right", "VITALS  +  ❚❚ PAUSE",
+    "Your pulse as an ECG — it quickens as you fail; a stutter means something wrong is aboard. PAUSE sits just left of it.", Math.max(160, bw + 60));
+
+  // ---- centre: ship + the landing guide, centred in the gap between the top
+  //      labels and the bottom controls so it never collides on a short landscape ----
+  const bandTop = topLabY + 34, bandBot = vh - 28 - 44;
+  const sx = vw / 2, sy = clamp((bandTop + bandBot) / 2 - 12, bandTop + 24, bandBot - 46);
+  ctx.save(); ctx.translate(sx, sy);
+  ctx.strokeStyle = cyan; ctx.shadowColor = cyan; ctx.shadowBlur = 10; ctx.lineWidth = 2; ctx.fillStyle = "rgba(0,229,255,.12)";
+  ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sx - 12, sy + 22); ctx.lineTo(sx + 12, sy + 22); ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#69f0ae"; ctx.font = F(9); ctx.textAlign = "left"; ctx.fillText("✓ ↓2  ↔1", sx + 20, sy + 2);
+  lab(sx, sy + 42, "center", "LANDING GUIDE",
+    "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down.", 240);
+
+  // ---- bottom controls: clean rows (left = turn, right = act), each labelled
+  //      above so nothing overlaps on a short landscape viewport ----
+  const by = vh - 28;
+  const circ = (cx2, cy2, r, col, txt, fs) => {
+    ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx2, cy2, r, 0, 7); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = col; ctx.textAlign = "center"; ctx.font = F(fs); ctx.fillText(txt, cx2, cy2 + 3);
+  };
+  circ(40 + L, by, 15, "rgba(0,229,255,.85)", "↺", 12);
+  circ(82 + L, by, 15, "rgba(0,229,255,.85)", "↻", 12);
+  lab(24 + L, by - 44, "left", "ROTATE", "Turn the ship left / right.", 170);
+  // right cluster as a row, THRUST kept rightmost as in flight
+  const sX2 = vw - 132 - R, fX = vw - 86 - R, tX = vw - 40 - R;
+  circ(sX2, by, 15, "rgba(105,240,174,.85)", "⛨", 9);
+  circ(fX, by, 15, "rgba(255,64,129,.85)", "◉", 9);
+  circ(tX, by, 15, "rgba(255,196,0,.85)", "▲", 10);
+  lab(vw - 14 - R, by - 44, "right", "SHIELD · FIRE · THRUST",
+    "Hold SHIELD (force field) · FIRE costs points · THRUST to fly.", 250);
+
+  // ---- footer ----
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.font = F(9); ctx.fillText("tap to continue", vw / 2, vh - 8);
 }
 
 /* ---------------- screens ---------------- */
@@ -2056,7 +2261,11 @@ function archiveCardFor(idx) {
   if (idx < FRAGMENTS.length) {
     return { kicker: "SIGNAL ARCHIVE · LOG " + String(idx + 1).padStart(2, "0"),
       title: "", subtitle: "",
-      body: FRAGMENTS[idx].replace(/^LOG \d+ \/\/ /, ""), color: "#b388ff", page: 0 };
+      // one sentence per line for emphasis — break after . ! ? that end a
+      // sentence (a space + a capital or quote follows), so "matches... us."
+      // and other ellipses stay intact. wrapText still wraps long sentences.
+      body: FRAGMENTS[idx].replace(/^LOG \d+ \/\/ /, "")
+        .replace(/([.!?]) (?=[A-Z"“'])/g, "$1\n"), color: "#b388ff", page: 0 };
   }
   const c = SHRINES[idx - FRAGMENTS.length];
   return { kicker: c.kicker, title: c.title, subtitle: "", body: c.body, color: c.color, page: 0 };
@@ -2502,16 +2711,25 @@ function drawBrief(now) {
   ctx.fillStyle = "#aef4ff";
   ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, vh * 0.25);
   ctx.shadowBlur = 4;
-  const briefPx = bodyFontPx(14), briefLH = briefPx + 8;
+  const briefPx = bodyFontPx(14);
   ctx.font = "600 " + briefPx + "px Menlo, monospace";
   ctx.fillStyle = "#c9f3dd";
+  const wrapW = Math.min(560, vw - 60);
+  // Lay the block against the FULL brief so paragraph spacing and the TAP prompt
+  // don't jump around as the text types out. On a short screen, tighten the line
+  // height (floored at a readable minimum) so extra paragraphs never run off the
+  // bottom — paragraphs are cheap, overflow is not.
+  const nAll = wrapText(briefText(), wrapW).length;
+  const topY = vh * 0.32, botY = vh * 0.95;
+  let briefLH = briefPx + 8;
+  if (nAll * briefLH > botY - topY - 34)
+    briefLH = Math.max(briefPx + 2, (botY - topY - 34) / nAll);
   const shown = briefText().slice(0, Math.floor(briefChars));
-  const lines = wrapText(shown, Math.min(560, vw - 60));
-  lines.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.34 + i * briefLH));
+  wrapText(shown, wrapW).forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * briefLH));
   if (briefChars >= briefText().length) {
     ctx.font = "800 15px Menlo, monospace";
     ctx.fillStyle = "rgba(255,255,255," + (0.6 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-    ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.34 + lines.length * briefLH + 40);
+    ctx.fillText("TAP TO LAUNCH", vw / 2, topY + nAll * briefLH + 30);
   }
   ctx.shadowBlur = 0;
 }
@@ -2762,7 +2980,7 @@ function drawEnding(now) {
   if (endingType === "answered") {
     title = "THE ANSWERED CALL";
     color = "#aef4ff";
-    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
     else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
   } else if (endingType === "fire") {
@@ -2862,6 +3080,8 @@ window.__doids = {
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
+  logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body
+  btnHit: (x, y) => buttonsAt(x, y),              // C1 — touch-button hit test
   give: k => { upgrades[k] = true; },
   strand: () => { ship.x = level.W / 2; ship.y = groundAt(ship.x) - SHIP_R;
     ship.landed = true; ship.vx = ship.vy = 0; ship.fuel = 0; },

@@ -989,6 +989,30 @@ test("T6: the Basin opens at dusk and night falls once to full dark", async ({ p
   expect(fin.da).toBeUndefined();
 });
 
+test("Semmelweis Deep: unscreened contagion taints the nearest un-scanned survivor", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(3); __doids.launch(); });
+  await page.waitForFunction(
+    () => __doids.get().state === "play" && __doids.get().level.contagion === true,
+    null, { timeout: 4000 });
+  // only Semmelweis carries the mechanic
+  const vesalius = await page.evaluate(() => { __doids.go(1); return !!level.contagion; });
+  expect(vesalius).toBe(false);
+  // back to the ward: seat an unproven Vector beside a clean survivor, prime its
+  // timer to one tick from seeding, and watch the survivor turn
+  const victimIdx = await page.evaluate(() => {
+    __doids.go(3); __doids.launch();
+    const sab = level.oids.find(o => o.role === "saboteur" && o.state === "wait");
+    const victim = level.oids.find(o => o.role === "normal" && !o.carrier &&
+      !o.verified && !o.flagged && o.state === "wait");
+    sab.x = victim.x + 20; sab.y = victim.y; sab.contagT = 9.9;
+    return level.oids.indexOf(victim);
+  });
+  await page.waitForFunction(
+    idx => __doids.get().level.oids[idx].role === "saboteur", victimIdx, { timeout: 4000 });
+  expect(await page.evaluate(idx => __doids.get().level.oids[idx].sleeper, victimIdx)).toBe(true);
+  expect(await page.evaluate(() => __doids.get().level.contagSeen)).toBe(true);
+});
+
 test("U1: the lift pad rings hollow once per touchdown and re-arms on lift-off", async ({ page }) => {
   // sector 1 hides a lift; settle on its plate and the pad rings once
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
@@ -1101,4 +1125,190 @@ test("U2: the field refueller costs points, delivers less each time, never soft-
   const cap2 = await page.evaluate(() =>
     Math.max(35, Math.round(__doids.get().maxFuel * Math.pow(0.9, __doids.get().runRefuels))));
   expect(cap2).toBeLessThanOrEqual(cap1);
+});
+
+test("A6: log reveal cards break one sentence per line, ellipses intact", async ({ page }) => {
+  // LOG 02 is four short sentences — each should get its own line.
+  const log2 = await page.evaluate(() => __doids.logCardBody(1));
+  expect(log2.split("\n").length).toBe(4);
+  expect(log2).toContain("Forty-one seconds.\nAlways forty-one seconds.");
+  // LOG 06 has an ellipsis mid-sentence; it must NOT split there.
+  const log6 = await page.evaluate(() => __doids.logCardBody(5));
+  expect(log6).toContain("matches... us.");
+  expect(log6).not.toContain("matches...\nus");
+});
+
+test("C1: turn/thrust touch zones are forgiving but never overlap at the seam", async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });   // landscape → controls visible
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(250);   // let a frame drop the `noctl` class so buttons lay out
+  const data = await page.evaluate(() => {
+    const rect = id => { const r = document.getElementById(id).getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+               cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2, w: r.width }; };
+    const L = rect("btnL"), R = rect("btnR"), T = rect("btnThrust"), F = rect("btnFire");
+    return {
+      Lw: L.w,
+      seamLR: __doids.btnHit((L.right + R.left) / 2, L.cy),        // between turn buttons
+      seamTF: __doids.btnHit((F.left + T.right) / 2, T.cy),        // between fire & thrust
+      aboveL: __doids.btnHit(L.cx, L.top - 22),                    // stab 22px above btnL
+      aboveThrust: __doids.btnHit(T.cx, T.top - 22),               // stab 22px above thrust
+      centerL: __doids.btnHit(L.cx, L.cy)
+    };
+  });
+  expect(data.Lw, "controls are laid out (landscape, in-flight)").toBeGreaterThan(0);
+  // the seam between the two turn buttons must never press both at once
+  expect(data.seamLR.filter(k => k === "left" || k === "right").length).toBeLessThanOrEqual(1);
+  // reaching THRUST must not also commit FIRE (malpractice)
+  expect(data.seamTF).not.toContain("fire");
+  // vertical forgiveness: a stab just above the button still registers
+  expect(data.aboveL).toContain("left");
+  expect(data.aboveThrust).toContain("thrust");
+  expect(data.centerL).toContain("left");
+});
+
+test("E3: a perfect-timed shield parry reflects a bullet back and kills its firer", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => {
+    // isolate the scenario: one turret to the right, one incoming bullet, no drones
+    level.drones = [];
+    ship.vx = 0; ship.vy = 0; ship.dead = false;
+    level.turrets = [{ x: ship.x + 70, y: ship.y, ang: Math.PI, cd: 999, alive: true }];
+    level.bullets = [{ x: ship.x + 16, y: ship.y, vx: -150, vy: 0, t: 4 }];
+    // raise the shield THIS instant → rising edge opens the parry window
+    input.shield = true;
+  });
+  await page.waitForTimeout(500);   // let the reflected round fly back to the turret
+  const r = await page.evaluate(() => ({
+    turretAlive: level.turrets[0] ? level.turrets[0].alive : null,
+    runFired: __doids.get().runFired
+  }));
+  expect(r.turretAlive, "the turret is destroyed by its own reflected bullet").toBe(false);
+  expect(r.runFired, "reflecting is not firing — the oath is intact").toBe(0);
+  await page.evaluate(() => { input.shield = false; });
+});
+
+test("E2: a Vector throws a Scion; catching re-boards, hitting the ground loses them", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(150);
+  // the telegraphed throw completes → the Scion becomes a falling body
+  await page.evaluate(() => {
+    const s = ship; s.dead = false; s.passengers = [];
+    const o = { role: "normal", state: "aboard", x: s.x, y: s.y, wave: 0, vx: 0, vy: 0 };
+    level.oids.push(o); s.passengers.push(o);
+    level.eject = { o, t: 0.001 };
+  });
+  await page.waitForTimeout(120);
+  const st1 = await page.evaluate(() => {
+    const o = level.oids[level.oids.length - 1];
+    return { state: o.state, inPax: ship.passengers.includes(o) };
+  });
+  expect(st1.state, "the Scion is thrown clear").toBe("thrown");
+  expect(st1.inPax, "and off the manifest while falling").toBe(false);
+  // flying into the falling Scion catches them → re-boarded
+  await page.evaluate(() => {
+    // move well clear of MERCY's bays so a re-boarded Scion isn't instantly delivered
+    ship.x = level.mx + 460; ship.y = groundAt(ship.x) - 40;
+    ship.landed = true; ship.vx = 0; ship.vy = 0;
+    const o = level.oids[level.oids.length - 1];
+    o.x = ship.x; o.y = ship.y; o.vx = 0; o.vy = 0; o.throwLock = 0;   // clear the post-throw lock
+  });
+  await page.waitForTimeout(120);
+  const st2 = await page.evaluate(() => {
+    const o = level.oids[level.oids.length - 1];
+    return { state: o.state, inPax: ship.passengers.includes(o) };
+  });
+  expect(st2.state, "flying into the thrown Scion catches them").toBe("aboard");
+  expect(st2.inPax).toBe(true);
+  // a thrown Scion that reaches the ground (Field Medic off) is lost
+  await page.evaluate(() => {
+    easyMode = false;
+    const ox = ship.x + 320;
+    const o = { role: "normal", state: "thrown", x: ox, y: groundAt(ox) - 12, wave: 0, vx: 0, vy: 160 };
+    level.oids.push(o);
+  });
+  await page.waitForTimeout(250);
+  const st3 = await page.evaluate(() => level.oids[level.oids.length - 1].state);
+  expect(st3, "a thrown Scion that lands is lost").toBe("lost");
+});
+
+test("E1: a breach must be RETRIEVED at recovery before it can be sealed at isolation", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(120);
+  await page.evaluate(() => { triggerBreach(false); });
+  // parking at the RED bay before retrieving does NOT seal it
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      const b = bayRects().red;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+      input.left = false; input.right = false;
+    }, 16);
+  });
+  await page.waitForTimeout(2500);
+  const stillBreached = await page.evaluate(() => {
+    const b = __doids.get().mercyBreach;
+    return b && !b.retrieved;
+  });
+  expect(stillBreached, "can't seal what hasn't been retrieved").toBe(true);
+  // retrieve at the RECOVERY bay
+  await page.evaluate(() => {
+    clearInterval(window.__pin);
+    window.__pin = setInterval(() => {
+      const b = bayRects().med;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+    }, 16);
+  });
+  await page.waitForTimeout(900);
+  const retrieved = await page.evaluate(() => {
+    const b = __doids.get().mercyBreach;
+    return b && b.retrieved;
+  });
+  expect(retrieved, "docking recovery retrieves the loose Vector").toBe(true);
+  // now ferry to the RED isolation bay and hold → sealed
+  await page.evaluate(() => {
+    clearInterval(window.__pin);
+    window.__pin = setInterval(() => {
+      const b = bayRects().red;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+      input.left = false; input.right = false;
+    }, 16);
+  });
+  await page.waitForTimeout(2600);
+  await page.evaluate(() => clearInterval(window.__pin));
+  const sealed = await page.evaluate(() => __doids.get().mercyBreach);
+  expect(sealed, "retrieved Vector sealed at isolation clears the breach").toBeNull();
+});
+
+test("E4: an infected Scion is CURED at isolation; a born Vector is only sealed", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(120);
+  // pin the ship in the RED isolation bay for both drop-offs
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      const b = bayRects().red;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+    }, 16);
+  });
+  // an infected Scion (turned by the ward) → treated and cured = a save
+  await page.evaluate(() => {
+    const o = { role: "saboteur", infected: true, state: "aboard", x: ship.x, y: ship.y, wave: 0, sabT: 99 };
+    level.oids.push(o); ship.passengers = [o];
+  });
+  await page.waitForTimeout(700);
+  const cured = await page.evaluate(() => level.oids[level.oids.length - 1].state);
+  expect(cured, "an infected Scion is cured (delivered), not just contained").toBe("delivered");
+  // a BORN Vector → sealed/contained, never cured
+  await page.evaluate(() => {
+    const o = { role: "saboteur", state: "aboard", x: ship.x, y: ship.y, wave: 0, sabT: 99 };
+    level.oids.push(o); ship.passengers = [o];
+  });
+  await page.waitForTimeout(700);
+  const sealed = await page.evaluate(() => level.oids[level.oids.length - 1].state);
+  await page.evaluate(() => clearInterval(window.__pin));
+  expect(sealed, "a born Vector is sealed, never cured").toBe("contained");
 });

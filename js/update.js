@@ -8,6 +8,11 @@ const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
+const PARRY_WINDOW = 0.18; // E3: seconds after the shield snaps up in which a hit reflects
+const EJECT_WARN = 1.6;    // E2: telegraph before a loose Vector hurls a Scion out
+const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
+const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
+const RESTRAIN_HOLD = 0.6; // E1: release steering this long to restrain it and regain control
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -55,20 +60,22 @@ function grantFragment(queueForClear) {
   return frag;
 }
 
-function explode(x, y, color, n) {
+function explode(x, y, color, n, silent) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 220;
     particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
       t: 0.5 + Math.random() * 0.8, max: 1.3, color, size: 1.5 + Math.random() * 3 });
   }
-  camera.shake = Math.min(camera.shake + 14, 26);
+  camera.shake = Math.min(camera.shake + (silent ? 4 : 14), 26);
   // nearby grounded Scions panic
   if (level) for (const o of level.oids) {
     if ((o.state === "wait" || o.state === "walk") && Math.abs(o.x - x) < 160 && Math.abs(o.y - y) < 160) {
       o.state = "panic"; o.panicT = 1.6 + Math.random();
     }
   }
-  boom();
+  // `silent` lets the caller supply its own cue (a shield absorb, a gate slam)
+  // instead of the generic explosion boom.
+  if (!silent) boom();
 }
 
 function goldBurst(x, y) {
@@ -250,7 +257,10 @@ function updateExtraction(dt) {
       e.done = true; e.beatT = 0;
       banner("ABOARD — SECTOR " + SECTOR_NAMES[levelIdx] + " CLOSED", "#69f0ae");
       blip(440, 1760, 0.4, "sine", 0.14);
-      haptic.medium();
+      // B2 — MERCY spools up and jumps out: a rising engine surge/whoosh that
+      // builds into the jump streak. A heavy haptic marks the departure (B4).
+      departureSurge();
+      haptic.heavy();
     }
   } else e.hold = Math.max(0, e.hold - dt * 1.5);
 }
@@ -317,11 +327,15 @@ function updateConfirm() {
   input.tap = false;
 }
 
-function triggerBreach() {
-  mercyBreach = { t: easyMode ? 60 : 45 };
+function triggerBreach(infected) {
+  // E1 — the breach is now a two-dock recovery: RETRIEVE it back onto your ship
+  // at the recovery bay, then ferry it (it fights you) to the red isolation bay.
+  // retrieved gates the seal; ph/fightT/struggle drive the control-fight jeopardy.
+  mercyBreach = { t: easyMode ? 60 : 45, retrieved: false, wasInfected: !!infected,
+                  ph: 0, fightT: STRUGGLE_GAP, struggle: false, calmT: 0 };
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 250, style: "heavy" }]);   // klaxon ×2 (F2)
   level.contamKnown = true;
-  banner("SECURITY BREACH ABOARD MERCY\nDOCK AT THE RED BAY TO CONTAIN IT", "#ff4081");
+  banner("UNSCREENED UNIT LOOSE ON MERCY\nDOCK THE RECOVERY BAY TO RETRIEVE IT, THEN THE RED BAY", "#ff4081");
   blip(880, 220, 0.6, "sawtooth", 0.2);
 }
 
@@ -329,13 +343,46 @@ function resolveBreach(success) {
   mercyBreach = null;
   if (success) {
     score += 750;
-    banner("CONTAMINANT CONTAINED  +750\nLOCKDOWN LIFTED", "#69f0ae");
+    banner("CONTAMINANT SEALED IN ISOLATION  +750\nLOCKDOWN LIFTED", "#69f0ae");
     blip(520, 1040, 0.3, "sine", 0.15);
   } else {
     score = Math.max(0, score - 1000);
     mercyDamaged = true;
     banner("RECOVERY BAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", "#ff4081");
     blip(300, 60, 0.6, "sawtooth", 0.2);
+  }
+}
+
+/* E1 — once a breached Vector is retrieved aboard for transport, it periodically
+   fights for the controls: an erratic left/right yaw wrenches the ship. The only
+   way to restrain it is to LET GO of steering for a moment, then it settles until
+   the next bout. Runs only while breached + retrieved (see updatePlay). */
+function updateVectorStruggle(dt) {
+  const b = mercyBreach, s = ship;
+  if (!b || !b.retrieved || s.dead || state !== "play") return;
+  b.ph += dt;
+  const steering = input.left || input.right || pad.left || pad.right;
+  if (!b.struggle) {
+    b.fightT -= dt;
+    if (b.fightT <= 0) {
+      b.struggle = true; b.calmT = 0;
+      banner("IT'S FIGHTING FOR THE CONTROLS — LET GO TO RESTRAIN IT", PAL().DANGER);
+      sabotageFlash = 0.6; haptic.heavy(); sabHiss();
+    }
+  } else {
+    // the Vector wrenches the stick — an erratic yaw that fights your hand
+    s.ang += (Math.sin(b.ph * 13) * 0.7 + (Math.random() - 0.5) * 0.7) * STRUGGLE_YAW * dt;
+    if (steering) {
+      b.calmT = 0;   // fighting back for the stick only prolongs the struggle
+    } else {
+      b.calmT += dt;
+      if (b.calmT >= RESTRAIN_HOLD) {
+        b.struggle = false;
+        b.fightT = STRUGGLE_GAP + Math.random() * 3;
+        addText(s.x, s.y - 34, "RESTRAINED", "#69f0ae");
+        haptic.light();
+      }
+    }
   }
 }
 
@@ -586,10 +633,10 @@ function briefText() {
   let t = BRIEFS[levelIdx];
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
-      dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n" + t;
+      dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n\n" + t;
   // S4.5 — the grim line after a triage retreat, carried into the next briefing
   if (leftBehindNote)
-    t += "\nYou left " + leftBehindNote.n + " behind on " + leftBehindNote.sector +
+    t += "\n\nYou left " + leftBehindNote.n + " behind on " + leftBehindNote.sector +
       ". The manifest remembers.";
   return t;
 }
@@ -737,7 +784,12 @@ function updatePlay(dt) {
   }
 
   // force field: eats fuel, stops bullets, drones, rough ground and cave roofs
-  s.shield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  // E3 — the parry: for a brief window right after the field snaps up, a bullet
+  // caught in it is REFLECTED, not just absorbed. Timed on the rising edge.
+  if (wantShield && !s.shield) s.parryT = PARRY_WINDOW;
+  s.shield = wantShield;
+  if (s.parryT > 0) s.parryT = Math.max(0, s.parryT - dt);
   if (s.shield) s.fuel = Math.max(0, s.fuel - 7 * dt);
 
   const thrusting = (input.thrust || pad.thrust) && s.fuel > 0;
@@ -828,6 +880,7 @@ function updatePlay(dt) {
   updateOids(dt, now);
   updateEnemies(dt);
   updateSabotage(dt);
+  updateEject(dt);        // E2 — complete a telegraphed Scion-throw
   updateDocking(dt);
   updateBlackbox(dt);
   updatePods();
@@ -836,6 +889,7 @@ function updatePlay(dt) {
   updateShrine(dt);
   updateScan(dt);
   updateScionScan(dt);    // S5 — read a grounded unit's vitals; flag the fakes
+  updateContagion(dt);    // Semmelweis Deep — unscreened contagion spreads
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
@@ -843,8 +897,14 @@ function updatePlay(dt) {
   if (level.fakeMercy) updateDecoy(dt);
 
   if (mercyBreach) {
-    mercyBreach.t -= dt;
-    if (mercyBreach.t <= 0) resolveBreach(false);
+    // the "loose on MERCY" clock only runs until you retrieve it; once it's in
+    // your custody the pressure is the control-fight, not the timer (E1).
+    if (!mercyBreach.retrieved) {
+      mercyBreach.t -= dt;
+      if (mercyBreach.t <= 0) resolveBreach(false);
+    } else {
+      updateVectorStruggle(dt);
+    }
   }
 
   if (level.extraction && state === "play") updateExtraction(dt);
@@ -872,6 +932,39 @@ function updateOids(dt, now) {
   const s = ship;
   for (const o of level.oids) {
     o.wave += dt;
+    if (o.state === "thrown") {
+      // E2 — a Scion hurled from the cabin, falling. Fly into them to catch and
+      // re-board; if they hit the ground they're lost (Field Medic: they survive).
+      o.vy += GRAV * 1.2 * dt;
+      o.x += o.vx * dt; o.y += o.vy * dt;
+      if (o.throwLock > 0) o.throwLock -= dt;
+      if ((o.throwLock || 0) <= 0 && !s.dead && s.passengers.length < CAPACITY &&
+          Math.hypot(o.x - s.x, o.y - s.y) < SHIP_R + 18) {
+        o.state = "aboard"; s.passengers.push(o);
+        heartbeat(); haptic.medium();
+        addText(s.x, s.y - 40, "CAUGHT — SCION SAFE", "#69f0ae");
+        continue;
+      }
+      const g = groundAt(o.x);
+      if (o.y >= g) {
+        o.y = g; o.vx = 0; o.vy = 0;
+        if (easyMode) {   // Field Medic: they survive the drop, back on the ground
+          o.state = "wait"; o.panicT = 1.4;
+          addText(o.x, o.y - 40, "SURVIVED THE FALL", "#69f0ae");
+          heartbeat(0.5, true);
+        } else {
+          o.state = "lost"; acctLevel().lost++; runLost++;
+          const fam = o.role === "famous";
+          score = Math.max(0, score - (fam ? 500 : 250));
+          addText(o.x, o.y - 40,
+            (fam ? FAMOUS[o.famousId].name + " LOST" : "SCION LOST") + " — HIT THE GROUND",
+            fam ? "#ffd54f" : "#ff4081");
+          explode(o.x, o.y - 8, "#ff4081", 14);
+          checkSectorClear();
+        }
+      }
+      continue;
+    }
     if (o.state === "dying") {
       o.deathT += dt;
       if (o.deathType === "torched") {
@@ -997,10 +1090,14 @@ function updateEnemies(dt) {
     if (level.roof) dr.y = Math.max(dr.y, roofAt(dr.x) + 26);
     if (!s.dead && d < SHIP_R + (s.shield ? 14 : 10)) {
       dr.alive = false;
-      explode(dr.x, dr.y, "#ff4081", 24);
       if (s.shield) {
+        // B1 — the field SOAKS the hit: a green spark + an absorption whumpf,
+        // not the explosion boom. Haptic so it reads with sound off (B4).
+        explode(dr.x, dr.y, "#69f0ae", 18, true);
+        shieldAbsorb(); haptic.medium();
         addText(s.x, s.y - 30, "SHIELD HELD", "#69f0ae");
       } else {
+        explode(dr.x, dr.y, "#ff4081", 24);
         s.vitals -= 40;
         addText(s.x, s.y - 30, "-40", "#ff4081");
         if (s.vitals <= 0) { shipDie(); return; }
@@ -1012,11 +1109,45 @@ function updateEnemies(dt) {
     const b = level.bullets[i];
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.t <= 0 || b.y > groundAt(b.x)) { level.bullets.splice(i, 1); continue; }
+    // E3 — a reflected bullet is now friendly: it hunts the turret/drone that
+    // fired it and ignores the ship. (Reflecting isn't firing your own weapon,
+    // so it never counts as malpractice / breaks the oath.)
+    if (b.reflected) {
+      let gone = false;
+      for (const t of level.turrets) {
+        if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
+          t.alive = false; gone = true; score += 250;
+          explode(t.x, t.y - 8, "#ffc400", 30); addText(t.x, t.y - 40, "REFLECTED +250", "#eaff6b");
+        }
+      }
+      for (const dr of level.drones) {
+        if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
+          dr.alive = false; gone = true; score += 150;
+          explode(dr.x, dr.y, "#ff4081", 22); addText(dr.x, dr.y - 30, "REFLECTED +150", "#eaff6b");
+        }
+      }
+      if (gone) level.bullets.splice(i, 1);
+      continue;
+    }
     if (!s.dead && Math.hypot(b.x - s.x, b.y - s.y) < SHIP_R + (s.shield ? 10 : 3)) {
+      if (s.shield && s.parryT > 0) {
+        // E3 — PARRY: caught in the shield's opening window. Fling it back the
+        // way it came (a touch faster) as a friendly projectile.
+        b.reflected = true;
+        b.vx = -b.vx * 1.3; b.vy = -b.vy * 1.3;
+        b.t = Math.max(b.t, 1.3);
+        explode(b.x, b.y, "#eaff6b", 6, true);
+        shieldParry(); haptic.heavy();
+        camera.shake += 4;
+        addText(s.x, s.y - 30, "PARRY!", "#eaff6b");
+        continue;
+      }
       level.bullets.splice(i, 1);
       if (s.shield) {
-        explode(b.x, b.y, "#69f0ae", 8);
-        blip(500, 900, 0.08, "sine", 0.08);
+        // B1 — bullet soaked by the field: green spark + absorption whumpf
+        // (no explosion boom), and a light haptic for sound-off play (B4).
+        explode(b.x, b.y, "#69f0ae", 8, true);
+        shieldAbsorb(); haptic.light();
         continue;
       }
       s.vitals -= 26; camera.shake += 8;
@@ -1111,20 +1242,48 @@ function updateSabotage(dt) {
       addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
       blip(140, 60, 0.25, "sawtooth", 0.12);
     } else {
+      // E2 — instead of an instant kill, the Vector drags a Scion to the airlock
+      // to HURL them out. Telegraph it first (updateEject completes the throw), so
+      // you have a moment to react and can then catch them before they hit ground.
       const victims = s.passengers.filter(q => q.role !== "saboteur");
-      if (victims.length) {
+      if (victims.length && !level.eject) {
         const v = victims[Math.floor(Math.random() * victims.length)];
-        s.passengers.splice(s.passengers.indexOf(v), 1);
-        v.state = "lost";
-        acctLevel().lost++; runLost++;
-        if (v.role === "famous")
-          addText(s.x, s.y - 48, FAMOUS[v.famousId].name + " WAS KILLED", "#ffd54f");
-        // S7 — a kill is never discovered from the score readout: a full banner
-        banner("A PASSENGER IS DEAD — IT'S IN THE CABIN", PAL().DANGER);
+        level.eject = { o: v, t: EJECT_WARN };
+        banner("VECTOR LOOSE — DRAGGING A SCION TO THE AIRLOCK", PAL().DANGER);
         dullThud();
-        checkSectorClear();
+      } else if (!victims.length) {
+        // no one left to throw — the sabotage still bites at the fuel line
+        s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
+        addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
+        blip(140, 60, 0.25, "sawtooth", 0.12);
       }
     }
+  }
+}
+
+/* E2 — the throw itself. After the telegraph, the Vector hurls the grabbed Scion
+   clear of the ship: they become a falling body (oid state "thrown") you can fly
+   into to catch. Cancels cleanly if the Scion already left the cabin. */
+function updateEject(dt) {
+  const e = level.eject;
+  if (!e) return;
+  const s = ship;
+  if (s.dead || mercyBreach || s.passengers.indexOf(e.o) < 0) { level.eject = null; return; }
+  sabotageFlash = Math.max(sabotageFlash, 0.35);   // the struggle keeps the edges pulsing
+  e.t -= dt;
+  if (e.t <= 0) {
+    const o = e.o;
+    s.passengers.splice(s.passengers.indexOf(o), 1);
+    o.state = "thrown";
+    const side = Math.random() < 0.5 ? -1 : 1;
+    o.x = s.x + side * 22; o.y = s.y - 8;   // clear of the hull so it isn't instantly re-caught
+    o.vx = side * (55 + Math.random() * 30);
+    o.vy = -35 - Math.random() * 25;
+    o.throwLock = 0.45;   // brief window where it can't be caught — it has to separate first
+    o.panicT = 0;
+    level.eject = null;
+    banner("A SCION IS THROWN — CATCH THEM!", PAL().DANGER);
+    haptic.heavy(); dullThud();
   }
 }
 
@@ -1209,6 +1368,52 @@ function updateScionScan(dt) {
 
 function contaminantAboard() {
   return ship.passengers.some(p => p.role === "saboteur" && !p.sleeper);
+}
+
+/* SEMMELWEIS DEEP — the theme made mechanical (owner steer: "contamination
+   spreads"). In the scrubbed ward an unscreened Vector left standing among the
+   survivors taints the nearest un-scanned one, turning it into a hidden Vector.
+   Dawdle and the ward breeds carriers; scanning a unit clean (verified) locks
+   it safe, and lifting the Vector out stops it seeding. Gated to the sector
+   that carries `contagion` in its RECIPE, and never taints the last survivor,
+   a famous Scion, a log-carrier, or a unit you've already proven. */
+const CONTAGION_R = 210, CONTAGION_T = 10;
+function updateContagion(dt) {
+  if (!level.contagion || ship.dead || state !== "play") return;
+  if (level.extraction || mercyBreach) return;
+  const grounded = o => o.state === "wait";
+  const susceptible = level.oids.filter(o =>
+    o.role === "normal" && !o.carrier && !o.verified && !o.flagged && grounded(o));
+  if (susceptible.length <= 1) return;   // leave at least one clean survivor
+  for (const src of level.oids) {
+    if (src.role !== "saboteur" || !grounded(src)) continue;
+    let best = null, bd = CONTAGION_R;
+    for (const v of susceptible) {
+      const d = Math.hypot(v.x - src.x, v.y - src.y);
+      if (d < bd) { bd = d; best = v; }
+    }
+    if (!best) { src.contagT = 0; continue; }
+    src.contagT = (src.contagT || 0) + dt;
+    if (Math.random() < dt * 2)   // a sickly mote drifting toward the victim
+      particles.push({ x: src.x + (Math.random() - 0.5) * 10, y: src.y - 12,
+        vx: (best.x - src.x) * 0.35, vy: -6 - Math.random() * 6,
+        t: 0.7, max: 0.7, color: "#6f9f7f", size: 1 });
+    if (src.contagT >= CONTAGION_T) {
+      src.contagT = -4;   // a cooldown before this carrier can seed again
+      // E4 — `infected` marks a Scion turned by the ward (curable), distinct from
+      // a BORN Vector (even a born sleeper). Only the infected can be cured.
+      best.role = "saboteur"; best.sleeper = true; best.infected = true; best.contagT = 0;
+      staticTick();
+      for (let k = 0; k < 10; k++)
+        particles.push({ x: best.x, y: best.y - 12,
+          vx: (Math.random() - 0.5) * 40, vy: -Math.random() * 30,
+          t: 0.6, max: 0.6, color: "#4f7f5f", size: 1.4 });
+      if (!level.contagSeen) {
+        level.contagSeen = true;
+        addText(best.x, best.y - 46, "THE WARD ISN'T CLEAN…", "#8fd6b8");
+      }
+    }
+  }
 }
 
 /* S1 — the cabin fills with heartbeats. Every genuine Scion aboard contributes
@@ -1341,6 +1546,20 @@ function updateDocking(dt) {
   const bays = bayRects();
 
   if (inBay(bays.med)) {
+    // E1 — a breached Vector is retrieved back aboard here for transport to the
+    // red isolation bay (the two bays share no internal access). No heal/deliver
+    // while you're doing it.
+    if (mercyBreach && !mercyBreach.retrieved) {
+      s.dockT += dt;
+      if (s.dockT > 0.5) {
+        s.dockT = 0;
+        mercyBreach.retrieved = true;
+        mercyBreach.fightT = STRUGGLE_GAP;
+        banner("VECTOR RETRIEVED — CARRY IT TO THE RED ISOLATION BAY\nIT WILL FIGHT YOU — LET GO OF THE CONTROLS TO RESTRAIN IT", "#ffc400");
+        blip(520, 300, 0.25, "square", 0.12); haptic.medium();
+      }
+      return;
+    }
     if (!mercyBreach) {
       s.fuel = Math.min(maxFuel(), s.fuel + 30 * dt);
       if (!mercyDamaged) {
@@ -1361,6 +1580,7 @@ function updateDocking(dt) {
       score += 300;
       addText(level.mx, level.my + 40, "DELIVERED +300", "#69f0ae");
       blip(520, 1040, 0.2, "sine", 0.12);
+      haptic.medium();   // B4 — confirm a successful drop-off with sound off
       if (p.carrier) {
         const frag = grantFragment(true);
         if (frag) addText(level.mx, level.my + 56, "LOG FRAGMENT RECOVERED", "#00e5ff");
@@ -1392,7 +1612,7 @@ function updateDocking(dt) {
         s.passengers.splice(s.passengers.indexOf(sab), 1);
         sab.state = "escaped";
         level.contained++; // off the manifest either way
-        triggerBreach();
+        triggerBreach(sab.infected);   // remember if it was a cured-able infected Scion (E4)
       }
     }
   } else { s.dockT = 0; s.escapeT = 0; }
@@ -1403,18 +1623,41 @@ function updateDocking(dt) {
     if (sab && s.redDockT > 0.35) {
       s.redDockT = 0;
       s.passengers.splice(s.passengers.indexOf(sab), 1);
-      sab.state = "contained";
-      level.contained++; // accounted for, but not a casualty
       score += 750;
-      addText(level.mx, level.my + 40, "CONTAMINANT CONTAINED +750", "#ff4081");
-      explode(level.mx + 65, level.my + 60, "#ff4081", 14);
-      blip(220, 660, 0.3, "square", 0.12);
+      if (sab.infected) {
+        // E4 — an infected Scion, not a born Vector: isolation TREATS and cures
+        // it, so it counts as a rescue rather than a sealed contaminant.
+        sab.state = "delivered"; level.delivered++; runSaved++;
+        addText(level.mx, level.my + 40, "INFECTED SCION CURED +750", "#69f0ae");
+        explode(level.mx + 65, level.my + 60, "#69f0ae", 16, true);
+        gateSlam(); heartbeat(); haptic.medium();
+      } else {
+        sab.state = "contained";
+        level.contained++; // accounted for, but not a casualty
+        addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", "#ff4081");
+        // B3 — the isolation airlock: heavy metal gates slam shut. Silent spark
+        // (gateSlam carries the impact) + a heavy haptic for sound-off play (B4).
+        explode(level.mx + 65, level.my + 60, "#ff4081", 14, true);
+        gateSlam(); haptic.heavy();
+      }
       checkSectorClear();
     }
-    if (mercyBreach) {
+    if (mercyBreach && mercyBreach.retrieved) {
       s.breachDockT += dt;
-      if (s.breachDockT > 2) { s.breachDockT = 0; resolveBreach(true); }
-    }
+      if (s.breachDockT > 2) {
+        s.breachDockT = 0;
+        if (mercyBreach.wasInfected) {
+          // E4 — the retrieved unit was an infected Scion: cure it. Reclassify
+          // from contained (counted at the breach) to a genuine save.
+          level.contained = Math.max(0, level.contained - 1); level.delivered++; runSaved++;
+          score += 750; mercyBreach = null;
+          banner("INFECTED SCION CURED IN ISOLATION  +750\nRETURNED TO THE MANIFEST", "#69f0ae");
+          blip(520, 1040, 0.3, "sine", 0.15); heartbeat(); haptic.medium();
+        } else {
+          resolveBreach(true); gateSlam(); haptic.heavy();
+        }
+      }
+    } else s.breachDockT = 0;   // nothing to seal until it's been retrieved (E1)
   } else { s.breachDockT = 0; s.redDockT = 0; }
 }
 
@@ -1490,6 +1733,18 @@ function updatePods() {
      arrhythmic while a contaminant rides along, and the 41-second surge
      physically rocks the tethered ship (see updateStaticClock). */
 const SIGNAL_HOLD_T = 1.8;
+/* U-Hollows — MERCY's resupply signal never reaches the Hollows; the rock
+   swallows it. A ship stranded at zero fuel underground has one way out:
+   scuttle it. Holding THRUST this long fires the charge, and death handling
+   (which spits the wreck back to the surface) breaks the soft-lock. */
+const SCUTTLE_HOLD_T = 2.4;
+function scuttleShip() {
+  addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", "#ff4081");
+  banner("SCUTTLED IN THE HOLLOWS", "#ff4081");
+  blip(220, 40, 0.8, "sawtooth", 0.2);
+  haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 180, style: "heavy" }]);
+  shipDie();   // the wreck is spat back to the surface on respawn (see updateDead)
+}
 const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 130;
 /* U2 — field refuelling is a priced, diminishing lifeline, not a reward.
    XFUSE_COST is points charged per unit of fuel the line delivers; XFUSE_FLOOR
@@ -1520,6 +1775,18 @@ function tethered() {
 function updateResupplySignal(dt) {
   const s = ship;
   const stranded = s.landed && s.fuel <= 0 && !s.dead;
+  // In the Hollows there is no drone to call — SIGNAL NOT RECEIVED. Holding
+  // THRUST while stranded arms the scuttle charge instead (the only way out).
+  if (level.isCave) {
+    if (stranded && (input.thrust || pad.thrust)) {
+      s.scuttleT = (s.scuttleT || 0) + dt;
+      if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); }
+    } else {
+      s.scuttleT = Math.max(0, (s.scuttleT || 0) - dt * 2.5);
+    }
+    return;
+  }
+  s.scuttleT = 0;
   if (stranded && !resupplyDrone && (input.thrust || pad.thrust)) {
     s.signalT += dt;
     if (Math.random() < dt * 8) particles.push({
@@ -1607,8 +1874,13 @@ function updateTransfusion(dt, rd) {
       rd.dripT = 0; rd.dripFlip = !rd.dripFlip;
       blip(660, 590, 0.05, "sine", 0.045);
       haptic.light();
-      // U2 — the running toll: points visibly draining as the tank climbs
-      if (rd.charged >= 1) addText(s.x, s.y - 40, "-" + Math.round(rd.charged), "#ff4081");
+      // U2 — the running toll: points visibly draining as the tank climbs.
+      // Sit it out to the side, opposite the drone, so the rising floater never
+      // covers the drone, its fuel line or the transfusion status line.
+      if (rd.charged >= 1) {
+        const side = rd.x >= s.x ? -1 : 1;
+        addText(s.x + side * 66, s.y - 6, "-" + Math.round(rd.charged), "#ff4081");
+      }
     }
   } else if (rd.everAttached) {
     if (d >= XFUSE_SNAP_R) {   // wandered too far — the line parts
@@ -1653,15 +1925,20 @@ function updateLift(dt) {
     Math.abs(ship.x - L.x) < 46 && Math.abs((ship.y + SHIP_R) - L.y) < 24;
   if (!near) { L.holdT = 0; L.armed = true; L.rung = false; return; }
   // U1 — a distinct hollow ring the moment the ship first settles on the plate,
-  // before the hold-to-descend hint. Guarded so it fires once per touchdown and
-  // re-arms when the ship lifts off the pad (near goes false above).
-  if (!L.rung) { L.rung = true; ringHollow(); }
+  // with its "…RINGS HOLLOW" cue firing on the same beat (owner steer: the pad
+  // should ring AS you land, not a half-second later). Guarded so it fires once
+  // per touchdown and re-arms when the ship lifts off the pad (near went false).
+  if (!L.rung) {
+    L.rung = true;
+    ringHollow();
+    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
+    blip(180, 120, 0.3, "sine", 0.1);
+  }
   if (!L.armed) return;   // must lift off the pad once before it cycles again
   L.holdT += dt;
   if (L.holdT > 0.6 && !L.hinted) {
     L.hinted = true;
-    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
-    blip(180, 120, 0.3, "sine", 0.1);
+    addText(L.x, L.y - 60, "HOLD TO DESCEND", "#b388ff");
   }
   if (L.holdT >= 2.4 && !liftTransit) {
     startLiftTransit(level.isCave ? "up" : "down", L);

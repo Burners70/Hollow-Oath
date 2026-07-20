@@ -53,18 +53,39 @@ const input = { left:false, right:false, thrust:false, fire:false, shield:false,
 const BTN_DEFS = [["btnL", "left"], ["btnR", "right"], ["btnThrust", "thrust"],
                   ["btnFire", "fire"], ["btnShield", "shield"]];
 const btnEls = BTN_DEFS.map(([id, key]) => ({ key, el: document.getElementById(id) }));
-const TOUCH_PAD = 14;   // forgiveness margin around each button, in px
+const TOUCH_PAD = 14;   // default forgiveness margin around each button, in px
+// C1 — turn & thrust get extra reach for panic stabs, but only in the
+// directions AWAY from their neighbours, so the padded zones never overlap
+// (an overlap would trigger both L+R at once, or FIRE while reaching THRUST).
+// btnL/btnR sit 6px apart and THRUST/FIRE ~2px apart, so the neighbour-facing
+// sides stay tight (2px) while up/down/edge sides open right up. {t,r,b,l} px.
+const BTN_PAD = {
+  left:   { t: 34, r: 2,  b: 46, l: 34 },   // reach up / down / toward the left edge
+  right:  { t: 34, r: 26, b: 46, l: 2 },    // reach up / down / toward mid-screen
+  thrust: { t: 30, r: 34, b: 46, l: 2 },    // reach up / down / toward the right edge
+  fire:   { t: 14, r: 2,  b: 14, l: 14 }    // tight on the THRUST side — firing is malpractice
+};
+function btnPad(key) {
+  const p = BTN_PAD[key];
+  return p || { t: TOUCH_PAD, r: TOUCH_PAD, b: TOUCH_PAD, l: TOUCH_PAD };
+}
+// shared hit-test so a test can exercise it without synthesizing touches
+function buttonsAt(x, y) {
+  const hit = [];
+  for (const b of btnEls) {
+    const r = b.el.getBoundingClientRect();
+    if (r.width === 0) continue;   // hidden
+    const p = btnPad(b.key);
+    if (x >= r.left - p.l && x <= r.right + p.r &&
+        y >= r.top - p.t && y <= r.bottom + p.b)
+      hit.push(b.key);
+  }
+  return hit;
+}
 function refreshButtonTouches(e) {
   const pressed = {};
-  for (const t of e.touches) {
-    for (const b of btnEls) {
-      const r = b.el.getBoundingClientRect();
-      if (r.width === 0) continue;   // hidden
-      if (t.clientX >= r.left - TOUCH_PAD && t.clientX <= r.right + TOUCH_PAD &&
-          t.clientY >= r.top - TOUCH_PAD && t.clientY <= r.bottom + TOUCH_PAD)
-        pressed[b.key] = true;
-    }
-  }
+  for (const t of e.touches)
+    for (const key of buttonsAt(t.clientX, t.clientY)) pressed[key] = true;
   for (const b of btnEls) {
     input[b.key] = !!pressed[b.key];
     b.el.classList.toggle("down", !!pressed[b.key]);

@@ -32,15 +32,18 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 
+// Owner steer: paragraphs, not run-on copy — beats are separated by a blank
+// line (\n\n) so important sentences stand on their own, but no line break ever
+// splits a single sentence. drawBrief wraps each paragraph to the panel width.
 const BRIEFS = [
-  "MERCY to rescue flight.\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\nEnd transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red quarantine bay is open. Do NOT bring contaminated units into the recovery bay.",
-  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\nAnd captain… the dark out here listens back.",
-  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\nProve a unit false — the salvage teams will take it from there. But prove it.",
-  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
-  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
-  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
-  "Triangulation complete. The source of the Static is below the nullwave ridge.\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\nYour call, captain."
+  "MERCY to rescue flight.\n\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\n\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\n\nEnd transmission.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\n\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts.\n\nThe red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
+  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\n\nAnd captain… the dark out here listens back.",
+  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\n\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
+  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
+  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
+  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\n\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
 ];
 
 const FRAGMENTS = [
@@ -72,7 +75,7 @@ const SHRINES = [
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · SHRINE",
     title: "GLYCON",
-    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\"An oath you never test is easy to keep.\"",
+    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\n\"An oath you never test is easy to keep.\"",
     color: "#ff5ce1" }
 ];
 
@@ -414,27 +417,32 @@ function markIntroSeen() {
 const ASSIST_CAPTURE = 0.22;
 const ASSIST_RATE = 4.5;
 
-function helpRect() {
-  return { x: vw - saRight - 14 - 150, y: 12, w: 150, h: 34 };
+/* Title pills sit in two tidy, equal-width columns instead of a right-heavy
+   cluster (the old layout stacked 4 pills top-right against 1 top-left).
+   LEFT = the browse/lore screens (CODEX, STORY); RIGHT = config + how-to-play
+   (SETTINGS, HOW TO FLY, HUD GUIDE), each column stacked top-down on one rhythm. */
+const TITLE_PILL_W = 170, TITLE_PILL_H = 34, TITLE_PILL_STEP = 42;
+function codexRect() {   // LEFT column, top
+  return { x: 14 + saLeft, y: 12, w: TITLE_PILL_W, h: TITLE_PILL_H };
 }
-function settingsRect() {
-  const h = helpRect();
-  return { x: h.x - 198, y: 12, w: 190, h: 34 };
+function storyRect() {   // LEFT column, under CODEX
+  const c = codexRect();
+  return { x: c.x, y: c.y + TITLE_PILL_STEP, w: c.w, h: TITLE_PILL_H };
+}
+function settingsRect() {   // RIGHT column, top
+  return { x: vw - saRight - 14 - TITLE_PILL_W, y: 12, w: TITLE_PILL_W, h: TITLE_PILL_H };
+}
+function helpRect() {   // RIGHT column, under SETTINGS — HOW TO FLY
+  const s = settingsRect();
+  return { x: s.x, y: s.y + TITLE_PILL_STEP, w: s.w, h: TITLE_PILL_H };
+}
+/* U3 — the HUD-legend pill, stacked under HOW TO FLY in the right-hand column */
+function legendRect() {   // RIGHT column, under HOW TO FLY — HUD GUIDE
+  const s = settingsRect();
+  return { x: s.x, y: s.y + 2 * TITLE_PILL_STEP, w: s.w, h: TITLE_PILL_H };
 }
 function skipRect() {
   return { x: vw - 110 - saRight, y: 12, w: 96, h: 34 };
-}
-function codexRect() {
-  return { x: 14 + saLeft, y: 12, w: 168, h: 34 };
-}
-function storyRect() {
-  const h = helpRect();
-  return { x: h.x, y: h.y + 42, w: 150, h: 34 };
-}
-/* U3 — the HUD-legend pill, stacked under STORY in the right-hand column */
-function legendRect() {
-  const h = helpRect();
-  return { x: h.x, y: h.y + 84, w: 150, h: 34 };
 }
 /* the three lower title pills are laid out from one place so they can
    never collide (on phone-height viewports they used to overlap — and the
@@ -513,14 +521,12 @@ const HELP_CARD = {
 };
 
 /* U3 — HELP_CARD teaches the controls but never names the on-screen readouts.
-   This companion card labels every HUD element so a new player can tell the
-   FUEL bar from the ECG. Reached from the title (beside HOW TO FLY) and from
-   the PAUSE screen; paginates via drawCardPanel like the flight manual. */
-const LEGEND_CARD = {
-  kicker: "THE HEADS-UP DISPLAY", title: "WHAT YOU'RE LOOKING AT", subtitle: "every readout, named",
-  body: "TOP-LEFT · FUEL — the yellow bar. THRUST and SHIELD both burn it. Empty and you're stranded until you signal for a resupply line.\n\nTOP-RIGHT · VITALS — your heartbeat drawn as a live ECG. It quickens and reddens as you fail; a stutter (arrhythmia) means something wrong is aboard.\n\nTOP-CENTRE · SCORE — with the sector name, ♥ lives and ◈ black boxes found.\n\n❚❚ PAUSE — the button just left of the ECG. Tap it, or press ESC / P (gamepad START), to pause.\n\nBOTTOM BUTTONS · THRUST · FIRE · SHIELD — thrust burns fuel; FIRE shoots, but firing is malpractice and costs you; hold SHIELD for a force field.\n\nLANDING GUIDE — the chevrons under the ship on approach: ↓ is your descent rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe.\n\nTHE STATIC CLOCK — from the deep sectors on, a countdown to the 41-second surge: the ECG jumps, the sector name corrupts, a caught fuel line rocks. Brace or land before it fires.",
-  color: "#00e5ff"
-};
+   The HUD guide (render.js drawHudGuide) is now an ANNOTATED layout, not prose:
+   it draws each real readout where it sits and names it, so a new player can map
+   word to widget. This object just holds the paging/tap state the guide shares
+   with the card-panel tap handler; the guide is reached from the title (beside
+   HOW TO FLY) and from the PAUSE screen. */
+const LEGEND_CARD = { page: 0 };
 
 function groundAt(x) {
   const h = level.heights;
@@ -562,8 +568,11 @@ const RECIPE = [
     lift: false, scn: { trees: 5, rocks: 6, bld: 0, ruin: 2, wreck: 1, reeds: 5, lanterns: 3 },
     pal: { grad: ["#141240", "#080622"], stroke: "#8390ff", glow: "#3b3f9f",
            night: [4, 4, 14], star: [200, 210, 255] } },
-  // 3 · SEMMELWEIS DEEP — the scrubbed ward; cold antiseptic grey-green
+  // 3 · SEMMELWEIS DEEP — the scrubbed ward; cold antiseptic grey-green.
+  // Its signature: unscreened contagion spreads (see updateContagion) — an
+  // unscanned Vector left standing taints the survivor beside it.
   { oids: 7, turrets: 6, sabs: 2, drones: 1, pods: 3, fakes: 0, anomalies: 0, dark: false,
+    contagion: true,
     lift: true,  scn: { trees: 4, rocks: 7, bld: 0, ruin: 2, wreck: 1 },
     pal: { grad: ["#16241f", "#0a120e"], stroke: "#8fd6b8", glow: "#3f7a5f",
            night: [3, 8, 7], star: [205, 225, 215] } },
@@ -622,7 +631,7 @@ function genLevel(n) {
     mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
     total: 0, firedShots: 0, extraction: null, pulse: null, isCave: false,
     dark: r.dark || dailyMod("dark"), isFinale: n === FINALE_IDX,
-    contamKnown: false, fragmentsHere: [] };
+    contamKnown: false, contagion: !!r.contagion, contagSeen: false, fragmentsHere: [] };
 
   // T6 — the Basin stages its own nightfall: it opens at dusk and the dark
   // comes down over the first ~20s (or at first boarding, whichever is first).
@@ -809,14 +818,21 @@ function genLevel(n) {
     deco(rng() < 0.5 ? "wreckM" : "wreckS", 6, { lean: (rng() - 0.5) * 0.7 });
   // T3 — biome ornamentation. Decorative-first (collision is T4); each type is
   // authored per-sector in RECIPE[].scn so a landscape reads as its own place.
-  for (let i = 0; i < (sc.boulders || 0); i++) {   // VESALIUS — stacked boulders
+  for (let i = 0; i < (sc.boulders || 0); i++) {   // VESALIUS — angular half-buried rubble
     const stack = [];
-    const k = 2 + Math.floor(rng() * 3);
+    const k = 1 + Math.floor(rng() * 3);   // 1–3 chunks: lone boulders through low cairns
     let dy = 0;
     for (let b = 0; b < k; b++) {
-      const rr = Math.max(4, 10 + rng() * 7 - b * 1.6);
-      stack.push({ dx: (rng() - 0.5) * 7, dy, r: rr });
-      dy -= rr * 1.25;
+      const rr = Math.max(5, 13 + rng() * 8 - b * 2.2);
+      // an irregular chunk, not a sphere — jittered vertices like the rocks
+      const kv = 6 + Math.floor(rng() * 3), verts = [];
+      for (let v = 0; v < kv; v++) {
+        const a = (v / kv) * Math.PI * 2 + (rng() - 0.5) * 0.35;
+        const vr = rr * (0.72 + rng() * 0.5);
+        verts.push([Math.cos(a) * vr, Math.sin(a) * vr * 0.82]);
+      }
+      stack.push({ dx: (rng() - 0.5) * 6, dy, r: rr, verts });
+      dy -= rr * 1.4;   // seat each chunk higher, less overlap than the old snowman
     }
     deco("boulder", 2, { stack });
   }
@@ -928,6 +944,8 @@ function acctLevel() {   // sector accounting always lands on the surface level
 
 function enterCave(L) {
   L.holdT = 0; L.armed = false;
+  resupplyDrone = null;   // no signal follows you down — never leave one mid-flight in the rock
+  ship.scuttleT = 0;
   surfaceCtx = { level, x: ship.x, y: ship.y };
   level = genCave(L.cave);
   ship.x = level.lift.x; ship.y = groundAt(level.lift.x) - SHIP_R;
@@ -976,7 +994,7 @@ function spawnShip() {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
-    shield: false, signalT: 0
+    shield: false, parryT: 0, signalT: 0, scuttleT: 0
   };
 }
 
