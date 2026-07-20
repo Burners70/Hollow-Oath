@@ -2574,16 +2574,25 @@ function drawBrief(now) {
   ctx.fillStyle = "#aef4ff";
   ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, vh * 0.25);
   ctx.shadowBlur = 4;
-  const briefPx = bodyFontPx(14), briefLH = briefPx + 8;
+  const briefPx = bodyFontPx(14);
   ctx.font = "600 " + briefPx + "px Menlo, monospace";
   ctx.fillStyle = "#c9f3dd";
+  const wrapW = Math.min(560, vw - 60);
+  // Lay the block against the FULL brief so paragraph spacing and the TAP prompt
+  // don't jump around as the text types out. On a short screen, tighten the line
+  // height (floored at a readable minimum) so extra paragraphs never run off the
+  // bottom — paragraphs are cheap, overflow is not.
+  const nAll = wrapText(briefText(), wrapW).length;
+  const topY = vh * 0.32, botY = vh * 0.95;
+  let briefLH = briefPx + 8;
+  if (nAll * briefLH > botY - topY - 34)
+    briefLH = Math.max(briefPx + 2, (botY - topY - 34) / nAll);
   const shown = briefText().slice(0, Math.floor(briefChars));
-  const lines = wrapText(shown, Math.min(560, vw - 60));
-  lines.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.34 + i * briefLH));
+  wrapText(shown, wrapW).forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * briefLH));
   if (briefChars >= briefText().length) {
     ctx.font = "800 15px Menlo, monospace";
     ctx.fillStyle = "rgba(255,255,255," + (0.6 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-    ctx.fillText("TAP TO LAUNCH", vw / 2, vh * 0.34 + lines.length * briefLH + 40);
+    ctx.fillText("TAP TO LAUNCH", vw / 2, topY + nAll * briefLH + 30);
   }
   ctx.shadowBlur = 0;
 }
@@ -2834,7 +2843,7 @@ function drawEnding(now) {
   if (endingType === "answered") {
     title = "THE ANSWERED CALL";
     color = "#aef4ff";
-    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard. The Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
     else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
   } else if (endingType === "fire") {

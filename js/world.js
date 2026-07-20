@@ -32,17 +32,18 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 
-// Prose flows and wraps to the panel width — no deliberate mid-message line
-// breaks (owner steer). Keep it as running sentences; drawBrief handles wrapping.
+// Owner steer: paragraphs, not run-on copy — beats are separated by a blank
+// line (\n\n) so important sentences stand on their own, but no line break ever
+// splits a single sentence. drawBrief wraps each paragraph to the panel width.
 const BRIEFS = [
-  "MERCY to rescue flight. Routine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay. The approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift. End transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors. If a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts. The red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
-  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark. And captain… the dark out here listens back.",
-  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them. And captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them. Prove a unit false — the salvage teams will take it from there. But prove it.",
-  "Radiation cells distort gravity across the fields. Fly wide of the purple rings. One more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
-  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths. Somebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient. And if you won't fire on a lie — land beside it and look at it long enough.",
-  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit. Archive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
-  "Triangulation complete. The source of the Static is below the nullwave ridge. One more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain. Fleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere. Your call, captain."
+  "MERCY to rescue flight.\n\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\n\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\n\nEnd transmission.",
+  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\n\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts.\n\nThe red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
+  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\n\nAnd captain… the dark out here listens back.",
+  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\n\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
+  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
+  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
+  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\n\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
 ];
 
 const FRAGMENTS = [

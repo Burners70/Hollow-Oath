@@ -586,10 +586,10 @@ function briefText() {
   let t = BRIEFS[levelIdx];
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
-      dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n" + t;
+      dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n\n" + t;
   // S4.5 — the grim line after a triage retreat, carried into the next briefing
   if (leftBehindNote)
-    t += "\nYou left " + leftBehindNote.n + " behind on " + leftBehindNote.sector +
+    t += "\n\nYou left " + leftBehindNote.n + " behind on " + leftBehindNote.sector +
       ". The manifest remembers.";
   return t;
 }
