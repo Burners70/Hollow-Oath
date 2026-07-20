@@ -117,7 +117,12 @@ function canvasTap(x, y) {
   // TILT permission must be requested from this synchronous gesture handler
   // (iOS DeviceOrientation rule) — never route it through the deferred
   // input.tap flag consumed later in the update() loop.
-  if (state === "settings" && inRect(settingsRowRect(4), x, y)) { toggleTilt(); return; }
+  // TILT is web-only: DeviceOrientationEvent.requestPermission() has no
+  // system prompt to grant against inside a bare Capacitor WKWebView (no
+  // per-site permission store the way Safari has), so it silently denies
+  // every time — the row is disabled on native rather than shipping a
+  // toggle that looks broken.
+  if (!NATIVE && state === "settings" && inRect(settingsRowRect(4), x, y)) { toggleTilt(); return; }
   input.tap = true; input.tapX = x; input.tapY = y;
 }
 canvas.addEventListener("touchstart", e => {
@@ -278,7 +283,9 @@ window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED",
 
 /* ---------------- gyro / tilt steering ---------------- */
 let tilt = false;
-try { tilt = localStorage.getItem("doids_tilt") === "1"; } catch (e) {}
+// TILT is web-only (see canvasTap) — never honor a stale "on" preference
+// carried over from a web/PWA install of the same save data
+if (!NATIVE) { try { tilt = localStorage.getItem("doids_tilt") === "1"; } catch (e) {} }
 const gyro = { ok:false, beta:0, gamma:0 };
 let gyroBound = false;
 function startGyro() {

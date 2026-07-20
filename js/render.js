@@ -3047,17 +3047,23 @@ function drawSettings(now) {
     const [label, on] = rows[i];
     const r = settingsRowRect(i);
     const isReset = i === 9;
-    const stroke = isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
+    // TILT has no native-side fix (no WKWebView permission prompt to grant
+    // against) — shown disabled rather than as a toggle that silently fails
+    const isDisabledTilt = i === 4 && NATIVE;
+    const stroke = isDisabledTilt ? "rgba(255,255,255,.15)"
+      : isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
       : on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
     ctx.strokeStyle = stroke;
     ctx.shadowColor = isReset ? (resetArmed ? "#ff4081" : "transparent") : (on ? "#69f0ae" : "transparent");
-    ctx.shadowBlur = (isReset ? resetArmed : on) ? 8 : 0;
+    ctx.shadowBlur = isDisabledTilt ? 0 : (isReset ? resetArmed : on) ? 8 : 0;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
+    ctx.fillStyle = isDisabledTilt ? "rgba(255,255,255,.25)"
+      : isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
       : on ? "#69f0ae" : "rgba(255,255,255,.5)";
     ctx.font = "700 12px Menlo, monospace";
-    const txt = isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
+    const txt = isDisabledTilt ? "TILT · WEB ONLY"
+      : isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
       : label + " · " + (on ? "ON" : "OFF");
     ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;

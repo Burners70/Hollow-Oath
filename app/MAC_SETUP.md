@@ -112,13 +112,22 @@ configured → the report is dropped, play is never blocked.
   all-time board; achievements unlock per the table above.
 - Silent-switch behaviour: game audio should respect the ringer switch
   (WKWebView default) — confirm and note it in the E8 checklist.
+- **TILT is cut on native (owner decision, July 2026, found on-device).**
+  `DeviceOrientationEvent.requestPermission()` has no system prompt to grant
+  against inside a bare Capacitor WKWebView (no per-site permission store the
+  way Safari has) — it silently denies every time, `NSMotionUsageDescription`
+  or not. The Settings row shows "TILT · WEB ONLY" and is disabled on native
+  (`NATIVE` gate in `js/input.js`/`js/render.js`); touch and gamepad steering
+  are unaffected. A real fix would mean a CoreMotion-backed Capacitor plugin
+  (same pattern as haptics/Game Center/iCloud) — out of scope for this
+  release, revisit post-launch if gyro steering is wanted.
 
 ## 7. E8 device matrix (fill in as tested)
 
 | Check | iPhone (A11–A13, iOS 16) | Recent iPhone | iPad |
 |---|---|---|---|
 | Touch controls | X |  |  |
-| Gyro/TILT permission flow |  |  |  |
+| Gyro/TILT permission flow | N/A — cut for native, see below |  |  |
 | Pause on background / resume | X |  |  |
 | Silent switch respected | X |  |  |
 | 60 fps in sector 5 (`?perf=1`) |  |  |  |
