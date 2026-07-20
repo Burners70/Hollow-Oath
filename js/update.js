@@ -8,11 +8,20 @@ const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
-const PARRY_WINDOW = 0.18; // E3: seconds after the shield snaps up in which a hit reflects
+const PARRY_WINDOW = 0.18; // E3: FIELD MEDIC parry window (forgiving)
+const PARRY_WINDOW_STRICT = 0.09; // E3: the default, stricter window — a real timing test
 const EJECT_WARN = 1.6;    // E2: telegraph before a loose Vector hurls a Scion out
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
-const RESTRAIN_HOLD = 0.6; // E1: release steering this long to restrain it and regain control
+const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
+// The breach on MERCY reveals a few beats AFTER a sleeper slips inside, by which
+// time you've usually undocked and flown on — so the alarm lands when you're
+// away from the bay and have to race back (owner steer).
+const BREACH_REVEAL_DELAY = 3.5;
+// While a Vector is loose on MERCY (before you retrieve it) it hurls the rescued
+// Scions back out of her bay. You may be nowhere near — hence the warning. Catch
+// them mid-fall. (Vectors aboard YOUR ship no longer throw; they cut fuel lines.)
+const MERCY_THROW_FIRST = 2.2, MERCY_THROW_GAP = 6;
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -52,7 +61,13 @@ function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 2.6 }); }
 function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
 
 function grantFragment(queueForClear) {
-  if (runFragments >= FRAGMENTS.length) { score += 500; return null; }
+  // Owner steer: a first playthrough tells only the wound/echo story — logs
+  // 1–10. The Glycon logs (11–14, which name the serpent, the workshop and the
+  // maker) stay sealed until a run has been finished (veteran), so the deeper
+  // truth is a second-pass reward, not a first-run muddle. Extra recoveries
+  // still pay out in score.
+  const cap = veteran ? FRAGMENTS.length : 10;
+  if (runFragments >= cap) { score += 500; return null; }
   const idx = runFragments;
   const frag = FRAGMENTS[runFragments++];
   logsSeen.add(idx); saveLogs();   // into the ARCHIVE, permanently (K1)
@@ -155,7 +170,7 @@ function provenLeftBehind() {
   return n;
 }
 function checkSectorClear() {
-  if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach) return;
+  if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach || pendingBreach) return;
   if (level.delivered + level.lost + level.contained + provenLeftBehind() < level.total) return;
   beginExtraction(false);
 }
@@ -270,7 +285,7 @@ function updateExtraction(dt) {
    empty deliverable cabin and she offers an early extraction — at the cost of
    every Scion still waiting on the ground. Retreat is allowed, but never free. */
 function updateEarlyExtraction(dt) {
-  if (level.extraction || mercyBreach || level.isFinale || level.isCave || state !== "play") {
+  if (level.extraction || mercyBreach || pendingBreach || level.isFinale || level.isCave || state !== "play") {
     level.earlyHold = 0; level.earlyEligible = false; return;
   }
   const accounted = level.delivered + level.lost + level.contained + provenLeftBehind();
@@ -631,6 +646,13 @@ function updateIntro(dt) {
    conditions are part of the tasking, not HUD furniture */
 function briefText() {
   let t = BRIEFS[levelIdx];
+  // The counterfeit MERCY only exists on a veteran return pass, so its warning
+  // (and the "count the beats" tell that tells the two ships apart) belongs in
+  // the finale briefing only then — a first run meets one true MERCY and never
+  // hears this. Spelled out so "count the beats" is never a mystery: ours beats
+  // like a heart, his keeps a machine's perfect time.
+  if (levelIdx === FINALE_IDX && level && level.fakeMercy)
+    t += "\n\nOne more thing, and it matters. Two ships will answer as MERCY on approach. One is ours. One is his — a hull built to wear the shape you stopped checking.\n\nTell them apart by the emblem. OURS beats like a heart: uneven, alive. HIS blinks in perfect mechanical time, like the counterfeit fuel. Count the beats before you dock.";
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
       dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n\n" + t;
@@ -655,17 +677,32 @@ function updateClear() {
     if (clearCards.length > 0) { clearCards.shift(); stateT = Math.max(stateT, 0.81); }
     else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
     else if (levelIdx === FINALE_IDX - 1) {
-      if (blackboxCount >= 3) toBriefing(FINALE_IDX);
+      if (blackboxCount >= TRIANGULATE_N) toBriefing(FINALE_IDX);
       else { endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0; }
     } else { state = "ending"; stateT = 0; }
   }
   input.tap = false;
 }
 
+/* Owner steer: pausing on a text/story screen (a card, a briefing, the ending)
+   must return you to THAT screen, on the same page — not drop you into flight or
+   skip ahead. Pause remembers where it came from and its progress, and resume
+   restores both. Backgrounding the app while reading now pauses too, so you never
+   lose your place. */
+let pauseReturnState = "play", pauseReturnT = 0;
+const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm"]);
+function enterPause() {
+  if (!PAUSABLE.has(state)) return;
+  if (state === "play") snapshotRun();
+  pauseReturnState = state; pauseReturnT = stateT;
+  state = "pause"; stateT = 0;
+}
+function leavePause() { state = pauseReturnState || "play"; stateT = pauseReturnT || 0; }
+
 function updatePause() {
   if (thrustGain) thrustGain.gain.value = 0;
   if (input.tap && stateT > 0.25) {
-    if (inRect(pauseRowRect(0), input.tapX, input.tapY)) { state = "play"; stateT = 0; }
+    if (inRect(pauseRowRect(0), input.tapX, input.tapY)) { leavePause(); }
     else if (inRect(pauseRowRect(1), input.tapX, input.tapY)) { toBriefing(levelIdx); }
     else if (inRect(pauseRowRect(2), input.tapX, input.tapY)) {
       settingsReturnState = "pause"; state = "settings"; stateT = 0;
@@ -763,7 +800,7 @@ function updatePlay(dt) {
   if (level.extraction && level.extraction.done) { updateExtraction(dt); return; }
   if (input.tap && inRect(pauseRect(), input.tapX, input.tapY)) {
     input.tap = false;
-    state = "pause"; stateT = 0;
+    enterPause();
     return;
   }
   input.tap = false;
@@ -777,17 +814,27 @@ function updatePlay(dt) {
   if (steer) s.ang += ROT * dt * steer;
 
   // landing assist auto-levels the ship — but only on the way DOWN, so it never
-  // fights your attitude while you're thrusting up and away
+  // fights your attitude while you're thrusting up and away. Owner steer: a
+  // legal-but-tilted touchdown used to rest on a strut/corner; as the ship
+  // settles (near the ground, descending) assist now rights the WHOLE permitted
+  // landing angle, so on assist you always come down level.
   if (assist && !s.landed && !steer && s.vy > 0) {
     const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-    if (Math.abs(tilt) < ASSIST_CAPTURE) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
+    const nearGround = (groundAt(s.x) - (s.y + SHIP_R)) < 90;
+    const cap = nearGround ? 0.5 : ASSIST_CAPTURE;   // 0.5 = the upright landing limit
+    if (Math.abs(tilt) < cap) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
   }
 
-  // force field: eats fuel, stops bullets, drones, rough ground and cave roofs
-  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead;
+  // force field: eats fuel, stops bullets, drones, rough ground and cave roofs.
+  // Not while the transfusion line is out — the field would sever it, and (owner
+  // steer) you shouldn't be able to parry mid-refuel.
+  const refuelling = !!(resupplyDrone && resupplyDrone.phase === "line");
+  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead && !refuelling;
   // E3 — the parry: for a brief window right after the field snaps up, a bullet
   // caught in it is REFLECTED, not just absorbed. Timed on the rising edge.
-  if (wantShield && !s.shield) s.parryT = PARRY_WINDOW;
+  // Owner steer: the window is tight (skill), and only FIELD MEDIC keeps the
+  // forgiving one. Never armed while refuelling.
+  if (wantShield && !s.shield && !refuelling) s.parryT = easyMode ? PARRY_WINDOW : PARRY_WINDOW_STRICT;
   s.shield = wantShield;
   if (s.parryT > 0) s.parryT = Math.max(0, s.parryT - dt);
   if (s.shield) s.fuel = Math.max(0, s.fuel - 7 * dt);
@@ -880,7 +927,7 @@ function updatePlay(dt) {
   updateOids(dt, now);
   updateEnemies(dt);
   updateSabotage(dt);
-  updateEject(dt);        // E2 — complete a telegraphed Scion-throw
+  updateMercyThrow(dt);   // E2 — a breached MERCY hurls the rescued back out
   updateDocking(dt);
   updateBlackbox(dt);
   updatePods();
@@ -895,6 +942,16 @@ function updatePlay(dt) {
   updateStaticClock(dt);
   if (level.isFinale) updateBeacon(dt);
   if (level.fakeMercy) updateDecoy(dt);
+
+  // a sleeper that slipped into MERCY reveals itself a few beats later — after
+  // you've had time to undock and fly on, so the alarm lands away from the bay
+  if (pendingBreach && !mercyBreach) {
+    pendingBreach.t -= dt;
+    if (pendingBreach.t <= 0) {
+      const inf = pendingBreach.infected; pendingBreach = null;
+      triggerBreach(inf);
+    }
+  }
 
   if (mercyBreach) {
     // the "loose on MERCY" clock only runs until you retrieve it; once it's in
@@ -1018,14 +1075,15 @@ function updateOids(dt, now) {
     }
     if (o.state === "wait" && s.landed &&
         Math.abs(s.x - o.x) < 150 && Math.abs(groundAt(o.x) - (s.y + SHIP_R)) < 60) {
-      // S5 — with ANTISEPSIS earned, parking DIRECTLY on a unit (and holding
-      // still) examines it rather than boards it: the landed scan resolves what
-      // it is. A verified real Scion then climbs aboard as normal; land a short
-      // step away (>66 px) to skip the check and rescue at speed. Without the
-      // upgrade there is no examine hold — units board exactly as they always did.
-      const examining = upgrades.antisepsis && !o.verified && Math.abs(s.x - o.x) < 66 &&
-        Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20;
-      if (!examining) o.state = "walk";
+      // S5 / owner steer: with ANTISEPSIS earned, a grounded unit within scan
+      // range is READ rather than boarded — it stays "wait" while updateScionScan
+      // runs the diagnostic and creeps it slowly toward you. Once verified it
+      // climbs aboard; a catalogued (flagged) counterfeit is left where it lies
+      // and never boards. Without the upgrade there's no read — units board as
+      // they always did.
+      const scanCandidate = upgrades.antisepsis && !o.verified && !o.flagged &&
+        Math.abs(s.x - o.x) < SCION_SCAN_RANGE && Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20;
+      if (!scanCandidate && !o.flagged) o.state = "walk";
     }
     if (o.state === "walk") {
       if (!s.landed) { o.state = "wait"; continue; }
@@ -1050,6 +1108,10 @@ function updateOids(dt, now) {
           heartbeat();
           addText(s.x, s.y - 34, "SCION ABOARD +500", "#69f0ae");
           if (o.carrier) addText(s.x, s.y - 48, "◇ CARRYING DATA", "#00e5ff");
+          // warn the moment the cabin fills, so a full ship is known before you
+          // fly to the next Scion and bump them off the hull (owner steer)
+          if (s.passengers.length >= CAPACITY)
+            banner("CABIN FULL — RETURN TO MERCY TO DELIVER", "#ffc400");
           if (o.role === "famous") {
             goldBurst(s.x, s.y - 10);
             banner("SOMEONE EXTRAORDINARY IS ABOARD…", "#ffd54f");
@@ -1236,55 +1298,47 @@ function updateSabotage(dt) {
     sabotageFlash = 0.5;
     haptic.heavy();
     sabHiss();
-    // Jenner's gift: immunised passengers can't be killed, only inconvenienced
-    if (upgrades.inoculation || Math.random() < 0.55 || s.passengers.length === 1) {
-      s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
-      addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
-      blip(140, 60, 0.25, "sawtooth", 0.12);
-    } else {
-      // E2 — instead of an instant kill, the Vector drags a Scion to the airlock
-      // to HURL them out. Telegraph it first (updateEject completes the throw), so
-      // you have a moment to react and can then catch them before they hit ground.
-      const victims = s.passengers.filter(q => q.role !== "saboteur");
-      if (victims.length && !level.eject) {
-        const v = victims[Math.floor(Math.random() * victims.length)];
-        level.eject = { o: v, t: EJECT_WARN };
-        banner("VECTOR LOOSE — DRAGGING A SCION TO THE AIRLOCK", PAL().DANGER);
-        dullThud();
-      } else if (!victims.length) {
-        // no one left to throw — the sabotage still bites at the fuel line
-        s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
-        addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
-        blip(140, 60, 0.25, "sawtooth", 0.12);
-      }
-    }
+    // Owner steer: a Vector riding YOUR hull no longer hurls passengers out —
+    // that now happens on the MERCY (updateMercyThrow), where the rescued are
+    // stored and where a throw is worth a warning because you may be far away.
+    // Aboard your ship it bites the fuel line instead.
+    s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
+    addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
+    blip(140, 60, 0.25, "sawtooth", 0.12);
   }
 }
 
-/* E2 — the throw itself. After the telegraph, the Vector hurls the grabbed Scion
-   clear of the ship: they become a falling body (oid state "thrown") you can fly
-   into to catch. Cancels cleanly if the Scion already left the cabin. */
-function updateEject(dt) {
-  const e = level.eject;
-  if (!e) return;
-  const s = ship;
-  if (s.dead || mercyBreach || s.passengers.indexOf(e.o) < 0) { level.eject = null; return; }
-  sabotageFlash = Math.max(sabotageFlash, 0.35);   // the struggle keeps the edges pulsing
-  e.t -= dt;
-  if (e.t <= 0) {
-    const o = e.o;
-    s.passengers.splice(s.passengers.indexOf(o), 1);
-    o.state = "thrown";
-    const side = Math.random() < 0.5 ? -1 : 1;
-    o.x = s.x + side * 22; o.y = s.y - 8;   // clear of the hull so it isn't instantly re-caught
-    o.vx = side * (55 + Math.random() * 30);
-    o.vy = -35 - Math.random() * 25;
-    o.throwLock = 0.45;   // brief window where it can't be caught — it has to separate first
-    o.panicT = 0;
-    level.eject = null;
-    banner("A SCION IS THROWN — CATCH THEM!", PAL().DANGER);
-    haptic.heavy(); dullThud();
-  }
+/* E2 (relocated) — the throw now happens on the MERCY. While a Vector is loose
+   in her bay (breached, not yet retrieved) it periodically hurls a RESCUED Scion
+   back out of the bay. The player may be anywhere in the sector, so it fires a
+   loud warning; the Scion falls from MERCY's belly and can be caught mid-air by
+   flying into it (as before). If it hits the ground it's lost. Jenner's
+   INOCULATION protects the rescued, so a breach can't cost you them. */
+function updateMercyThrow(dt) {
+  const b = mercyBreach, s = ship;
+  if (!b || b.retrieved || s.dead || state !== "play" || level.isCave) return;
+  if (upgrades.inoculation) return;              // immunised — the loose one can't reach them
+  b.throwT = (b.throwT == null) ? MERCY_THROW_FIRST : b.throwT - dt;
+  if (b.throwT > 0) return;
+  b.throwT = MERCY_THROW_GAP;
+  // a rescued Scion already safe in MERCY — pick one to hurl back out
+  const pool = level.oids.filter(o => o.state === "delivered" && o.role !== "saboteur");
+  if (!pool.length) return;                      // nothing rescued to throw yet
+  const o = pool[Math.floor(Math.random() * pool.length)];
+  const m = mercyPos();
+  o.state = "thrown";
+  const side = Math.random() < 0.5 ? -1 : 1;
+  o.x = m.mx + side * 30; o.y = m.my + 60;       // out of her ventral bay
+  o.vx = side * (45 + Math.random() * 35);
+  o.vy = 15 + Math.random() * 20;                // tossed down and out
+  o.throwLock = 0.35;
+  o.panicT = 0;
+  // they're no longer safe — take them back off the manifest until re-caught
+  level.delivered = Math.max(0, level.delivered - 1);
+  runSaved = Math.max(0, runSaved - 1);
+  sabotageFlash = Math.max(sabotageFlash, 0.5);
+  banner("VECTOR ON MERCY — A RESCUED SCION IS THROWN FROM THE BAY\nFLY BACK AND CATCH THEM", PAL().DANGER);
+  haptic.heavy(); dullThud(); staticTick();
 }
 
 /* Bundle J2 — one reveal for both paths (fire and the landed scan) so the
@@ -1336,20 +1390,34 @@ function updateScan(dt) {
    it then boards as normal. Priced in time and exposure. Before you've earned
    it there is no positive identification — only the behavioural tells. */
 const SCION_SCAN_T = 4;
+const SCION_SCAN_RANGE = 200;   // land anywhere within this to begin reading a grounded unit
+const SCAN_CREEP = 22;          // px/s it drifts toward you while read — far edge ≈ 8s > the 4s read
 function updateScionScan(dt) {
   const s = ship;
   if (!upgrades.antisepsis) return;   // no diagnostic until Semmelweis is aboard
-  let target = null;
+  // read the NEAREST unresolved grounded unit within range while you sit still
+  let target = null, bd = SCION_SCAN_RANGE;
   if (s.landed && !s.dead && Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20) {
     for (const o of level.oids) {
       if (o.state !== "wait" || o.flagged || o.verified) continue;
-      if (Math.abs(s.x - o.x) < 66 && Math.abs(groundAt(o.x) - (s.y + SHIP_R)) < 70) { target = o; break; }
+      const dx = Math.abs(s.x - o.x);
+      if (dx < bd && Math.abs(groundAt(o.x) - (s.y + SHIP_R)) < 70) { bd = dx; target = o; }
     }
   }
   for (const o of level.oids)
     if (o !== target && o.oidScanT) o.oidScanT = Math.max(0, o.oidScanT - dt * 2);
   if (!target) return;
   target.oidScanT = (target.oidScanT || 0) + dt * scanRate();
+  // it creeps toward the ship as it's read — a real Scion eager to be lifted, a
+  // Vector closing on the hatch. Land too near and it reaches you before the read
+  // finishes and boards UNREAD; keep a step back to finish the read with room to go.
+  if (Math.abs(s.x - target.x) > 15) {
+    target.x += Math.sign(s.x - target.x) * SCAN_CREEP * dt;
+    target.y = groundAt(target.x);
+  } else if (target.oidScanT < SCION_SCAN_T) {
+    target.state = "walk"; target.oidScanT = 0;   // reached the hatch first — boards on trust
+    return;
+  }
   if (target.oidScanT >= SCION_SCAN_T) {
     target.oidScanT = 0;
     if (target.role === "saboteur") {
@@ -1612,7 +1680,9 @@ function updateDocking(dt) {
         s.passengers.splice(s.passengers.indexOf(sab), 1);
         sab.state = "escaped";
         level.contained++; // off the manifest either way
-        triggerBreach(sab.infected);   // remember if it was a cured-able infected Scion (E4)
+        // it slips in quietly — the alarm comes a few beats later (owner steer),
+        // by which time you've usually undocked and flown off
+        pendingBreach = { infected: sab.infected, t: BREACH_REVEAL_DELAY };
       }
     }
   } else { s.dockT = 0; s.escapeT = 0; }
@@ -1673,14 +1743,24 @@ function updateBlackbox(dt) {
       score += 800;
       blip(300, 1200, 0.5, "sine", 0.14);
       const frag = grantFragment(false);
+      // the moment the bearing locks — its own beat, naming the source so the
+      // NULLWAVE is never a term the finale drops on you unannounced
+      const justTriangulated = blackboxCount === TRIANGULATE_N;
+      const tail = blackboxCount >= TRIANGULATE_N
+        ? "◈ Bearing locked. The source is THE NULLWAVE."
+        : "◈ Recover " + TRIANGULATE_N + " of " + NBOX + " to triangulate the source. (" +
+          blackboxCount + "/" + TRIANGULATE_N + ")";
       showCard({
-        kicker: "BLACK BOX RECOVERED · SIGNAL " + blackboxCount + "/" + NBOX + " · +800",
-        title: "", subtitle: "",
-        body: (frag || "The recorder is blank — wiped clean. Someone got here first.") +
-          "\n\n" + (blackboxCount >= 3 ? "◈ Triangulation viable. Keep flying."
-                                       : "◈ Recover at least 3 of " + NBOX + " to triangulate the source."),
+        kicker: justTriangulated
+          ? "TRIANGULATION COMPLETE · " + blackboxCount + "/" + NBOX + " · +800"
+          : "BLACK BOX RECOVERED · SIGNAL " + blackboxCount + "/" + NBOX + " · +800",
+        title: justTriangulated ? "THE SOURCE HAS A NAME" : "", subtitle: "",
+        body: (justTriangulated
+          ? "The recorders agree. Every echo bends toward one dead patch of sky — the silence the old charts call THE NULLWAVE. Whatever answers on our own frequency is down there.\n\n"
+          : (frag || "The recorder is blank — wiped clean. Someone got here first.") + "\n\n") + tail,
         color: "#b388ff"
       });
+      if (justTriangulated) { banner("TRIANGULATION COMPLETE — THE SOURCE IS THE NULLWAVE", "#b388ff"); staticTick(); }
     }
   } else bb.scanT = 0;
 }
@@ -1690,6 +1770,12 @@ function updatePods() {
   for (const p of level.pods) {
     if (p.taken) continue;
     if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
+      // don't waste a pod on a full tank — warn instead, and leave it for later
+      if (s.fuel >= maxFuel() - 0.5) {
+        if (!p.fullWarn) { p.fullWarn = true; addText(p.x, p.y - 30, "TANK FULL", "#ffc400"); }
+        continue;
+      }
+      p.fullWarn = false;
       p.taken = true;
       s.fuel = Math.min(maxFuel(), s.fuel + 35);
       addText(p.x, p.y - 30, "FUEL +35", "#ffc400");
@@ -1753,9 +1839,33 @@ const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 13
    this penalty, can never soft-lock a run. Each resupply caps lower than the
    last: maxFuel × 0.9^refuels, floored at XFUSE_FLOOR. */
 const XFUSE_COST = 4, XFUSE_FLOOR = 35;
-function xfuseCap() { return Math.max(XFUSE_FLOOR, Math.round(maxFuel() * Math.pow(0.9, runRefuels))); }
+// Owner steer: on SEMMELWEIS DEEP the supply lines are cut — the drone still
+// answers (a stranded ship must never be un-rescuable) but on scavenged reserves:
+// it comes slower, fills slower, and leaves you with less. Never below the floor.
+function supplyCut() { return !!(level && level.contagion); }
+function xfuseCap() {
+  const base = Math.round(maxFuel() * Math.pow(0.9, runRefuels) * (supplyCut() ? 0.7 : 1));
+  return Math.max(XFUSE_FLOOR, base);
+}
+function xfuseRate() { return XFUSE_RATE * (supplyCut() ? 0.55 : 1); }
+function signalHoldT() { return SIGNAL_HOLD_T * (supplyCut() ? 1.6 : 1); }
 function xfuseWindowR() { return easyMode ? 44 : 34; }   // FIELD MEDIC widens the window
 function capturePoint(rd) { return { x: rd.x, y: rd.y + 55 }; }
+/* the resupply drone is a light airframe — the same gravity/radiation rings that
+   drag the ship shove it too, so a fuel line strung across a ring won't sit still
+   (owner steer). A swirl plus a pull, scaled down from the ship's, so it wanders
+   the hover point rather than flinging the drone away. */
+function driftDroneInRings(rd, dt) {
+  if (!level.anomalies) return;
+  for (const a of level.anomalies) {
+    const dx = rd.x - a.x, dy = rd.y - a.y, d = Math.hypot(dx, dy);
+    if (d < a.r && d > 1) {
+      const f = a.str * (1 - d / a.r) * 0.5;
+      rd.x += (-dy / d * f + dx / d * f * 0.25) * dt;
+      rd.y += ( dx / d * f + dy / d * f * 0.25) * dt;
+    }
+  }
+}
 /* the resupply drone flies a real errand — out from MERCY and back to dock —
    so the wait is honest and you can follow it home if you like */
 const DRONE_SPEED = 430;
@@ -1796,7 +1906,7 @@ function updateResupplySignal(dt) {
   } else if (!resupplyDrone) {
     s.signalT = Math.max(0, s.signalT - dt * 2.5);
   }
-  if (s.signalT >= SIGNAL_HOLD_T && !resupplyDrone) {
+  if (s.signalT >= signalHoldT() && !resupplyDrone) {
     s.signalT = 0;
     // launched FROM MERCY's recovery bay, bound for a hover point above you
     const m = mercyPos();
@@ -1808,6 +1918,7 @@ function updateResupplySignal(dt) {
   if (!resupplyDrone) return;
   const rd = resupplyDrone;
   rd.t += dt;
+  driftDroneInRings(rd, dt);   // the rings shove the drone and its fuel line about
   if (rd.phase === "in") {
     // fly out from MERCY to the hover point above you (the wait is the distance)
     if (droneFlyTo(rd, rd.hoverX, rd.hoverY, dt)) {
@@ -1851,14 +1962,17 @@ function updateTransfusion(dt, rd) {
     // U2 — the first time the line catches, this counts as one field resupply
     // (so the NEXT one carries less). Counted here, not at signal, so a window
     // that closes before you fly to the line never burns an allowance.
-    if (!rd.everAttached) runRefuels++;
+    if (!rd.everAttached) {
+      runRefuels++;
+      if (supplyCut()) addText(s.x, s.y - 46, "SCAVENGED RESERVES — SLOW, THIN FLOW", "#8fd6b8");
+    }
     rd.everAttached = true;
     s.shield = false;   // the field would sever the umbilical
     if (!wasAttached) { blip(300, 460, 0.12, "sine", 0.09); haptic.light(); }
     if (s.fuel >= rd.cap) { finishTransfusion(rd, true); return; }
     // fill to THIS fill's ceiling — and charge the tally for every unit taken
     const before = s.fuel;
-    s.fuel = Math.min(rd.cap, s.fuel + XFUSE_RATE * dt);
+    s.fuel = Math.min(rd.cap, s.fuel + xfuseRate() * dt);
     const delivered = s.fuel - before;
     rd.given += delivered;
     const prevCost = Math.floor(rd.charged);
@@ -2098,9 +2212,25 @@ function updateBeacon(dt) {
   if (!b || b.resolved) return;
   const s = ship;
   if (s.landed && Math.abs(s.x - b.x) < 90) {
+    // Owner steer / the science of "being heard": answering isn't just landing
+    // nearby — you transmit her OWN looping distress heartbeat back to her, in
+    // time, so the signal finally receives the acknowledgement it has spent years
+    // asking for and can stop repeating. Reframed in copy + a visible pulse that
+    // spills from the ship to the beacon on each beat.
+    if (b.silenceT <= 0) banner("HOLD — TRANSMITTING SOLACE'S OWN HEARTBEAT BACK TO HER", "#aef4ff");
     b.silenceT += dt;
+    b.ackT = (b.ackT || 0) + dt;
+    if (b.ackT >= 1.5) {
+      b.ackT = 0; heartbeat(0.4, true);
+      const dx = b.x - s.x, dy = (b.y - 40) - s.y, d = Math.hypot(dx, dy) || 1;
+      for (let i = 0; i < 8; i++)
+        particles.push({ x: s.x, y: s.y - 6,
+          vx: dx / d * 120 + (Math.random() - 0.5) * 20,
+          vy: dy / d * 120 + (Math.random() - 0.5) * 20,
+          t: d / 120, max: d / 120, color: "#aef4ff", size: 2 });
+    }
     if (b.silenceT >= 5) resolveBeacon("answered");
-  } else b.silenceT = Math.max(0, b.silenceT - dt * 2);
+  } else { b.silenceT = Math.max(0, b.silenceT - dt * 2); b.ackT = 0; }
 }
 
 function resolveBeacon(how) {

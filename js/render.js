@@ -3073,6 +3073,9 @@ window.__doids = {
   // tint. Exposed so a test can assert the colour parity always holds.
   oidTint: () => "#69f0ae",
   setStaticClock: v => { staticClock = v; },
+  // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
+  // sealed until a run is finished — flip veteran on so a test can reach it
+  setVeteran: () => markVeteran(),
   remix: startRemix,
   daily: startDaily,
   // M1 regression anchor: seed 0 must always produce today's exact levels
