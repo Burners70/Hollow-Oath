@@ -1228,7 +1228,10 @@ function drawWreckS(sc, now) {
   // INTO the slope. +5 keeps a hair of overlap so there's no seam.
   ctx.beginPath(); ctx.rect(-80, -300, 160, 305); ctx.clip();
   ctx.rotate(2.35 + sc.lean);
-  ctx.scale(sc.s, sc.s);
+  // never bigger than the ship the player flies (sc.s runs 0.8–1.5); a downed
+  // dart reads as ship-sized or a touch smaller, collapsed.
+  const ws = Math.min(1.0, sc.s);
+  ctx.scale(ws, ws);
   ctx.strokeStyle = "rgba(0,229,255,.32)";
   ctx.fillStyle = "rgba(6,10,22,.8)";
   ctx.lineWidth = 1.6;
