@@ -14,13 +14,26 @@ const lerp = (a, b, t) => a + (b - a) * t;
 function wrapText(str, maxW) {
   const out = [];
   for (const para of str.split("\n")) {
+    const paraLines = [];
     let line = "";
     for (const w of para.split(" ")) {
       const test = line ? line + " " + w : w;
-      if (ctx.measureText(test).width > maxW && line) { out.push(line); line = w; }
+      if (ctx.measureText(test).width > maxW && line) { paraLines.push(line); line = w; }
       else line = test;
     }
-    out.push(line);
+    paraLines.push(line);
+    // orphan guard: a single word stranded alone on the final line reads as a
+    // layout mistake — pull the previous line's last word down onto it
+    // instead, as long as that previous line has one to spare
+    if (paraLines.length > 1 && paraLines[paraLines.length - 1].indexOf(" ") === -1) {
+      const prev = paraLines[paraLines.length - 2];
+      const prevWords = prev.split(" ");
+      if (prevWords.length > 1) {
+        paraLines[paraLines.length - 2] = prevWords.slice(0, -1).join(" ");
+        paraLines[paraLines.length - 1] = prevWords[prevWords.length - 1] + " " + paraLines[paraLines.length - 1];
+      }
+    }
+    out.push(...paraLines);
   }
   return out;
 }
@@ -479,9 +492,14 @@ function remixRect() {
   const w = Math.min(200, vw * 0.4);
   return { x: vw / 2 - w - 8, y: vh * 0.87, w, h: 30 };
 }
+// owner decision (found on-device, daily playtest): DAILY is gated behind
+// veteran like REMIX, not shown pre-completion — the daily seed re-rolls
+// every generator including mechanics that only otherwise appear in later
+// sectors (Glycon counterfeits, Vectors, the Hollows), so a first-time
+// player hitting it cold skips the story that introduces them.
 function dailyRect() {
   const w = Math.min(200, vw * 0.4);
-  return { x: veteran ? vw / 2 + 8 : vw / 2 - w / 2, y: vh * 0.87, w, h: 30 };
+  return { x: vw / 2 + 8, y: vh * 0.87, w, h: 30 };
 }
 function continueRect() {
   const w = Math.min(300, vw * 0.72);

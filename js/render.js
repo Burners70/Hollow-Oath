@@ -2330,16 +2330,18 @@ function drawTitle(now) {
     ctx.fillText("⟳ REMIX ROTATION", xr.x + xr.w / 2, xr.y + 20);
     ctx.shadowBlur = 0;
   }
-  const dr2 = dailyRect();
-  const doneToday = dailyDoneToday();
-  ctx.strokeStyle = doneToday ? "rgba(255,255,255,.3)" : "rgba(255,196,0,.7)";
-  ctx.shadowColor = doneToday ? "transparent" : "#ffc400"; ctx.shadowBlur = doneToday ? 0 : 8;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(dr2.x, dr2.y, dr2.w, dr2.h);
-  ctx.fillStyle = doneToday ? "rgba(255,255,255,.45)" : "#ffc400";
-  ctx.fillText(doneToday ? "☀ DAILY ✓ " + ((loadDaily() || {}).score || 0)
-                         : "☀ DAILY FLIGHT", dr2.x + dr2.w / 2, dr2.y + 20);
-  ctx.shadowBlur = 0;
+  if (veteran) {
+    const dr2 = dailyRect();
+    const doneToday = dailyDoneToday();
+    ctx.strokeStyle = doneToday ? "rgba(255,255,255,.3)" : "rgba(255,196,0,.7)";
+    ctx.shadowColor = doneToday ? "transparent" : "#ffc400"; ctx.shadowBlur = doneToday ? 0 : 8;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(dr2.x, dr2.y, dr2.w, dr2.h);
+    ctx.fillStyle = doneToday ? "rgba(255,255,255,.45)" : "#ffc400";
+    ctx.fillText(doneToday ? "☀ DAILY ✓ " + ((loadDaily() || {}).score || 0)
+                           : "☀ DAILY FLIGHT", dr2.x + dr2.w / 2, dr2.y + 20);
+    ctx.shadowBlur = 0;
+  }
 }
 
 /* the codex (Bundle K2): two tabs — MINDS (famous Scions recovered across

@@ -579,7 +579,7 @@ function updateMenu() {
       blip(330, 660, 0.2, "sine", 0.1);
     } else if (state === "title" && veteran && inRect(remixRect(), input.tapX, input.tapY)) {
       startRemix();
-    } else if (state === "title" && inRect(dailyRect(), input.tapX, input.tapY)) {
+    } else if (state === "title" && veteran && inRect(dailyRect(), input.tapX, input.tapY)) {
       startDaily();
     } else if (state === "title" && inRect(startRect(), input.tapX, input.tapY)) {
       startFreshRun();

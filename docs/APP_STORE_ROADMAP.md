@@ -585,6 +585,14 @@ A1 snapshot). G2 for the daily board.**
   reported to a daily Game Center board (G). Show yesterday-you as the bar to
   beat if no board. *(The attempt is spent at launch so a bad start can't be
   re-rolled; the GC report hook is a marked comment in `recordDaily()` for G.)*
+  **Gated behind `veteran` (owner decision, found in daily playtest, July
+  2026)** — same gate as REMIX, not the original ungated behaviour: the daily
+  seed re-rolls every generator, including mechanics (Glycon counterfeits,
+  Vectors, the Hollows) that otherwise only appear once the campaign has
+  introduced them across sectors 2–5. A first-time player hitting DAILY cold
+  from the title skipped the story that explains them. This supersedes the
+  RELEASE_READINESS_REVIEW.md §5.5 suggestion to just center the pill when
+  REMIX is locked — DAILY isn't shown pre-veteran at all now.
 - [x] **M4. (Stretch) widen the famous pool.** 3–4 additional famous Scions
   (candidates with the same rigor as the current seven: Elizabeth Blackwell,
   Rudolf Virchow, Alexander Fleming, Rita Levi-Montalcini) with modest upgrades;
@@ -1442,3 +1450,25 @@ sling~~ → **Bundle P (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
   the 41-second surge rocks the tether, and the pump goes arrhythmic with a
   contaminant aboard. The counterfeit tanker (Glycon's fourth act) remains a
   future hook. See ROADMAP.md § Future ideas for the design writeup.
+
+**Parked from the on-device App Store testing round (July 2026) — not
+scheduled, logged so they aren't lost:**
+- **BIG TEXT, expanded to the in-flight HUD.** Today `bigText`
+  (`bodyFontPx()`) only enlarges story/help/legend/codex card body text — the
+  in-flight HUD (score, fuel, ECG, the sector tally), banner pop-ups, and the
+  Settings panel itself all use flat pixel sizes and don't respond to the
+  toggle, which reads as inconsistent (found on-device). Expanding it
+  properly means touching the HUD layout this codebase has a history of
+  tight-viewport collision bugs in (see the R-bundle fixes above) — do it as
+  its own pass with real on-device verification, not folded into a bugfix.
+- **Vector light-sabotage.** Owner idea, on-device: a Vector aboard the ship
+  could make the headlight beams (see the T6 fix just above) flicker and
+  eventually fail entirely, on top of the existing malpractice/contamination
+  mechanics — a new sabotage *action* rather than just a tell. Needs its own
+  design pass (how it resolves, whether ANTISEPSIS/isolation cures it) before
+  it's buildable.
+- **A procedural mode.** Owner idea, on-device, for a future edition: a mode
+  that generates a full run (or endless run) from a fresh seed each time
+  rather than the authored campaign or the fixed REMIX/DAILY seed rotation —
+  distinct from M1's seed plumbing (which re-rolls existing generators, not
+  the campaign structure itself). Logged only; no design spec yet.
