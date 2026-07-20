@@ -1984,7 +1984,11 @@ function drawHUD(now) {
   ctx.textAlign = "left";
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
-  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SAVED " + tl.delivered + "/" + savable;
+  // "SECTOR", not "SAVED" — this is the current sector's tally (tl.delivered
+  // resets every sector, including on RESUME); the run's career total uses the
+  // word "saved" at game over/win (drawGameOver, rankLine) and must stay
+  // visibly distinct so the two never read as contradicting each other.
+  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SECTOR " + tl.delivered + "/" + savable;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
   if (tl.lost > 0) {

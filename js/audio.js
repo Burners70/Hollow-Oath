@@ -523,8 +523,11 @@ function updateMusic(dt) {
   if (!AC || !musicGain) return;
   const ducked = state === "brief" || state === "reveal" || state === "clear" ||
     state === "ending" || state === "epilogue" || state === "help" || state === "codex" ||
-    state === "pause" || state === "settings" || state === "confirm" || state === "legend";
-  const target = music ? (ducked ? 0.4 : 1) : 0;
+    state === "settings" || state === "confirm" || state === "legend";
+  // pause goes fully silent, not ducked — a paused game is often paused to talk
+  // to someone, and a quiet drone still playing under the PAUSED overlay reads
+  // as the game not actually stopping
+  const target = !music ? 0 : (state === "pause" ? 0 : ducked ? 0.4 : 1);
   musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt);
   musicNoteT += dt;
   if (musicNoteT >= musicNoteNext) {
