@@ -126,6 +126,7 @@ function landingEval() {
 function shipDie() {
   if (ship.dead) return;
   ship.dead = true;
+  haptic.heavy();
   explode(ship.x, ship.y, "#ff4081", 60);
   explode(ship.x, ship.y, "#ffc400", 40);
   if (ship.passengers.length > 0) {
@@ -1173,6 +1174,7 @@ function updateEnemies(dt) {
       } else {
         explode(dr.x, dr.y, "#ff4081", 24);
         s.vitals -= 40;
+        haptic.heavy();
         addText(s.x, s.y - 30, "-40", "#ff4081");
         if (s.vitals <= 0) { shipDie(); return; }
       }
@@ -1226,6 +1228,7 @@ function updateEnemies(dt) {
       }
       s.vitals -= 26; camera.shake += 8;
       explode(b.x, b.y, "#ff4081", 10);
+      haptic.medium();
       addText(s.x, s.y - 30, "-26", "#ff4081");
       if (s.vitals <= 0) { shipDie(); return; }
     }
