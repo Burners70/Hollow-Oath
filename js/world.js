@@ -521,14 +521,12 @@ const HELP_CARD = {
 };
 
 /* U3 — HELP_CARD teaches the controls but never names the on-screen readouts.
-   This companion card labels every HUD element so a new player can tell the
-   FUEL bar from the ECG. Reached from the title (beside HOW TO FLY) and from
-   the PAUSE screen; paginates via drawCardPanel like the flight manual. */
-const LEGEND_CARD = {
-  kicker: "THE HEADS-UP DISPLAY", title: "WHAT YOU'RE LOOKING AT", subtitle: "every readout, named",
-  body: "TOP-LEFT · FUEL — the yellow bar. THRUST and SHIELD both burn it. Empty and you're stranded until you signal for a resupply line.\n\nTOP-RIGHT · VITALS — your heartbeat drawn as a live ECG. It quickens and reddens as you fail; a stutter (arrhythmia) means something wrong is aboard.\n\nTOP-CENTRE · SCORE — with the sector name, ♥ lives and ◈ black boxes found.\n\n❚❚ PAUSE — the button just left of the ECG. Tap it, or press ESC / P (gamepad START), to pause.\n\nBOTTOM BUTTONS · THRUST · FIRE · SHIELD — thrust burns fuel; FIRE shoots, but firing is malpractice and costs you; hold SHIELD for a force field.\n\nLANDING GUIDE — the chevrons under the ship on approach: ↓ is your descent rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe.\n\nTHE STATIC CLOCK — from the deep sectors on, a countdown to the 41-second surge: the ECG jumps, the sector name corrupts, a caught fuel line rocks. Brace or land before it fires.",
-  color: "#00e5ff"
-};
+   The HUD guide (render.js drawHudGuide) is now an ANNOTATED layout, not prose:
+   it draws each real readout where it sits and names it, so a new player can map
+   word to widget. This object just holds the paging/tap state the guide shares
+   with the card-panel tap handler; the guide is reached from the title (beside
+   HOW TO FLY) and from the PAUSE screen. */
+const LEGEND_CARD = { page: 0 };
 
 function groundAt(x) {
   const h = level.heights;

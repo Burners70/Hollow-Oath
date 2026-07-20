@@ -73,7 +73,7 @@ function render() {
 
   if (state === "title") drawTitle(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
-  if (state === "legend") drawCardPanel(LEGEND_CARD, now);
+  if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
   if (state === "clear") drawClear(now);
@@ -1974,6 +1974,95 @@ function drawECG(x, y, w, h, frac, now) {
   ctx.fillStyle = "rgba(255,255,255,.6)";
   ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "right";
   ctx.fillText("VITALS " + Math.max(0, Math.round(frac * 100)) + "%", x + w, y + h + 9);
+}
+
+/* U3 (annotated) — the HUD guide. Instead of a wall of prose it lays the real
+   readouts out where they actually sit on screen and names each one, so a new
+   player can map word to widget. No spoilers (the Static clock is learned in
+   play, not here); every element is covered, ASSIST included. */
+function drawHudGuide(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.96)";
+  ctx.fillRect(0, 0, vw, vh);
+  const L = saLeft, R = saRight, cyan = "#00e5ff";
+  const head = "#bfefff", dim = "rgba(199,232,255,.62)";
+  const bw = Math.min(150, vw * 0.3);
+  const F = b => "700 " + bodyFontPx(b) + "px Menlo, monospace";
+  const Fd = b => "600 " + bodyFontPx(b) + "px Menlo, monospace";
+  // a widget-adjacent label: bright title, dimmer wrapped description
+  function lab(x, y, align, title, desc, descW) {
+    ctx.textAlign = align;
+    ctx.fillStyle = head; ctx.font = F(8);
+    ctx.fillText(title, x, y);
+    ctx.fillStyle = dim; ctx.font = Fd(8);
+    wrapText(desc, descW || 160).slice(0, 3).forEach((ln, i) => ctx.fillText(ln, x, y + 13 + i * 11));
+  }
+
+  // ---- header ----
+  ctx.textAlign = "center";
+  ctx.fillStyle = cyan; ctx.shadowColor = cyan; ctx.shadowBlur = 8; ctx.font = F(11);
+  ctx.fillText("◎ HUD GUIDE — what every readout means", vw / 2, 18);
+  ctx.shadowBlur = 0;
+
+  // ---- the real top band, drawn where it sits in flight ----
+  const topY = 32;
+  drawBar(14 + L, topY, bw, 10, 0.62, "#ffc400", "");
+  drawECG(vw - bw - 14 - R, topY, bw, 26, 0.86, now);
+  const pX = vw - bw - 14 - R - 40;   // pause pill, just left of the ECG
+  ctx.fillStyle = "rgba(0,120,150,.6)"; ctx.strokeStyle = "rgba(130,242,255,.95)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.rect(pX, topY - 2, 30, 20); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#eaffff"; ctx.font = F(9); ctx.textAlign = "center"; ctx.fillText("❚❚", pX + 15, topY + 12);
+  ctx.fillStyle = "#9beaf9"; ctx.shadowColor = cyan; ctx.shadowBlur = 6; ctx.font = F(11); ctx.textAlign = "center";
+  ctx.fillText("004200", vw / 2, topY + 8); ctx.shadowBlur = 0;
+  ctx.font = Fd(8); ctx.fillStyle = "rgba(155,234,249,.7)";
+  ctx.fillText("VESALIUS RIDGE · ♥3 · ASSIST · ◈2/7", vw / 2, topY + 20);
+
+  // ---- labels for the top band (below the ECG's own VITALS% readout) ----
+  const topLabY = topY + 54;
+  lab(14 + L, topLabY, "left", "FUEL",
+    "Thrust and shield burn it. Run dry and you're grounded until you signal a resupply line.", Math.max(160, bw + 50));
+  lab(vw / 2, topLabY, "center", "SCORE LINE",
+    "Score · sector name · ♥ lives · ◈ black boxes. ASSIST shows when gentler capture is on (toggle in SETTINGS).", 250);
+  lab(vw - 14 - R, topLabY, "right", "VITALS  +  ❚❚ PAUSE",
+    "Your pulse as an ECG — it quickens as you fail; a stutter means something wrong is aboard. PAUSE sits just left of it.", Math.max(160, bw + 60));
+
+  // ---- centre: ship + the landing guide, centred in the gap between the top
+  //      labels and the bottom controls so it never collides on a short landscape ----
+  const bandTop = topLabY + 34, bandBot = vh - 28 - 44;
+  const sx = vw / 2, sy = clamp((bandTop + bandBot) / 2 - 12, bandTop + 24, bandBot - 46);
+  ctx.save(); ctx.translate(sx, sy);
+  ctx.strokeStyle = cyan; ctx.shadowColor = cyan; ctx.shadowBlur = 10; ctx.lineWidth = 2; ctx.fillStyle = "rgba(0,229,255,.12)";
+  ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sx - 12, sy + 22); ctx.lineTo(sx + 12, sy + 22); ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#69f0ae"; ctx.font = F(9); ctx.textAlign = "left"; ctx.fillText("✓ ↓2  ↔1", sx + 20, sy + 2);
+  lab(sx, sy + 42, "center", "LANDING GUIDE",
+    "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down.", 240);
+
+  // ---- bottom controls: clean rows (left = turn, right = act), each labelled
+  //      above so nothing overlaps on a short landscape viewport ----
+  const by = vh - 28;
+  const circ = (cx2, cy2, r, col, txt, fs) => {
+    ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx2, cy2, r, 0, 7); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = col; ctx.textAlign = "center"; ctx.font = F(fs); ctx.fillText(txt, cx2, cy2 + 3);
+  };
+  circ(40 + L, by, 15, "rgba(0,229,255,.85)", "↺", 12);
+  circ(82 + L, by, 15, "rgba(0,229,255,.85)", "↻", 12);
+  lab(24 + L, by - 44, "left", "ROTATE", "Turn the ship left / right.", 170);
+  // right cluster as a row, THRUST kept rightmost as in flight
+  const sX2 = vw - 132 - R, fX = vw - 86 - R, tX = vw - 40 - R;
+  circ(sX2, by, 15, "rgba(105,240,174,.85)", "⛨", 9);
+  circ(fX, by, 15, "rgba(255,64,129,.85)", "◉", 9);
+  circ(tX, by, 15, "rgba(255,196,0,.85)", "▲", 10);
+  lab(vw - 14 - R, by - 44, "right", "SHIELD · FIRE · THRUST",
+    "Hold SHIELD (force field) · FIRE costs points · THRUST to fly.", 250);
+
+  // ---- footer ----
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
+  ctx.font = F(9); ctx.fillText("tap to continue", vw / 2, vh - 8);
 }
 
 /* ---------------- screens ---------------- */
