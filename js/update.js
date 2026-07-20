@@ -404,8 +404,8 @@ function updateVectorStruggle(dt) {
 let ctlShown = null;
 function updateCtlVisibility() {
   // virtual controls exist only in flight — not on the title, intro,
-  // briefings, or story cards
-  const want = state === "play" || state === "dead";
+  // briefings, or story cards — and hide the instant a gamepad is active
+  const want = (state === "play" || state === "dead") && !pad.connected;
   if (want === ctlShown) return;
   ctlShown = want;
   document.body.classList.toggle("noctl", !want);
