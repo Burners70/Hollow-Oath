@@ -1178,7 +1178,15 @@ function drawBuilding(sc, now, ruined) {
 /* a MERCY-class sister, down and half-dark — her emblem still flickers */
 function drawWreckM(sc, now) {
   ctx.save();
-  ctx.translate(sc.x, sc.y + 4);
+  // sink the broken hull into the ridge rather than perching it on the crust:
+  // set a ground-line clip (in the ground-aligned frame), then undo the tilt and
+  // re-apply the original transform so the hull below the surface is buried while
+  // everything above — breach, emblem, hull tag — renders exactly as before.
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.beginPath(); ctx.rect(-200, -500, 400, 506); ctx.clip();
+  ctx.rotate(-sc.tilt);
+  ctx.translate(0, 4);
   ctx.rotate(sc.tilt + sc.lean * 0.5);
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
   ctx.fillStyle = "rgba(8,12,26,.85)";
@@ -1207,12 +1215,18 @@ function drawWreckM(sc, now) {
     t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
 }
 
-/* one of ours — a rescue dart that didn't make it */
+/* one of ours — a rescue dart that didn't make it. It's the SAME hull the player
+   flies (identical path to drawShip), so it's drawn at the ship's own scale, not
+   oversized — and half-buried like the boulders rather than perched on the crust. */
 function drawWreckS(sc, now) {
   ctx.save();
-  ctx.translate(sc.x, sc.y - 4);
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  // half-buried: clip away everything below the ground line so the wreck sinks
+  // INTO the slope. +5 keeps a hair of overlap so there's no seam.
+  ctx.beginPath(); ctx.rect(-80, -300, 160, 305); ctx.clip();
   ctx.rotate(2.35 + sc.lean);
-  ctx.scale(sc.s * 2.1, sc.s * 2.1);
+  ctx.scale(sc.s, sc.s);
   ctx.strokeStyle = "rgba(0,229,255,.32)";
   ctx.fillStyle = "rgba(6,10,22,.8)";
   ctx.lineWidth = 1.6;
