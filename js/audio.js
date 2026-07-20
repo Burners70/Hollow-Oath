@@ -528,7 +528,8 @@ function updateMusic(dt) {
   // to someone, and a quiet drone still playing under the PAUSED overlay reads
   // as the game not actually stopping
   const target = !music ? 0 : (state === "pause" ? 0 : ducked ? 0.4 : 1);
-  musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt);
+  if (state === "pause") musicGain.gain.value = 0;   // snap off, not a multi-second ease
+  else musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt);
   musicNoteT += dt;
   if (musicNoteT >= musicNoteNext) {
     musicNoteT = 0;
