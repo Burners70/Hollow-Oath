@@ -2834,18 +2834,28 @@ function drawBrief(now) {
   ctx.font = "600 11px Menlo, monospace";
   ctx.fillStyle = "rgba(0,229,255," + (0.5 + 0.4 * Math.sin(now * 3)).toFixed(2) + ")";
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-  ctx.fillText("— INCOMING TRANSMISSION · AMS MERCY —", vw / 2, vh * 0.16);
+  const kickerY = vh * 0.16;
+  ctx.fillText("— INCOMING TRANSMISSION · AMS MERCY —", vw / 2, kickerY);
+  // the mode-line only exists on REMIX/DAILY, never plain campaign — so a
+  // fixed vh*0.205 for it and vh*0.25 for the title beneath were only ever
+  // tested (and only ever collided) in those two modes. Derive the title's
+  // position from whichever header line is actually last, the same fix as
+  // R2's PAUSED/RESUME collision, instead of two independent vh fractions
+  // that happened to sit far enough apart only when the mode-line was absent.
+  let afterHeaderY = kickerY;
   if (runMode !== "campaign") {   // Bundle M: mark the rotation, name the bar
     ctx.font = "700 11px Menlo, monospace";
     ctx.fillStyle = runMode === "remix" ? "#69f0ae" : "#ffc400";
     const prev = runMode === "daily" ? dailyPrevScore() : 0;
+    afterHeaderY = kickerY + 24;
     ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed
       : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : ""),
-      vw / 2, vh * 0.205);
+      vw / 2, afterHeaderY);
   }
   ctx.font = "800 24px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillStyle = "#aef4ff";
-  ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, vh * 0.25);
+  const titleY = Math.max(vh * 0.25, afterHeaderY + 30);
+  ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, titleY);
   ctx.shadowBlur = 4;
   const briefPx = bodyFontPx(14);
   ctx.font = "600 " + briefPx + "px Menlo, monospace";
@@ -2856,7 +2866,7 @@ function drawBrief(now) {
   // height (floored at a readable minimum) so extra paragraphs never run off the
   // bottom — paragraphs are cheap, overflow is not.
   const nAll = wrapText(briefText(), wrapW).length;
-  const topY = vh * 0.32, botY = vh * 0.95;
+  const topY = Math.max(vh * 0.32, titleY + 26), botY = vh * 0.95;
   let briefLH = briefPx + 8;
   if (nAll * briefLH > botY - topY - 34)
     briefLH = Math.max(briefPx + 2, (botY - topY - 34) / nAll);
