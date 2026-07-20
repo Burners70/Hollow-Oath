@@ -769,14 +769,14 @@ function drawLandingGuide() {
   ctx.moveTo(s.x - 14, groundAt(s.x - 14));
   ctx.lineTo(s.x + 14, groundAt(s.x + 14));
   ctx.stroke();
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = "700 " + bodyFontPx(11) + "px Menlo, monospace";
   ctx.textAlign = "left";
   ctx.fillStyle = color;
   const vArrow = s.vy >= 0 ? "↓" : "↑";
   ctx.fillText(glyph + " " + vArrow + Math.abs(Math.round(s.vy)) + "  ↔" + Math.abs(Math.round(s.vx)), s.x + 20, s.y - 2);
   if (!ev.soft && ev.reason) {
-    ctx.font = "600 9px Menlo, monospace";
-    ctx.fillText(ev.reason, s.x + 20, s.y + 10);
+    ctx.font = "600 " + bodyFontPx(8) + "px Menlo, monospace";
+    ctx.fillText(ev.reason, s.x + 20, s.y + 11);
   }
   ctx.restore();
 }
@@ -1489,14 +1489,19 @@ function drawMothership(now) {
   // recovery bay: a beam hanging under the hull, dispensing outward
   const medRGB = mercyBreach ? "255,64,129" : "0,229,255";
   drawTractorBeam(bays.med, medRGB, now, true, false);
-  ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(0,229,255,.6)";
+  // Bay labels: bigger (BIG-TEXT aware) and higher-contrast for mobile. A dark
+  // halo lifts them off the hull and terrain; the isolation label uses a lighter,
+  // more luminous red — pure #ff1744 was near-invisible against the dark ground.
+  ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4;
+  ctx.fillStyle = mercyBreach ? "rgba(255,90,120,.98)" : "rgba(120,240,255,.98)";
   ctx.fillText(mercyBreach ? "LOCKDOWN" : "RECOVERY BAY",
-    (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 14);
+    (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 15);
   // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
   drawTractorBeam(bays.red, "255,23,68", now, false, true);
-  ctx.fillStyle = "rgba(255,23,68,.7)";
-  ctx.fillText("RED BAY · ISOLATION AIRLOCK", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 14);
+  ctx.fillStyle = "rgba(255,110,132,.98)";
+  ctx.fillText("RED BAY · ISOLATION AIRLOCK", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 15);
+  ctx.shadowBlur = 0;
   ctx.restore();
 
   // S4.5 — a faint ventral hangar hint once the triage retreat is on offer
