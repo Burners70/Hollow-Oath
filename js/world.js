@@ -31,6 +31,10 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
                       "JENNER TERRACES", "THE NULLWAVE"];
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
+// Owner steer: three boxes was too easy a bar for the secret finale. Real
+// triangulation needs most of the recorders — ~80% of them (6 of 7). Missing
+// more than one leaves the bearing too loose to lock and the finale never opens.
+const TRIANGULATE_N = Math.ceil(NBOX * 0.8);  // 6 of 7
 
 // Owner steer: paragraphs, not run-on copy — beats are separated by a blank
 // line (\n\n) so important sentences stand on their own, but no line break ever
@@ -39,11 +43,11 @@ const BRIEFS = [
   "MERCY to rescue flight.\n\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\n\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\n\nEnd transmission.",
   "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\n\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts.\n\nThe red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
   "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\n\nAnd captain… the dark out here listens back.",
-  "Supply lines are cut; the deep is rationed. Scavenge surface fuel pods where you find them.\n\nAnd captain — we found tampering in the recovery bay overnight. Watch your passengers. Watch all of them.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
-  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds. We are close to a bearing — recover the black boxes where you find them.",
+  "Supply lines to the deep are cut — no fresh fuel from the fleet. Our resupply drone runs on scavenged reserves now: it comes slower, and it can spare far less. Scavenge surface fuel pods where you find them.\n\nAnd it's worse than rationing. Leave an unscreened unit standing among the survivors and the sickness jumps between them — the ward breeds its own carriers. Screen your rescues, or lift the bad ones out before they spread it.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
+  "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds, and every black box you recover tightens the bearing. The projection keeps landing on the same dead patch of sky — a silence the old charts marked THE NULLWAVE, where no signal has ever come back.\n\nRecover the recorders and we'll know for certain what's down there.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
   "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\n\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
-  "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nOne more thing. Two beacons answer as MERCY on approach. One of them is lying. Count the beats, captain.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
+  "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
 ];
 
 const FRAGMENTS = [
@@ -166,7 +170,9 @@ function buildFamousMap(seed) {
 let shrines = new Set();   // Hollows shrines found this run
 let upgrades = {};
 let mercyBreach = null, mercyDamaged = false;
+let pendingBreach = null;   // a sleeper has slipped into MERCY; the alarm is armed but delayed
 let endingType = null;
+let endingFirstRun = false;   // was the Glycon layer still sealed this run? (drives the replay tease)
 let clearCards = [], revealCard = null;
 let confirmCard = null;            // S4 — a two-choice confirm (early extraction)
 let leftBehindNote = null;         // S4 — grim next-briefing line after a triage retreat
@@ -444,6 +450,14 @@ function legendRect() {   // RIGHT column, under HOW TO FLY — HUD GUIDE
 function skipRect() {
   return { x: vw - 110 - saRight, y: 12, w: 96, h: 34 };
 }
+/* Owner steer: the three reference screens (HOW TO FLY, HUD GUIDE, REPLAY STORY)
+   collapse under one HELP pill to declutter the title. This is their submenu. */
+function helpMenuRowRect(i) {
+  const w = Math.min(300, vw * 0.7), h = 44, gap = 14;
+  const total = h * 3 + gap * 2;
+  const y0 = vh / 2 - total / 2 + 10;
+  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
+}
 /* the three lower title pills are laid out from one place so they can
    never collide (on phone-height viewports they used to overlap — and the
    old remix/daily-first hit order could burn the daily attempt on a tap
@@ -667,9 +681,16 @@ function genLevel(n) {
     const y = flatten(heights, x, 80);
     lvl.oids.push(newOid(x, y, "normal"));
   }
-  // one famous Scion per campaign sector (remix shuffles who waits where)
+  // one famous Scion per campaign sector (remix shuffles who waits where).
+  // Owner steer ("move Flo to halfway so you feel the benefit"): place the
+  // famous mind near the MIDDLE of the map, not at a random edge, so its
+  // permanent upgrade is earned early enough to matter for the rest of the run.
   if (n < FINALE_IDX && lvl.oids.length) {
-    const f = lvl.oids[Math.floor(rng() * lvl.oids.length)];
+    rng();   // preserve the RNG sequence — this slot used to pick the famous index
+    const mid = W * 0.5;
+    let f = lvl.oids[0];
+    for (const o of lvl.oids)
+      if (Math.abs(o.x - mid) < Math.abs(f.x - mid)) f = o;
     f.role = "famous"; f.famousId = famousIdFor(n);
   }
   // saboteurs are extra figures, indistinguishable at a distance
@@ -747,11 +768,18 @@ function genLevel(n) {
     const x = pick(300);
     lvl.blackbox = { x, y: flatten(heights, x, 50), found: false, scanT: 0 };
   }
-  // the secret lift: a pad of ground that rings hollow, down into the Hollows
+  // the secret lift: a pad of ground that rings hollow, down into the Hollows.
+  // Owner steer: the whole Glycon layer (the Hollows, the shrines, the maker's
+  // mark) stays sealed on a FIRST run — a first playthrough tells only the clean
+  // wound/echo story. It opens once a run has been finished (veteran). This both
+  // keeps the first read uncluttered and gives the game a second, deeper pass.
   if (r.lift) {
+    // keep the pad's ground-flatten (and its RNG draw) unconditionally so the
+    // authored campaign terrain is byte-identical whether or not the Hollows are
+    // unlocked; only the usable lift itself is gated to a veteran return pass.
     const x = pick(320);
     const y = flatten(heights, x, 70);
-    lvl.lift = { x, y, cave: LIFT_CAVE[n], holdT: 0, armed: true };
+    if (veteran) lvl.lift = { x, y, cave: LIFT_CAVE[n], holdT: 0, armed: true };
   }
   // the finale's beacon — the source of the Static
   if (n === FINALE_IDX) {
@@ -762,8 +790,11 @@ function genLevel(n) {
     // between spawn and the beacon. One difference only: the real emblem
     // pulses like a pulse; the counterfeit's blinks in perfect mechanical
     // unison with the fake fuel pods. Now distrust the thing you've
-    // trusted all game.
-    lvl.fakeMercy = { x: W * 0.45, y: 170, dead: false, dockT: 0, scanT: 0 };
+    // trusted all game. Gated with the rest of the Glycon layer: a first
+    // playthrough meets only the true beacon; the counterfeit MERCY waits
+    // for the veteran return pass (see the lift gate above).
+    if (veteran)
+      lvl.fakeMercy = { x: W * 0.45, y: 170, dead: false, dockT: 0, scanT: 0 };
   }
 
   // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
@@ -866,6 +897,13 @@ function genLevel(n) {
     }
     deco("rock", 0, { verts, hollow: true, s: 1.1 });
   }
+
+  // Re-seat turrets on the FINAL heightmap. A turret pad is flattened early, but a
+  // later nearby flatten (a fuel pod / black box / lift that pick() placed close on
+  // a crowded map) can re-shape the ground under it and leave the dome below the
+  // crust — owner report: a turret sunk under Jenner's terraces. gy() reads the
+  // finished heights, so this puts every turret back exactly on the surface.
+  for (const t of lvl.turrets) t.y = gy(t.x);
 
   stars = [];
   const srng = mulberry32(999 + n + runSeed);
@@ -1023,7 +1061,7 @@ function toBriefing(n) {
   spawnShip();
   camera = { x: ship.x, y: ship.y, shake: 0 };
   particles = []; texts = [];
-  mercyBreach = null; mercyDamaged = false;
+  mercyBreach = null; mercyDamaged = false; pendingBreach = null;
   resupplyDrone = null; liftTransit = null;
   state = "brief"; stateT = 0; briefChars = 0;
   staticClock = 0; staticSurge = 0; staticGlitchT = 0;

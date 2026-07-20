@@ -54,13 +54,34 @@ test("finale sector has the beacon; campaign sectors have black boxes", async ({
 });
 
 test("secret lift descends into the Hollows", async ({ page }) => {
-  // sector 1 hides a lift; land on it and hold ~2.4s
-  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  // sector 1 hides a lift; land on it and hold ~2.4s. The Hollows are a
+  // veteran-only layer now, so unlock it first.
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
   await page.waitForFunction(() => __doids.get().inCave, null, { timeout: 6000 });
   const s = await page.evaluate(() => __doids.get());
   expect(s.inCave).toBe(true);
   expect(s.level.shrine).toBeTruthy();
   expect(s.state).toBe("play");
+});
+
+test("first playthrough seals the Glycon layer; a veteran run opens it", async ({ page }) => {
+  // fresh (non-veteran): no Hollows lifts, no counterfeit MERCY, logs cap at 10
+  for (const n of [1, 3, 5]) {
+    await page.evaluate(i => __doids.go(i), n);
+    const lift = await page.evaluate(() => __doids.get().level.lift);
+    expect(lift, "sector " + n + " lift sealed on a first run").toBeFalsy();
+  }
+  await page.evaluate(() => __doids.go(7));
+  expect(await page.evaluate(() => !!__doids.get().fakeMercy)).toBe(false);
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); for (let i = 0; i < 14; i++) grantFragment(false); });
+  expect(await page.evaluate(() => __doids.get().runFragments)).toBe(10);   // 1–10 only
+  // a veteran run unlocks the lifts, the counterfeit MERCY and all 14 logs
+  await page.evaluate(() => { __doids.setVeteran(); __doids.reset(); __doids.go(1); });
+  expect(await page.evaluate(() => !!__doids.get().level.lift)).toBe(true);
+  await page.evaluate(() => __doids.go(7));
+  expect(await page.evaluate(() => !!__doids.get().fakeMercy)).toBe(true);
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); for (let i = 0; i < 14; i++) grantFragment(false); });
+  expect(await page.evaluate(() => __doids.get().runFragments)).toBe(14);
 });
 
 test("landing evaluator and rank flags are exposed", async ({ page }) => {
@@ -265,7 +286,7 @@ test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page })
 });
 
 test("the counterfeit MERCY: docking springs the trap; the real bays still work (Bundle N)", async ({ page }) => {
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
   let s = await page.evaluate(() => __doids.get());
   expect(s.fakeMercy).toBeTruthy();
   expect(s.fakeMercy.dead).toBe(false);
@@ -289,7 +310,7 @@ test("the counterfeit MERCY: docking springs the trap; the real bays still work 
 });
 
 test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
   await page.evaluate(() => {
     level.turrets.forEach(t => { t.alive = false; });
     level.drones.forEach(d => { d.alive = false; });
@@ -393,7 +414,7 @@ test("riding the lift back up lands the ship ON the pad, not below ground", asyn
   // regression: exitCave used to restore the mid-transit Y captured after
   // the descent animation had sunk the ship ~40px into the pad, leaving the
   // ship embedded in terrain on return (it snapped to the surface on thrust)
-  await page.evaluate(() => { __doids.go(3); __doids.launch(); __doids.warpLift(); });
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(3); __doids.launch(); __doids.warpLift(); });
   await page.waitForFunction(() => __doids.get().inCave && !liftTransit, null, { timeout: 8000 });
   // the return lift spawns un-armed (you must leave the pad once) — step off, then back on
   await page.evaluate(() => { ship.x = 600; });
@@ -409,7 +430,7 @@ test("riding the lift back up lands the ship ON the pad, not below ground", asyn
 });
 
 test("lift transition fades out, swaps level, and fades back in", async ({ page }) => {
-  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
   // "black" is a full 0.3s window before the swap — safe to poll on, unlike
   // fade>0.95 which the tail of "black" and the head of "reveal" both hit
   await page.waitForFunction(() => liftTransit && liftTransit.phase === "black", null, { timeout: 6000 });
@@ -430,6 +451,20 @@ test("early sectors never pocket a Scion under interlocking turret cover", async
         g.level.turrets.filter(t => Math.hypot(t.x - o.x, t.y - o.y) < 380).length));
     });
     expect(maxCover, "sector " + n).toBeLessThanOrEqual(1);
+  }
+});
+
+test("every turret sits on the surface, not below the crust", async ({ page }) => {
+  // owner report: a turret sank under Jenner's terraces when a later flatten
+  // re-shaped the ground under its pad. genLevel re-seats turrets on the final
+  // heightmap, so every turret's base must equal the ground at its x.
+  for (let n = 0; n < 7; n++) {
+    await page.evaluate(i => __doids.go(i), n);
+    const maxGap = await page.evaluate(() => {
+      const g = __doids.get();
+      return Math.max(0, ...g.level.turrets.map(t => Math.abs(t.y - __doids.ground(t.x))));
+    });
+    expect(maxGap, "sector " + n + " turrets on the ground").toBeLessThan(0.75);
   }
 });
 
@@ -614,6 +649,9 @@ test("R1: the HOW TO FLY card paginates and never runs off a 320-high phone", as
   await page.waitForTimeout(700);
   const hr = await page.evaluate(() => window.helpRect());
   await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
+  await page.waitForTimeout(300);   // HELP is a submenu now — wait out its just-opened guard
+  const row0 = await page.evaluate(() => window.helpMenuRowRect(0));
+  await page.mouse.click(row0.x + row0.w / 2, row0.y + row0.h / 2);
   await page.waitForTimeout(120);
   expect(await page.evaluate(() => __doids.get().state)).toBe("help");
   const pages = await page.evaluate(() => HELP_CARD.pages);
@@ -638,12 +676,12 @@ test("R2: pause can't be reached from the title or an overlay; heading clears th
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" })));
   await page.waitForTimeout(40);
   expect(await page.evaluate(() => __doids.get().state)).not.toBe("pause");
-  // Escape backs out of the HOW TO FLY overlay like a tap-outside
+  // Escape backs out of the HELP submenu like a tap-outside
   await page.waitForTimeout(700);
   const hr = await page.evaluate(() => window.helpRect());
   await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
   await page.waitForTimeout(120);
-  expect(await page.evaluate(() => __doids.get().state)).toBe("help");
+  expect(await page.evaluate(() => __doids.get().state)).toBe("helpmenu");
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
   await page.waitForTimeout(60);
   expect(await page.evaluate(() => __doids.get().state)).toBe("title");
@@ -785,17 +823,21 @@ test("S5: the landed scan flags a counterfeit and verifies a real Scion without 
     level.turrets.forEach(t => { t.alive = false; });
     level.drones.forEach(d => { d.alive = false; });
     level.total = 99;   // keep the manifest open through the scan
-    const mk = role => ({ role, state: "wait", x: 600, y: __doids.ground(600),
+    level.heights.fill(1000);   // flat pad so the unit creeps in cleanly, no terrain step
+    // owner steer: the read now creeps the unit toward you — land a SAFE step away
+    // (well beyond the ~90px danger band) so the read completes before it arrives
+    const mk = role => ({ role, state: "wait", x: 740, y: 1000,
       wave: 0, persona: "wave1", scale: 1, gait: 34, panicT: 0, sabT: 0, flagged: false, verified: false });
     level.oids = [mk("saboteur")];
-    ship.x = 600; ship.y = __doids.ground(600) - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false; ship.passengers = [];
+    ship.x = 600; ship.y = 1000 - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false; ship.passengers = [];
   });
   await page.waitForFunction(() => level.oids[0].flagged === true, null, { timeout: 8000 });
   // a real Scion: the same hold verifies its heartbeat and does NOT flag it
   await page.evaluate(() => {
-    level.oids = [{ role: "normal", state: "wait", x: 600, y: __doids.ground(600),
+    level.heights.fill(1000);
+    level.oids = [{ role: "normal", state: "wait", x: 740, y: 1000,
       wave: 0, persona: "wave1", scale: 1, gait: 34, panicT: 0, sabT: 0, flagged: false, verified: false }];
-    ship.x = 600; ship.y = __doids.ground(600) - 11; ship.vx = 0; ship.vy = 0; ship.landed = true;
+    ship.x = 600; ship.y = 1000 - 11; ship.vx = 0; ship.vy = 0; ship.landed = true;
   });
   await page.waitForFunction(() => level.oids[0].verified === true, null, { timeout: 8000 });
   expect(await page.evaluate(() => !!level.oids[0].flagged)).toBe(false);
@@ -1014,8 +1056,8 @@ test("Semmelweis Deep: unscreened contagion taints the nearest un-scanned surviv
 });
 
 test("U1: the lift pad rings hollow once per touchdown and re-arms on lift-off", async ({ page }) => {
-  // sector 1 hides a lift; settle on its plate and the pad rings once
-  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  // sector 1 hides a lift; settle on its plate and the pad rings once (veteran layer)
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
   await page.waitForFunction(
     () => { const L = __doids.get().level.lift; return !!L && L.rung === true; },
     null, { timeout: 4000 });
@@ -1028,8 +1070,12 @@ test("U1: the lift pad rings hollow once per touchdown and re-arms on lift-off",
 
 test("U3: the HUD legend opens from the title and from pause, and returns", async ({ page }) => {
   await page.waitForTimeout(700);   // clear the title just-arrived guard
-  const lr = await page.evaluate(() => window.legendRect());
-  await page.mouse.click(lr.x + lr.w / 2, lr.y + lr.h / 2);
+  // HUD GUIDE lives under the HELP submenu now (its second row)
+  const hr = await page.evaluate(() => window.helpRect());
+  await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
+  await page.waitForTimeout(300);
+  const row1 = await page.evaluate(() => window.helpMenuRowRect(1));
+  await page.mouse.click(row1.x + row1.w / 2, row1.y + row1.h / 2);
   await page.waitForTimeout(120);
   expect(await page.evaluate(() => __doids.get().state)).toBe("legend");
   // page through to the end → back to the title
@@ -1189,23 +1235,27 @@ test("E3: a perfect-timed shield parry reflects a bullet back and kills its fire
   await page.evaluate(() => { input.shield = false; });
 });
 
-test("E2: a Vector throws a Scion; catching re-boards, hitting the ground loses them", async ({ page }) => {
+test("E2: a breached MERCY throws a rescued Scion; catching re-boards, hitting the ground loses them", async ({ page }) => {
   await page.evaluate(() => { __doids.go(0); __doids.launch(); });
   await page.waitForTimeout(150);
-  // the telegraphed throw completes → the Scion becomes a falling body
+  // a Vector is loose in MERCY (breached, not retrieved) and a rescued Scion is
+  // aboard her — updateMercyThrow hurls it back out of her bay as a falling body
   await page.evaluate(() => {
     const s = ship; s.dead = false; s.passengers = [];
-    const o = { role: "normal", state: "aboard", x: s.x, y: s.y, wave: 0, vx: 0, vy: 0 };
-    level.oids.push(o); s.passengers.push(o);
-    level.eject = { o, t: 0.001 };
+    mercyBreach = { t: 45, retrieved: false, wasInfected: false, ph: 0,
+                    fightT: 999, struggle: false, calmT: 0, throwT: 0.001 };
+    const o = { role: "normal", state: "delivered", x: level.mx, y: level.my, wave: 0, vx: 0, vy: 0 };
+    level.oids.push(o); level.delivered = 1;
   });
   await page.waitForTimeout(120);
   const st1 = await page.evaluate(() => {
     const o = level.oids[level.oids.length - 1];
     return { state: o.state, inPax: ship.passengers.includes(o) };
   });
-  expect(st1.state, "the Scion is thrown clear").toBe("thrown");
-  expect(st1.inPax, "and off the manifest while falling").toBe(false);
+  expect(st1.state, "the rescued Scion is thrown out of the bay").toBe("thrown");
+  expect(st1.inPax, "and not aboard the player ship while falling").toBe(false);
+  // stop the breach re-throwing while we test the catch
+  await page.evaluate(() => { mercyBreach = null; });
   // flying into the falling Scion catches them → re-boarded
   await page.evaluate(() => {
     // move well clear of MERCY's bays so a re-boarded Scion isn't instantly delivered

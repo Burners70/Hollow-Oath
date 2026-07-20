@@ -203,12 +203,14 @@ window.addEventListener("keydown", e => {
     else if (state === "title") { const sr = startRect(); input.tapX = sr.x + 1; input.tapY = sr.y + 1; }
   }
   if (e.key === "Escape" || e.key === "p" || e.key === "P") {
-    if (state === "play") { state = "pause"; stateT = 0; }
-    else if (state === "pause") { state = "play"; stateT = 0; }
-    // R2 — Escape also backs out of the overlay screens, like tapping outside;
-    // pause is only ever entered from a live run, so it can't leak in here
+    // pause now works from the text/story screens too, and resume returns to the
+    // exact screen it was entered from (enterPause/leavePause remember the page)
+    if (state === "pause") leavePause();
+    else if (typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
+    // R2 — Escape also backs out of the overlay menu screens, like tapping outside
     else if (e.key === "Escape") {
-      if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+      if (state === "helpmenu") { state = "title"; stateT = 0.5; }
+      else if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
       else if (state === "legend") { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
       else if (state === "codex") {
         if (codexCard) codexCard = null; else { state = "title"; stateT = 0.7; }
@@ -223,7 +225,10 @@ window.addEventListener("keyup", e => { if (keyFor(e) !== undefined) input[keyFo
 
 /* auto-pause when the tab/app is backgrounded — deliberate, not mid-flight */
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && state === "play") { snapshotRun(); state = "pause"; stateT = 0; }
+  // pause (and, in a live run, snapshot) whatever pausable screen you were on, so
+  // backgrounding mid-briefing / mid-card / mid-ending never loses your place
+  if (document.hidden && typeof enterPause === "function" &&
+      typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
 });
 /* E2/A4 — inside the wrapper the iOS lifecycle backs the same auto-pause.
    WKWebView does fire visibilitychange on backgrounding, but the App
@@ -234,9 +239,8 @@ if (NATIVE) {
     const A = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
     if (A && A.addListener)
       A.addListener("appStateChange", st => {
-        if (st && st.isActive === false && state === "play") {
-          snapshotRun(); state = "pause"; stateT = 0;
-        }
+        if (st && st.isActive === false && typeof enterPause === "function" &&
+            typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
       });
   } catch (e) {}
 }
@@ -260,8 +264,8 @@ function pollPad() {
   pad.shield = b(1) || b(4) || b(6);           // B / LB / LT
   const start = b(9), a = b(0);
   if (start && !padStartPrev) {
-    if (state === "play") { state = "pause"; stateT = 0; }
-    else if (state === "pause") { state = "play"; stateT = 0; }
+    if (state === "pause") leavePause();
+    else if (typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
     else input.tap = true;
   } else if (state !== "play" && state !== "pause" && a && !padAPrev) {
     input.tap = true;
