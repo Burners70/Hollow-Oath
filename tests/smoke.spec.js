@@ -454,6 +454,20 @@ test("early sectors never pocket a Scion under interlocking turret cover", async
   }
 });
 
+test("every turret sits on the surface, not below the crust", async ({ page }) => {
+  // owner report: a turret sank under Jenner's terraces when a later flatten
+  // re-shaped the ground under its pad. genLevel re-seats turrets on the final
+  // heightmap, so every turret's base must equal the ground at its x.
+  for (let n = 0; n < 7; n++) {
+    await page.evaluate(i => __doids.go(i), n);
+    const maxGap = await page.evaluate(() => {
+      const g = __doids.get();
+      return Math.max(0, ...g.level.turrets.map(t => Math.abs(t.y - __doids.ground(t.x))));
+    });
+    expect(maxGap, "sector " + n + " turrets on the ground").toBeLessThan(0.75);
+  }
+});
+
 test("the daily flight rolls exactly two distinct modifiers; other modes roll none", async ({ page }) => {
   await page.evaluate(() => __doids.daily());
   let s = await page.evaluate(() => __doids.get());

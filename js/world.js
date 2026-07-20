@@ -898,6 +898,13 @@ function genLevel(n) {
     deco("rock", 0, { verts, hollow: true, s: 1.1 });
   }
 
+  // Re-seat turrets on the FINAL heightmap. A turret pad is flattened early, but a
+  // later nearby flatten (a fuel pod / black box / lift that pick() placed close on
+  // a crowded map) can re-shape the ground under it and leave the dome below the
+  // crust — owner report: a turret sunk under Jenner's terraces. gy() reads the
+  // finished heights, so this puts every turret back exactly on the surface.
+  for (const t of lvl.turrets) t.y = gy(t.x);
+
   stars = [];
   const srng = mulberry32(999 + n + runSeed);
   for (let i = 0; i < 220; i++)
