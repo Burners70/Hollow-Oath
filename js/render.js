@@ -568,8 +568,14 @@ function drawShip(now) {
   const s = ship;
   // underground, warm cyan pools bloom from each of the ship's three points —
   // Flo's lamp burns them brighter. Drawn under the hull so the reveal reads as
-  // light leaving the ship, not a ring around it.
-  if (level.isCave && !s.dead) {
+  // light leaving the ship, not a ring around it. T6 — the same beams come on
+  // over the Nightingale Basin once night actually falls (not during the dusk
+  // ramp): drawDarkness already punches the surface disc regardless, but the
+  // beam graphic itself was Hollows-only, so the ship's own light source never
+  // showed on the surface (found on-device).
+  const nightHasFallen = !level.nightStaged || level.nightFell;
+  const beamsOn = (level.isCave || (level.dark && nightHasFallen)) && !s.dead;
+  if (beamsOn) {
     // owner steer: three noticeable BEAMS off the three points (nose + the two
     // engine corners), not one bright halo around the hull. Flo's LAMP throws
     // them further and brighter. A small emitter core marks each point.
@@ -586,8 +592,8 @@ function drawShip(now) {
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.ang);
-  // less bloom on the hull itself underground — the beams do the lighting now
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = level.isCave ? 6 : 14;
+  // less bloom on the hull itself once the beams are doing the lighting
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = beamsOn ? 6 : 14;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
   ctx.fillStyle = "rgba(0,229,255,.12)";
   ctx.beginPath();
