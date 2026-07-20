@@ -2974,21 +2974,28 @@ function drawPause(now) {
   ctx.fillText("PAUSED", vw / 2, headY);
   ctx.shadowBlur = 0;
   const labels = ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
+  // a controller has no pointer to hover, so its current row gets its own
+  // cursor — a brighter stroke plus a leading marker — instead of relying on
+  // a hover state that only touch/mouse can produce
+  const padSel = pad.connected ? padPauseSel : -1;
   for (let i = 0; i < 4; i++) {
     const r = pauseRowRect(i);
-    ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-    ctx.lineWidth = 1.5;
+    const sel = i === padSel;
+    ctx.strokeStyle = sel ? "#eaff6b" : "rgba(0,229,255,.6)";
+    ctx.shadowColor = sel ? "#eaff6b" : "#00e5ff"; ctx.shadowBlur = sel ? 14 : 8;
+    ctx.lineWidth = sel ? 2 : 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = "#7fe9ff";
+    ctx.fillStyle = sel ? "#eaff6b" : "#7fe9ff";
     ctx.font = "700 14px Menlo, monospace";
-    ctx.fillText(labels[i], vw / 2, r.y + r.h / 2 + 5);
+    ctx.fillText((sel ? "▸ " : "") + labels[i], vw / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
   // U3 — a compact link into the HUD legend
   const lg = pauseLegendRect();
-  ctx.fillStyle = "rgba(155,234,249,.7)";
+  const legendSel = padSel === 4;
+  ctx.fillStyle = legendSel ? "#eaff6b" : "rgba(155,234,249,.7)";
   ctx.font = "600 12px Menlo, monospace";
-  ctx.fillText("◎ WHAT YOU'RE LOOKING AT", vw / 2, lg.y + lg.h / 2 + 4);
+  ctx.fillText((legendSel ? "▸ " : "") + "◎ WHAT YOU'RE LOOKING AT", vw / 2, lg.y + lg.h / 2 + 4);
 }
 
 /* S4.5 — the early-extraction confirm: a two-choice card over the frozen world */

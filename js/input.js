@@ -91,10 +91,16 @@ function refreshButtonTouches(e) {
     b.el.classList.toggle("down", !!pressed[b.key]);
   }
 }
+// H5 stretch: a webpage can't disconnect a paired Bluetooth controller (no
+// such API exists) — the practical equivalent is letting a real touch bring
+// the on-screen controls straight back without unplugging anything. Reset by
+// pollPad() the instant it sees genuine controller activity.
+let lastInputWasTouch = true;
 ["touchstart", "touchmove", "touchend", "touchcancel"].forEach(ev =>
   document.addEventListener(ev, e => {
     if (ev === "touchstart") {
       initAudio();
+      lastInputWasTouch = true;
       if (e.target && e.target.classList && e.target.classList.contains("btn"))
         e.preventDefault();   // stop synthesized mouse events on the buttons
     }
@@ -249,25 +255,42 @@ if (NATIVE) {
 /* ---------------- external controller (Gamepad API) ---------------- */
 const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false };
 let padStartPrev = false, padAPrev = false;
+// pause has no pointer position to aim a tap at, unlike the title's single
+// START pill — it needs its own up/down cursor over its rows (RESUME,
+// RESTART SECTOR, SETTINGS, QUIT TO TITLE, the HUD-legend link)
+let padPauseSel = 0;
+let padUpPrev = false, padDownPrev = false;
+function pausePadRect(i) { return i < 4 ? pauseRowRect(i) : pauseLegendRect(); }
 function pollPad() {
   pad.left = pad.right = pad.thrust = pad.fire = pad.shield = false;
   const gps = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = null;
   for (const g of gps) if (g && g.connected) { gp = g; break; }
   pad.connected = !!gp;
-  if (!gp) { padStartPrev = padAPrev = false; return; }
+  if (!gp) { padStartPrev = padAPrev = padUpPrev = padDownPrev = false; return; }
   const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
-  const ax = gp.axes[0] || 0;
+  const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
   pad.left   = ax < -0.35 || b(14);
   pad.right  = ax >  0.35 || b(15);
   pad.thrust = b(0) || b(7) || b(12);          // A / RT / d-pad up
   pad.fire   = b(2) || b(5);                   // X / RB
   pad.shield = b(1) || b(4) || b(6);           // B / LB / LT
   const start = b(9), a = b(0);
+  if (pad.left || pad.right || pad.thrust || pad.fire || pad.shield || start)
+    lastInputWasTouch = false;   // genuine controller activity reclaims the on-screen controls' hiding
+  if (state === "pause") {
+    const up = b(12) || ay < -0.5, down = b(13) || ay > 0.5;
+    if (up && !padUpPrev) { padPauseSel = (padPauseSel + 4) % 5; blip(440, 660, 0.08, "sine", 0.06); }
+    else if (down && !padDownPrev) { padPauseSel = (padPauseSel + 1) % 5; blip(440, 660, 0.08, "sine", 0.06); }
+    padUpPrev = up; padDownPrev = down;
+  }
   if (start && !padStartPrev) {
     if (state === "pause") leavePause();
     else if (typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
     else input.tap = true;
+  } else if (state === "pause" && a && !padAPrev) {
+    const r = pausePadRect(padPauseSel);
+    input.tap = true; input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
   } else if (state !== "play" && state !== "pause" && a && !padAPrev) {
     input.tap = true;
     // gamepad A on the title aims at the START pill (R5), matching Enter

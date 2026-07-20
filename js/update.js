@@ -405,8 +405,11 @@ function updateVectorStruggle(dt) {
 let ctlShown = null;
 function updateCtlVisibility() {
   // virtual controls exist only in flight — not on the title, intro,
-  // briefings, or story cards — and hide the instant a gamepad is active
-  const want = (state === "play" || state === "dead") && !pad.connected;
+  // briefings, or story cards — and hide the instant a gamepad is active,
+  // unless the player just touched the screen (lastInputWasTouch): a real
+  // "disconnect the controller" isn't possible from a webpage, so touching
+  // the screen is the escape hatch back to on-screen controls (H5 stretch)
+  const want = (state === "play" || state === "dead") && (!pad.connected || lastInputWasTouch);
   if (want === ctlShown) return;
   ctlShown = want;
   document.body.classList.toggle("noctl", !want);
@@ -709,6 +712,7 @@ function enterPause() {
   if (state === "play") snapshotRun();
   pauseReturnState = state; pauseReturnT = stateT;
   state = "pause"; stateT = 0;
+  padPauseSel = 0;
 }
 function leavePause() { state = pauseReturnState || "play"; stateT = pauseReturnT || 0; }
 
