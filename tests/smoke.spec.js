@@ -1282,3 +1282,33 @@ test("E1: a breach must be RETRIEVED at recovery before it can be sealed at isol
   const sealed = await page.evaluate(() => __doids.get().mercyBreach);
   expect(sealed, "retrieved Vector sealed at isolation clears the breach").toBeNull();
 });
+
+test("E4: an infected Scion is CURED at isolation; a born Vector is only sealed", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(120);
+  // pin the ship in the RED isolation bay for both drop-offs
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      const b = bayRects().red;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+    }, 16);
+  });
+  // an infected Scion (turned by the ward) → treated and cured = a save
+  await page.evaluate(() => {
+    const o = { role: "saboteur", infected: true, state: "aboard", x: ship.x, y: ship.y, wave: 0, sabT: 99 };
+    level.oids.push(o); ship.passengers = [o];
+  });
+  await page.waitForTimeout(700);
+  const cured = await page.evaluate(() => level.oids[level.oids.length - 1].state);
+  expect(cured, "an infected Scion is cured (delivered), not just contained").toBe("delivered");
+  // a BORN Vector → sealed/contained, never cured
+  await page.evaluate(() => {
+    const o = { role: "saboteur", state: "aboard", x: ship.x, y: ship.y, wave: 0, sabT: 99 };
+    level.oids.push(o); ship.passengers = [o];
+  });
+  await page.waitForTimeout(700);
+  const sealed = await page.evaluate(() => level.oids[level.oids.length - 1].state);
+  await page.evaluate(() => clearInterval(window.__pin));
+  expect(sealed, "a born Vector is sealed, never cured").toBe("contained");
+});

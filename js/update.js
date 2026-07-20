@@ -1400,7 +1400,9 @@ function updateContagion(dt) {
         t: 0.7, max: 0.7, color: "#6f9f7f", size: 1 });
     if (src.contagT >= CONTAGION_T) {
       src.contagT = -4;   // a cooldown before this carrier can seed again
-      best.role = "saboteur"; best.sleeper = true; best.contagT = 0;
+      // E4 — `infected` marks a Scion turned by the ward (curable), distinct from
+      // a BORN Vector (even a born sleeper). Only the infected can be cured.
+      best.role = "saboteur"; best.sleeper = true; best.infected = true; best.contagT = 0;
       staticTick();
       for (let k = 0; k < 10; k++)
         particles.push({ x: best.x, y: best.y - 12,
@@ -1621,19 +1623,40 @@ function updateDocking(dt) {
     if (sab && s.redDockT > 0.35) {
       s.redDockT = 0;
       s.passengers.splice(s.passengers.indexOf(sab), 1);
-      sab.state = "contained";
-      level.contained++; // accounted for, but not a casualty
       score += 750;
-      addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", "#ff4081");
-      // B3 — the isolation airlock: heavy metal gates slam shut. Silent spark
-      // (gateSlam carries the impact) + a heavy haptic for sound-off play (B4).
-      explode(level.mx + 65, level.my + 60, "#ff4081", 14, true);
-      gateSlam(); haptic.heavy();
+      if (sab.infected) {
+        // E4 — an infected Scion, not a born Vector: isolation TREATS and cures
+        // it, so it counts as a rescue rather than a sealed contaminant.
+        sab.state = "delivered"; level.delivered++; runSaved++;
+        addText(level.mx, level.my + 40, "INFECTED SCION CURED +750", "#69f0ae");
+        explode(level.mx + 65, level.my + 60, "#69f0ae", 16, true);
+        gateSlam(); heartbeat(); haptic.medium();
+      } else {
+        sab.state = "contained";
+        level.contained++; // accounted for, but not a casualty
+        addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", "#ff4081");
+        // B3 — the isolation airlock: heavy metal gates slam shut. Silent spark
+        // (gateSlam carries the impact) + a heavy haptic for sound-off play (B4).
+        explode(level.mx + 65, level.my + 60, "#ff4081", 14, true);
+        gateSlam(); haptic.heavy();
+      }
       checkSectorClear();
     }
     if (mercyBreach && mercyBreach.retrieved) {
       s.breachDockT += dt;
-      if (s.breachDockT > 2) { s.breachDockT = 0; resolveBreach(true); }
+      if (s.breachDockT > 2) {
+        s.breachDockT = 0;
+        if (mercyBreach.wasInfected) {
+          // E4 — the retrieved unit was an infected Scion: cure it. Reclassify
+          // from contained (counted at the breach) to a genuine save.
+          level.contained = Math.max(0, level.contained - 1); level.delivered++; runSaved++;
+          score += 750; mercyBreach = null;
+          banner("INFECTED SCION CURED IN ISOLATION  +750\nRETURNED TO THE MANIFEST", "#69f0ae");
+          blip(520, 1040, 0.3, "sine", 0.15); heartbeat(); haptic.medium();
+        } else {
+          resolveBreach(true); gateSlam(); haptic.heavy();
+        }
+      }
     } else s.breachDockT = 0;   // nothing to seal until it's been retrieved (E1)
   } else { s.breachDockT = 0; s.redDockT = 0; }
 }
