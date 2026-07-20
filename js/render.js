@@ -1897,7 +1897,14 @@ function drawHUD(now) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
     ctx.font = "800 14px Menlo, monospace";
-    ctx.fillText("⚠ BREACH — SEAL IN THE RED BAY " + Math.ceil(mercyBreach.t) + "s", vw / 2, topPad + 44);
+    // E1 — two-step: retrieve at the recovery bay (timed), then ferry it to
+    // isolation. Once retrieved the timer stops; the struggle is the pressure.
+    const msg = !mercyBreach.retrieved
+      ? "⚠ BREACH — RETRIEVE AT THE RECOVERY BAY " + Math.ceil(mercyBreach.t) + "s"
+      : mercyBreach.struggle
+        ? "⚠ IT'S FIGHTING — LET GO OF THE CONTROLS"
+        : "⚠ CARRY IT TO THE RED ISOLATION BAY";
+    ctx.fillText(msg, vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if (level.extraction && !level.extraction.done && state === "play" && Math.sin(now * 5) > -0.3) {
     ctx.textAlign = "center";

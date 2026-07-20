@@ -1232,3 +1232,53 @@ test("E2: a Vector throws a Scion; catching re-boards, hitting the ground loses 
   const st3 = await page.evaluate(() => level.oids[level.oids.length - 1].state);
   expect(st3, "a thrown Scion that lands is lost").toBe("lost");
 });
+
+test("E1: a breach must be RETRIEVED at recovery before it can be sealed at isolation", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.waitForTimeout(120);
+  await page.evaluate(() => { triggerBreach(false); });
+  // parking at the RED bay before retrieving does NOT seal it
+  await page.evaluate(() => {
+    window.__pin = setInterval(() => {
+      const b = bayRects().red;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+      input.left = false; input.right = false;
+    }, 16);
+  });
+  await page.waitForTimeout(2500);
+  const stillBreached = await page.evaluate(() => {
+    const b = __doids.get().mercyBreach;
+    return b && !b.retrieved;
+  });
+  expect(stillBreached, "can't seal what hasn't been retrieved").toBe(true);
+  // retrieve at the RECOVERY bay
+  await page.evaluate(() => {
+    clearInterval(window.__pin);
+    window.__pin = setInterval(() => {
+      const b = bayRects().med;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+    }, 16);
+  });
+  await page.waitForTimeout(900);
+  const retrieved = await page.evaluate(() => {
+    const b = __doids.get().mercyBreach;
+    return b && b.retrieved;
+  });
+  expect(retrieved, "docking recovery retrieves the loose Vector").toBe(true);
+  // now ferry to the RED isolation bay and hold → sealed
+  await page.evaluate(() => {
+    clearInterval(window.__pin);
+    window.__pin = setInterval(() => {
+      const b = bayRects().red;
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2;
+      ship.vx = 0; ship.vy = 0; ship.dead = false;
+      input.left = false; input.right = false;
+    }, 16);
+  });
+  await page.waitForTimeout(2600);
+  await page.evaluate(() => clearInterval(window.__pin));
+  const sealed = await page.evaluate(() => __doids.get().mercyBreach);
+  expect(sealed, "retrieved Vector sealed at isolation clears the breach").toBeNull();
+});

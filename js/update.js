@@ -10,6 +10,9 @@ let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: seconds after the shield snaps up in which a hit reflects
 const EJECT_WARN = 1.6;    // E2: telegraph before a loose Vector hurls a Scion out
+const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
+const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
+const RESTRAIN_HOLD = 0.6; // E1: release steering this long to restrain it and regain control
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
@@ -324,11 +327,15 @@ function updateConfirm() {
   input.tap = false;
 }
 
-function triggerBreach() {
-  mercyBreach = { t: easyMode ? 60 : 45 };
+function triggerBreach(infected) {
+  // E1 — the breach is now a two-dock recovery: RETRIEVE it back onto your ship
+  // at the recovery bay, then ferry it (it fights you) to the red isolation bay.
+  // retrieved gates the seal; ph/fightT/struggle drive the control-fight jeopardy.
+  mercyBreach = { t: easyMode ? 60 : 45, retrieved: false, wasInfected: !!infected,
+                  ph: 0, fightT: STRUGGLE_GAP, struggle: false, calmT: 0 };
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 250, style: "heavy" }]);   // klaxon ×2 (F2)
   level.contamKnown = true;
-  banner("UNSCREENED UNIT LOOSE IN THE RECOVERY BAY\nDOCK AT THE RED ISOLATION BAY TO SEAL IT IN", "#ff4081");
+  banner("UNSCREENED UNIT LOOSE ON MERCY\nDOCK THE RECOVERY BAY TO RETRIEVE IT, THEN THE RED BAY", "#ff4081");
   blip(880, 220, 0.6, "sawtooth", 0.2);
 }
 
@@ -343,6 +350,39 @@ function resolveBreach(success) {
     mercyDamaged = true;
     banner("RECOVERY BAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", "#ff4081");
     blip(300, 60, 0.6, "sawtooth", 0.2);
+  }
+}
+
+/* E1 — once a breached Vector is retrieved aboard for transport, it periodically
+   fights for the controls: an erratic left/right yaw wrenches the ship. The only
+   way to restrain it is to LET GO of steering for a moment, then it settles until
+   the next bout. Runs only while breached + retrieved (see updatePlay). */
+function updateVectorStruggle(dt) {
+  const b = mercyBreach, s = ship;
+  if (!b || !b.retrieved || s.dead || state !== "play") return;
+  b.ph += dt;
+  const steering = input.left || input.right || pad.left || pad.right;
+  if (!b.struggle) {
+    b.fightT -= dt;
+    if (b.fightT <= 0) {
+      b.struggle = true; b.calmT = 0;
+      banner("IT'S FIGHTING FOR THE CONTROLS — LET GO TO RESTRAIN IT", PAL().DANGER);
+      sabotageFlash = 0.6; haptic.heavy(); sabHiss();
+    }
+  } else {
+    // the Vector wrenches the stick — an erratic yaw that fights your hand
+    s.ang += (Math.sin(b.ph * 13) * 0.7 + (Math.random() - 0.5) * 0.7) * STRUGGLE_YAW * dt;
+    if (steering) {
+      b.calmT = 0;   // fighting back for the stick only prolongs the struggle
+    } else {
+      b.calmT += dt;
+      if (b.calmT >= RESTRAIN_HOLD) {
+        b.struggle = false;
+        b.fightT = STRUGGLE_GAP + Math.random() * 3;
+        addText(s.x, s.y - 34, "RESTRAINED", "#69f0ae");
+        haptic.light();
+      }
+    }
   }
 }
 
@@ -857,8 +897,14 @@ function updatePlay(dt) {
   if (level.fakeMercy) updateDecoy(dt);
 
   if (mercyBreach) {
-    mercyBreach.t -= dt;
-    if (mercyBreach.t <= 0) resolveBreach(false);
+    // the "loose on MERCY" clock only runs until you retrieve it; once it's in
+    // your custody the pressure is the control-fight, not the timer (E1).
+    if (!mercyBreach.retrieved) {
+      mercyBreach.t -= dt;
+      if (mercyBreach.t <= 0) resolveBreach(false);
+    } else {
+      updateVectorStruggle(dt);
+    }
   }
 
   if (level.extraction && state === "play") updateExtraction(dt);
@@ -1498,6 +1544,20 @@ function updateDocking(dt) {
   const bays = bayRects();
 
   if (inBay(bays.med)) {
+    // E1 — a breached Vector is retrieved back aboard here for transport to the
+    // red isolation bay (the two bays share no internal access). No heal/deliver
+    // while you're doing it.
+    if (mercyBreach && !mercyBreach.retrieved) {
+      s.dockT += dt;
+      if (s.dockT > 0.5) {
+        s.dockT = 0;
+        mercyBreach.retrieved = true;
+        mercyBreach.fightT = STRUGGLE_GAP;
+        banner("VECTOR RETRIEVED — CARRY IT TO THE RED ISOLATION BAY\nIT WILL FIGHT YOU — LET GO OF THE CONTROLS TO RESTRAIN IT", "#ffc400");
+        blip(520, 300, 0.25, "square", 0.12); haptic.medium();
+      }
+      return;
+    }
     if (!mercyBreach) {
       s.fuel = Math.min(maxFuel(), s.fuel + 30 * dt);
       if (!mercyDamaged) {
@@ -1550,7 +1610,7 @@ function updateDocking(dt) {
         s.passengers.splice(s.passengers.indexOf(sab), 1);
         sab.state = "escaped";
         level.contained++; // off the manifest either way
-        triggerBreach();
+        triggerBreach(sab.infected);   // remember if it was a cured-able infected Scion (E4)
       }
     }
   } else { s.dockT = 0; s.escapeT = 0; }
@@ -1571,10 +1631,10 @@ function updateDocking(dt) {
       gateSlam(); haptic.heavy();
       checkSectorClear();
     }
-    if (mercyBreach) {
+    if (mercyBreach && mercyBreach.retrieved) {
       s.breachDockT += dt;
       if (s.breachDockT > 2) { s.breachDockT = 0; resolveBreach(true); }
-    }
+    } else s.breachDockT = 0;   // nothing to seal until it's been retrieved (E1)
   } else { s.breachDockT = 0; s.redDockT = 0; }
 }
 
