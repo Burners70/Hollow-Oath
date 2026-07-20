@@ -1126,3 +1126,14 @@ test("U2: the field refueller costs points, delivers less each time, never soft-
     Math.max(35, Math.round(__doids.get().maxFuel * Math.pow(0.9, __doids.get().runRefuels))));
   expect(cap2).toBeLessThanOrEqual(cap1);
 });
+
+test("A6: log reveal cards break one sentence per line, ellipses intact", async ({ page }) => {
+  // LOG 02 is four short sentences — each should get its own line.
+  const log2 = await page.evaluate(() => __doids.logCardBody(1));
+  expect(log2.split("\n").length).toBe(4);
+  expect(log2).toContain("Forty-one seconds.\nAlways forty-one seconds.");
+  // LOG 06 has an ellipsis mid-sentence; it must NOT split there.
+  const log6 = await page.evaluate(() => __doids.logCardBody(5));
+  expect(log6).toContain("matches... us.");
+  expect(log6).not.toContain("matches...\nus");
+});

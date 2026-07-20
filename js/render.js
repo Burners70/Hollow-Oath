@@ -2147,7 +2147,11 @@ function archiveCardFor(idx) {
   if (idx < FRAGMENTS.length) {
     return { kicker: "SIGNAL ARCHIVE · LOG " + String(idx + 1).padStart(2, "0"),
       title: "", subtitle: "",
-      body: FRAGMENTS[idx].replace(/^LOG \d+ \/\/ /, ""), color: "#b388ff", page: 0 };
+      // one sentence per line for emphasis — break after . ! ? that end a
+      // sentence (a space + a capital or quote follows), so "matches... us."
+      // and other ellipses stay intact. wrapText still wraps long sentences.
+      body: FRAGMENTS[idx].replace(/^LOG \d+ \/\/ /, "")
+        .replace(/([.!?]) (?=[A-Z"“'])/g, "$1\n"), color: "#b388ff", page: 0 };
   }
   const c = SHRINES[idx - FRAGMENTS.length];
   return { kicker: c.kicker, title: c.title, subtitle: "", body: c.body, color: c.color, page: 0 };
@@ -2962,6 +2966,7 @@ window.__doids = {
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
+  logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body
   give: k => { upgrades[k] = true; },
   strand: () => { ship.x = level.W / 2; ship.y = groundAt(ship.x) - SHIP_R;
     ship.landed = true; ship.vx = ship.vy = 0; ship.fuel = 0; },
