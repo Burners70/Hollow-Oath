@@ -62,12 +62,7 @@ Two options, both under the limit:
 
 Recommendation: **`Fly gentle. Trust nothing.`**
 
-### Description — two opening-paragraph variants
-
-Pick one (or the tone can vary by paragraph — literary open, punchy features
-list beneath either works).
-
-**Variant A — Moody/literary**
+### Description — opening (decided: moody/literary)
 
 > Something calls every 41 seconds. It has been calling since AMS MERCY went
 > dark over the outer systems, and the medics who answer it stop being
@@ -78,16 +73,7 @@ list beneath either works).
 > what you find on the ground wants to be found. Not all of it should be
 > trusted.
 
-**Variant B — Punchy/arcade**
-
-> Thrust. Land soft. Get them home. Hollow Oath is a gravity-rescue game
-> with a working heartbeat — literally: feel it through haptics as you fly.
->
-> Seven sectors. Real physics, no auto-pilot. A rescue score that punishes
-> panic and rewards care. And a secret worth finding in the caves below,
-> if you're brave enough to land there.
-
-**Body copy (works after either opening):**
+**Body copy (follows the opening above):**
 
 > Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over
 > hand-seeded terrain, land gently near stranded medical androids, and
