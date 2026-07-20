@@ -635,6 +635,9 @@ test("R1: the HOW TO FLY card paginates and never runs off a 320-high phone", as
   await page.waitForTimeout(700);
   const hr = await page.evaluate(() => window.helpRect());
   await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
+  await page.waitForTimeout(300);   // HELP is a submenu now — wait out its just-opened guard
+  const row0 = await page.evaluate(() => window.helpMenuRowRect(0));
+  await page.mouse.click(row0.x + row0.w / 2, row0.y + row0.h / 2);
   await page.waitForTimeout(120);
   expect(await page.evaluate(() => __doids.get().state)).toBe("help");
   const pages = await page.evaluate(() => HELP_CARD.pages);
@@ -659,12 +662,12 @@ test("R2: pause can't be reached from the title or an overlay; heading clears th
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" })));
   await page.waitForTimeout(40);
   expect(await page.evaluate(() => __doids.get().state)).not.toBe("pause");
-  // Escape backs out of the HOW TO FLY overlay like a tap-outside
+  // Escape backs out of the HELP submenu like a tap-outside
   await page.waitForTimeout(700);
   const hr = await page.evaluate(() => window.helpRect());
   await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
   await page.waitForTimeout(120);
-  expect(await page.evaluate(() => __doids.get().state)).toBe("help");
+  expect(await page.evaluate(() => __doids.get().state)).toBe("helpmenu");
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
   await page.waitForTimeout(60);
   expect(await page.evaluate(() => __doids.get().state)).toBe("title");
@@ -1053,8 +1056,12 @@ test("U1: the lift pad rings hollow once per touchdown and re-arms on lift-off",
 
 test("U3: the HUD legend opens from the title and from pause, and returns", async ({ page }) => {
   await page.waitForTimeout(700);   // clear the title just-arrived guard
-  const lr = await page.evaluate(() => window.legendRect());
-  await page.mouse.click(lr.x + lr.w / 2, lr.y + lr.h / 2);
+  // HUD GUIDE lives under the HELP submenu now (its second row)
+  const hr = await page.evaluate(() => window.helpRect());
+  await page.mouse.click(hr.x + hr.w / 2, hr.y + hr.h / 2);
+  await page.waitForTimeout(300);
+  const row1 = await page.evaluate(() => window.helpMenuRowRect(1));
+  await page.mouse.click(row1.x + row1.w / 2, row1.y + row1.h / 2);
   await page.waitForTimeout(120);
   expect(await page.evaluate(() => __doids.get().state)).toBe("legend");
   // page through to the end → back to the title

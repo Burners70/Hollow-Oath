@@ -10,7 +10,6 @@ let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: FIELD MEDIC parry window (forgiving)
 const PARRY_WINDOW_STRICT = 0.09; // E3: the default, stricter window — a real timing test
-const EJECT_WARN = 1.6;    // E2: telegraph before a loose Vector hurls a Scion out
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
 const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
@@ -475,6 +474,7 @@ function update(dt) {
         } else { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
       }
       input.tap = false; return;
+    case "helpmenu": updateHelpMenu(); return;
     case "codex": updateCodex(); return;
     case "brief": updateBrief(dt); return;
     case "reveal":
@@ -560,23 +560,13 @@ function updateMenu() {
       settingsReturnState = "title"; state = "settings"; stateT = 0;
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(helpRect(), input.tapX, input.tapY)) {
-      state = "help"; stateT = 0; HELP_CARD.page = 0;
-      blip(440, 660, 0.1, "sine", 0.08);
-    } else if (state === "title" && inRect(legendRect(), input.tapX, input.tapY)) {
-      state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "title";
+      // the three reference screens now live under one HELP submenu (declutter)
+      state = "helpmenu"; stateT = 0;
       blip(440, 660, 0.1, "sine", 0.08);
     } else if (state === "title" && inRect(codexRect(), input.tapX, input.tapY)) {
       state = "codex"; stateT = 0;
       codexTab = 0; archivePage = 0; mindsPage = 0; codexCard = null;
       blip(550, 825, 0.1, "sine", 0.08);
-    } else if (state === "title" && inRect(storyRect(), input.tapX, input.tapY)) {
-      // rewatch the opening narrative (it flows into a new run)
-      goFullscreen();
-      if (window.hideA2HS) window.hideA2HS();
-      resetRun();
-      introIdx = 0;
-      state = "intro"; stateT = 0;
-      blip(330, 660, 0.2, "sine", 0.1);
     } else if (state === "title" && savedRun && inRect(resumeRect(), input.tapX, input.tapY)) {
       goFullscreen();
       if (window.hideA2HS) window.hideA2HS();
@@ -617,6 +607,28 @@ function updateMenu() {
       startFreshRun();
     }
     // a title tap that hit no pill now does nothing (R5)
+  }
+  input.tap = false;
+}
+
+/* the HELP submenu — the three reference screens, one tap away from the title */
+function updateHelpMenu() {
+  if (input.tap && stateT > 0.25) {
+    if (inRect(helpMenuRowRect(0), input.tapX, input.tapY)) {
+      state = "help"; stateT = 0; HELP_CARD.page = 0; blip(440, 660, 0.1, "sine", 0.08);
+    } else if (inRect(helpMenuRowRect(1), input.tapX, input.tapY)) {
+      state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "title";
+      blip(440, 660, 0.1, "sine", 0.08);
+    } else if (inRect(helpMenuRowRect(2), input.tapX, input.tapY)) {
+      // replay the opening narrative (it flows into a new run)
+      goFullscreen();
+      if (window.hideA2HS) window.hideA2HS();
+      resetRun();
+      introIdx = 0; state = "intro"; stateT = 0;
+      blip(330, 660, 0.2, "sine", 0.1);
+    } else {
+      state = "title"; stateT = 0.5;   // tap outside → back to the title
+    }
   }
   input.tap = false;
 }
@@ -2237,8 +2249,9 @@ function resolveBeacon(how) {
   const b = level.beacon;
   b.resolved = true;
   endingType = how;
+  endingFirstRun = !veteran;   // capture BEFORE markVeteran — did this run have the Glycon layer sealed?
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
-  markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2)
+  markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
   if (how === "fire") {
     score += 3000;
     explode(b.x, b.y - 40, "#b388ff", 80);

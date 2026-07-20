@@ -34,6 +34,26 @@ function drawGlow(x, y, r, color, alpha) {
   ctx.drawImage(sp, x - rr, y - rr);
   if (alpha !== undefined) ctx.restore();
 }
+/* a soft directional beam (a fading cone) from an origin along `ang`. Used by
+   the Hollows lamp so the ship's light reads as distinct beams off its three
+   points, not one flat halo. `rgb` is an "r,g,b" string. */
+function drawLightBeam(ox, oy, ang, len, halfW, rgb, alpha) {
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.rotate(ang);
+  const g = ctx.createLinearGradient(0, 0, len, 0);
+  g.addColorStop(0, "rgba(" + rgb + "," + alpha.toFixed(2) + ")");
+  g.addColorStop(1, "rgba(" + rgb + ",0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, -halfW * 0.35);
+  ctx.lineTo(len, -halfW);
+  ctx.lineTo(len, halfW);
+  ctx.lineTo(0, halfW * 0.35);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
 /* Call after building a path (beginPath/moveTo/lineTo…) with no ctx.stroke()
    of your own yet — leaves strokeStyle/lineWidth set to the crisp values so
    a caller can keep stroking or filling the same path afterward. */
@@ -72,6 +92,7 @@ function render() {
       state === "pause" || state === "confirm") drawHUD(now);
 
   if (state === "title") drawTitle(now);
+  if (state === "helpmenu") drawHelpMenu(now);
   if (state === "help") drawCardPanel(HELP_CARD, now);
   if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
@@ -549,16 +570,24 @@ function drawShip(now) {
   // Flo's lamp burns them brighter. Drawn under the hull so the reveal reads as
   // light leaving the ship, not a ring around it.
   if (level.isCave && !s.dead) {
+    // owner steer: three noticeable BEAMS off the three points (nose + the two
+    // engine corners), not one bright halo around the hull. Flo's LAMP throws
+    // them further and brighter. A small emitter core marks each point.
     const lamp = upgrades.lamp;
-    for (const [px, py] of shipGlowPoints()) {
-      drawGlow(px, py, lamp ? 42 : 30, "#00e5ff", lamp ? 0.55 : 0.4);   // halo
-      drawGlow(px, py, lamp ? 15 : 11, "#aef4ff", lamp ? 0.75 : 0.55);  // bright core
+    const rgb = "174,244,255";                       // #aef4ff
+    const len = lamp ? 210 : 132, hw = lamp ? 30 : 20, al = lamp ? 0.5 : 0.32;
+    const pts = shipGlowPoints();
+    const dirs = [-Math.PI / 2, Math.atan2(0.85, -0.6), Math.atan2(0.85, 0.6)];
+    for (let i = 0; i < 3; i++) {
+      drawLightBeam(pts[i][0], pts[i][1], s.ang + dirs[i], len, hw, rgb, al);
+      drawGlow(pts[i][0], pts[i][1], lamp ? 10 : 8, "#aef4ff", 0.7);   // bright emitter core
     }
   }
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.ang);
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
+  // less bloom on the hull itself underground — the beams do the lighting now
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = level.isCave ? 6 : 14;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
   ctx.fillStyle = "rgba(0,229,255,.12)";
   ctx.beginPath();
@@ -591,8 +620,16 @@ function drawShip(now) {
     ctx.textAlign = "center";
     ctx.font = "700 10px Menlo, monospace";
     if (level.isCave) {
-      ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 8;
+      // owner steer: the copy was unreadable against the dark rock — lay a dark
+      // plate behind it and brighten the text so it reads at a glance
+      const w1 = ctx.measureText("SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT").width;
+      ctx.save();
+      ctx.fillStyle = "rgba(4,4,10,.8)";
+      ctx.fillRect(s.x - w1 / 2 - 8, s.y - 62, w1 + 16, 30);
+      ctx.restore();
+      ctx.fillStyle = "#ff6b8f"; ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
       ctx.fillText("SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT", s.x, s.y - 52);
+      ctx.fillStyle = "#ffd54f";
       ctx.fillText("HOLD THRUST TO SCUTTLE", s.x, s.y - 40);
       ctx.shadowBlur = 0;
       if (s.scuttleT > 0) {
@@ -1180,6 +1217,29 @@ function drawBuilding(sc, now, ruined) {
   ctx.restore();
 }
 
+/* owner steer (Jenner terraces): a wreck is buried by clipping at its ground
+   line, but where the land drops away beside it the clipped underside used to
+   float as an invisible edge. Draw a jagged TORN edge along that line so the
+   hull always reads as a broken wreck, buried or jutting out over a drop. The
+   zigzag is seeded by the wreck's x so it never jitters frame to frame. */
+function tornHullEdge(sc, halfW, rgb) {
+  ctx.save();
+  ctx.translate(sc.x, sc.y);
+  ctx.rotate(sc.tilt);
+  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
+  let r = Math.floor(sc.x) | 1;
+  const rnd = () => { r = (r * 1103515245 + 12345) & 0x7fffffff; return r / 0x7fffffff; };
+  ctx.beginPath();
+  let x = -halfW;
+  ctx.moveTo(x, 5);
+  while (x < halfW) {
+    x += 5 + rnd() * 7;
+    ctx.lineTo(Math.min(x, halfW), 5 - rnd() * 7);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* a MERCY-class sister, down and half-dark — her emblem still flickers */
 function drawWreckM(sc, now) {
   ctx.save();
@@ -1215,6 +1275,7 @@ function drawWreckM(sc, now) {
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
   ctx.restore();
+  tornHullEdge(sc, 92, "0,229,255");   // broken underside along the land line
   if (Math.random() < 0.006) particles.push({
     x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
     t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
@@ -1243,6 +1304,7 @@ function drawWreckS(sc, now) {
   ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
+  tornHullEdge(sc, 12, "0,229,255");   // broken underside along the land line
   // scorch trail where it came down
   ctx.strokeStyle = "rgba(30,20,50,.9)"; ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1416,6 +1478,23 @@ function mercyHullPath() {
   ctx.lineTo(95, 20); ctx.lineTo(-95, 20);
   ctx.closePath();
 }
+/* the big dorsal antenna mast on the command tower — AMS MERCY's signature, and
+   the tell that lets the nullwave transmitter read as a sister ship of the same
+   class when it surfaces. `rgb` is an "r,g,b" string; `lit` gives a live blink. */
+function mercyAntenna(now, rgb, lit) {
+  ctx.save();
+  ctx.strokeStyle = "rgb(" + rgb + ")"; ctx.lineWidth = 2; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, -50); ctx.lineTo(0, -104);      // the mast, up off the command tower
+  ctx.moveTo(-9, -90); ctx.lineTo(9, -90);      // cross-spars
+  ctx.moveTo(-6, -78); ctx.lineTo(6, -78);
+  ctx.stroke();
+  const bl = lit ? 0.45 + 0.55 * Math.abs(Math.sin(now * 3)) : 0.55;
+  ctx.globalAlpha = bl;
+  ctx.fillStyle = "rgb(" + rgb + ")"; ctx.shadowColor = "rgb(" + rgb + ")"; ctx.shadowBlur = 10 * bl;
+  ctx.beginPath(); ctx.arc(0, -108, 3.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
 /* panel-seam greebles along the hull flanks — cheap surface detail */
 function mercyGreebles(color) {
   ctx.strokeStyle = color; ctx.lineWidth = 1;
@@ -1488,6 +1567,7 @@ function drawMothership(now) {
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
   drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.restore();
+  mercyAntenna(now, "0,229,255", true);   // her signature mast
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillStyle = "#9beaf9";
   ctx.font = "700 10px Menlo, monospace";
@@ -1711,6 +1791,7 @@ function drawDecoyMercy(now) {
   ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * alpha + 6;
   drawAsclepius(36, "rgba(255,23,68," + alpha.toFixed(2) + ")");
   ctx.restore();
+  mercyAntenna(now, "0,229,255", true);   // the same signature mast — the lie is total
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillStyle = "#9beaf9";
   ctx.font = "700 10px Menlo, monospace";
@@ -1750,39 +1831,64 @@ function drawBeacon(now) {
   const b = level.beacon;
   ctx.save();
   ctx.translate(b.x, b.y);
-  const col = b.resolved ? "#69f0ae" : "#b388ff";
-  ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 14;
+  // Owner steer: the Static's source is the top of a half-buried ship breaking
+  // the nullwave ridge — and it carries AMS MERCY's own big antenna. On the
+  // ANSWER it lights MERCY-cyan and gives up its name: her lost sister, SOLACE.
+  const answered = b.resolved && endingType === "answered";
+  const col = answered ? "0,229,255" : "179,136,255";
+  ctx.strokeStyle = "rgb(" + col + ")"; ctx.shadowColor = "rgb(" + col + ")"; ctx.shadowBlur = 14;
   ctx.lineWidth = 2.5;
+  ctx.fillStyle = answered ? "rgba(0,40,60,.6)" : "rgba(18,10,38,.78)";
+  // command tower + shoulders, rising out of the ground line
   ctx.beginPath();
-  ctx.moveTo(-14, 0); ctx.lineTo(-4, -56); ctx.lineTo(4, -56); ctx.lineTo(14, 0);
-  ctx.moveTo(-9, -20); ctx.lineTo(9, -20);
-  ctx.moveTo(-6, -40); ctx.lineTo(6, -40);
-  ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, -62, 4, 0, 7); ctx.stroke();
+  ctx.moveTo(-50, 6); ctx.lineTo(-40, -22); ctx.lineTo(-26, -50);
+  ctx.lineTo(26, -50); ctx.lineTo(40, -22); ctx.lineTo(50, 6);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // the big antenna — the tell (a cold machine mast until she is answered)
+  mercyAntenna(now, col, answered);
+  // the emblem: absent while she is only "the source"; MERCY's own rod of
+  // Asclepius once she is recognised for what she is
+  if (answered) {
+    ctx.save();
+    ctx.translate(0, -32);
+    ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 12;
+    drawAsclepius(22, "rgba(255,23,68,.9)");
+    ctx.restore();
+  }
   const ringA = b.resolved ? (b.fade || 0) : 1;   // rings fade out through the epilogue (L2)
   if (ringA > 0) {
-    // the Static: expanding rings every beat
+    // the Static: expanding rings every beat, out of the antenna tip
+    ctx.strokeStyle = "rgb(" + col + ")"; ctx.shadowColor = "rgb(" + col + ")"; ctx.shadowBlur = 6;
     const ph = (now % 1.6) / 1.6;
     for (let k = 0; k < 3; k++) {
       const p = (ph + k / 3) % 1;
       ctx.globalAlpha = (1 - p) * 0.5 * ringA;
-      ctx.beginPath(); ctx.arc(0, -62, 10 + p * 130, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -108, 10 + p * 130, 0, 7); ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+  if (answered) {
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.fillStyle = "#9beaf9"; ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.fillText("A M S · S O L A C E", 0, 26);
+    ctx.shadowBlur = 0;
   }
   if (!b.resolved) {
     if (b.silenceT > 0) {
       ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
       ctx.beginPath();
-      ctx.arc(0, -62, 20, -Math.PI / 2, -Math.PI / 2 + (b.silenceT / 5) * Math.PI * 2);
+      ctx.arc(0, -108, 20, -Math.PI / 2, -Math.PI / 2 + (b.silenceT / 5) * Math.PI * 2);
       ctx.stroke();
       ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
       ctx.fillStyle = "#aef4ff";
-      ctx.fillText("ANSWERING… " + Math.round(b.silenceT / 5 * 100) + "%", 0, -104);
+      ctx.fillText("ANSWERING… " + Math.round(b.silenceT / 5 * 100) + "%", 0, -128);
     } else {
       ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
       ctx.fillStyle = "rgba(179,136,255,.7)";
-      ctx.fillText("THE SIGNAL SOURCE — land beside it, or open fire", 0, -104);
+      ctx.fillText("THE SIGNAL SOURCE — land beside it, or open fire", 0, -128);
     }
   }
   ctx.restore();
@@ -1953,7 +2059,11 @@ function drawECG(x, y, w, h, frac, now) {
   const color = frac > 0.55 ? P.SAFE : frac > 0.3 ? P.WARN : P.DANGER;
   ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1;
   ctx.strokeRect(x, y, w, h);
-  const bpm = lerp(3.4, 1.2, clamp(frac, 0, 1)) + (ship.beat > 0 ? 2 : 0);
+  // Owner steer: boarding a Scion no longer spikes the rate (the old `+2` on
+  // ship.beat read as "frenetic vitals" mid-rescue). The only thing that moves
+  // the pulse now is your vitals — so a Scion aboard, healing you, reads exactly
+  // as it should: the trace GRADUALLY slows as the cabin steadies your heart.
+  const bpm = lerp(3.4, 1.2, clamp(frac, 0, 1));
   // the counterfeit bay reads on the ECG exactly like a contaminant (N2)
   const arrhythmia = state !== "title" && (contaminantAboard() || decoySnared());
   ctx.save();
@@ -2076,6 +2186,35 @@ function drawHudGuide(now) {
 }
 
 /* ---------------- screens ---------------- */
+/* the HELP submenu — HOW TO FLY, HUD GUIDE, REPLAY STORY, one tap from the title */
+function drawHelpMenu(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.9)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
+  ctx.fillStyle = "#aef4ff";
+  ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("HELP", vw / 2, helpMenuRowRect(0).y - 28);
+  ctx.shadowBlur = 0;
+  const rows = [["✦ HOW TO FLY", "controls & the basics"],
+                ["◎ HUD GUIDE", "what every readout means"],
+                ["▸ REPLAY STORY", "watch the opening again"]];
+  for (let i = 0; i < 3; i++) {
+    const r = helpMenuRowRect(i);
+    ctx.strokeStyle = "rgba(0,229,255,.7)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#7fe9ff"; ctx.font = "700 15px Menlo, monospace";
+    ctx.fillText(rows[i][0], r.x + r.w / 2, r.y + r.h / 2 - 2);
+    ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = "600 10px Menlo, monospace";
+    ctx.fillText(rows[i][1], r.x + r.w / 2, r.y + r.h / 2 + 14);
+  }
+  ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.font = "600 11px Menlo, monospace";
+  ctx.fillText("tap outside to go back", vw / 2, helpMenuRowRect(2).y + helpMenuRowRect(2).h + 26);
+}
+
 function drawTitle(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(5,6,15,.72)";
@@ -2130,29 +2269,14 @@ function drawTitle(now) {
   ctx.fillText("⚙ SETTINGS", r.x + r.w / 2, r.y + 22);
   ctx.shadowBlur = 0;
 
+  // HELP pill — the three reference screens (HOW TO FLY, HUD GUIDE, STORY) live
+  // under here now, so the title stays uncluttered (owner steer)
   const hr = helpRect();
   ctx.strokeStyle = "rgba(0,229,255,.7)";
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
   ctx.strokeRect(hr.x, hr.y, hr.w, hr.h);
   ctx.fillStyle = "#7fe9ff";
-  ctx.fillText("✦ HOW TO FLY", hr.x + hr.w / 2, hr.y + 22);
-  ctx.shadowBlur = 0;
-
-  // story pill — replay the opening narrative
-  const str = storyRect();
-  ctx.strokeStyle = "rgba(255,255,255,.35)";
-  ctx.strokeRect(str.x, str.y, str.w, str.h);
-  ctx.fillStyle = "rgba(255,255,255,.55)";
-  ctx.fillText("▸ STORY", str.x + str.w / 2, str.y + 22);
-
-  // U3 — the HUD-legend pill, beside HOW TO FLY
-  const lr = legendRect();
-  ctx.strokeStyle = "rgba(0,229,255,.7)";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
-  ctx.strokeRect(lr.x, lr.y, lr.w, lr.h);
-  ctx.fillStyle = "#7fe9ff";
-  ctx.font = "700 12px Menlo, monospace";
-  ctx.fillText("◎ HUD GUIDE", lr.x + lr.w / 2, lr.y + 22);
+  ctx.fillText("❓ HELP", hr.x + hr.w / 2, hr.y + 22);
   ctx.shadowBlur = 0;
 
   // codex pill — minds recovered + the signal archive, across all runs (K3)
@@ -2980,7 +3104,7 @@ function drawEnding(now) {
   if (endingType === "answered") {
     title = "THE ANSWERED CALL";
     color = "#aef4ff";
-    body = "You landed beside it and listened.\n\nThe beacon was AMS SOLACE — MERCY's sister ship, lost with all hands, her distress call looping for years. Every Scion that answered honestly was rewritten by the echo.\n\nYou didn't silence her. You told her she was heard.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
+    body = "You landed beside it and listened.\n\nThe source was the top of a ship — AMS SOLACE, MERCY's sister, lost with all hands, her distress call looping on their shared frequency for years. Every Scion that answered it honestly was rewritten by the echo.\n\nSo you answered it properly: you matched her own rhythm and sent it back — the one acknowledgement her signal had spent years repeating to hear. Told that she was heard, she could finally stop.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
     else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
   } else if (endingType === "fire") {
@@ -2990,12 +3114,17 @@ function drawEnding(now) {
   } else {
     title = "ROTATION COMPLETE";
     color = "#b388ff";
-    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\nLeft hollow. The Static answers still.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover at least 3 to triangulate its source.";
+    body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\nLeft hollow. The Static answers still.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover " + TRIANGULATE_N + " to triangulate its source.";
   }
   if (endingType !== "unresolved" && shrines.size >= SHRINES.length) {
     body += "\n\nAnd in the fleet record, appended in your hand: the serpent's mask, catalogued for good. No one will buy his cures again.";
     if (decoyOutcome === "observed")
       body += "\nEven his best lure — the second MERCY — failed the moment you counted her heartbeat.";
+  }
+  // Owner steer: the first run tells only the wound/echo story — end it with a
+  // clear tease so the player comes back for the sealed Glycon layer.
+  if (endingFirstRun && endingType !== "unresolved") {
+    body += "\n\n— but someone PLACED those lures. Stamped the same coiled serpent on every one. This run, the hollows under the sectors stayed sealed to you.\n\nFly again. They open now.";
   }
   // S8 — once the WORKSHOP is seen (the counterfeits were BUILT, not corrupted),
   // the missing originals become an open question — the itch 1.2 will scratch

@@ -209,7 +209,8 @@ window.addEventListener("keydown", e => {
     else if (typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
     // R2 — Escape also backs out of the overlay menu screens, like tapping outside
     else if (e.key === "Escape") {
-      if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+      if (state === "helpmenu") { state = "title"; stateT = 0.5; }
+      else if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
       else if (state === "legend") { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
       else if (state === "codex") {
         if (codexCard) codexCard = null; else { state = "title"; stateT = 0.7; }

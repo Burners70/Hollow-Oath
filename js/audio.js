@@ -155,7 +155,7 @@ function setBiomeBed(n) {
   if (kind === "wind") {
     filt.type = "bandpass"; filt.frequency.value = 480; filt.Q.value = 0.7;
     src.connect(filt); filt.connect(g); g.connect(musicGain);
-    src.start(); g.gain.setTargetAtTime(0.035, AC.currentTime, 1.2);
+    src.start(); g.gain.setTargetAtTime(0.022, AC.currentTime, 1.2);   // owner steer: quieter hiss on the shoals
   } else {   // insects — a high shimmer with a slow 7 Hz tremolo
     filt.type = "highpass"; filt.frequency.value = 5200;
     const trem = AC.createGain(); trem.gain.value = 0.5;
@@ -163,7 +163,7 @@ function setBiomeBed(n) {
     const ld = AC.createGain(); ld.gain.value = 0.5;
     lfo.connect(ld); ld.connect(trem.gain); lfo.start();
     src.connect(filt); filt.connect(trem); trem.connect(g); g.connect(musicGain);
-    src.start(); g.gain.setTargetAtTime(0.02, AC.currentTime, 1.2);
+    src.start(); g.gain.setTargetAtTime(0.012, AC.currentTime, 1.2);   // owner steer: quieter shimmer on the terraces
     biomeBedLfo = lfo;
   }
   biomeBedSrc = src; biomeBedGain = g;

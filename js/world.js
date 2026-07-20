@@ -172,6 +172,7 @@ let upgrades = {};
 let mercyBreach = null, mercyDamaged = false;
 let pendingBreach = null;   // a sleeper has slipped into MERCY; the alarm is armed but delayed
 let endingType = null;
+let endingFirstRun = false;   // was the Glycon layer still sealed this run? (drives the replay tease)
 let clearCards = [], revealCard = null;
 let confirmCard = null;            // S4 — a two-choice confirm (early extraction)
 let leftBehindNote = null;         // S4 — grim next-briefing line after a triage retreat
@@ -448,6 +449,14 @@ function legendRect() {   // RIGHT column, under HOW TO FLY — HUD GUIDE
 }
 function skipRect() {
   return { x: vw - 110 - saRight, y: 12, w: 96, h: 34 };
+}
+/* Owner steer: the three reference screens (HOW TO FLY, HUD GUIDE, REPLAY STORY)
+   collapse under one HELP pill to declutter the title. This is their submenu. */
+function helpMenuRowRect(i) {
+  const w = Math.min(300, vw * 0.7), h = 44, gap = 14;
+  const total = h * 3 + gap * 2;
+  const y0 = vh / 2 - total / 2 + 10;
+  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
 /* the three lower title pills are laid out from one place so they can
    never collide (on phone-height viewports they used to overlap — and the
