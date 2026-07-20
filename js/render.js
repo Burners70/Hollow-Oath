@@ -1276,11 +1276,15 @@ function drawLift(now) {
     ctx.fillText("RETURN LIFT — land and hold", 0, -52);
   } else {
     const glint = Math.sin(now * 0.43 + L.x) > 0.988 ? 0.4 : 0;
-    const a = 0.13 + glint;
+    // C2 — a slow "breathing" so the seam has faint life between the rare
+    // glints, and (below) an occasional mote rising from the pad. Motion is
+    // what the eye catches; both stay dim so the lift is findable, not blatant.
+    const breathe = 0.05 * (0.5 + 0.5 * Math.sin(now * 1.15 + L.x));
+    const a = 0.13 + glint + breathe;
     // a subtly thicker plate of ground under the pad — visible if you look,
     // not blatant if you don't
     const thickG = ctx.createLinearGradient(0, 2, 0, 11);
-    thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25).toFixed(2) + ")");
+    thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25 + breathe).toFixed(2) + ")");
     thickG.addColorStop(1, "rgba(179,136,255,0)");
     ctx.fillStyle = thickG;
     ctx.fillRect(-44, 2, 88, 9);
@@ -1292,6 +1296,12 @@ function drawLift(now) {
     ctx.stroke();
     ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
     for (const rx of [-36, -12, 12, 36]) ctx.fillRect(rx - 1, 0, 2, 2);
+    // a rare, dim mote lifting off the seam — world-space, so pushed with
+    // absolute coords. ~0.5/s, faint and small: a glance-catcher, not a beacon.
+    if (Math.random() < 0.009) particles.push({
+      x: L.x + (Math.random() - 0.5) * 74, y: L.y + 1,
+      vx: (Math.random() - 0.5) * 3, vy: -7 - Math.random() * 5,
+      t: 0.9, max: 1.7, color: "#b388ff", size: 0.8 + Math.random() * 0.6 });
   }
   if (L.holdT > 0) {   // the hold ring, once you've noticed
     ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
