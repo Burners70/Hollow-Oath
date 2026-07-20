@@ -417,27 +417,32 @@ function markIntroSeen() {
 const ASSIST_CAPTURE = 0.22;
 const ASSIST_RATE = 4.5;
 
-function helpRect() {
-  return { x: vw - saRight - 14 - 150, y: 12, w: 150, h: 34 };
+/* Title pills sit in two tidy, equal-width columns instead of a right-heavy
+   cluster (the old layout stacked 4 pills top-right against 1 top-left).
+   LEFT = the browse/lore screens (CODEX, STORY); RIGHT = config + how-to-play
+   (SETTINGS, HOW TO FLY, HUD GUIDE), each column stacked top-down on one rhythm. */
+const TITLE_PILL_W = 170, TITLE_PILL_H = 34, TITLE_PILL_STEP = 42;
+function codexRect() {   // LEFT column, top
+  return { x: 14 + saLeft, y: 12, w: TITLE_PILL_W, h: TITLE_PILL_H };
 }
-function settingsRect() {
-  const h = helpRect();
-  return { x: h.x - 198, y: 12, w: 190, h: 34 };
+function storyRect() {   // LEFT column, under CODEX
+  const c = codexRect();
+  return { x: c.x, y: c.y + TITLE_PILL_STEP, w: c.w, h: TITLE_PILL_H };
+}
+function settingsRect() {   // RIGHT column, top
+  return { x: vw - saRight - 14 - TITLE_PILL_W, y: 12, w: TITLE_PILL_W, h: TITLE_PILL_H };
+}
+function helpRect() {   // RIGHT column, under SETTINGS — HOW TO FLY
+  const s = settingsRect();
+  return { x: s.x, y: s.y + TITLE_PILL_STEP, w: s.w, h: TITLE_PILL_H };
+}
+/* U3 — the HUD-legend pill, stacked under HOW TO FLY in the right-hand column */
+function legendRect() {   // RIGHT column, under HOW TO FLY — HUD GUIDE
+  const s = settingsRect();
+  return { x: s.x, y: s.y + 2 * TITLE_PILL_STEP, w: s.w, h: TITLE_PILL_H };
 }
 function skipRect() {
   return { x: vw - 110 - saRight, y: 12, w: 96, h: 34 };
-}
-function codexRect() {
-  return { x: 14 + saLeft, y: 12, w: 168, h: 34 };
-}
-function storyRect() {
-  const h = helpRect();
-  return { x: h.x, y: h.y + 42, w: 150, h: 34 };
-}
-/* U3 — the HUD-legend pill, stacked under STORY in the right-hand column */
-function legendRect() {
-  const h = helpRect();
-  return { x: h.x, y: h.y + 84, w: 150, h: 34 };
 }
 /* the three lower title pills are laid out from one place so they can
    never collide (on phone-height viewports they used to overlap — and the
