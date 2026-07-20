@@ -644,23 +644,25 @@ function drawDroneMarker(now) {
   const ang = Math.atan2(sy - ey, sx - ex);
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.translate(ex, ey);
+  // A3 — only the pointing chevron tracks the drone around the screen edge.
   const pulse = 0.6 + 0.4 * Math.sin(now * 6);
-  // the pointing chevron
   ctx.save();
+  ctx.translate(ex, ey);
   ctx.rotate(ang);
   ctx.fillStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
   ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
   ctx.beginPath();
   ctx.moveTo(12, 0); ctx.lineTo(-6, 7); ctx.lineTo(-6, -7); ctx.closePath(); ctx.fill();
   ctx.restore();
-  // a small label so it reads as the drone, with its current leg — kept on the
-  // inward side of the marker so it never clips off the edge
-  ctx.shadowBlur = 6;
-  ctx.fillStyle = "rgba(255,196,0,.9)";
-  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  // ...while the status message stays PUT — pinned centred just under the top
+  // HUD band with a dark halo — so it's readable in a panic instead of sliding
+  // around the edge with the arrow.
+  ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 3;
+  ctx.fillStyle = "rgba(255,196,0,.95)";
+  ctx.font = "700 " + bodyFontPx(10) + "px Menlo, monospace"; ctx.textAlign = "center";
   const leg = rd.phase === "in" ? "⛽ INBOUND" : rd.phase === "out" ? "⛽ RETURNING" : "⛽ FUEL LINE";
-  ctx.fillText(leg, ex, ey < vh / 2 ? ey + 20 : ey - 14);
+  ctx.fillText(leg, vw / 2, 78);
+  ctx.shadowBlur = 0;
   ctx.restore();
 }
 function drawResupplyDrone(now) {
