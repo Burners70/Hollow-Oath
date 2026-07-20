@@ -127,11 +127,17 @@ needs one picked before submission.
   violence — the player can shoot medics as a malpractice mechanic). Answer
   the violence questions honestly; keep the *description's* framing on
   consequence, not carnage, so the rating and the copy agree.
-- **O4 Screenshots & preview video.** Need 6.7" and 6.1" landscape sets, shot
-  from a real device (after the Bundle D perf pass): title screen, a landing
-  beside a waving Scion, MERCY docking, a dark-sector lamp shot, a Hollows
-  shrine, the ECG-arrhythmia moment. Plus a 15–30s preview video of one full
-  rescue loop. This is blocked on you having a device build to capture from.
+- **O4 Screenshots & preview video.** Need 6.7" and 6.1" landscape sets: title
+  screen, a landing beside a waving Scion, MERCY docking, a dark-sector lamp
+  shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview
+  video of one full rescue loop.
+  `app/capture-screenshots.sh` walks through this shot list against the
+  iOS Simulator (boots both device sizes, prompts you to navigate, captures
+  on Enter). Gyro/tilt and haptics don't work in the simulator — if a shot
+  needs tilt input to reach, grab that one from a real device instead
+  (`xcrun simctl io booted screenshot` works the same way over a wired
+  device). The preview video still needs a real device/QuickTime screen
+  recording.
 - **O6 Submission dry run.** TestFlight internal build → full compatibility
   matrix (Bundle E8) → external TestFlight round (5–10 players, watch where
   they die/quit) → submit. Budget one rejection cycle — 4.2 ("Minimum
