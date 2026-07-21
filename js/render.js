@@ -513,9 +513,17 @@ function drawDarkness(now) {
     dctx.drawImage(sp, sx - rr, sy - rr, rr * 2, rr * 2);
     dctx.globalAlpha = 1;
   };
-  // T6 — the lamp gutters on as night falls (REDUCED FLASH halves the flicker)
+  // T6 — the lamp gutters on as night falls (REDUCED FLASH halves the
+  // flicker). Cut for now (owner decision, found on-device): now that the
+  // ship's own headlight beams fade in on their own (js/update.js's
+  // beamGlow, drawShip), this guttering on top of that read as one
+  // confusing double-flicker instead of two separate, sensible things.
+  // Left in place, disabled via NIGHTFALL_GUTTER — this is the effect the
+  // parked Vector light-sabotage idea (APP_STORE_ROADMAP.md backlog: beams
+  // flicker/fail with a Vector aboard) should actually reuse.
+  const NIGHTFALL_GUTTER = false;
   let lampS = 1;
-  if (level.nightStaged && level.nightFell && level.darkAlpha < 0.9) {
+  if (NIGHTFALL_GUTTER && level.nightStaged && level.nightFell && level.darkAlpha < 0.9) {
     const amp = reducedFlash ? 0.15 : 0.3;
     lampS = (1 - amp) + amp * Math.abs(Math.sin(now * 22));
   }

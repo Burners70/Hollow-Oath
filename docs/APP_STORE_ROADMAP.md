@@ -1061,7 +1061,8 @@ tints, caves keep the Static violet), biome ornamentation (boulders, reeds +
 ward-lanterns that light the dark, ice spires, banded dunes, hedgerows) with
 per-sector surface ambience (wind on the shoals, insect shimmer over the
 terraces), and staged nightfall on the Basin (dusk → full dark with a banner,
-a drone swell and a guttering lamp). Smoke tests added for all four. **T4
+a drone swell and a guttering lamp — the guttering itself was later cut, see
+the parked Vector light-sabotage idea below). Smoke tests added for all four. **T4
 (destructible scenery) and T5 (weather) remain** — the pre-approved slip to
 1.1 stands.
 
@@ -1470,7 +1471,13 @@ scheduled, logged so they aren't lost:**
   eventually fail entirely, on top of the existing malpractice/contamination
   mechanics — a new sabotage *action* rather than just a tell. Needs its own
   design pass (how it resolves, whether ANTISEPSIS/isolation cures it) before
-  it's buildable.
+  it's buildable. **The flicker math already exists** — `drawDarkness()` in
+  `js/render.js` has a `NIGHTFALL_GUTTER` constant (currently `false`) gating
+  the exact sine-wave guttering formula T6 used for "the lamp gutters on as
+  night falls." That effect was cut from nightfall itself (owner decision,
+  found on-device: it doubled up confusingly with the ship's own headlight
+  beams fading in — see the beamGlow fix, also just above) but the code was
+  left in place specifically to be reused here.
 - **A procedural mode.** Owner idea, on-device, for a future edition: a mode
   that generates a full run (or endless run) from a fresh seed each time
   rather than the authored campaign or the fixed REMIX/DAILY seed rotation —
