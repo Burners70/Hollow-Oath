@@ -32,5 +32,12 @@ workspace("./ios/App/App.xcworkspace")
 scheme("HollowOathUITests")
 output_directory("./fastlane/screenshots")
 clear_previous_screenshots(true)
+# Off: running both simulators in one multi-destination xcodebuild call
+# triggered a scheme-resolution bug ("Supported platforms for the
+# buildables in the current scheme is empty" / destination-not-found),
+# even though the same scheme built and ran fine against a single
+# simulator via Xcode's own Cmd+U. Running one destination at a time
+# avoids it.
+concurrent_simulators(false)
 
 # Static screens only — no procedurally-seeded terrain shots here.
