@@ -1,10 +1,17 @@
-// Bundle O4 — fastlane snapshot UI test for the static screens.
+// Bundle O4 — UI test for the static App Store screens (title, settings,
+// codex), driven directly via `xcodebuild test` (see
+// app/capture-static-screenshots.sh) — NOT via fastlane's `snapshot`.
 //
-// SETUP (one time, on the Mac, needs Xcode — see app/fastlane/Snapfile):
-//   1. `bundle exec fastlane snapshot init` from app/ generates SnapshotHelper.swift.
-//   2. In Xcode, add a "UI Testing Bundle" target named HollowOathUITests and
-//      add this file + the generated SnapshotHelper.swift to it.
-//   3. Run `bundle exec fastlane snapshot` from app/.
+// WHY NOT FASTLANE: fastlane's snapshot targets simulators by UUID
+// (`-destination id=<uuid>`), which hit an Xcode incompatibility on this
+// project ("Supported platforms for the buildables in the current scheme is
+// empty" / destination-not-found), even though the exact same scheme built
+// and ran fine via a name-based destination
+// (`-destination 'platform=iOS Simulator,name=iPhone 17'`), which is what
+// Xcode's own Cmd+U effectively uses. So this test writes screenshots
+// straight to disk instead of relying on fastlane's XCTAttachment/.xcresult
+// pipeline — Simulator processes run natively on the Mac and can write to
+// real host paths directly, no extraction step needed.
 //
 // SCOPE: only the screens that don't depend on procedurally-seeded terrain —
 // title, settings, codex. Landing/docking/dark-sector/Hollows-shrine/ECG shots
@@ -18,16 +25,9 @@
 // working here, check it still matches keyMap / the Enter and Escape
 // handlers in js/input.js — that file is the source of truth, this test
 // just rides along.
-//
-// CALIBRATION NOTE: this file has not been run against a live simulator
-// (no Xcode/GUI access in the environment that wrote it). Treat the wait
-// times below as starting points — watch the first run and adjust.
 
 import XCTest
 
-// SnapshotHelper.swift's setupSnapshot/snapshot are @MainActor-isolated
-// (Swift 6 concurrency); this class must be too, or the compiler rejects
-// the calls below.
 @MainActor
 final class ScreenshotUITests: XCTestCase {
 
@@ -35,14 +35,26 @@ final class ScreenshotUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // Fixed path, not per-device — app/capture-static-screenshots.sh runs
+    // one device at a time and moves this folder's contents out between
+    // runs, so there's no need to disambiguate devices from inside the test.
+    private let outputDir = "/tmp/hollowoath-snapshot-output"
+
+    private func saveScreenshot(_ name: String, of app: XCUIApplication) {
+        let screenshot = app.screenshot()
+        try? FileManager.default.createDirectory(
+            atPath: outputDir, withIntermediateDirectories: true)
+        let path = outputDir + "/" + name + ".png"
+        try? screenshot.pngRepresentation.write(to: URL(fileURLWithPath: path))
+    }
+
     func testCaptureStaticScreens() throws {
         let app = XCUIApplication()
-        setupSnapshot(app)
         app.launch()
 
         // Title screen — first paint after boot.
         sleep(2)
-        snapshot("01-title")
+        saveScreenshot("01-title", of: app)
 
         // Settings — Escape from title opens the settings/pause overlay in
         // this build's PAUSABLE set (js/update.js). If title isn't in
@@ -50,7 +62,7 @@ final class ScreenshotUITests: XCTestCase {
         // settings from title.
         app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
         sleep(1)
-        snapshot("02-settings")
+        saveScreenshot("02-settings", of: app)
 
         // Back out of settings, then into the codex from the title screen.
         app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
@@ -62,6 +74,6 @@ final class ScreenshotUITests: XCTestCase {
         // equivalent).
         // app.tap(at: <codex button coordinates>)
         // sleep(1)
-        // snapshot("03-codex")
+        // saveScreenshot("03-codex", of: app)
     }
 }
