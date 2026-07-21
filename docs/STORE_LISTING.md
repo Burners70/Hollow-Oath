@@ -131,9 +131,20 @@ needs one picked before submission.
   screen, a landing beside a waving Scion, MERCY docking, a dark-sector lamp
   shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview
   video of one full rescue loop.
-  `app/capture-screenshots.sh` walks through this shot list against the
-  iOS Simulator (boots both device sizes, prompts you to navigate, captures
-  on Enter). Gyro/tilt and haptics don't work in the simulator — if a shot
+  Two capture paths, split by whether the shot depends on procedural terrain:
+  - **Fully automated (static screens — title, settings, codex):**
+    `app/fastlane/Snapfile` + `app/HollowOathUITests/ScreenshotUITests.swift`
+    drive fastlane `snapshot` across both device sizes with no manual steps
+    per run, once a UI Test target is added in Xcode (one-time; see comments
+    in both files). Not yet run against a live simulator — treat the
+    navigation/timing in the test as a first pass to calibrate.
+  - **Manual (in-flight/procedural shots — landing, docking, dark-sector,
+    Hollows shrine, ECG):** `app/capture-screenshots.sh` walks through this
+    subset interactively (boots both sizes, prompts you to navigate,
+    captures on Enter). These aren't reproducible under automation without
+    a fixed run seed to guarantee the same terrain/scene each time.
+
+  Gyro/tilt and haptics don't work in the simulator either way — if a shot
   needs tilt input to reach, grab that one from a real device instead
   (`xcrun simctl io booted screenshot` works the same way over a wired
   device). The preview video still needs a real device/QuickTime screen

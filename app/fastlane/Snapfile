@@ -1,0 +1,25 @@
+# Bundle O4 — fastlane snapshot config.
+# Captures the static (non-procedural) screens only: title, settings, codex.
+# The in-flight/procedural shots (landing, docking, dark-sector, Hollows
+# shrine, ECG) stay manual via app/capture-screenshots.sh — no fixed seed
+# exists yet to make those reproducible under UI-test automation.
+
+# One-time setup on the Mac (not done by this repo, needs Xcode):
+#   1. cd app && bundle exec fastlane snapshot init   (generates SnapshotHelper.swift)
+#   2. In Xcode: add a "UI Testing Bundle" target named HollowOathUITests,
+#      add HollowOathUITests/ScreenshotUITests.swift and the generated
+#      SnapshotHelper.swift to that target.
+#   3. bundle exec fastlane snapshot   (run from app/)
+
+devices([
+  "iPhone 15 Pro Max",  # 6.7" bucket
+  "iPhone 15",          # 6.1" bucket
+])
+
+languages(["en-US"])
+
+scheme("App")
+output_directory("./fastlane/screenshots")
+clear_previous_screenshots(true)
+
+# Static screens only — no procedurally-seeded terrain shots here.
