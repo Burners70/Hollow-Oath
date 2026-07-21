@@ -217,13 +217,59 @@ window.addEventListener("keydown", e => {
       blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
     }
   }
+  // Same idea for the title screen — every pill (RESUME, START, SETTINGS,
+  // HELP, CODEX, REMIX, DAILY) is now reachable, not just START.
+  else if (state === "title") {
+    const n = titleNavItems().length;
+    if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      titleSel = (titleSel - 1 + n) % n; kbTitleNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      titleSel = (titleSel + 1) % n; kbTitleNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    }
+  }
+  // And the settings screen — a 2-column grid (SETTINGS_ROWS, cols=2 in
+  // js/world.js:settingsRowRect), previously reachable only by tap/click.
+  else if (state === "settings") {
+    const cols = 2;
+    if (e.key === "ArrowUp") {
+      settingsSel = (settingsSel - cols + SETTINGS_ROWS) % SETTINGS_ROWS; kbSettingsNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    } else if (e.key === "ArrowDown") {
+      settingsSel = (settingsSel + cols) % SETTINGS_ROWS; kbSettingsNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    } else if (e.key === "ArrowLeft") {
+      settingsSel = settingsSel - (settingsSel % cols) + ((settingsSel % cols) - 1 + cols) % cols;
+      kbSettingsNav = true; blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    } else if (e.key === "ArrowRight") {
+      settingsSel = settingsSel - (settingsSel % cols) + ((settingsSel % cols) + 1) % cols;
+      kbSettingsNav = true; blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    }
+  }
+  // S4.5 — the early-extraction confirm card (two rows: SIGNAL / RETURN).
+  // confirmSel defaults to RETURN (the free, reversible choice) so a stray
+  // Enter before the player has actually navigated never fires the costly
+  // option by accident.
+  else if (state === "confirm") {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      confirmSel = confirmSel === 0 ? 1 : 0; kbConfirmNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    }
+  }
   if (e.key === "Enter") {
     input.tap = true;
     // keyboard confirm has no pointer position — aim it at the primary button
     if (state === "gameover") { const cr = continueRect(); input.tapX = cr.x + 1; input.tapY = cr.y + 1; }
-    else if (state === "title") { const sr = startRect(); input.tapX = sr.x + 1; input.tapY = sr.y + 1; }
-    else if (state === "pause") {
+    else if (state === "title") {
+      const items = titleNavItems(), r = items[Math.min(titleSel, items.length - 1)];
+      input.tapX = r.x + 1; input.tapY = r.y + 1;
+    } else if (state === "pause") {
       const r = pausePadRect(padPauseSel); input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+    } else if (state === "settings") {
+      const r = settingsRowRect(settingsSel); input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+    } else if (state === "confirm") {
+      const r = confirmRowRect(confirmSel); input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
     }
   }
   if (e.key === "Escape" || e.key === "p" || e.key === "P") {
@@ -280,6 +326,12 @@ let padPauseSel = 0;
 // used on the pause menu, so render.js shows the row cursor for keyboard
 // players too, not just a connected controller
 let kbPauseNav = false;
+// same pattern for the title screen, settings, and the S4.5 early-extraction
+// confirm card — a shared cursor + "has keyboard/pad nav been used" flag per
+// screen, all drawn as a highlight in render.js next to pad.connected.
+let titleSel = 0, kbTitleNav = false;
+let settingsSel = 0, kbSettingsNav = false;
+let confirmSel = 1, kbConfirmNav = false;   // confirmSel defaults to RETURN (index 1), the free choice
 let padUpPrev = false, padDownPrev = false;
 function pausePadRect(i) { return i < 4 ? pauseRowRect(i) : pauseLegendRect(); }
 // a webpage can't force-disconnect a Bluetooth controller — no such API
@@ -321,12 +373,25 @@ function pollPad() {
   const start = b(9), a = b(0);
   if (pad.left || pad.right || pad.thrust || pad.fire || pad.shield || start)
     lastInputWasTouch = false;   // genuine controller activity reclaims the on-screen controls' hiding
+  const up = b(12) || ay < -0.5, down = b(13) || ay > 0.5;
+  const left = b(14) || ax < -0.5, right = b(15) || ax > 0.5;
   if (state === "pause") {
-    const up = b(12) || ay < -0.5, down = b(13) || ay > 0.5;
     if (up && !padUpPrev) { padPauseSel = (padPauseSel + 4) % 5; blip(440, 660, 0.08, "sine", 0.06); }
     else if (down && !padDownPrev) { padPauseSel = (padPauseSel + 1) % 5; blip(440, 660, 0.08, "sine", 0.06); }
-    padUpPrev = up; padDownPrev = down;
+  } else if (state === "title") {
+    const n = titleNavItems().length;
+    if ((up || left) && !padUpPrev) { titleSel = (titleSel - 1 + n) % n; blip(440, 660, 0.08, "sine", 0.06); }
+    else if ((down || right) && !padDownPrev) { titleSel = (titleSel + 1) % n; blip(440, 660, 0.08, "sine", 0.06); }
+  } else if (state === "settings") {
+    const cols = 2;
+    if (up && !padUpPrev) { settingsSel = (settingsSel - cols + SETTINGS_ROWS) % SETTINGS_ROWS; blip(440, 660, 0.08, "sine", 0.06); }
+    else if (down && !padDownPrev) { settingsSel = (settingsSel + cols) % SETTINGS_ROWS; blip(440, 660, 0.08, "sine", 0.06); }
+    else if (left && !padUpPrev) { settingsSel = settingsSel - (settingsSel % cols) + ((settingsSel % cols) - 1 + cols) % cols; blip(440, 660, 0.08, "sine", 0.06); }
+    else if (right && !padDownPrev) { settingsSel = settingsSel - (settingsSel % cols) + ((settingsSel % cols) + 1) % cols; blip(440, 660, 0.08, "sine", 0.06); }
+  } else if (state === "confirm") {
+    if ((up || down) && !padUpPrev && !padDownPrev) { confirmSel = confirmSel === 0 ? 1 : 0; blip(440, 660, 0.08, "sine", 0.06); }
   }
+  padUpPrev = up || left; padDownPrev = down || right;
   if (start && !padStartPrev) {
     if (state === "pause") leavePause();
     else if (typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
@@ -334,10 +399,17 @@ function pollPad() {
   } else if (state === "pause" && a && !padAPrev) {
     const r = pausePadRect(padPauseSel);
     input.tap = true; input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
-  } else if (state !== "play" && state !== "pause" && a && !padAPrev) {
+  } else if (state === "title" && a && !padAPrev) {
+    const items = titleNavItems(), r = items[Math.min(titleSel, items.length - 1)];
+    input.tap = true; input.tapX = r.x + 1; input.tapY = r.y + 1;
+  } else if (state === "settings" && a && !padAPrev) {
+    const r = settingsRowRect(settingsSel);
+    input.tap = true; input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+  } else if (state === "confirm" && a && !padAPrev) {
+    const r = confirmRowRect(confirmSel);
+    input.tap = true; input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+  } else if (state !== "play" && a && !padAPrev) {
     input.tap = true;
-    // gamepad A on the title aims at the START pill (R5), matching Enter
-    if (state === "title") { const sr = startRect(); input.tapX = sr.x + 1; input.tapY = sr.y + 1; }
   }
   padStartPrev = start; padAPrev = a;
 }

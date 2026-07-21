@@ -2424,6 +2424,16 @@ function drawTitle(now) {
                            : "☀ DAILY FLIGHT", dr2.x + dr2.w / 2, dr2.y + 20);
     ctx.shadowBlur = 0;
   }
+
+  // keyboard/controller cursor — a brighter overlay stroke on whichever
+  // pill is currently selected, same idea as the pause menu's own cursor
+  if (pad.connected || kbTitleNav) {
+    const items = titleNavItems();
+    const r = items[Math.min(titleSel, items.length - 1)];
+    ctx.strokeStyle = "#eaff6b"; ctx.shadowColor = "#eaff6b"; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+    ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+    ctx.shadowBlur = 0;
+  }
 }
 
 /* the codex (Bundle K2): two tabs — MINDS (famous Scions recovered across
@@ -3127,6 +3137,11 @@ function drawConfirm(now) {
     ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.font = "700 13px Menlo, monospace";
     ctx.fillText(labels[i], r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
+    if (i === confirmSel && (pad.connected || kbConfirmNav)) {
+      ctx.strokeStyle = "#eaff6b"; ctx.shadowColor = "#eaff6b"; ctx.shadowBlur = 10; ctx.lineWidth = 2;
+      ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+      ctx.shadowBlur = 0;
+    }
   }
 }
 
@@ -3179,6 +3194,12 @@ function drawSettings(now) {
       : label + " · " + (on ? "ON" : "OFF");
     ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
+    // keyboard/controller cursor — same overlay idea as the title screen
+    if (i === settingsSel && (pad.connected || kbSettingsNav)) {
+      ctx.strokeStyle = "#eaff6b"; ctx.shadowColor = "#eaff6b"; ctx.shadowBlur = 10; ctx.lineWidth = 2;
+      ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+      ctx.shadowBlur = 0;
+    }
   }
   const footY = settingsRowRect(9).y + settingsRowRect(9).h + 14;
   ctx.font = "600 10px Menlo, monospace";
