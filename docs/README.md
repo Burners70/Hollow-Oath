@@ -16,6 +16,7 @@ at once; each is here for a specific job.
 | [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Working on Bundle Q (the Listening Post / deep Hollows). |
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
 | [TESTER_LOG.md](TESTER_LOG.md) | Tracking potential TestFlight playtesters (name, email, approached/agreed status). |
+| [TESTER_KIT.md](TESTER_KIT.md) | Friends-and-family TestFlight round: TestFlight note, invite welcome message, and the full blind-play survey script. |
 
 ## Reference & history
 
