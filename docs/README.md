@@ -15,6 +15,7 @@ at once; each is here for a specific job.
 | [PENDULUM_SPEC.md](PENDULUM_SPEC.md) | Working on Bundle P (the Pendulum Sling). |
 | [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Working on Bundle Q (the Listening Post / deep Hollows). |
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
+| [TESTER_LOG.md](TESTER_LOG.md) | Tracking potential TestFlight playtesters (name, email, approached/agreed status). |
 
 ## Reference & history
 
