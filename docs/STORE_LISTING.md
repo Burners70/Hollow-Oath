@@ -52,15 +52,9 @@ without a real reason.
 **Hollow Oath**
 
 ### Subtitle (≤30 chars)
-Two options, both under the limit:
 
-- `A gravity rescue, with a heartbeat` (34 — **too long, cut to:**)
-- **`A rescue flight with a heartbeat`** (33 — still over; use:)
-- **`Fly gentle. Trust nothing.`** (26 chars) — leads with the mechanic *and*
-  the theme in one line.
-- Alt: **`Land soft. Trust less.`** (22 chars) — shorter, punchier.
-
-Recommendation: **`Fly gentle. Trust nothing.`**
+**`Fight gravity. And deception.`** (29 chars) — decided. Pairs the actual
+mechanic (gravity/thrust) with the theme (Glycon's deception) in one line.
 
 ### Description — opening (decided: moody/literary)
 
