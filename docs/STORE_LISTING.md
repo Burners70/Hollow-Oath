@@ -152,10 +152,13 @@ serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
 
 - **Privacy Policy URL** → `privacy.html` (drafted, see repo root):
   `https://burners70.github.io/Hollow-Oath/privacy.html`
-- **Support URL** → `support.html` (**not yet drafted** — `privacy.html`'s old
-  "just file a GitHub issue" support section was too thin for a paying
-  customer; splitting it out. Needs: a short FAQ, an email contact once the
-  alias/forwarding is set up, GitHub Issues as the technical fallback).
+- **Support URL** → `support.html` (drafted, see repo root):
+  `https://burners70.github.io/Hollow-Oath/support.html`. Contact email:
+  **hollowoath.support@gmail.com** (a dedicated Gmail alias forwarding to the
+  owner's personal inbox — not the personal address itself). Also covers a
+  short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
+  exclusion, controls/tilt, crashes, refunds via Apple) and GitHub Issues as
+  the fallback for anyone who'd rather file there.
 - **Marketing URL** → `about.html` (**not yet drafted** — the pitch, the
   *named* homage paragraph — Oids/Thrust/Gravitar, the one place per E7 this
   is allowed to be explicit — and screenshots once captured. No link back to
