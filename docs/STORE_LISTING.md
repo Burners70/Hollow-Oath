@@ -135,6 +135,20 @@ needs one picked before submission.
   | Prolonged Graphic or Sadistic Realistic Violence | None | No graphic/sadistic content at all. |
   | Guns or Other Weapons | Infrequent | The ship's fire mechanic is real (used on enemies and, as the malpractice choice, on Scions) but not central or constant — the game actively rewards *not* firing (the no-fire "OATH KEPT" ending). Left at "None" would understate it. |
   | Horror or Fear Themes | Mild | The Static/Glycon create unease ("still walk, still wave, but the rhythm is wrong"), not horror-genre dread. Owner's own framing: "foreboding, not dread." |
+
+- **Accessibility Nutrition Labels** (App Information → separate self-declared
+  section, not part of the age rating questionnaire — checked against actual
+  behaviour, so answered precisely rather than ticking everything):
+
+  | Feature | Claim it? | Why |
+  |---|---|---|
+  | Differentiate Without Color Alone | **Yes** | H1/H2: colourblind palette swap plus `✓/!/✕` glyphs and `?` marks — landing-guide state and counterfeit detection never rely on colour alone. |
+  | Larger Text | **Yes** | H4: `doids_bigtext` adds +2px to card/brief body text. |
+  | VoiceOver / Voice Control | **No** | Single canvas, no accessibility tree — confirmed when scoping the fastlane UI-test automation earlier (O4). Claiming this would be false. |
+  | Sufficient Contrast | **No** | Never tested against Apple's actual contrast bar; don't self-certify without checking. |
+  | Captions | **No** | No dialogue audio to caption. |
+  | Reduced Motion | **No** | Checked `js/render.js`: `reducedFlash` (`doids_flash`) only halves flash/flicker *intensity* (lamp gutter, static-surge dimming, sabotage flash, glyph-corruption rate, one jitter amplitude) — it never touches animation speed or motion/parallax, which is what this label actually means. |
+
 - **O4 Screenshots & preview video.** Need 6.7" and 6.1" landscape sets: title
   screen, a landing beside a waving Scion, MERCY docking, a dark-sector lamp
   shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview
