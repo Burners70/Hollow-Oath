@@ -1180,6 +1180,15 @@ function drawRockScn(sc, now) {
    translucent instead, on purpose, so "solid" vs. "flavour" reads at a
    glance without inventing a second colour language on top of H1/H2. */
 const DECO_ALPHA = 0.4;
+// buildings are the one decorative shape this reads badly on: a big flat
+// rectangular mass at DECO_ALPHA lets the terrain it should be standing in
+// front of show through crisply — an X-ray glitch, not "flavour," where the
+// same translucency reads fine on trees/hedges/rocks (small or organic
+// silhouettes) and on the wrecks (translucent = intentionally damaged).
+// Found on-device: a building on sloped ground showed the hillside's own
+// outline passing straight through it. Kept solid enough to actually occlude
+// what's behind it, just a touch softer than terrain's full opacity.
+const BUILDING_ALPHA = 0.82;
 
 /* settlements: intact towers with lit windows, and what's left of them */
 function drawBuilding(sc, now, ruined) {
@@ -1187,7 +1196,7 @@ function drawBuilding(sc, now, ruined) {
   ctx.translate(sc.x, sc.y);
   ctx.rotate(sc.tilt * (ruined ? 1.5 : 0.4));
   const w = sc.w, h = ruined ? sc.h * 0.62 : sc.h;
-  ctx.fillStyle = "rgba(8,12,30," + DECO_ALPHA + ")";
+  ctx.fillStyle = "rgba(8,12,30," + BUILDING_ALPHA + ")";
   ctx.lineWidth = 2;
   ctx.beginPath();
   if (ruined) {
