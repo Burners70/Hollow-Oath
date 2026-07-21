@@ -273,7 +273,7 @@ counterfeit.**
 
 | Secret | Tell | Payoff |
 |---|---|---|
-| Secret lifts (sectors 1, 3, 5) | Hairline seams + 4 rivets on a flat pad; a rare glint; "THE PAD RINGS HOLLOW…" when you settle on it | Land + hold 2.4s → descend into the Hollows (cave level: floor **and roof** heightmaps, darkness, fuel pods, a lurking drone, return lift) |
+| Secret lifts (sectors 1, 3, 5) — **veteran-gated: the lift itself only generates once a run has been finished once (`veteran`); first-time players see sectors 1/3/5 with no lift at all, only a return pass unlocks it** | Hairline seams + 4 rivets on a flat pad; a rare glint; "THE PAD RINGS HOLLOW…" when you settle on it | Land + hold 2.4s → descend into the Hollows (cave level: floor **and roof** heightmaps, darkness, fuel pods, a lurking drone, return lift) |
 | Shrines (one per cave) | Glowing serpent idol, slow pulse rings | Staged Glycon reveal, +1000 each, all three = GLYCON UNMASKED +3000 + ending epilogue |
 | Fake fuel pods (sectors 5–7) | Real pods flicker organically, each to its own rhythm; **fakes blink in perfect unison** | Touching drains 18 fuel, −100 score |
 | Lure-trees (sectors 5–7) | Sways in perfect mechanical time; in the Nullwave it's *the only tree standing* | Shoot it (+500, `firedAtSecret`) — **or land within 60 px and scan 6 s** (+500, `scannedSecret`, oath intact) |
