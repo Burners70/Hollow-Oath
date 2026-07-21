@@ -80,7 +80,7 @@ description below, this is where to put anything time-sensitive later.
 **Body copy (follows the opening above):**
 
 > Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over
-> hand-seeded terrain, land gently near stranded medical androids, and
+> procedurally seeded terrain, land gently near stranded medical androids, and
 > ferry them back to the mothership — while the game quietly teaches you
 > to distrust what you rescue, and later, what you see on the ground.
 >
@@ -119,7 +119,7 @@ Something calls every 41 seconds. It has been calling since AMS MERCY went dark 
 
 You fly the rescue dart. Thrust against gravity, land soft beside the stranded, and get them home before the Static reaches them. Some of what you find on the ground wants to be found. Not all of it should be trusted.
 
-Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over hand-seeded terrain, land gently near stranded medical androids, and ferry them back to the mothership — while the game quietly teaches you to distrust what you rescue, and later, what you see on the ground.
+Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over procedurally seeded terrain, land gently near stranded medical androids, and ferry them back to the mothership — while the game quietly teaches you to distrust what you rescue, and later, what you see on the ground.
 
 • Real gravity, real consequence. No auto-land, no aim-assist crutch — just thrust, weight, and a landing you have to earn.
 • A heartbeat you can feel. Haptics tuned to the game's own pulse, not generic buzzes.
