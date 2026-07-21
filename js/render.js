@@ -1028,7 +1028,7 @@ function drawBoulder(sc, now) {
     } else {
       ctx.arc(b.dx, b.dy, b.r, 0, 7);   // legacy fallback
     }
-    ctx.fillStyle = "#1b0f06"; ctx.fill();
+    ctx.fillStyle = "rgba(27,15,6," + DECO_ALPHA + ")"; ctx.fill();
     glowStroke("rgba(224,151,90,.5)", 1.6);
   }
   ctx.restore();
@@ -1088,7 +1088,7 @@ function drawDune(sc, now) {
   ctx.quadraticCurveTo(-w * 0.15, -w * 0.16, 0, -w * 0.2);
   ctx.quadraticCurveTo(w * 0.25, -w * 0.16, w / 2, 0);
   ctx.closePath();
-  ctx.fillStyle = "#1c1608"; ctx.fill();
+  ctx.fillStyle = "rgba(28,22,8," + DECO_ALPHA + ")"; ctx.fill();
   glowStroke("rgba(230,200,95,.4)", 1.4);
   ctx.save();
   ctx.globalAlpha = 0.3; ctx.strokeStyle = "rgba(230,200,95,.5)"; ctx.lineWidth = 1;
@@ -1117,7 +1117,7 @@ function drawHedge(sc, now) {
   }
   ctx.lineTo(w / 2, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(20,38,15,.9)"; ctx.fill();
+  ctx.fillStyle = "rgba(20,38,15," + DECO_ALPHA + ")"; ctx.fill();
   glowStroke("rgba(168,227,154,.4)", 1.4);
   ctx.restore();
 }
@@ -1165,7 +1165,7 @@ function drawRockScn(sc, now) {
   ctx.scale(sc.s, sc.s);
   const breathe = sc.hollow ? 0.16 * Math.sin(now * 1.1 + sc.ph) : 0;
   ctx.strokeStyle = "rgba(150,140,200," + (0.4 + breathe).toFixed(2) + ")";
-  ctx.fillStyle = "#141031";
+  ctx.fillStyle = "rgba(20,16,49," + DECO_ALPHA + ")";
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   sc.verts.forEach(([vx, vy], i) => i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy));
@@ -1173,13 +1173,21 @@ function drawRockScn(sc, now) {
   ctx.restore();
 }
 
+/* QA1 — every entry in drawScenery() is purely decorative: drawScenery has no
+   ship-collision check at all, only terrain/turrets/drones/bullets and the
+   fake/hollow secrets (shootable, not collidable) can end a flight. Terrain
+   fills fully opaque (buildHeightTile); every decorative fill below stays
+   translucent instead, on purpose, so "solid" vs. "flavour" reads at a
+   glance without inventing a second colour language on top of H1/H2. */
+const DECO_ALPHA = 0.4;
+
 /* settlements: intact towers with lit windows, and what's left of them */
 function drawBuilding(sc, now, ruined) {
   ctx.save();
   ctx.translate(sc.x, sc.y);
   ctx.rotate(sc.tilt * (ruined ? 1.5 : 0.4));
   const w = sc.w, h = ruined ? sc.h * 0.62 : sc.h;
-  ctx.fillStyle = "rgba(8,12,30,.9)";
+  ctx.fillStyle = "rgba(8,12,30," + DECO_ALPHA + ")";
   ctx.lineWidth = 2;
   ctx.beginPath();
   if (ruined) {
@@ -1246,6 +1254,33 @@ function tornHullEdge(sc, halfW, rgb) {
   ctx.restore();
 }
 
+/* QA3 — the breach used to be a couple of stroked lines drawn ON TOP of one
+   unbroken mercyHullPath() fill, so the silhouette never actually broke
+   apart; it read as "the intact ship, tipped over," not wreckage. Split the
+   fill into two pieces instead: each is clipped to its own side of the
+   jagged breach line (extended past the hull's real bounds so the clip
+   always fully covers it), then drawn from a slightly different
+   translate/rotate — the SAME hull path, offset a few px — so the two
+   halves visibly fail to line up right at the seam, the way a snapped hull
+   actually would, rather than one continuous silhouette with lines on it. */
+const WRECKM_BREACH = [[15, -60], [20, -22], [34, -4], [24, 8], [40, 20], [46, 60]];
+function wreckMBreachClip(side) {
+  ctx.beginPath();
+  if (side === "fore") {
+    ctx.moveTo(-200, -60);
+    ctx.lineTo(WRECKM_BREACH[0][0], WRECKM_BREACH[0][1]);
+    for (let i = 1; i < WRECKM_BREACH.length; i++) ctx.lineTo(WRECKM_BREACH[i][0], WRECKM_BREACH[i][1]);
+    ctx.lineTo(-200, 60);
+  } else {
+    ctx.moveTo(200, -60);
+    ctx.lineTo(200, 60);
+    ctx.lineTo(WRECKM_BREACH[WRECKM_BREACH.length - 1][0], WRECKM_BREACH[WRECKM_BREACH.length - 1][1]);
+    for (let i = WRECKM_BREACH.length - 2; i >= 0; i--) ctx.lineTo(WRECKM_BREACH[i][0], WRECKM_BREACH[i][1]);
+  }
+  ctx.closePath();
+  ctx.clip();
+}
+
 /* a MERCY-class sister, down and half-dark — her emblem still flickers */
 function drawWreckM(sc, now) {
   ctx.save();
@@ -1260,15 +1295,31 @@ function drawWreckM(sc, now) {
   ctx.translate(0, 4);
   ctx.rotate(sc.tilt + sc.lean * 0.5);
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
-  ctx.fillStyle = "rgba(8,12,26,.85)";
   ctx.lineWidth = 2.5;
-  mercyHullPath();
-  ctx.fill();
+  // the fore piece — nose through the forward command tower — nudged one way
+  ctx.save();
+  wreckMBreachClip("fore");
+  ctx.translate(-3, -2); ctx.rotate(-0.035);
+  ctx.fillStyle = "rgba(8,12,26,.55)";
+  mercyHullPath(); ctx.fill();
   glowStroke("rgba(0,229,255,.3)", 2.5);
-  // hull breach, right through where the command tower met the spine
+  ctx.restore();
+  // the aft piece — the rest of the spine — nudged the other way, so the
+  // seam between the two shows real daylight, not just an overlaid line
+  ctx.save();
+  wreckMBreachClip("aft");
+  ctx.translate(4, 3); ctx.rotate(0.045);
+  ctx.fillStyle = "rgba(8,12,26,.55)";
+  mercyHullPath(); ctx.fill();
+  glowStroke("rgba(0,229,255,.3)", 2.5);
+  ctx.restore();
+  // torn edges along the actual break, drawn in the shared (unshifted) frame
+  // so they read as the seam between the two pieces above, in the spirit of
+  // drawBuilding's ruin silhouette
   ctx.beginPath();
-  ctx.moveTo(20, -22); ctx.lineTo(34, -4); ctx.lineTo(24, 8); ctx.lineTo(40, 20);
-  glowStroke("rgba(150,140,200,.4)", 1.6);
+  ctx.moveTo(WRECKM_BREACH[1][0], WRECKM_BREACH[1][1]);
+  for (let i = 2; i < WRECKM_BREACH.length - 1; i++) ctx.lineTo(WRECKM_BREACH[i][0], WRECKM_BREACH[i][1]);
+  glowStroke("rgba(150,140,200,.5)", 1.8);
   // the emblem, mostly dead, still on the command tower
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
   ctx.save();
@@ -1303,12 +1354,22 @@ function drawWreckS(sc, now) {
   const ws = Math.min(1.0, sc.s);
   ctx.scale(ws, ws);
   ctx.strokeStyle = "rgba(0,229,255,.32)";
-  ctx.fillStyle = "rgba(6,10,22,.8)";
+  ctx.fillStyle = "rgba(6,10,22,.45)";
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.moveTo(0, -13);
   ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
   ctx.closePath(); ctx.fill(); ctx.stroke();
+  // QA3 — too small a hull for a two-piece split (drawWreckM's treatment)
+  // to read as anything but clutter; instead punch a jagged bite out of one
+  // flank, the same "broken, not just tipped over" tell at a proportionate scale
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  ctx.moveTo(3, 6); ctx.lineTo(7, 4); ctx.lineTo(6, 8); ctx.lineTo(9, 9); ctx.lineTo(4, 9);
+  ctx.closePath(); ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.beginPath(); ctx.moveTo(3, 6); ctx.lineTo(7, 4); ctx.lineTo(6, 8);
+  glowStroke("rgba(150,140,200,.5)", 1.3);
   ctx.restore();
   tornHullEdge(sc, 12, "0,229,255");   // broken underside along the land line
   // scorch trail where it came down

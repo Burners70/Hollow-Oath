@@ -1273,7 +1273,7 @@ None blocks Apple review on its own. Dependencies: none.**
   turret cover", asserting ≤1 turret within 380px of any oid in sectors 0–2).
   *Remaining option, if ever wanted:* extend the same guard across all 8 sectors
   (denser later sectors fail the spacing search more often).
-- [ ] **QA1. Colour/render cues for "you can fly through this" vs. "this kills
+- [x] **QA1. Colour/render cues for "you can fly through this" vs. "this kills
   you."** Every scenery entry (`deco()` in `genLevel` — trees, rocks,
   buildings/ruins, both wreck types) is purely decorative: `drawScenery()` has no
   ship-collision check at all. Only `groundAt()`/`roofAt()` (terrain),
@@ -1281,26 +1281,30 @@ None blocks Apple review on its own. Dependencies: none.**
   (shootable, not collidable) can end a flight. A building rendered as a solid
   `rgba(8,12,30,.9)` fill (`drawBuilding`) or an opaque wreck hull reads exactly
   like the terrain silhouette next to it — nothing tells the player it's passable
-  air, not a wall. Give truly-decorative scenery a visibly different render
-  language from terrain/hazards (desaturate, thin the stroke, drop the solid fill
-  for a wireframe/low-alpha treatment) — whatever reads at a glance as "flavour,
-  not physics." Coordinate with Bundle H's colour-cue work (H1/H2) so this
-  doesn't invent a second, competing palette language.
-- [ ] **QA3. Wreck art reads as "the intact vehicle, tipped over," not
+  air, not a wall.
+  *(Landed: terrain (`buildHeightTile`) fills fully opaque, on purpose — every
+  decorative scenery fill (`drawBuilding` both variants, `drawRockScn`,
+  `drawBoulder`, `drawDune`, `drawHedge`, `drawWreckM`, `drawWreckS`) now
+  shares one `DECO_ALPHA` translucent fill constant instead of opaque hex/high-
+  alpha fills, so "solid" vs. "flavour" reads at a glance without touching any
+  stroke colour — no second, competing palette on top of H1/H2. Verified with
+  a headless screenshot: the building's lit windows now show stars through the
+  hull.)*
+- [x] **QA3. Wreck art reads as "the intact vehicle, tipped over," not
   wreckage.** `drawWreckM` renders `mercyHullPath()` — the same unbroken hull
   outline `drawMothership` uses for the *live* station — at `sc.s * 0.62` scale,
   with a couple of stroked "breach" lines drawn on top of the fill rather than
-  cut through it, so the silhouette never actually breaks apart. `drawWreckS` is
-  the identical path to `drawShip`, just rotated onto its side at `sc.s * 2.1`
-  scale — the player's own ship, inflated ~1.7–3×. Both wrecks also anchor to a
-  single ground-height sample (`sc.y`), so on sloped ground a hull that wide can
-  float clear of the terrain or clip into it. Rework both to read as downed:
-  split the hull fill along the breach into two offset paths; give jagged/torn
-  edges in the spirit of `drawBuilding`'s ruin silhouette; settle each wreck into
-  the ground with multi-point contact instead of one centre anchor; and bring
-  `drawWreckS` back toward the live ship's real proportions (or, if it's a
-  distinct rescue-dart class, say so in `GAME_DESIGN.md` rather than silently
-  reusing the player's exact silhouette at a different size).
+  cut through it, so the silhouette never actually breaks apart.
+  *(`drawWreckS`'s proportions and both wrecks' ground-line clip/`tornHullEdge`
+  had already been fixed in an earlier unlabeled pass — confirmed live, not
+  re-touched. Landed here: `drawWreckM`'s hull fill is split into two pieces —
+  each clipped to its own side of the jagged breach line, then drawn from a
+  slightly different translate/rotate of the SAME hull path — so the two
+  halves visibly fail to line up at the seam instead of one continuous
+  silhouette with lines drawn over it; `drawWreckS` gets a proportionate
+  destination-out notch bite out of one flank (a full two-piece split would
+  be clutter at its small scale). Verified with a headless screenshot:
+  `drawWreckM` now reads as a broken, jagged, translucent hull.)*
 
 ---
 
