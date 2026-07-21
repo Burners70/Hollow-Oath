@@ -140,17 +140,29 @@ If you grew up steering a lander through cramped 16-bit caves, fighting gravity 
 
 ---
 
-## O5 — Privacy policy & support
+## O5 — Privacy policy, support & marketing pages
 
-Drafted as a standalone page: **`privacy.html`** (see repo root), meant to be
-linked from App Store Connect's Privacy Policy URL field and hosted on the
-existing GitHub Pages site at
-`https://burners70.github.io/Hollow-Oath/privacy.html`.
+**Owner decision, updated:** there will be no public playable web version of
+the game once the app ships — the live GitHub Pages deploy was a
+development/testing convenience only (see roadmap O7). So none of the three
+App Store Connect URL fields below should point at the game itself; they
+point at three small standalone pages instead, all hosted at
+`burners70.github.io/Hollow-Oath/` once O7's re-plumbing is done (Pages
+serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
 
-**Support contact:** point App Store Connect's support URL at the same page's
-support section, or a GitHub Issues link if you'd rather route support there —
-flag which one you want; `privacy.html` currently offers both as options and
-needs one picked before submission.
+- **Privacy Policy URL** → `privacy.html` (drafted, see repo root):
+  `https://burners70.github.io/Hollow-Oath/privacy.html`
+- **Support URL** → `support.html` (**not yet drafted** — `privacy.html`'s old
+  "just file a GitHub issue" support section was too thin for a paying
+  customer; splitting it out. Needs: a short FAQ, an email contact once the
+  alias/forwarding is set up, GitHub Issues as the technical fallback).
+- **Marketing URL** → `about.html` (**not yet drafted** — the pitch, the
+  *named* homage paragraph — Oids/Thrust/Gravitar, the one place per E7 this
+  is allowed to be explicit — and screenshots once captured. No link back to
+  a playable free version, since there won't be one.)
+
+*(Resolved: the earlier "free web version undercuts the $2.99 ask" concern —
+there's no free version once O7 lands, so no tension to manage.)*
 
 ---
 
