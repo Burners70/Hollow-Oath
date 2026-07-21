@@ -24,7 +24,12 @@ devices([
 
 languages(["en-US"])
 
-scheme("App")
+# Capacitor generates ios/App/App.xcworkspace — fastlane can't always
+# auto-detect it, so point at it explicitly.
+workspace("./ios/App/App.xcworkspace")
+# Must be the shared UI-test scheme (created alongside HollowOathUITests),
+# not the app's own "App" scheme — snapshot runs UI tests, not the app.
+scheme("HollowOathUITests")
 output_directory("./fastlane/screenshots")
 clear_previous_screenshots(true)
 
