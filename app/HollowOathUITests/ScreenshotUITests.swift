@@ -25,6 +25,10 @@
 
 import XCTest
 
+// SnapshotHelper.swift's setupSnapshot/snapshot are @MainActor-isolated
+// (Swift 6 concurrency); this class must be too, or the compiler rejects
+// the calls below.
+@MainActor
 final class ScreenshotUITests: XCTestCase {
 
     override func setUpWithError() throws {
