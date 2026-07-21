@@ -513,14 +513,14 @@ test("REDUCED FLASH persists and RESET PROGRESS double-tap wipes progress but ke
   });
   await page.reload();
   await page.waitForFunction(() => window.__doids !== undefined);
-  // open settings, turn on REDUCED FLASH (row 7 — TILT was pulled from the
-  // 10-row layout, so REDUCED FLASH/RESET PROGRESS shifted from 8/9 to 7/8),
-  // reload → it persists
+  // open settings, turn on REDUCED FLASH (row 7), reload → it persists.
+  // Row 8 is IGNORE CONTROLLER (no controller in this headless test, so it's
+  // disabled/no-op), row 9 is RESET PROGRESS.
   await page.evaluate(() => { state = "settings"; settingsReturnState = "title"; stateT = 1; });
   const tapSettingsRow = (i) => page.evaluate((i) => {
     input.tap = true;
-    // recompute settingsRowRect(i) the same way the game does (9 rows now)
-    const cols = 2, rows = Math.ceil(9 / cols);
+    // recompute settingsRowRect(i) the same way the game does (10 rows now)
+    const cols = 2, rows = Math.ceil(10 / cols);
     const cw = Math.min(240, innerWidth * 0.42), h = 30, gapX = 12, gapY = 7;
     const totalW = cw*cols+gapX, totalH = h*rows+gapY*(rows-1);
     const x0 = innerWidth/2 - totalW/2, y0 = innerHeight/2 - totalH/2 + 14;
@@ -529,8 +529,8 @@ test("REDUCED FLASH persists and RESET PROGRESS double-tap wipes progress but ke
   }, i);
   await tapSettingsRow(7);
   await page.waitForFunction(() => __doids.get().reducedFlash === true, null, { timeout: 2000 });
-  // RESET PROGRESS (row 8) needs two taps
-  const tapRow9 = () => tapSettingsRow(8);
+  // RESET PROGRESS (row 9) needs two taps
+  const tapRow9 = () => tapSettingsRow(9);
   await tapRow9();
   await page.waitForFunction(() => __doids.get().resetArmed === true, null, { timeout: 2000 });
   await tapRow9();

@@ -55,7 +55,7 @@ const TRIANGULATE_N = Math.ceil(NBOX * 0.8);  // 6 of 7
 const BRIEFS = [
   "MERCY to rescue flight.\n\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\n\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\n\nEnd transmission.",
   "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\n\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts.\n\nThe red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
-  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs. Listen for them in the dark.\n\nAnd captain… the dark out here listens back.",
+  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs.\n\nAnd captain… the dark out here listens back.",
   "Supply lines to the deep are cut — no fresh fuel from the fleet. Our resupply drone runs on scavenged reserves now: it comes slower, and it can spare far less. Scavenge surface fuel pods where you find them.\n\nAnd it's worse than rationing. Leave an unscreened unit standing among the survivors and the sickness jumps between them — the ward breeds its own carriers. Screen your rescues, or lift the bad ones out before they spread it.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds, and every black box you recover tightens the bearing. The projection keeps landing on the same dead patch of sky — a silence the old charts marked THE NULLWAVE, where no signal has ever come back.\n\nRecover the recorders and we'll know for certain what's down there.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
@@ -529,7 +529,7 @@ function pauseLegendRect() {
 /* two-column grid so all ten rows fit even a 320-high landscape viewport
    (the old single column of 8 already clipped its hints at vh ≤ 375, and
    REDUCED FLASH + RESET PROGRESS would have run right off the screen). */
-const SETTINGS_ROWS = 9;
+const SETTINGS_ROWS = 10;
 function settingsRowRect(i) {
   const cols = 2, rows = Math.ceil(SETTINGS_ROWS / cols);
   const cw = Math.min(240, vw * 0.42), h = 30, gapX = 12, gapY = 7;

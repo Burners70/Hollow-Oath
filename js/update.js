@@ -756,7 +756,7 @@ function updateSettings() {
     for (let i = 0; i < SETTINGS_ROWS; i++) {
       if (inRect(settingsRowRect(i), input.tapX, input.tapY)) {
         hit = true;
-        if (i !== 8) resetArmed = false;   // any other tap disarms the wipe
+        if (i !== 9) resetArmed = false;   // any other tap disarms the wipe
         if (i === 0) {
           sound = !sound;
           try { localStorage.setItem("doids_snd", sound ? "1" : "0"); } catch (e) {}
@@ -794,6 +794,14 @@ function updateSettings() {
           try { localStorage.setItem("doids_flash", reducedFlash ? "1" : "0"); } catch (e) {}
           blip(440, 660, 0.1, "sine", 0.08);
         } else if (i === 8) {
+          // no controller paired — nothing to toggle, so this tap is a no-op
+          // rather than silently arming something invisible
+          if (!pad.present) { /* no-op */ }
+          else {
+            padIgnored = !padIgnored;
+            blip(padIgnored ? 300 : 440, padIgnored ? 200 : 660, 0.12, "sine", 0.1);
+          }
+        } else if (i === 9) {
           if (resetArmed) {
             resetProgress(); resetArmed = false;
             blip(200, 80, 0.4, "sawtooth", 0.14);

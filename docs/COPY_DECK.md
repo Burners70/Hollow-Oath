@@ -148,11 +148,13 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
 1. **VESALIUS RIDGE** — "Captain — some stranded units on the ridge have
    stopped answering triage pings. Comms has a name for them now: Vectors.
    Carriers, not survivors. / If a rescue feels wrong — the wave wrong, the
-   heartbeat missing — trust your instincts. The red quarantine bay is open.
-   Do NOT bring contaminated units into the recovery bay."
+   heartbeat missing — trust your instincts. The red isolation airlock is
+   open. Do NOT bring contaminated units into the recovery bay."
 2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin — and night coming
-   down fast. Your lamp is your lifeline, and theirs. Listen for them in the
-   dark. / And captain… the dark out here listens back." [T6 — shipped]
+   down fast. Your lamp is your lifeline, and theirs. / And captain… the
+   dark out here listens back." [T6 — shipped; "Listen for them in the
+   dark" cut, found on-device — no audio location tell exists (see
+   APP_STORE_ROADMAP.md's parked stereo-beacon idea)]
 3. **SEMMELWEIS DEEP** — "Supply lines are cut; the deep is rationed. Scavenge
    surface fuel pods where you find them. / And captain — we found tampering
    in the recovery bay overnight. Watch your passengers. Watch all of them."
@@ -359,6 +361,11 @@ old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
   ASSIST / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
   (TILT pulled for now — see APP_STORE_ROADMAP.md; re-add once a native
   CoreMotion bridge exists)
+  · `IGNORE CONTROLLER · ON|OFF` (disabled, reads `CONTROLLER · NONE`, when
+  no gamepad is paired — a webpage can't force-disconnect a Bluetooth
+  controller, so this is the practical stand-in: it stops the game reading
+  the pad and brings touch controls back, and doubles as a "yes, the game
+  sees your controller" indicator)
   · `RESET PROGRESS` → `TAP AGAIN TO WIPE` · footers "field medic: gentler, 5
   lives, next run · reset wipes scores & codex, keeps settings" and "Hollow
   Oath · v1.0 · b2026-07 · no ads, no tracking · tap outside to close".

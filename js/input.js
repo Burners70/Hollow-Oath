@@ -253,7 +253,7 @@ if (NATIVE) {
 }
 
 /* ---------------- external controller (Gamepad API) ---------------- */
-const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false };
+const pad = { left:false, right:false, thrust:false, fire:false, shield:false, connected:false, present:false };
 let padStartPrev = false, padAPrev = false;
 // pause has no pointer position to aim a tap at, unlike the title's single
 // START pill — it needs its own up/down cursor over its rows (RESUME,
@@ -261,13 +261,32 @@ let padStartPrev = false, padAPrev = false;
 let padPauseSel = 0;
 let padUpPrev = false, padDownPrev = false;
 function pausePadRect(i) { return i < 4 ? pauseRowRect(i) : pauseLegendRect(); }
+// a webpage can't force-disconnect a Bluetooth controller — no such API
+// exists — so this is the practical stand-in: pad.present tracks whether one
+// is physically paired (drives the Settings row's lit/disabled state),
+// pad.connected is present-AND-NOT-ignored (what steering/UI actually act
+// on). Toggled from the Settings row (js/update.js); a real disconnect
+// always clears it so reconnecting later starts fresh, not still-ignored.
+let padIgnored = false;
+window.addEventListener("gamepadconnected", () => {
+  banner("CONTROLLER CONNECTED", "#69f0ae");
+  // hide the on-screen controls the instant the browser recognises the pad —
+  // waiting for the first button press (the old behaviour, via the activity
+  // check below) left them showing indefinitely if the player hadn't
+  // touched a button yet, even though pad.connected was already true
+  // (found on-device).
+  lastInputWasTouch = false;
+});
+window.addEventListener("gamepaddisconnected", () => banner("CONTROLLER DISCONNECTED", "#ff4081"));
 function pollPad() {
   pad.left = pad.right = pad.thrust = pad.fire = pad.shield = false;
   const gps = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = null;
   for (const g of gps) if (g && g.connected) { gp = g; break; }
-  pad.connected = !!gp;
-  if (!gp) { padStartPrev = padAPrev = padUpPrev = padDownPrev = false; return; }
+  pad.present = !!gp;
+  if (!gp) padIgnored = false;   // a real disconnect always clears any ignore
+  pad.connected = pad.present && !padIgnored;
+  if (!pad.connected) { padStartPrev = padAPrev = padUpPrev = padDownPrev = false; return; }
   const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
   const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
   pad.left   = ax < -0.35 || b(14);
@@ -298,7 +317,6 @@ function pollPad() {
   }
   padStartPrev = start; padAPrev = a;
 }
-window.addEventListener("gamepadconnected", () => banner("CONTROLLER CONNECTED", "#69f0ae"));
 
 /* ---------------- gyro / tilt steering ---------------- */
 // pulled from Settings entirely for now (see canvasTap) — always off, and a

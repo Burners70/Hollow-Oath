@@ -1476,3 +1476,16 @@ scheduled, logged so they aren't lost:**
   rather than the authored campaign or the fixed REMIX/DAILY seed rotation —
   distinct from M1's seed plumbing (which re-rolls existing generators, not
   the campaign structure itself). Logged only; no design spec yet.
+- **A stereo-panned proximity beacon for stranded Scions in the dark.** Owner
+  idea, on-device: BRIEFS[2] (Nightingale Basin) used to promise "Listen for
+  them in the dark," but no audio tell for locating a Scion exists —
+  `js/audio.js` has no Scion-proximity sound at all; `heartbeat()` only fires
+  once a Scion is already aboard, and the only "find them in the dark" cue is
+  visual (`drawDarkness()`'s light-pool punch per waiting Scion). The claim
+  was cut from the brief for now (found on-device, this round) rather than
+  rushed. The real feature: a soft, `StereoPannerNode`-panned call (panned by
+  the Scion's x-offset from the ship, volume/pitch rising on approach) —
+  genuinely useful on headphones, and in keeping with the game's existing
+  audio-as-diagnostic language (ECG, heartbeat, vitals drone). Needs its own
+  tuning pass before it ships: how many Scions call at once, at what range,
+  whether it competes with the ambient bed/vitals audio already established.

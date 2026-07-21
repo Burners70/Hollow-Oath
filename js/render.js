@@ -3135,28 +3135,39 @@ function drawSettings(now) {
     ["SOUND", sound], ["MUSIC", music], ["HAPTICS", haptics],
     ["ASSIST", assist], ["COLORBLIND", colorblind],
     ["FIELD MEDIC", easyMode], ["BIG TEXT", bigText],
-    ["REDUCED FLASH", reducedFlash], ["RESET PROGRESS", null]
+    ["REDUCED FLASH", reducedFlash], ["IGNORE CONTROLLER", padIgnored],
+    ["RESET PROGRESS", null]
   ];
   for (let i = 0; i < rows.length; i++) {
     const [label, on] = rows[i];
     const r = settingsRowRect(i);
-    const isReset = i === 8;
-    const stroke = isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
+    const isReset = i === 9;
+    // no controller paired: this row can't do anything, so it's shown
+    // disabled rather than as a toggle that silently does nothing —
+    // otherwise doubles as a discoverable "yes, the game sees your
+    // controller" indicator the instant one connects
+    const isPadRow = i === 8;
+    const padDisabled = isPadRow && !pad.present;
+    const stroke = padDisabled ? "rgba(255,255,255,.15)"
+      : isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
       : on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
     ctx.strokeStyle = stroke;
-    ctx.shadowColor = isReset ? (resetArmed ? "#ff4081" : "transparent") : (on ? "#69f0ae" : "transparent");
-    ctx.shadowBlur = (isReset ? resetArmed : on) ? 8 : 0;
+    ctx.shadowColor = padDisabled ? "transparent"
+      : isReset ? (resetArmed ? "#ff4081" : "transparent") : (on ? "#69f0ae" : "transparent");
+    ctx.shadowBlur = padDisabled ? 0 : (isReset ? resetArmed : on) ? 8 : 0;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
+    ctx.fillStyle = padDisabled ? "rgba(255,255,255,.25)"
+      : isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
       : on ? "#69f0ae" : "rgba(255,255,255,.5)";
     ctx.font = "700 12px Menlo, monospace";
-    const txt = isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
+    const txt = padDisabled ? "CONTROLLER · NONE"
+      : isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
       : label + " · " + (on ? "ON" : "OFF");
     ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
-  const footY = settingsRowRect(8).y + settingsRowRect(8).h + 14;
+  const footY = settingsRowRect(9).y + settingsRowRect(9).h + 14;
   ctx.font = "600 10px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255,.4)";
   ctx.fillText("field medic: gentler, 5 lives, next run · reset wipes scores & codex, keeps settings",
@@ -3277,6 +3288,7 @@ window.__doids = {
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
     resetArmed, settingsRows: SETTINGS_ROWS, buildTag: BUILD_TAG,
+    padPresent: pad.present, padConnected: pad.connected, padIgnored,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
     perfFrameMs, perfFps, resupplyDrone, liftTransit, runRefuels,
