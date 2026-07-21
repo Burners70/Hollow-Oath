@@ -60,6 +60,12 @@ without a real reason.
 **`Fight gravity. And deception.`** (29 chars) — decided. Pairs the actual
 mechanic (gravity/thrust) with the theme (Glycon's deception) in one line.
 
+### Promotional text (≤170 chars, decided)
+
+**`Something calls every 41 seconds. Steer true, land soft, and get them home — before the Static reaches them. No ads, no IAP. Just the rescue.`**
+(145 chars.) Editable anytime without a new App Review — unlike the
+description below, this is where to put anything time-sensitive later.
+
 ### Description — opening (decided: moody/literary)
 
 > Something calls every 41 seconds. It has been calling since AMS MERCY went
@@ -67,7 +73,7 @@ mechanic (gravity/thrust) with the theme (Glycon's deception) in one line.
 > entirely themselves.
 >
 > You fly the rescue dart. Thrust against gravity, land soft beside the
-> stranded, and get them home before the Static reaches them first. Some of
+> stranded, and get them home before the Static reaches them. Some of
 > what you find on the ground wants to be found. Not all of it should be
 > trusted.
 
@@ -102,6 +108,28 @@ physics, space, pilot`
 
 (All generic genre/mechanic terms. No third-party game names — those live
 only on the store-linked homepage/README per O2's Apple 2.3.7 note.)
+
+### Description — paste-ready plain text
+
+Everything below the line is exactly what goes in the App Store Connect
+**Description** field — no markdown, ready to copy straight in.
+
+```
+Something calls every 41 seconds. It has been calling since AMS MERCY went dark over the outer systems, and the medics who answer it stop being entirely themselves.
+
+You fly the rescue dart. Thrust against gravity, land soft beside the stranded, and get them home before the Static reaches them. Some of what you find on the ground wants to be found. Not all of it should be trusted.
+
+Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over hand-seeded terrain, land gently near stranded medical androids, and ferry them back to the mothership — while the game quietly teaches you to distrust what you rescue, and later, what you see on the ground.
+
+• Real gravity, real consequence. No auto-land, no aim-assist crutch — just thrust, weight, and a landing you have to earn.
+• A heartbeat you can feel. Haptics tuned to the game's own pulse, not generic buzzes.
+• Seven sectors, three hidden Hollows. Optional caves reward the curious and the careful with a second layer of story.
+• Two endings, one oath. Primum non nocere — first, do no harm — is scored, not just quoted.
+• Remix mode & a daily seed for runs that don't play the same way twice.
+• Complete game. No IAP, no ads, no data collected. Pay once, keep it.
+
+If you grew up steering a lander through cramped 16-bit caves, fighting gravity one careful thrust at a time — trying not to crash, trying not to lose the cargo you came for — this is built in that lineage, with its own story, its own world, and a reason to care who you're actually rescuing.
+```
 
 ---
 
