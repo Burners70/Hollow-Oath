@@ -203,11 +203,28 @@ const keyFor = e => keyMap[e.key] !== undefined ? keyMap[e.key]
   : (e.key.length === 1 ? keyMap[e.key.toLowerCase()] : undefined);
 window.addEventListener("keydown", e => {
   if (keyFor(e) !== undefined) { input[keyFor(e)] = true; e.preventDefault(); }
+  // Keyboard parity with the controller's pause-menu cursor (padPauseSel,
+  // moved by the d-pad/stick, confirmed with A in pollPad() below) — without
+  // this, a keyboard-only player has no way to select a pause row at all.
+  // kbPauseNav (drawn in render.js alongside pad.connected) makes the same
+  // row-highlight visible for keyboard nav, not just controller.
+  if (state === "pause") {
+    if (e.key === "ArrowUp") {
+      padPauseSel = (padPauseSel + 4) % 5; kbPauseNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    } else if (e.key === "ArrowDown") {
+      padPauseSel = (padPauseSel + 1) % 5; kbPauseNav = true;
+      blip(440, 660, 0.08, "sine", 0.06); e.preventDefault();
+    }
+  }
   if (e.key === "Enter") {
     input.tap = true;
     // keyboard confirm has no pointer position — aim it at the primary button
     if (state === "gameover") { const cr = continueRect(); input.tapX = cr.x + 1; input.tapY = cr.y + 1; }
     else if (state === "title") { const sr = startRect(); input.tapX = sr.x + 1; input.tapY = sr.y + 1; }
+    else if (state === "pause") {
+      const r = pausePadRect(padPauseSel); input.tapX = r.x + r.w / 2; input.tapY = r.y + r.h / 2;
+    }
   }
   if (e.key === "Escape" || e.key === "p" || e.key === "P") {
     // pause now works from the text/story screens too, and resume returns to the
@@ -259,6 +276,10 @@ let padStartPrev = false, padAPrev = false;
 // START pill — it needs its own up/down cursor over its rows (RESUME,
 // RESTART SECTOR, SETTINGS, QUIT TO TITLE, the HUD-legend link)
 let padPauseSel = 0;
+// keyboard parity with the above — true once a keyboard nav key has been
+// used on the pause menu, so render.js shows the row cursor for keyboard
+// players too, not just a connected controller
+let kbPauseNav = false;
 let padUpPrev = false, padDownPrev = false;
 function pausePadRect(i) { return i < 4 ? pauseRowRect(i) : pauseLegendRect(); }
 // a webpage can't force-disconnect a Bluetooth controller — no such API
