@@ -500,6 +500,22 @@ function dailyRect() {
   const w = Math.min(200, vw * 0.4);
   return { x: vw / 2 + 8, y: vh * 0.87, w, h: 30 };
 }
+// keyboard/controller nav on the title (see js/input.js) — a flat cycle
+// order, not a true 2D grid, since the title's pills aren't laid out on one
+// consistent axis (a centred CTA stack, a right-hand column, a left pill,
+// a bottom row). Good enough to make every pill reachable; not meant to be
+// spatially perfect.
+function titleNavItems() {
+  const items = [];
+  if (savedRun) items.push(resumeRect());
+  items.push(startRect());
+  items.push(settingsRect());
+  items.push(helpRect());
+  items.push(codexRect());
+  if (veteran) items.push(remixRect());
+  if (veteran) items.push(dailyRect());
+  return items;
+}
 function continueRect() {
   const w = Math.min(300, vw * 0.72);
   return { x: vw / 2 - w / 2, y: vh * 0.56, w, h: 54 };
