@@ -1334,11 +1334,15 @@ merged; G/H strongly recommended.**
   violence). The player *can* shoot medics (malpractice mechanic); answer the
   violence questions honestly and keep the store description's framing on
   consequence, not carnage.
-- [ ] **O4. Screenshots & preview.** 6.7" and 6.1" sets (landscape): title, a
-  landing beside a waving Scion, MERCY docking, a dark-sector lamp shot, a
-  Hollows shrine, the CONTAMINANT ABOARD warning (owner call, swapped in for
-  the ECG-arrhythmia moment — less compelling on screen). 15–30 s preview
-  video of one full rescue loop. Capture from a real device after D (perf)
+- [ ] **O4. Screenshots & preview.** 6.7" and 6.1" sets (landscape), 8 per
+  size: title, a landing beside a waving Scion, MERCY docking, a dark-sector
+  lamp shot, a Hollows shrine, the CONTAMINANT ABOARD warning (owner call,
+  swapped in for the ECG-arrhythmia moment — less compelling on screen), the
+  "SOMEONE EXTRAORDINARY IS ABOARD" famous-Scion reveal, and the
+  transfusion-line field-refuel moment (both owner additions, filling gaps
+  the other six don't cover — narrative depth and the refuel mechanic).
+  15–30 s preview video of one full rescue loop. Capture from a real device
+  after D (perf)
   lands.
 - [ ] **O5. Support & privacy URLs.** A one-page privacy policy ("no data
   collected, saves stay on device/iCloud") and support contact, hosted on the
