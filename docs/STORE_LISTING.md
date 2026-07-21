@@ -4,6 +4,10 @@
 O3/O4/O6 need a device/App Store Connect and are summarized at the bottom
 as a prep checklist, not drafted here.*
 
+**Primary Language: English (UK)** (owner decision, default for everything).
+Set this when creating the app in App Store Connect. All copy below already
+checked clean of US-only spellings.
+
 ---
 
 ## O1 — Pricing
