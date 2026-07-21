@@ -11,4 +11,11 @@ Status values:
 
 | Name | Email | Status |
 |------|-------|--------|
-|      |       |        |
+| Liam McKenzie | McKenzie_92@msn.com | Agreed |
+| Joe Tipping | TBC | Agreed |
+| Terry Grey | TBC | Approached |
+| Phil Burnett | TBC | Approached |
+| Rachel Burnett | rpearson@live.co.uk | Agreed |
+| Richard Lowther | TBC | Agreed |
+| Stephen Garside | steve.garside@accenture.com | Agreed |
+| James Burnett | TBC | Approached |
