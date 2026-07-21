@@ -204,12 +204,26 @@ there's no free version once O7 lands, so no tension to manage.)*
   shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview
   video of one full rescue loop.
   Two capture paths, split by whether the shot depends on procedural terrain:
-  - **Fully automated (static screens — title, settings, codex):**
-    `app/fastlane/Snapfile` + `app/HollowOathUITests/ScreenshotUITests.swift`
-    drive fastlane `snapshot` across both device sizes with no manual steps
-    per run, once a UI Test target is added in Xcode (one-time; see comments
-    in both files). Not yet run against a live simulator — treat the
-    navigation/timing in the test as a first pass to calibrate.
+  - **Fully automated (static screens — title, settings; codex still TODO):**
+    `app/capture-static-screenshots.sh` runs `xcodebuild test` directly
+    against `HollowOathUITests` once per device (name-based destinations —
+    e.g. `-destination 'platform=iOS Simulator,name=iPhone 17'`), fully
+    automated, no manual navigation. **Not** via `fastlane snapshot`
+    (`app/fastlane/Snapfile`) — that targets simulators by UUID, which hit an
+    Xcode incompatibility on the owner's machine (`Supported platforms for
+    the buildables in the current scheme is empty` / destination-not-found)
+    even with `concurrent_simulators` disabled; name-based destinations
+    (what Xcode's own `Cmd+U` uses) work fine, confirmed via a direct
+    `xcodebuild test` run. `ScreenshotUITests.swift` now writes screenshots
+    straight to `/tmp/hollowoath-snapshot-output` instead of going through
+    fastlane's attachment/`.xcresult` pipeline, and the shell script moves
+    them into the output folder per device. `Snapfile`/`Gemfile` are left in
+    the repo in case a future fastlane release fixes the UUID-destination
+    bug, but the working path is the shell script, not `bundle exec
+    fastlane snapshot`. Also resolves an earlier locale question — the
+    Snapfile forced `FASTLANE_LANGUAGE=en-US`; the shell-script path doesn't
+    force a language at all, so the simulator uses its own configured
+    locale.
   - **Manual (in-flight/procedural shots — landing, docking, dark-sector,
     Hollows shrine, ECG):** `app/capture-screenshots.sh` walks through this
     subset interactively (boots both sizes, prompts you to navigate,
