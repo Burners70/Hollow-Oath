@@ -1336,8 +1336,10 @@ merged; G/H strongly recommended.**
   consequence, not carnage.
 - [ ] **O4. Screenshots & preview.** 6.7" and 6.1" sets (landscape): title, a
   landing beside a waving Scion, MERCY docking, a dark-sector lamp shot, a
-  Hollows shrine, the ECG-arrhythmia moment. 15–30 s preview video of one full
-  rescue loop. Capture from a real device after D (perf) lands.
+  Hollows shrine, the CONTAMINANT ABOARD warning (owner call, swapped in for
+  the ECG-arrhythmia moment — less compelling on screen). 15–30 s preview
+  video of one full rescue loop. Capture from a real device after D (perf)
+  lands.
 - [ ] **O5. Support & privacy URLs.** A one-page privacy policy ("no data
   collected, saves stay on device/iCloud") and support contact, hosted on the
   existing GitHub Pages site.

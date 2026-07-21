@@ -201,8 +201,10 @@ there's no free version once O7 lands, so no tension to manage.)*
 
 - **O4 Screenshots & preview video.** Need 6.7" and 6.1" landscape sets: title
   screen, a landing beside a waving Scion, MERCY docking, a dark-sector lamp
-  shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview
-  video of one full rescue loop.
+  shot, a Hollows shrine, the CONTAMINANT ABOARD warning (seal-it-at-the-red-bay
+  moment — owner call, swapped in for the ECG-arrhythmia shot, which read as
+  less compelling on screen). Plus a 15–30s preview video of one full rescue
+  loop.
   Two capture paths, split by whether the shot depends on procedural terrain:
   - **Fully automated (static screens — title, settings; codex still TODO):**
     `app/capture-static-screenshots.sh` runs `xcodebuild test` directly
