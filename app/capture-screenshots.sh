@@ -21,10 +21,14 @@ SHOTS=(
   "ecg-arrhythmia"
 )
 
-# 6.7" bucket: iPhone 15 Pro Max. 6.1" bucket: iPhone 15.
+# Largest current bucket: iPhone 17 Pro Max. Standard bucket: iPhone 17.
+# NOTE: these names drift as Apple retires older iPhone simulators from new
+# Xcode installs. If `simctl boot` fails with a device-not-found error, run
+# `xcrun simctl list devices` and swap in two current names (largest + a
+# standard size) instead of assuming these are still valid.
 DEVICES=(
-  "6.7in:iPhone 15 Pro Max"
-  "6.1in:iPhone 15"
+  "6.9in:iPhone 17 Pro Max"
+  "6.3in:iPhone 17"
 )
 
 for entry in "${DEVICES[@]}"; do

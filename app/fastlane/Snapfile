@@ -12,9 +12,15 @@
 #   3. bundle exec fastlane snapshot   (run from app/)
 
 devices([
-  "iPhone 15 Pro Max",  # 6.7" bucket
-  "iPhone 15",          # 6.1" bucket
+  "iPhone 17 Pro Max",  # largest current bucket
+  "iPhone 17",          # standard current bucket
 ])
+# Device names must match whatever's installed in Xcode's current simulator
+# runtime (`xcrun simctl list devices`) — Apple retires older iPhone
+# simulators as new hardware ships, so these names drift over time. If
+# `fastlane snapshot` errors with "not in list of available simulators",
+# swap in two names from that error message's list (pick the largest and a
+# standard-size one) rather than assuming these are still current.
 
 languages(["en-US"])
 
