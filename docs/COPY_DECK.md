@@ -361,11 +361,13 @@ old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
   ASSIST / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
   (TILT pulled for now — see APP_STORE_ROADMAP.md; re-add once a native
   CoreMotion bridge exists)
-  · `IGNORE CONTROLLER · ON|OFF` (disabled, reads `CONTROLLER · NONE`, when
-  no gamepad is paired — a webpage can't force-disconnect a Bluetooth
-  controller, so this is the practical stand-in: it stops the game reading
-  the pad and brings touch controls back, and doubles as a "yes, the game
-  sees your controller" indicator)
+  · `USE CONTROLLER · ON|OFF` (disabled, reads `CONTROLLER · NONE`, when no
+  gamepad is paired — a webpage can't force-disconnect a Bluetooth
+  controller, so this is the practical stand-in: defaults ON the instant one
+  connects, whether at boot or mid-play; switching it OFF stops the game
+  reading the pad and brings touch controls back; a real disconnect always
+  resets it to ON for next time. Doubles as a "yes, the game sees your
+  controller" indicator)
   · `RESET PROGRESS` → `TAP AGAIN TO WIPE` · footers "field medic: gentler, 5
   lives, next run · reset wipes scores & codex, keeps settings" and "Hollow
   Oath · v1.0 · b2026-07 · no ads, no tracking · tap outside to close".

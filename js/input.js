@@ -264,12 +264,15 @@ function pausePadRect(i) { return i < 4 ? pauseRowRect(i) : pauseLegendRect(); }
 // a webpage can't force-disconnect a Bluetooth controller — no such API
 // exists — so this is the practical stand-in: pad.present tracks whether one
 // is physically paired (drives the Settings row's lit/disabled state),
-// pad.connected is present-AND-NOT-ignored (what steering/UI actually act
-// on). Toggled from the Settings row (js/update.js); a real disconnect
-// always clears it so reconnecting later starts fresh, not still-ignored.
-let padIgnored = false;
+// pad.connected is present-AND-in-use (what steering/UI actually act on).
+// padUse defaults true and auto-resets to true on every fresh connect (on
+// boot or mid-play) — the game uses a controller the instant it sees one,
+// with the Settings row as the escape hatch back to touch, not something
+// you have to opt into each time.
+let padUse = true;
 window.addEventListener("gamepadconnected", () => {
   banner("CONTROLLER CONNECTED", "#69f0ae");
+  padUse = true;
   // hide the on-screen controls the instant the browser recognises the pad —
   // waiting for the first button press (the old behaviour, via the activity
   // check below) left them showing indefinitely if the player hadn't
@@ -284,8 +287,8 @@ function pollPad() {
   let gp = null;
   for (const g of gps) if (g && g.connected) { gp = g; break; }
   pad.present = !!gp;
-  if (!gp) padIgnored = false;   // a real disconnect always clears any ignore
-  pad.connected = pad.present && !padIgnored;
+  if (!gp) padUse = true;   // a real disconnect resets to "use" for next time
+  pad.connected = pad.present && padUse;
   if (!pad.connected) { padStartPrev = padAPrev = padUpPrev = padDownPrev = false; return; }
   const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
   const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;

@@ -572,27 +572,32 @@ function drawShip(now) {
   // ramp): drawDarkness already punches the surface disc regardless, but the
   // beam graphic itself was Hollows-only, so the ship's own light source never
   // showed on the surface (found on-device).
-  const nightHasFallen = !level.nightStaged || level.nightFell;
-  const beamsOn = (level.isCave || (level.dark && nightHasFallen)) && !s.dead;
-  if (beamsOn) {
+  // beamGlow/lampGlow (js/update.js updatePlay) ease toward their target
+  // every tick instead of popping instantly — a short graded brighten when
+  // entering/leaving a dark zone, and the same graded brighten from
+  // standard to Flo's LAMP proportions the moment the upgrade is picked up
+  // (found on-device: both used to snap).
+  const beamGlow = s.dead ? 0 : s.beamGlow;
+  if (beamGlow > 0.01) {
     // owner steer: three noticeable BEAMS off the three points (nose + the two
     // engine corners), not one bright halo around the hull. Flo's LAMP throws
     // them further and brighter. A small emitter core marks each point.
-    const lamp = upgrades.lamp;
+    const lampT = s.lampGlow;
     const rgb = "174,244,255";                       // #aef4ff
-    const len = lamp ? 210 : 132, hw = lamp ? 30 : 20, al = lamp ? 0.5 : 0.32;
+    const len = lerp(132, 210, lampT), hw = lerp(20, 30, lampT), al = lerp(0.32, 0.5, lampT) * beamGlow;
+    const coreR = lerp(8, 10, lampT);
     const pts = shipGlowPoints();
     const dirs = [-Math.PI / 2, Math.atan2(0.85, -0.6), Math.atan2(0.85, 0.6)];
     for (let i = 0; i < 3; i++) {
       drawLightBeam(pts[i][0], pts[i][1], s.ang + dirs[i], len, hw, rgb, al);
-      drawGlow(pts[i][0], pts[i][1], lamp ? 10 : 8, "#aef4ff", 0.7);   // bright emitter core
+      drawGlow(pts[i][0], pts[i][1], coreR, "#aef4ff", 0.7 * beamGlow);   // bright emitter core
     }
   }
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.ang);
   // less bloom on the hull itself once the beams are doing the lighting
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = beamsOn ? 6 : 14;
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = lerp(14, 6, beamGlow);
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
   ctx.fillStyle = "rgba(0,229,255,.12)";
   ctx.beginPath();
@@ -3135,7 +3140,7 @@ function drawSettings(now) {
     ["SOUND", sound], ["MUSIC", music], ["HAPTICS", haptics],
     ["ASSIST", assist], ["COLORBLIND", colorblind],
     ["FIELD MEDIC", easyMode], ["BIG TEXT", bigText],
-    ["REDUCED FLASH", reducedFlash], ["IGNORE CONTROLLER", padIgnored],
+    ["REDUCED FLASH", reducedFlash], ["USE CONTROLLER", padUse],
     ["RESET PROGRESS", null]
   ];
   for (let i = 0; i < rows.length; i++) {
@@ -3288,7 +3293,7 @@ window.__doids = {
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
     resetArmed, settingsRows: SETTINGS_ROWS, buildTag: BUILD_TAG,
-    padPresent: pad.present, padConnected: pad.connected, padIgnored,
+    padPresent: pad.present, padConnected: pad.connected, padUse,
     sfxGainValue: sfxGain ? sfxGain.gain.value : null,
     musicGainValue: musicGain ? musicGain.gain.value : null,
     perfFrameMs, perfFps, resupplyDrone, liftTransit, runRefuels,

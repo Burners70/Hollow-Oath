@@ -798,8 +798,8 @@ function updateSettings() {
           // rather than silently arming something invisible
           if (!pad.present) { /* no-op */ }
           else {
-            padIgnored = !padIgnored;
-            blip(padIgnored ? 300 : 440, padIgnored ? 200 : 660, 0.12, "sine", 0.1);
+            padUse = !padUse;
+            blip(padUse ? 440 : 300, padUse ? 660 : 200, 0.12, "sine", 0.1);
           }
         } else if (i === 9) {
           if (resetArmed) {
@@ -818,6 +818,15 @@ function updateSettings() {
 }
 
 function updatePlay(dt) {
+  // ease the headlight beams toward their target on/off + lamp-upgrade
+  // brightness every tick, before any early return, so the fade keeps
+  // playing smoothly through lift transitions/extraction too
+  const nightFallen = !level.nightStaged || level.nightFell;
+  const beamTarget = (level.isCave || (level.dark && nightFallen)) ? 1 : 0;
+  ship.beamGlow += (beamTarget - ship.beamGlow) * Math.min(1, dt * 3);
+  const lampTarget = upgrades.lamp ? 1 : 0;
+  ship.lampGlow += (lampTarget - ship.lampGlow) * Math.min(1, dt * 1.5);
+
   if (liftTransit) { updateLiftTransit(dt); return; }
   // S4 — during the capture/jump beat the ship is MERCY's, not yours: skip the
   // flight sim (its ceiling clamp would fight the lerp that rides you up with her)
@@ -837,16 +846,20 @@ function updatePlay(dt) {
   if (steer === 0) steer = gyroSteerVal();
   if (steer) s.ang += ROT * dt * steer;
 
-  // landing assist auto-levels the ship — but only on the way DOWN, so it never
-  // fights your attitude while you're thrusting up and away. Owner steer: a
-  // legal-but-tilted touchdown used to rest on a strut/corner; as the ship
-  // settles (near the ground, descending) assist now rights the WHOLE permitted
-  // landing angle, so on assist you always come down level.
+  // landing assist auto-levels the ship — but only on the final approach, so
+  // it never fights your attitude in open flight. It used to also apply a
+  // gentle (ASSIST_CAPTURE, ~13°) correction at ANY altitude whenever you
+  // weren't actively steering while descending — reading as "auto-righting
+  // in the air" (found on-device), not the intended near-ground-only
+  // settle. Owner steer: a legal-but-tilted touchdown used to rest on a
+  // strut/corner; in the last ~90px above ground, assist now rights the
+  // WHOLE permitted landing angle, so on assist you always come down level.
   if (assist && !s.landed && !steer && s.vy > 0) {
-    const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     const nearGround = (groundAt(s.x) - (s.y + SHIP_R)) < 90;
-    const cap = nearGround ? 0.5 : ASSIST_CAPTURE;   // 0.5 = the upright landing limit
-    if (Math.abs(tilt) < cap) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);
+    if (nearGround) {
+      const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+      if (Math.abs(tilt) < 0.5) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);   // 0.5 = the upright landing limit
+    }
   }
 
   // force field: eats fuel, stops bullets, drones, rough ground and cave roofs.

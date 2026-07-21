@@ -433,7 +433,6 @@ function markIntroSeen() {
   introSeen = true;
   try { localStorage.setItem("doids_intro", "1"); } catch (e) {}
 }
-const ASSIST_CAPTURE = 0.22;
 const ASSIST_RATE = 4.5;
 
 /* Title pills sit in two tidy, equal-width columns instead of a right-heavy
@@ -1050,7 +1049,14 @@ function spawnShip() {
     x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
-    shield: false, parryT: 0, signalT: 0, scuttleT: 0
+    shield: false, parryT: 0, signalT: 0, scuttleT: 0,
+    // eased 0..1 progress for the headlight beams (js/render.js drawShip):
+    // beamGlow fades the beams in/out on dark-zone entry/exit instead of
+    // popping instantly; lampGlow fades UP from "no lamp" to "Flo's LAMP"
+    // proportions the moment the upgrade is picked up, rather than snapping.
+    // lampGlow starts already-lit on a fresh spawn if the upgrade was earned
+    // in an earlier sector — only the actual moment of acquiring it fades.
+    beamGlow: 0, lampGlow: upgrades.lamp ? 1 : 0
   };
 }
 
