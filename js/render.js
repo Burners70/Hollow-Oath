@@ -3077,7 +3077,7 @@ function drawPause(now) {
   // a controller has no pointer to hover, so its current row gets its own
   // cursor — a brighter stroke plus a leading marker — instead of relying on
   // a hover state that only touch/mouse can produce
-  const padSel = pad.connected ? padPauseSel : -1;
+  const padSel = (pad.connected || kbPauseNav) ? padPauseSel : -1;
   for (let i = 0; i < 4; i++) {
     const r = pauseRowRect(i);
     const sel = i === padSel;
