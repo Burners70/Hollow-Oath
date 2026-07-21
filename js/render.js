@@ -46,10 +46,9 @@ function drawLightBeam(ox, oy, ang, len, halfW, rgb, alpha) {
   g.addColorStop(1, "rgba(" + rgb + ",0)");
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.moveTo(0, -halfW * 0.35);
+  ctx.moveTo(0, 0);
   ctx.lineTo(len, -halfW);
   ctx.lineTo(len, halfW);
-  ctx.lineTo(0, halfW * 0.35);
   ctx.closePath();
   ctx.fill();
   ctx.restore();

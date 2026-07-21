@@ -919,9 +919,25 @@ function updatePlay(dt) {
     if (soft) {
       s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
     } else if (s.shield) {
-      // the force field turns a bad approach into a bounce
+      // the force field turns a bad approach into a bounce — reflected off
+      // the ACTUAL local slope normal, not just vertically. A vertical-only
+      // bounce (vy = -vy) sends the ship straight back up regardless of how
+      // steep the ground is; on a steep slope that isn't enough sideways
+      // clearance, so gravity and residual vx carry it right back into the
+      // rising ground next frame — re-triggering the bounce (and the fuel
+      // cost) every tick instead of a single clean deflection. Found
+      // on-device: the shield "caught" on a steep descent and burned
+      // through fuel. Reflecting off the slope's own normal sends the ship
+      // away from the hill face, the way an actual bounce off an angled
+      // surface would.
+      const eps = 4;
+      const slope = (groundAt(s.x + eps) - groundAt(s.x - eps)) / (2 * eps);
+      const nlen = Math.hypot(slope, 1);
+      const nx = slope / nlen, ny = -1 / nlen;   // outward normal, away from the ground
+      const vn = s.vx * nx + s.vy * ny;
+      s.vx = (s.vx - 2 * vn * nx) * 0.65;
+      s.vy = (s.vy - 2 * vn * ny) * 0.45;
       s.y = g - SHIP_R;
-      s.vy = -Math.abs(s.vy) * 0.45; s.vx *= 0.65;
       s.fuel = Math.max(0, s.fuel - 4);
       camera.shake += 6;
       haptic.medium();
