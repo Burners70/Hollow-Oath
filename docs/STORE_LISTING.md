@@ -159,10 +159,14 @@ serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
   short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
   exclusion, controls/tilt, crashes, refunds via Apple) and GitHub Issues as
   the fallback for anyone who'd rather file there.
-- **Marketing URL** → `about.html` (**not yet drafted** — the pitch, the
-  *named* homage paragraph — Oids/Thrust/Gravitar, the one place per E7 this
-  is allowed to be explicit — and screenshots once captured. No link back to
-  a playable free version, since there won't be one.)
+- **Marketing URL** → `about.html` (drafted, see repo root):
+  `https://burners70.github.io/Hollow-Oath/about.html`. The pitch, the
+  feature list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one
+  place per E7 this is allowed to be explicit), and the full 8-shot gallery
+  from `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
+  playable free version, since there won't be one once O7 lands. The
+  "Coming soon to the App Store" CTA is a placeholder — swap in the real App
+  Store link once the app is live.
 
 *(Resolved: the earlier "free web version undercuts the $2.99 ask" concern —
 there's no free version once O7 lands, so no tension to manage.)*
