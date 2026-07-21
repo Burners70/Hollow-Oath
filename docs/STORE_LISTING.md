@@ -125,6 +125,16 @@ needs one picked before submission.
   violence — the player can shoot medics as a malpractice mechanic). Answer
   the violence questions honestly; keep the *description's* framing on
   consequence, not carnage, so the rating and the copy agree.
+
+  **Answers given so far (App Store Connect questionnaire):**
+
+  | Category | Answer | Why |
+  |---|---|---|
+  | Cartoon or Fantasy Violence | Infrequent | Sci-fi androids/energy weapons, stylised arcade visuals — exaggerated, easily distinguished from real life. |
+  | Realistic Violence | None | No humans, no lifelike conflict depiction. |
+  | Prolonged Graphic or Sadistic Realistic Violence | None | No graphic/sadistic content at all. |
+  | Guns or Other Weapons | Infrequent | The ship's fire mechanic is real (used on enemies and, as the malpractice choice, on Scions) but not central or constant — the game actively rewards *not* firing (the no-fire "OATH KEPT" ending). Left at "None" would understate it. |
+  | Horror or Fear Themes | Mild | The Static/Glycon create unease ("still walk, still wave, but the rhythm is wrong"), not horror-genre dread. Owner's own framing: "foreboding, not dread." |
 - **O4 Screenshots & preview video.** Need 6.7" and 6.1" landscape sets: title
   screen, a landing beside a waving Scion, MERCY docking, a dark-sector lamp
   shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview
