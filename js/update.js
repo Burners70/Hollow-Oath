@@ -846,20 +846,18 @@ function updatePlay(dt) {
   if (steer === 0) steer = gyroSteerVal();
   if (steer) s.ang += ROT * dt * steer;
 
-  // landing assist auto-levels the ship — but only on the final approach, so
-  // it never fights your attitude in open flight. It used to also apply a
-  // gentle (ASSIST_CAPTURE, ~13°) correction at ANY altitude whenever you
-  // weren't actively steering while descending — reading as "auto-righting
-  // in the air" (found on-device), not the intended near-ground-only
-  // settle. Owner steer: a legal-but-tilted touchdown used to rest on a
-  // strut/corner; in the last ~90px above ground, assist now rights the
-  // WHOLE permitted landing angle, so on assist you always come down level.
-  if (assist && !s.landed && !steer && s.vy > 0) {
-    const nearGround = (groundAt(s.x) - (s.y + SHIP_R)) < 90;
-    if (nearGround) {
-      const tilt = ((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-      if (Math.abs(tilt) < 0.5) s.ang = tilt * Math.max(0, 1 - ASSIST_RATE * dt);   // 0.5 = the upright landing limit
-    }
+  // landing assist auto-levels the ship — but ONLY after it has actually
+  // touched down, never while still airborne, however close to the ground.
+  // This used to also nudge the angle during the final approach (and before
+  // that, at any altitude at all) — still visibly "auto-righting in the
+  // air" from the player's seat even confined to the last ~90px above
+  // ground (found on-device). The landing branches below no longer force
+  // ang to 0 instantly on touchdown; this eases it there smoothly instead,
+  // so a legal-but-tilted touchdown settles level rather than sitting there
+  // at an angle or popping upright in a single frame.
+  if (assist && s.landed && s.ang !== 0) {
+    s.ang *= Math.max(0, 1 - ASSIST_RATE * dt);
+    if (Math.abs(s.ang) < 0.01) s.ang = 0;
   }
 
   // force field: eats fuel, stops bullets, drones, rough ground and cave roofs.
@@ -938,7 +936,9 @@ function updatePlay(dt) {
   if (!s.landed && s.y + SHIP_R >= g) {
     const { soft, survivable } = landingEval();
     if (soft) {
-      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+      // assist eases the real touchdown tilt to level afterward (above);
+      // without assist, keep the original instant snap unchanged
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
     } else if (s.shield) {
       // the force field turns a bad approach into a bounce — reflected off
       // the ACTUAL local slope normal, not just vertically. A vertical-only
@@ -965,7 +965,7 @@ function updatePlay(dt) {
       addText(s.x, s.y - 30, "SHIELD BOUNCE", "#69f0ae");
       blip(200, 380, 0.15, "sine", 0.12);
     } else if (survivable) {
-      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = 0;
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
       const dmg = upgrades.gentle ? 12 : 35;
       s.vitals -= dmg; camera.shake += 10;
       haptic.heavy();
