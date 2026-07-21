@@ -4,6 +4,10 @@
 O3/O4/O6 need a device/App Store Connect and are summarized at the bottom
 as a prep checklist, not drafted here.*
 
+**Primary Language: English (UK)** (owner decision, default for everything).
+Set this when creating the app in App Store Connect. All copy below already
+checked clean of US-only spellings.
+
 ---
 
 ## O1 — Pricing
@@ -56,6 +60,12 @@ without a real reason.
 **`Fight gravity. And deception.`** (29 chars) — decided. Pairs the actual
 mechanic (gravity/thrust) with the theme (Glycon's deception) in one line.
 
+### Promotional text (≤170 chars, decided)
+
+**`Something calls every 41 seconds. Steer true, land soft, and get them home — before the Static reaches them. No ads, no IAP. Just the rescue.`**
+(145 chars.) Editable anytime without a new App Review — unlike the
+description below, this is where to put anything time-sensitive later.
+
 ### Description — opening (decided: moody/literary)
 
 > Something calls every 41 seconds. It has been calling since AMS MERCY went
@@ -63,14 +73,14 @@ mechanic (gravity/thrust) with the theme (Glycon's deception) in one line.
 > entirely themselves.
 >
 > You fly the rescue dart. Thrust against gravity, land soft beside the
-> stranded, and get them home before the Static reaches them first. Some of
+> stranded, and get them home before the Static reaches them. Some of
 > what you find on the ground wants to be found. Not all of it should be
 > trusted.
 
 **Body copy (follows the opening above):**
 
 > Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over
-> hand-seeded terrain, land gently near stranded medical androids, and
+> hostile terrain, land gently near stranded medical androids, and
 > ferry them back to the mothership — while the game quietly teaches you
 > to distrust what you rescue, and later, what you see on the ground.
 >
@@ -84,6 +94,13 @@ mechanic (gravity/thrust) with the theme (Glycon's deception) in one line.
 >   scored, not just quoted.
 > - **Remix mode & a daily seed** for runs that don't play the same way twice.
 > - **Complete game.** No IAP, no ads, no data collected. Pay once, keep it.
+
+*(Note: dropped "procedurally seeded" from the terrain description — per
+Bundle M, the standard campaign uses a **fixed** seed and generates identical
+terrain every run; only Remix mode and the Daily flight vary it. "Procedural"
+reads as roguelike per-run variety to most buyers, which would overpromise
+for the base campaign. The Remix/daily-seed bullet below already carries the
+accurate "no two runs the same" claim, scoped correctly.)*
 
 **Nostalgia paragraph (generic terms only — no trademarked titles):**
 
@@ -99,19 +116,56 @@ physics, space, pilot`
 (All generic genre/mechanic terms. No third-party game names — those live
 only on the store-linked homepage/README per O2's Apple 2.3.7 note.)
 
+### Description — paste-ready plain text
+
+Everything below the line is exactly what goes in the App Store Connect
+**Description** field — no markdown, ready to copy straight in.
+
+```
+Something calls every 41 seconds. It has been calling since AMS MERCY went dark over the outer systems, and the medics who answer it stop being entirely themselves.
+
+You fly the rescue dart. Thrust against gravity, land soft beside the stranded, and get them home before the Static reaches them. Some of what you find on the ground wants to be found. Not all of it should be trusted.
+
+Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over hostile terrain, land gently near stranded medical androids, and ferry them back to the mothership — while the game quietly teaches you to distrust what you rescue, and later, what you see on the ground.
+
+• Real gravity, real consequence. No auto-land, no aim-assist crutch — just thrust, weight, and a landing you have to earn.
+• A heartbeat you can feel. Haptics tuned to the game's own pulse, not generic buzzes.
+• Seven sectors, three hidden Hollows. Optional caves reward the curious and the careful with a second layer of story.
+• Two endings, one oath. Primum non nocere — first, do no harm — is scored, not just quoted.
+• Remix mode & a daily seed for runs that don't play the same way twice.
+• Complete game. No IAP, no ads, no data collected. Pay once, keep it.
+
+If you grew up steering a lander through cramped 16-bit caves, fighting gravity one careful thrust at a time — trying not to crash, trying not to lose the cargo you came for — this is built in that lineage, with its own story, its own world, and a reason to care who you're actually rescuing.
+```
+
 ---
 
-## O5 — Privacy policy & support
+## O5 — Privacy policy, support & marketing pages
 
-Drafted as a standalone page: **`privacy.html`** (see repo root), meant to be
-linked from App Store Connect's Privacy Policy URL field and hosted on the
-existing GitHub Pages site at
-`https://burners70.github.io/Hollow-Oath/privacy.html`.
+**Owner decision, updated:** there will be no public playable web version of
+the game once the app ships — the live GitHub Pages deploy was a
+development/testing convenience only (see roadmap O7). So none of the three
+App Store Connect URL fields below should point at the game itself; they
+point at three small standalone pages instead, all hosted at
+`burners70.github.io/Hollow-Oath/` once O7's re-plumbing is done (Pages
+serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
 
-**Support contact:** point App Store Connect's support URL at the same page's
-support section, or a GitHub Issues link if you'd rather route support there —
-flag which one you want; `privacy.html` currently offers both as options and
-needs one picked before submission.
+- **Privacy Policy URL** → `privacy.html` (drafted, see repo root):
+  `https://burners70.github.io/Hollow-Oath/privacy.html`
+- **Support URL** → `support.html` (drafted, see repo root):
+  `https://burners70.github.io/Hollow-Oath/support.html`. Contact email:
+  **hollowoath.support@gmail.com** (a dedicated Gmail alias forwarding to the
+  owner's personal inbox — not the personal address itself). Also covers a
+  short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
+  exclusion, controls/tilt, crashes, refunds via Apple) and GitHub Issues as
+  the fallback for anyone who'd rather file there.
+- **Marketing URL** → `about.html` (**not yet drafted** — the pitch, the
+  *named* homage paragraph — Oids/Thrust/Gravitar, the one place per E7 this
+  is allowed to be explicit — and screenshots once captured. No link back to
+  a playable free version, since there won't be one.)
+
+*(Resolved: the earlier "free web version undercuts the $2.99 ask" concern —
+there's no free version once O7 lands, so no tension to manage.)*
 
 ---
 
@@ -121,6 +175,30 @@ needs one picked before submission.
   violence — the player can shoot medics as a malpractice mechanic). Answer
   the violence questions honestly; keep the *description's* framing on
   consequence, not carnage, so the rating and the copy agree.
+
+  **Answers given so far (App Store Connect questionnaire):**
+
+  | Category | Answer | Why |
+  |---|---|---|
+  | Cartoon or Fantasy Violence | Infrequent | Sci-fi androids/energy weapons, stylised arcade visuals — exaggerated, easily distinguished from real life. |
+  | Realistic Violence | None | No humans, no lifelike conflict depiction. |
+  | Prolonged Graphic or Sadistic Realistic Violence | None | No graphic/sadistic content at all. |
+  | Guns or Other Weapons | Infrequent | The ship's fire mechanic is real (used on enemies and, as the malpractice choice, on Scions) but not central or constant — the game actively rewards *not* firing (the no-fire "OATH KEPT" ending). Left at "None" would understate it. |
+  | Horror or Fear Themes | Mild | The Static/Glycon create unease ("still walk, still wave, but the rhythm is wrong"), not horror-genre dread. Owner's own framing: "foreboding, not dread." |
+
+- **Accessibility Nutrition Labels** (App Information → separate self-declared
+  section, not part of the age rating questionnaire — checked against actual
+  behaviour, so answered precisely rather than ticking everything):
+
+  | Feature | Claim it? | Why |
+  |---|---|---|
+  | Differentiate Without Color Alone | **Yes** | H1/H2: colourblind palette swap plus `✓/!/✕` glyphs and `?` marks — landing-guide state and counterfeit detection never rely on colour alone. |
+  | Larger Text | **Yes** | H4: `doids_bigtext` adds +2px to card/brief body text. |
+  | VoiceOver / Voice Control | **No** | Single canvas, no accessibility tree — confirmed when scoping the fastlane UI-test automation earlier (O4). Claiming this would be false. |
+  | Sufficient Contrast | **No** | Never tested against Apple's actual contrast bar; don't self-certify without checking. |
+  | Captions | **No** | No dialogue audio to caption. |
+  | Reduced Motion | **No** | Checked `js/render.js`: `reducedFlash` (`doids_flash`) only halves flash/flicker *intensity* (lamp gutter, static-surge dimming, sabotage flash, glyph-corruption rate, one jitter amplitude) — it never touches animation speed or motion/parallax, which is what this label actually means. |
+
 - **O4 Screenshots & preview video.** Need 6.7" and 6.1" landscape sets: title
   screen, a landing beside a waving Scion, MERCY docking, a dark-sector lamp
   shot, a Hollows shrine, the ECG-arrhythmia moment. Plus a 15–30s preview

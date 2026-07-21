@@ -1328,6 +1328,8 @@ merged; G/H strongly recommended.**
   **No third-party trademarks in any metadata field (E7 / Apple 2.3.7)** — the
   *named* homage (Oids, Thrust, Gravitar) lives on the store-linked homepage
   and README instead, which is what search engines index for "games like Oids".
+  **Owner decision, updated:** the store-linked homepage is a dedicated
+  marketing page (`about.html`), **not** the live playable build — see O7.
 - [ ] **O3. Age rating questionnaire** — expect 9+ (infrequent mild fantasy
   violence). The player *can* shoot medics (malpractice mechanic); answer the
   violence questions honestly and keep the store description's framing on
@@ -1343,6 +1345,26 @@ merged; G/H strongly recommended.**
   external TestFlight round (5–10 players, watch where they die and quit) →
   submit. Budget one rejection cycle; 4.2 is the likely challenge and the
   response is the native-features list (F, G, E4).
+- [ ] **O7. Take the public playable web build down before launch (owner
+  decision, July 2026).** The live GitHub Pages deploy
+  (`https://burners70.github.io/Hollow-Oath/`) was a development/testing
+  convenience, not an intended permanent free release — the owner does not
+  want a free web version coexisting with the $2.99 iOS app. Before
+  submission:
+  - Stop serving the playable build (`index.html` + `js/`/`css/`) publicly —
+    either disable GitHub Pages entirely, or restructure the Pages source so
+    it only serves the marketing/support/privacy shell (`about.html`,
+    `support.html`, `privacy.html`), not the game itself.
+  - Re-home the named homage paragraph (Oids/Thrust/Gravitar — E7) onto
+    `about.html` specifically, since it can no longer live on the playable
+    page.
+  - `app/sync.sh` (mirrors web build into the Capacitor `webDir`) is
+    unaffected either way — it reads from the repo directly, not from the
+    public Pages deploy.
+  - Note: this is a hosting/repo-settings change, not just a docs change —
+    needs deciding *how* (Pages toggle vs. restructured source) before O6's
+    dry run, since O5's Support/Privacy URLs and O2's Marketing URL all
+    currently assume something is reachable at a `burners70.github.io` path.
 
 ---
 
