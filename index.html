@@ -1,37 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Hollow Oath">
-<meta name="theme-color" content="#05060f">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Hollow Oath — a 2D gravity-thrust rescue game. Coming to the App Store.">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="manifest" href="manifest.webmanifest">
-<title>Hollow Oath — a gravity rescue</title>
-<link rel="stylesheet" href="css/game.css">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Hollow Oath</title>
+<style>
+  :root {
+    --bg: #05060f; --panel: #0f1220; --border: #232842;
+    --ink: #eaf6ff; --ink-dim: #9beaf9; --accent: #00e5ff;
+    --amber: #ffc400; --green: #69f0ae;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    margin: 0;
+    line-height: 1.6;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  h1 {
+    font-size: clamp(2.2rem, 7vw, 3.4rem);
+    margin: 0 0 0.4rem;
+    color: var(--ink);
+    text-shadow: 0 0 24px rgba(0,229,255,.5);
+  }
+  .subtitle { color: var(--ink-dim); font-size: 1.05rem; margin: 0 0 2rem; }
+  .hook { color: var(--amber); font-weight: 600; margin: 0 0 2.5rem; }
+  p { color: #cfe9f2; }
+  .lede { font-size: 1.1rem; color: var(--ink); }
+  .cta-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1.5rem 0 3rem; }
+  .cta {
+    display: inline-block;
+    padding: 0.75rem 1.4rem;
+    border: 1.5px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .cta.disabled {
+    border-color: rgba(255,255,255,.25);
+    color: rgba(255,255,255,.5);
+    cursor: default;
+  }
+  .cta.secondary { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.75); }
+  h2 {
+    color: var(--ink);
+    font-size: 1.4rem;
+    margin: 3rem 0 1rem;
+    border-left: 3px solid var(--accent);
+    padding-left: 0.75rem;
+  }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.9rem; }
+  ul.features li {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+  }
+  ul.features li b { color: var(--green); }
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  figure {
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  figure img { width: 100%; display: block; }
+  figcaption {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.82rem;
+    color: var(--ink-dim);
+  }
+  .homage {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    color: #cfe9f2;
+    font-size: 0.95rem;
+  }
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,.5);
+  }
+  footer a { color: var(--ink-dim); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div class="btn" id="btnL">&#10226;</div>
-<div class="btn" id="btnR">&#10227;</div>
-<div class="btn" id="btnFire">FIRE</div>
-<div class="btn" id="btnThrust">THRUST</div>
-<div class="btn" id="btnShield">SHIELD</div>
-<div id="a2hs" class="hidden">
-  <span id="a2hsText"></span>
-  <button id="a2hsBtn">INSTALL</button>
-  <button id="a2hsClose">✕</button>
-</div>
-<script src="js/input.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/platform.js"></script>
-<script src="js/world.js"></script>
-<script src="js/update.js"></script>
-<script src="js/render.js"></script>
-<script src="js/main.js"></script>
+<main>
+
+  <h1>Hollow Oath</h1>
+  <p class="subtitle">Fight gravity. And deception.</p>
+  <p class="hook">Something calls every 41 seconds. Not everything that answers should be trusted.</p>
+
+  <p class="lede">Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart
+  over hostile terrain, land gently near stranded medical androids, and
+  ferry them back to the mothership — while the game quietly teaches you
+  to distrust what you rescue, and later, what you see on the ground.</p>
+
+  <div class="cta-row">
+    <!-- TODO: replace with the real App Store link once the app is live -->
+    <span class="cta disabled">Coming soon to the App Store</span>
+    <a class="cta secondary" href="support.html">Support</a>
+    <a class="cta secondary" href="privacy.html">Privacy</a>
+  </div>
+
+  <h2>What you're flying into</h2>
+  <ul class="features">
+    <li><b>Real gravity, real consequence.</b> No auto-land, no aim-assist crutch — just thrust, weight, and a landing you have to earn.</li>
+    <li><b>A heartbeat you can feel.</b> Haptics tuned to the game's own pulse, not generic buzzes.</li>
+    <li><b>Seven sectors, three hidden Hollows.</b> Optional caves reward the curious and the careful with a second layer of story.</li>
+    <li><b>Two endings, one oath.</b> <i>Primum non nocere</i> — first, do no harm — is scored, not just quoted.</li>
+    <li><b>Remix mode & a daily seed</b> for runs that don't play the same way twice.</li>
+    <li><b>Complete game.</b> No IAP, no ads, no data collected. Pay once, keep it.</li>
+  </ul>
+
+  <h2>Screenshots</h2>
+  <div class="gallery">
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/1. Homepage - iPhone 17 - 2026-07-21 at 16.22.39.png" alt="Hollow Oath title screen">
+      <figcaption>The title screen</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/2. Log Scan and Scion Screenshot - iPhone 17 - 2026-07-21 at 16.31.06.png" alt="Landing beside a stranded Scion">
+      <figcaption>A rescue in progress</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/3. MERCY docking Screenshot - iPhone 17 - 2026-07-21 at 16.32.59.png" alt="Docking at AMS MERCY">
+      <figcaption>Docking at MERCY</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/4. Dark Sector Lamp Screenshot - iPhone 17 - 2026-07-21 at 16.40.42.png" alt="A dark sector lit by lamplight">
+      <figcaption>Nightingale Basin, after dark</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/5. Shrine - iPhone 17 - 2026-07-21 at 16.59.45.png" alt="A shrine inside the Hollows">
+      <figcaption>Something is buried beneath the surface</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/6. Contaminant Screenshot - iPhone 17 - 2026-07-21 at 16.35.04.png" alt="Contaminant aboard warning">
+      <figcaption>Not everyone you rescue is safe</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/7. Someone Extraordinary Screenshot - iPhone 17 - 2026-07-21 at 16.36.26.png" alt="Someone extraordinary is aboard">
+      <figcaption>Some passengers are more than they seem</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/marketing/Screenshots/iPhone-17/8. Refuel Screenshot - iPhone 17 - 2026-07-21 at 16.32.24.png" alt="Field refuelling in flight">
+      <figcaption>Field refuelling — never free</figcaption>
+    </figure>
+  </div>
+
+  <h2>A love letter to the 16-bit lander classics</h2>
+  <p class="homage">If you grew up steering a lander through cramped 16-bit caves,
+  fighting gravity one careful thrust at a time — trying not to crash,
+  trying not to lose the cargo you came for — this is built in that
+  lineage. Hollow Oath is, mechanically, a spiritual successor to games
+  like <i>Oids</i> (Atari ST, 1987), <i>Thrust</i>, and <i>Gravitar</i> —
+  original code, art, story, and names throughout, unaffiliated with any
+  of them, but built by someone who loved them.</p>
+
+  <footer>
+    <span>Hollow Oath — no ads, no tracking</span>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="support.html">Support</a>
+  </footer>
+
+</main>
 </body>
 </html>
