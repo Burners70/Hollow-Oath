@@ -146,9 +146,16 @@ If you grew up steering a lander through cramped 16-bit caves, fighting gravity 
 the game once the app ships — the live GitHub Pages deploy was a
 development/testing convenience only (see roadmap O7). So none of the three
 App Store Connect URL fields below should point at the game itself; they
-point at three small standalone pages instead, all hosted at
-`burners70.github.io/Hollow-Oath/` once O7's re-plumbing is done (Pages
-serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
+point at three small standalone pages instead — the marketing/support/privacy
+shell (not `index.html`/`js`/`css`), per O7.
+
+> **Custom domain (owner decision, July 2026 — roadmap O8).** These pages move
+> to **`hollowoath.com`** to keep the `burners70` handle off anything users
+> see. On an apex custom domain the shell serves at the **domain root**, so the
+> URLs below become `https://hollowoath.com/privacy.html`, `…/support.html`,
+> `…/about.html`. The `burners70.github.io` paths shown are the *current* dev
+> URLs — swap them (and set the App Store fields) only **after** the domain
+> resolves and Pages is pointed at it. Until then they remain accurate.
 
 - **Privacy Policy URL** → `privacy.html` (drafted, see repo root):
   `https://burners70.github.io/Hollow-Oath/privacy.html`
@@ -157,8 +164,9 @@ serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
   **hollowoath.support@gmail.com** (a dedicated Gmail alias forwarding to the
   owner's personal inbox — not the personal address itself). Also covers a
   short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
-  exclusion, touch controls, crashes, refunds via Apple) and GitHub Issues as
-  the fallback for anyone who'd rather file there.
+  exclusion, touch controls, crashes, refunds via Apple). Contact is
+  **email-only** — the GitHub Issues fallback was removed (July 2026) so the
+  `burners70` handle isn't exposed to anyone clicking through.
 - **Marketing URL** → `about.html` (drafted, see repo root):
   `https://burners70.github.io/Hollow-Oath/about.html`. The pitch, the
   feature list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one
