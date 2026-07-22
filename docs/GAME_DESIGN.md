@@ -263,7 +263,7 @@ ship in quickening pulses while you dock one last time.
 | Touch | ⟲ ⟳ rotate (left thumb) · THRUST / FIRE / SHIELD (right thumb). One document-level multi-touch tracker hit-tests every active touch against every button (14px margin) so rolling between buttons transfers instantly. Buttons exist **only in flight** — hidden on title/intro/briefings/cards. |
 | Keyboard | ← → rotate · ↑/Z thrust · Space/X fire · C / Shift / ↓ shield · Enter tap |
 | Gamepad | Stick or d-pad rotate · A thrust · X/RB fire · B/LB/LT shield · Start = tap (menus) |
-| Gyro | TILT toggle in the ⚙ SETTINGS panel (analog steering, 4° deadzone → full at 24°, orientation-aware, iOS permission flow) |
+| ~~Gyro~~ | **Removed from the build (owner decision, July 2026 — not a good fit; dropped from the roadmap).** The tilt-steering code (analog steering, 4° deadzone → full at 24°, orientation-aware, iOS permission flow) is still present but *dormant* in `js/input.js` — no longer surfaced in the ⚙ SETTINGS panel and not shown to players. Kept only so it can be revived if that call is reversed. |
 
 ## 6. Secrets inventory (and their tells)
 
@@ -319,7 +319,7 @@ rank (§2.5), distinct from breaking it in combat.
 | `doids_codex` | Famous Scions recovered across all runs (title CODEX) |
 | `doids_run` | Mid-campaign checkpoint, written at every sector boundary; powers the title's RESUME pill and the game-over CONTINUE option |
 | `doids_assist` | Landing assist on/off |
-| `doids_tilt` | Gyro steering on/off |
+| `doids_tilt` | Gyro steering on/off — *dormant; gyro pulled from Settings (July 2026), key retained by the parked scaffolding in `js/input.js`* |
 | `doids_snd` | Sound effects on/off |
 | `doids_mus` | Ambient music on/off |
 | `doids_hapt` | Haptics on/off (facade is a web no-op; bridges to the native wrapper) |
@@ -339,7 +339,8 @@ rank (§2.5), distinct from breaking it in combat.
 Everything lives in **`index.html`** (~4.8k lines). No build step: edit,
 reload. Deliberate order inside the `<script>`:
 
-1. **Input** — touch tracker, keyboard, `pollPad()` (Gamepad API), gyro.
+1. **Input** — touch tracker, keyboard, `pollPad()` (Gamepad API); gyro
+   scaffolding present but dormant (see Controls above — pulled from the build).
 2. **Audio** — tiny WebAudio synth: thrust noise, blips, boom, heartbeat
    (lub-dub), `staticTick()` (the Static's dry burst), dull thud — all routed
    through `sfxGain`. A generative ambient score (`startMusic()`: two

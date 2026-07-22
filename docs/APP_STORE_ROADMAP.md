@@ -68,6 +68,8 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | O | Store listing & submission | Shipping | **Yes (last)** |
 | P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
 | Q | The deep Hollows | **Locked: free update 1.2** | No (post-launch) |
+| V | 1.01 maintenance & narrative | Fly-back, scan fairness, the Solace reveal, heard-scan parry | Post-approval 1.01 |
+| W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | 1.1 candidate (version label TBC — see bundle) |
 
 Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
 the ceiling (and the defensible price). **Bundles R, S and T are the July 2026
@@ -1426,6 +1428,151 @@ level cache lands best on a settled base); J, K, I, M, A all shipped.**
 
 ---
 
+## Bundle V — 1.01 maintenance & narrative (post-approval owner round)
+
+**Why:** Captured while **1.0 is in App Review (July 2026)**, this is the first
+point release — the fixes and narrative beats the owner wants in **1.01** once
+1.0 is approved. It is deliberately a *maintenance + narrative* bundle: no new
+subsystem, but several fairness corrections and the payoff of the Solace as a
+named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
+1.0 shipped; V3/V4/V5 share the Solace reveal, so build them together.**
+
+> **Tilt is dropped here, on the record.** The gyro/tilt steering path is
+> *not* on the forward plan (owner decision, July 2026 — "not really any good
+> for this game"). It was pulled from Settings before 1.0; the scaffolding
+> stays dormant in `js/input.js` (`tilt` / `enableGyro` / `toggleTilt`,
+> `doids_tilt`). Do not resurface it in 1.01 without an explicit reversal.
+> User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
+> have been scrubbed of the stale Tilt references in this pass.
+
+- [ ] **V1. Fly back to previous zones (rescue those left behind).** The
+  owner's request maps onto an **existing planned feature**: the **ROTATION
+  CHART in Bundle Q** (update 1.2) — return travel to cleared sectors, cached
+  as-left, **unlocked in-game** by rescuing René Laennec (AUSCULTATION). **The
+  owner wants to keep that in-game unlock (July 2026)** — this is *not* to be
+  decoupled from it. The only open question is **release timing** (leave it in
+  1.2, or bring the Laennec + ROTATION CHART core forward toward 1.1) — see the
+  owner-decision note below. No new mechanic to design; this is a scheduling
+  call against Bundle Q, whose dependency note flags that the level cache
+  "lands best on a settled base (P shipped)". Code anchors:
+  HOLLOWS_EXPANSION_SPEC.md §Q5 and Bundle Q above; the return-travel round-trip
+  must reuse the checkpoint serialization (`doids_run`, `__doids.go(n)`).
+  **Owner decision pending — do not schedule this into 1.01 without it.**
+- [ ] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
+  cheat).** Today you often can't land far enough from a Scion for a scan to
+  complete before it reaches you, which reads as a rigged loss. Two changes:
+  (a) a **running** Scion should stop fleeing and start *approaching* the ship;
+  (b) generation/tuning must guarantee there is *always* a reachable landing
+  spot from which a scan can complete before the approaching Scion arrives —
+  though it may be hard, and may be up or down a slope the Scion can climb.
+  This is a fairness *invariant*, so add a generation-time assertion (like the
+  M1 heightmap checks) that such a spot exists. Code anchors: the Scion scan /
+  approach logic (`updateScionScan`, the `scanCandidate` gate and `"wait"` /
+  `"run"` states around `js/update.js:1131`), `SCAN_T`, `scanRate()`,
+  `slopeAt()` and the walkability the Scion uses to climb.
+- [ ] **V3. The Solace reveal — a proper beat.** The discovery currently lacks
+  a moment. Make the **first scan announce it is the top of a sister ship, the
+  AMS Solace** (big reveal, not a whisper). On scan completion, trigger a
+  **sonar-style pulse that draws the whole hull shape** — including the
+  submerged section, which pulses *more dully* than the exposed part — then
+  fades back to invisible. **Repeat that pulse on every 41-second Static
+  beat.** Code anchors: the scan/reveal system (`updateScan` / the shrine-scan
+  path); the Static clock (`updateStaticClock`, `js/update.js`) to hook the
+  41-s pulse; a new draw pass in `js/render.js` for the hull outline (exposed
+  vs. submerged alpha). Ties into the counterfeit-tell language — a real pulse
+  that lives *with* the heartbeat clock. Update GAME_DESIGN.md narrative canon.
+- [ ] **V4. Solace pre-scan label legibility.** The text above the Solace
+  before it's scanned is illegible — fix size and contrast (add a backing
+  plate / shadow like other world labels). Code anchor: the label draw in
+  `js/render.js` for the pre-scan Solace; check against the `bigText`
+  (`bodyFontPx()`) and reduced-flash paths so it stays legible in all modes.
+- [ ] **V5. Seed the Solace in the story panels (lightly).** Reference the
+  Solace without over-signposting that players *should* expect to meet it:
+  establish that the MERCY is one of a **second wave** alongside **AMS X** and
+  **AMS Y**, following an **initial wave** that included the **X, the Solace,
+  and the Y**. A line or two in the intro / early BRIEFS. Code anchors:
+  `BRIEFS` / intro copy in `js/world.js`; **mirror every changed string into
+  [COPY_DECK.md](COPY_DECK.md) in the same PR (R10).**
+- [ ] **V6. Make the "heard" scan playable — a sonic-wave parry.** Mirror the
+  shield-parry mechanic, but instead of a bullet it's a **visible sonic wave**
+  you must parry back to *flatten the corrupting signal*. Code anchors: the
+  existing shield/parry code (deflection in `updatePlay` / the shield handling
+  in `js/update.js`); render a travelling wavefront in `js/render.js`; resolve
+  on a well-timed shield. **Needs a short design pass** (timing window, what
+  failure costs, how it reads against the existing parry) before build.
+- [ ] **V7. Post-completion title & "start a run" framing.** After a first
+  completion (`veteran`), the title and the run-start language should
+  acknowledge it. Change the visual — e.g. a shot of a **Hollow** to tease
+  what's left to find — and change the button copy. **Options for the owner to
+  pick from:** *"Is there more?"* · *"Go back down"* · *"Something's still
+  down there"* · *"Return to the surface"*. Code anchors: `drawTitle` in
+  `js/render.js`, the `veteran` flag, and the REMIX pill it already unlocks.
+- [ ] **V8. Adapted second-run intro.** The veteran (post-completion) run
+  opens with a different intro, e.g.: *"Something doesn't feel right. If
+  everything came from a corruption of Solace's distress call, we're left with
+  some big questions. Why did it corrupt? And why did it crash in the first
+  place?"* Code anchors: the intro sequence gated on `veteran`; `doids_intro`;
+  COPY_DECK.md.
+- [ ] **V9. Sound-led level intros.** Give subsequent sector intros a similar
+  sensory hook — e.g. *"Is there a sound coming from beneath the ground?"* on a
+  Hollows-bearing surface sector. Light touch, per-sector. Code anchors:
+  `BRIEFS[]` in `js/world.js`; keep in sync with COPY_DECK.md. (Note: an
+  earlier "Listen for them in the dark" promise on Nightingale Basin was cut
+  for lack of an audio tell — see the parked stereo-beacon idea below; don't
+  re-introduce a promise the audio can't yet keep.)
+- [ ] **V10. Post-win campaign variant.** The return (post-completion) run
+  should differ from the first: **same landscape, but different Scion/Vector
+  placements, more guns, and a higher proportion of Vectors.** This extends the
+  existing veteran-return machinery (the finale already spawns the counterfeit
+  MERCY only for `veteran`, `js/world.js:829`). Code anchors: `genLevel` in
+  `js/world.js` (placement + `RECIPE`), gated on `veteran`; reconcile with the
+  existing REMIX rotation (M) so the two return modes don't fight.
+- [ ] **V11. (Candidate) Decoy MERCY reachability.** Owner question, July
+  2026: the counterfeit MERCY is currently gated behind **`veteran` +
+  reaching the secret finale + `blackboxCount >= TRIANGULATE_N`**
+  (`js/world.js:829`, `js/update.js:695`), so most players never see it.
+  Decide whether 1.01 should surface it earlier / more reliably, or leave it as
+  a deep secret. Owner decision — logged so it isn't lost.
+- [ ] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
+  to expose new state (Solace pulse, heard-scan parry, fly-back availability);
+  add tests for the V2 fairness invariant and V1 return-travel round-trip.
+- [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
+  surface (no new data collection, no new entitlements). Update
+  [CHANGELOG.md](CHANGELOG.md).
+
+## Bundle W — Landscape challenge escalation (1.1 candidate)
+
+**Why:** Owner idea (July 2026), explicitly tagged for a **1.1** feature update:
+more landscape *challenge* as the campaign progresses — **crazy deep / narrow
+valleys, rocky outcrops and overhangs you must fly under, and small caves on
+the surface levels.** Distinct from the deep Hollows (Bundle Q, which is the
+lift-down cave network) — this is difficulty and texture in the *surface*
+terrain itself. **Priority: post-launch feature update. Dependencies: builds on
+Bundle T (per-sector width/biome identity) and the terrain generators.**
+
+> **Version-label conflict to resolve.** The owner tagged this "1.1", but
+> **Bundle P (the pendulum sling) is already locked as the free 1.1 update**
+> and Bundle Q as 1.2. Either this rides *with* P in 1.1, or it takes a later
+> number (1.3+). **Owner decision needed** — captured here rather than silently
+> renumbered.
+
+- [ ] **W1. Progressive surface-terrain challenge.** Scale terrain difficulty
+  with sector index: deeper/narrower valleys, overhangs/outcrops that force
+  flight *underneath* them, and small surface caves. Code anchors: `genLevel`,
+  `roofAt`, `genCave`, `slopeAt` and the per-sector `RECIPE` in `js/world.js`;
+  the `wideBump` width scaling (`js/world.js:711`) is the existing per-sector
+  difficulty lever to build on. **Must respect the V2 fairness invariant** —
+  harder terrain cannot make a scan-landing spot unreachable — and the Bundle T
+  biome work. Overhangs interact with collision and the shield's roof-save
+  (`updatePlay`), so this needs a design + test pass, not just generation
+  tuning. (Related but separate: the parked **destructible scenery** (T4) and
+  **weather** (T5) launch-stretch items.)
+- [ ] **W·guard. Regression gate.** Full smoke suite plus the M1 heightmap
+  checksum stay green; add fairness-invariant assertions for the new terrain
+  shapes across every seed the campaign and REMIX/DAILY can produce.
+
+---
+
 ## Suggested sequencing
 
 ```
@@ -1441,8 +1588,11 @@ D ──┴────────────────┘                 �
       S (sound / endgame / saboteurs — owner-requested for launch)
       T1–T3 + T6 (zone identity core — launch)
       T4, T5 (destructible scenery, weather — launch-stretch; slip to 1.1 if needed)
-      after launch:
+      after 1.0 approval:
+      V (1.01 — maintenance & the Solace reveal; fly-back, scan fairness)
+      then the feature updates:
       P (1.1 — THE PENDULUM) → Q (1.2 — THE DEEP HOLLOWS)   → both free
+      W (landscape challenge — 1.1 candidate; version label TBC vs P)
 ```
 
 **Status (July 2026, updated):** A–D and **H–N are all shipped** on the web
@@ -1468,6 +1618,17 @@ review in [COPY_DECK.md](COPY_DECK.md) (R10).
 1.1 and 1.2 post-launch updates — see their bundle sections above and
 [PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
 [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+**Bundle V is the 1.01 plan**, captured while 1.0 is in App Review: the
+Solace sister-ship reveal (named ship, sonar hull pulse on the 41-s clock),
+fly-back to cleared sectors (recognised as Bundle Q's ROTATION CHART — the
+in-game Laennec unlock is kept; only its release timing is under decision),
+Scion scan-jeopardy fairness, a playable "heard"
+sonic-wave parry, post-completion title/intro/campaign variants, and the
+record that **tilt is dropped from the forward plan** (dormant scaffolding
+only). **Bundle W** logs the owner's landscape-challenge idea (a 1.1
+candidate whose version number still needs reconciling against Bundle P).
+Two owner decisions are flagged inside V/W: whether to surface the decoy
+MERCY earlier (V11), and the W version label.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), second-playthrough modifiers, Android/Google Play via the

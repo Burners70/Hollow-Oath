@@ -157,7 +157,7 @@ serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
   **hollowoath.support@gmail.com** (a dedicated Gmail alias forwarding to the
   owner's personal inbox — not the personal address itself). Also covers a
   short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
-  exclusion, controls/tilt, crashes, refunds via Apple) and GitHub Issues as
+  exclusion, touch controls, crashes, refunds via Apple) and GitHub Issues as
   the fallback for anyone who'd rather file there.
 - **Marketing URL** → `about.html` (drafted, see repo root):
   `https://burners70.github.io/Hollow-Oath/about.html`. The pitch, the
@@ -240,11 +240,12 @@ there's no free version once O7 lands, so no tension to manage.)*
     captures on Enter). These aren't reproducible under automation without
     a fixed run seed to guarantee the same terrain/scene each time.
 
-  Gyro/tilt and haptics don't work in the simulator either way — if a shot
-  needs tilt input to reach, grab that one from a real device instead
+  Haptics don't work in the simulator — for any shot that depends on
+  device-only behaviour, grab that one from a real device instead
   (`xcrun simctl io booted screenshot` works the same way over a wired
   device). The preview video still needs a real device/QuickTime screen
-  recording.
+  recording. (Gyro/tilt is no longer in the build — see the roadmap; nothing
+  in the capture set needs motion input.)
 - **O6 Submission dry run.** TestFlight internal build → full compatibility
   matrix (Bundle E8) → external TestFlight round (5–10 players, watch where
   they die/quit) → submit. Budget one rejection cycle — 4.2 ("Minimum

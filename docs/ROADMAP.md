@@ -38,9 +38,14 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 5. **Force field** — hold SHIELD (touch button, C/Shift/↓, or LB/B): burns
    fuel, deflects bullets, kills drones on contact harmlessly, turns bad
    landings into bounces, and saves you from cave roofs.
-6. **External controllers & gyro** — Gamepad API (stick/d-pad, A thrust,
-   X fire, LB/B shield, Start = tap) and TILT steering (DeviceOrientation,
-   with iOS permission flow) toggled on the title screen.
+6. **External controllers** — Gamepad API (stick/d-pad, A thrust,
+   X fire, LB/B shield, Start = tap). ~~TILT steering (DeviceOrientation,
+   with iOS permission flow) toggled on the title screen.~~ **Dropped from the
+   forward plan (owner decision, July 2026): tilt isn't a good fit for this
+   game.** It was pulled from Settings before the 1.0 build and is off the
+   roadmap. The gyro scaffolding survives *dormant* in `js/input.js`
+   (`tilt` / `enableGyro` / `toggleTilt`, `doids_tilt` key) so it can be
+   revived if that call is ever reversed, but nothing surfaces it to players.
 
 ## Implemented (v2 build-out)
 
