@@ -1375,17 +1375,19 @@ merged; G/H strongly recommended.**
     currently assume something is reachable at a `burners70.github.io` path.
   - **Resolved (owner decision, July 2026): restructure Pages to shell-only,
     do NOT disable it** — the marketing/support/privacy pages move to a
-    **custom domain, `hollowoath.com`** (see O8), so Pages stays on but serves
+    **custom domain, `hollow-oath.com`** (see O8), so Pages stays on but serves
     only `about.html` / `support.html` / `privacy.html`, never the game.
-- [ ] **O8. Move the public shell to a custom domain (`hollowoath.com`).** The
-  owner is registering `hollowoath.com` to keep the personal `burners70` handle
-  off anything users see (App Store Support/Marketing URLs, in-page links). It
-  attaches to GitHub Pages for free — no change to how the site deploys.
-  Steps: register the domain (enable WHOIS privacy); point DNS at GitHub Pages
-  (apex `A`/`ALIAS` records + `www` `CNAME`); set the custom domain in repo
+- [ ] **O8. Move the public shell to a custom domain (`hollow-oath.com`).** The
+  owner registered `hollow-oath.com` (Cloudflare, July 2026) to keep the
+  personal `burners70` handle off anything users see (App Store
+  Support/Marketing URLs, in-page links). It attaches to GitHub Pages for free
+  — no change to how the site deploys. Steps: in Cloudflare DNS add a `CNAME`
+  for the apex `@` → `burners70.github.io` (Cloudflare flattens it) and a
+  `CNAME` for `www` → `burners70.github.io`, both **DNS only (grey cloud)** so
+  GitHub issues its own HTTPS cert; set the custom domain in repo
   **Settings → Pages** (this commits the `CNAME` file automatically); enable
   **Enforce HTTPS**. With an *apex* custom domain the shell serves at the
-  **domain root** (`https://hollowoath.com/support.html`), not under
+  **domain root** (`https://hollow-oath.com/support.html`), not under
   `/Hollow-Oath/`. Only after it resolves: flip the Support/Marketing/Privacy
   URLs (O2/O5) and the "play it live" links in `README.md` / `GAME_DESIGN.md`
   to the new root, and set the two App Store URL fields. The GitHub Issues
@@ -1652,9 +1654,10 @@ in-game Laennec unlock and split its **ROTATION CHART** core forward to ship
 with Bundle P (after the pendulum), leaving Q's three caves in 1.2. **Bundle W**
 (landscape challenge) also **ships in 1.1 with P** (owner decision). One owner
 decision remains open — whether to surface the decoy MERCY earlier (V11).
-The support/marketing URL is moving to a **custom domain on GitHub Pages**
-(owner decision, July 2026) — the domain name is being picked; the `CNAME` and
-doc-URL updates land once it's chosen.
+The support/marketing URL is moving to a **custom domain on GitHub Pages**,
+**`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). Once DNS
+is pointed at Pages and the domain resolves, the live-site links and the App
+Store URL fields flip to the new root.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), second-playthrough modifiers, Android/Google Play via the

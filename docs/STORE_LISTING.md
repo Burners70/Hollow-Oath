@@ -150,9 +150,9 @@ point at three small standalone pages instead — the marketing/support/privacy
 shell (not `index.html`/`js`/`css`), per O7.
 
 > **Custom domain (owner decision, July 2026 — roadmap O8).** These pages move
-> to **`hollowoath.com`** to keep the `burners70` handle off anything users
+> to **`hollow-oath.com`** to keep the `burners70` handle off anything users
 > see. On an apex custom domain the shell serves at the **domain root**, so the
-> URLs below become `https://hollowoath.com/privacy.html`, `…/support.html`,
+> URLs below become `https://hollow-oath.com/privacy.html`, `…/support.html`,
 > `…/about.html`. The `burners70.github.io` paths shown are the *current* dev
 > URLs — swap them (and set the App Store fields) only **after** the domain
 > resolves and Pages is pointed at it. Until then they remain accurate.
