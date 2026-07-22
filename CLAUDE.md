@@ -19,7 +19,8 @@ and an ordered list of plain `<script src="js/*.js">` tags. Those scripts are
 **not** ES modules — they load in order and share one global scope, exactly as the
 old single inline `<script>` did (that's why the split was safe and why order
 matters: constants/utils before their users, `js/main.js` last). GitHub Pages
-deploys straight from `main` (https://burners70.github.io/Hollow-Oath/) and
+deploys straight from `main`, served on the custom domain https://hollow-oath.com/
+(the old `burners70.github.io/Hollow-Oath/` address still redirects), and
 Capacitor wraps the same files for iOS. Any change must keep the game runnable by
 just opening `index.html`. Don't introduce a build tool or convert to
 `type="module"` without asking (modules change scoping *and* can fail over

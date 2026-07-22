@@ -67,7 +67,9 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness | No (recommended before O) |
 | O | Store listing & submission | Shipping | **Yes (last)** |
 | P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
-| Q | The deep Hollows | **Locked: free update 1.2** | No (post-launch) |
+| Q | The deep Hollows | **Free update 1.2** (Laennec + ROTATION CHART split forward to 1.1) | No (post-launch) |
+| V | 1.01 maintenance & narrative | Scan fairness, the Solace reveal, heard-scan parry, post-completion variants | Post-approval 1.01 |
+| W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | Update 1.1 (ships with P) |
 
 Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
 the ceiling (and the defensible price). **Bundles R, S and T are the July 2026
@@ -1371,6 +1373,31 @@ merged; G/H strongly recommended.**
     needs deciding *how* (Pages toggle vs. restructured source) before O6's
     dry run, since O5's Support/Privacy URLs and O2's Marketing URL all
     currently assume something is reachable at a `burners70.github.io` path.
+  - **Resolved (owner decision, July 2026): restructure Pages to shell-only,
+    do NOT disable it** — the marketing/support/privacy pages move to a
+    **custom domain, `hollow-oath.com`** (see O8), so Pages stays on but serves
+    only `about.html` / `support.html` / `privacy.html`, never the game.
+- [ ] **O8. Move the public shell to a custom domain (`hollow-oath.com`).** The
+  owner registered `hollow-oath.com` (Cloudflare, July 2026) to keep the
+  personal `burners70` handle off anything users see (App Store
+  Support/Marketing URLs, in-page links). It attaches to GitHub Pages for free
+  — no change to how the site deploys. Steps: in Cloudflare DNS add a `CNAME`
+  for the apex `@` → `burners70.github.io` (Cloudflare flattens it) and a
+  `CNAME` for `www` → `burners70.github.io`, both **DNS only (grey cloud)** so
+  GitHub issues its own HTTPS cert. (Cloudflare nags "Proxying is required for
+  most security/performance features" — safe to ignore for a static Pages site;
+  proxied/orange cloud blocks GitHub's cert issuance and, on the default
+  "Flexible" SSL mode, causes an HTTPS redirect loop.) Set the custom domain in
+  repo
+  **Settings → Pages** (this commits the `CNAME` file automatically); enable
+  **Enforce HTTPS**. With an *apex* custom domain the shell serves at the
+  **domain root** (`https://hollow-oath.com/support.html`), not under
+  `/Hollow-Oath/`. Only after it resolves: flip the Support/Marketing/Privacy
+  URLs (O2/O5) and the "play it live" links in `README.md` / `GAME_DESIGN.md`
+  to the new root, and set the two App Store URL fields. The GitHub Issues
+  link has already been removed from `support.html` (email-only) so the handle
+  isn't exposed even for click-through. (A paid custom domain, ~£10/yr, was the
+  owner's explicit choice over a free neutral-org rename.)
 
 ---
 
@@ -1408,14 +1435,26 @@ inside a new Hollow, found by his knocking. AUSCULTATION makes unfound
 lift pads ring when near (the Radiosense pattern applied to lifts); his
 chart unlocks the ROTATION CHART (return travel to cleared sectors,
 cached as-left); three new caves with new discoveries (THE WARD, THE
-MINT, THE LISTENING POST). **Locked (owner decision, July 2026): ships as
-the free 1.2 content update, "1.2 — THE DEEP HOLLOWS", after P's 1.1.**
-Full spec: [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
-**Priority: second post-launch. Dependencies: P shipped and stable (the
-level cache lands best on a settled base); J, K, I, M, A all shipped.**
+MINT, THE LISTENING POST). Full spec:
+[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+
+**Split by release (owner decision, July 2026).** The owner asked for fly-back
+sooner (originally raised as a "1.01 fix"; see V1). Rather than break Q's
+in-game unlock, Bundle Q is split across two releases:
+- **Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
+  **ROTATION CHART** (fly-back to cleared sectors, cached as-left) — sequenced
+  *after* the pendulum work so the level cache lands on a settled base.
+- **Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
+  MINT, THE LISTENING POST) and their discoveries.
+
+**Priority: the 1.1 core rides with P; the caves are second post-launch (1.2).
+Dependencies: P shipped/stable before the ROTATION CHART cache (still true even
+within 1.1); J, K, I, M, A all shipped.**
 
 - [ ] **Q·impl. Implement per the spec checklist** — work through
-  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there.
+  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there. **Tag each
+  item to its release per the split above (Laennec/AUSCULTATION/ROTATION CHART
+  core → 1.1; the three caves → 1.2) when scheduling.**
 - [ ] **Q·guard. Regression gate** — the Q5 level cache touches
   `toBriefing`; the full smoke suite plus the M1 heightmap checksum must
   stay green, and remix/daily must never draw Laennec onto a surface
@@ -1423,6 +1462,144 @@ level cache lands best on a settled base); J, K, I, M, A all shipped.**
 - [ ] **Q·ship. Release 1.2** — What's-New copy, same trademark tiers;
   add EVERY HOLLOW HEARD and GENTLE HANDS (P) to the live G3 achievement
   set if Game Center shipped.
+
+---
+
+## Bundle V — 1.01 maintenance & narrative (post-approval owner round)
+
+**Why:** Captured while **1.0 is in App Review (July 2026)**, this is the first
+point release — the fixes and narrative beats the owner wants in **1.01** once
+1.0 is approved. It is deliberately a *maintenance + narrative* bundle: no new
+subsystem, but several fairness corrections and the payoff of the Solace as a
+named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
+1.0 shipped; V3/V4/V5 share the Solace reveal, so build them together.**
+
+> **Tilt is dropped here, on the record.** The gyro/tilt steering path is
+> *not* on the forward plan (owner decision, July 2026 — "not really any good
+> for this game"). It was pulled from Settings before 1.0; the scaffolding
+> stays dormant in `js/input.js` (`tilt` / `enableGyro` / `toggleTilt`,
+> `doids_tilt`). Do not resurface it in 1.01 without an explicit reversal.
+> User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
+> have been scrubbed of the stale Tilt references in this pass.
+
+- [ ] **V1. Fly back to previous zones (rescue those left behind) — RESOLVED
+  to 1.1, tracked under Bundle Q.** The owner's request is the **ROTATION
+  CHART**: return travel to cleared sectors (cached as-left), **unlocked
+  in-game** by rescuing René Laennec (AUSCULTATION). **Decision (owner, July
+  2026): keep the in-game unlock, and split Bundle Q so this core ships in
+  1.1** — sequenced *after* the pendulum (P) so the level cache lands on a
+  settled base — while Q's three new caves stay in 1.2. Not a 1.01 item; listed
+  here only because it was raised as a "1.01 fix". See Bundle Q's split note.
+  Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
+  checkpoint serialization (`doids_run`, `__doids.go(n)`).
+- [ ] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
+  cheat).** Today you often can't land far enough from a Scion for a scan to
+  complete before it reaches you, which reads as a rigged loss. Two changes:
+  (a) a **running** Scion should stop fleeing and start *approaching* the ship;
+  (b) generation/tuning must guarantee there is *always* a reachable landing
+  spot from which a scan can complete before the approaching Scion arrives —
+  though it may be hard, and may be up or down a slope the Scion can climb.
+  This is a fairness *invariant*, so add a generation-time assertion (like the
+  M1 heightmap checks) that such a spot exists. Code anchors: the Scion scan /
+  approach logic (`updateScionScan`, the `scanCandidate` gate and `"wait"` /
+  `"run"` states around `js/update.js:1131`), `SCAN_T`, `scanRate()`,
+  `slopeAt()` and the walkability the Scion uses to climb.
+- [ ] **V3. The Solace reveal — a proper beat.** The discovery currently lacks
+  a moment. Make the **first scan announce it is the top of a sister ship, the
+  AMS Solace** (big reveal, not a whisper). On scan completion, trigger a
+  **sonar-style pulse that draws the whole hull shape** — including the
+  submerged section, which pulses *more dully* than the exposed part — then
+  fades back to invisible. **Repeat that pulse on every 41-second Static
+  beat.** Code anchors: the scan/reveal system (`updateScan` / the shrine-scan
+  path); the Static clock (`updateStaticClock`, `js/update.js`) to hook the
+  41-s pulse; a new draw pass in `js/render.js` for the hull outline (exposed
+  vs. submerged alpha). Ties into the counterfeit-tell language — a real pulse
+  that lives *with* the heartbeat clock. Update GAME_DESIGN.md narrative canon.
+- [ ] **V4. Solace pre-scan label legibility.** The text above the Solace
+  before it's scanned is illegible — fix size and contrast (add a backing
+  plate / shadow like other world labels). Code anchor: the label draw in
+  `js/render.js` for the pre-scan Solace; check against the `bigText`
+  (`bodyFontPx()`) and reduced-flash paths so it stays legible in all modes.
+- [ ] **V5. Seed the Solace in the story panels (lightly).** Reference the
+  Solace without over-signposting that players *should* expect to meet it:
+  establish that the MERCY is one of a **second wave** alongside **AMS X** and
+  **AMS Y**, following an **initial wave** that included the **X, the Solace,
+  and the Y**. A line or two in the intro / early BRIEFS. Code anchors:
+  `BRIEFS` / intro copy in `js/world.js`; **mirror every changed string into
+  [COPY_DECK.md](COPY_DECK.md) in the same PR (R10).**
+- [ ] **V6. Make the "heard" scan playable — a sonic-wave parry.** Mirror the
+  shield-parry mechanic, but instead of a bullet it's a **visible sonic wave**
+  you must parry back to *flatten the corrupting signal*. Code anchors: the
+  existing shield/parry code (deflection in `updatePlay` / the shield handling
+  in `js/update.js`); render a travelling wavefront in `js/render.js`; resolve
+  on a well-timed shield. **Needs a short design pass** (timing window, what
+  failure costs, how it reads against the existing parry) before build.
+- [ ] **V7. Post-completion title & "start a run" framing.** After a first
+  completion (`veteran`), the title and the run-start language should
+  acknowledge it. Change the visual — e.g. a shot of a **Hollow** to tease
+  what's left to find — and change the button copy. **Options for the owner to
+  pick from:** *"Is there more?"* · *"Go back down"* · *"Something's still
+  down there"* · *"Return to the surface"*. Code anchors: `drawTitle` in
+  `js/render.js`, the `veteran` flag, and the REMIX pill it already unlocks.
+- [ ] **V8. Adapted second-run intro.** The veteran (post-completion) run
+  opens with a different intro, e.g.: *"Something doesn't feel right. If
+  everything came from a corruption of Solace's distress call, we're left with
+  some big questions. Why did it corrupt? And why did it crash in the first
+  place?"* Code anchors: the intro sequence gated on `veteran`; `doids_intro`;
+  COPY_DECK.md.
+- [ ] **V9. Sound-led level intros.** Give subsequent sector intros a similar
+  sensory hook — e.g. *"Is there a sound coming from beneath the ground?"* on a
+  Hollows-bearing surface sector. Light touch, per-sector. Code anchors:
+  `BRIEFS[]` in `js/world.js`; keep in sync with COPY_DECK.md. (Note: an
+  earlier "Listen for them in the dark" promise on Nightingale Basin was cut
+  for lack of an audio tell — see the parked stereo-beacon idea below; don't
+  re-introduce a promise the audio can't yet keep.)
+- [ ] **V10. Post-win campaign variant.** The return (post-completion) run
+  should differ from the first: **same landscape, but different Scion/Vector
+  placements, more guns, and a higher proportion of Vectors.** This extends the
+  existing veteran-return machinery (the finale already spawns the counterfeit
+  MERCY only for `veteran`, `js/world.js:829`). Code anchors: `genLevel` in
+  `js/world.js` (placement + `RECIPE`), gated on `veteran`; reconcile with the
+  existing REMIX rotation (M) so the two return modes don't fight.
+- [ ] **V11. (Candidate) Decoy MERCY reachability.** Owner question, July
+  2026: the counterfeit MERCY is currently gated behind **`veteran` +
+  reaching the secret finale + `blackboxCount >= TRIANGULATE_N`**
+  (`js/world.js:829`, `js/update.js:695`), so most players never see it.
+  Decide whether 1.01 should surface it earlier / more reliably, or leave it as
+  a deep secret. Owner decision — logged so it isn't lost.
+- [ ] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
+  to expose new state (Solace pulse, heard-scan parry, fly-back availability);
+  add tests for the V2 fairness invariant and V1 return-travel round-trip.
+- [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
+  surface (no new data collection, no new entitlements). Update
+  [CHANGELOG.md](CHANGELOG.md).
+
+## Bundle W — Landscape challenge escalation (update 1.1, with P)
+
+**Why:** Owner idea (July 2026) for a **1.1** feature update: more landscape
+*challenge* as the campaign progresses — **crazy deep / narrow valleys, rocky
+outcrops and overhangs you must fly under, and small caves on the surface
+levels.** Distinct from the deep Hollows (Bundle Q, the lift-down cave network)
+— this is difficulty and texture in the *surface* terrain itself. **Decision
+(owner, July 2026): ships in 1.1 alongside Bundle P** (the pendulum), which
+already owns the 1.1 label. **Priority: post-launch, with P. Dependencies:
+builds on Bundle T (per-sector width/biome identity) and the terrain
+generators.**
+
+- [ ] **W1. Progressive surface-terrain challenge.** Scale terrain difficulty
+  with sector index: deeper/narrower valleys, overhangs/outcrops that force
+  flight *underneath* them, and small surface caves. Code anchors: `genLevel`,
+  `roofAt`, `genCave`, `slopeAt` and the per-sector `RECIPE` in `js/world.js`;
+  the `wideBump` width scaling (`js/world.js:711`) is the existing per-sector
+  difficulty lever to build on. **Must respect the V2 fairness invariant** —
+  harder terrain cannot make a scan-landing spot unreachable — and the Bundle T
+  biome work. Overhangs interact with collision and the shield's roof-save
+  (`updatePlay`), so this needs a design + test pass, not just generation
+  tuning. (Related but separate: the parked **destructible scenery** (T4) and
+  **weather** (T5) launch-stretch items.)
+- [ ] **W·guard. Regression gate.** Full smoke suite plus the M1 heightmap
+  checksum stay green; add fairness-invariant assertions for the new terrain
+  shapes across every seed the campaign and REMIX/DAILY can produce.
 
 ---
 
@@ -1441,8 +1618,11 @@ D ──┴────────────────┘                 �
       S (sound / endgame / saboteurs — owner-requested for launch)
       T1–T3 + T6 (zone identity core — launch)
       T4, T5 (destructible scenery, weather — launch-stretch; slip to 1.1 if needed)
-      after launch:
-      P (1.1 — THE PENDULUM) → Q (1.2 — THE DEEP HOLLOWS)   → both free
+      after 1.0 approval:
+      V (1.01 — maintenance & the Solace reveal; scan fairness; heard-scan parry)
+      then the feature updates (all free):
+      1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge)
+      1.2 = Q-caves (THE DEEP HOLLOWS: Ward / Mint / Listening Post)
 ```
 
 **Status (July 2026, updated):** A–D and **H–N are all shipped** on the web
@@ -1468,6 +1648,20 @@ review in [COPY_DECK.md](COPY_DECK.md) (R10).
 1.1 and 1.2 post-launch updates — see their bundle sections above and
 [PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
 [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+**Bundle V is the 1.01 plan**, captured while 1.0 is in App Review: the
+Solace sister-ship reveal (named ship, sonar hull pulse on the 41-s clock),
+Scion scan-jeopardy fairness, a playable "heard" sonic-wave parry,
+post-completion title/intro/campaign variants, and the record that **tilt is
+dropped from the forward plan** (dormant scaffolding only). Fly-back to cleared
+sectors (the owner's other "1.01" ask) was **resolved to 1.1**: keep Bundle Q's
+in-game Laennec unlock and split its **ROTATION CHART** core forward to ship
+with Bundle P (after the pendulum), leaving Q's three caves in 1.2. **Bundle W**
+(landscape challenge) also **ships in 1.1 with P** (owner decision). One owner
+decision remains open — whether to surface the decoy MERCY earlier (V11).
+The support/marketing URL is moving to a **custom domain on GitHub Pages**,
+**`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). Once DNS
+is pointed at Pages and the domain resolves, the live-site links and the App
+Store URL fields flip to the new root.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), second-playthrough modifiers, Android/Google Play via the

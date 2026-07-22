@@ -146,21 +146,28 @@ If you grew up steering a lander through cramped 16-bit caves, fighting gravity 
 the game once the app ships — the live GitHub Pages deploy was a
 development/testing convenience only (see roadmap O7). So none of the three
 App Store Connect URL fields below should point at the game itself; they
-point at three small standalone pages instead, all hosted at
-`burners70.github.io/Hollow-Oath/` once O7's re-plumbing is done (Pages
-serving only the marketing/support/privacy shell, not `index.html`/`js`/`css`).
+point at three small standalone pages instead — the marketing/support/privacy
+shell (not `index.html`/`js`/`css`), per O7.
+
+> **Custom domain (owner decision, July 2026 — roadmap O8).** These pages serve
+> on **`hollow-oath.com`** (live, HTTPS enforced) to keep the `burners70` handle
+> off anything users see. On an apex custom domain the shell serves at the
+> **domain root**, so the URLs are `https://hollow-oath.com/…`, not under
+> `/Hollow-Oath/`. The old `burners70.github.io` paths still redirect. **Set the
+> three App Store Connect URL fields to the `hollow-oath.com` URLs below.**
 
 - **Privacy Policy URL** → `privacy.html` (drafted, see repo root):
-  `https://burners70.github.io/Hollow-Oath/privacy.html`
+  `https://hollow-oath.com/privacy.html`
 - **Support URL** → `support.html` (drafted, see repo root):
-  `https://burners70.github.io/Hollow-Oath/support.html`. Contact email:
+  `https://hollow-oath.com/support.html`. Contact email:
   **hollowoath.support@gmail.com** (a dedicated Gmail alias forwarding to the
   owner's personal inbox — not the personal address itself). Also covers a
   short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
-  exclusion, controls/tilt, crashes, refunds via Apple) and GitHub Issues as
-  the fallback for anyone who'd rather file there.
+  exclusion, touch controls, crashes, refunds via Apple). Contact is
+  **email-only** — the GitHub Issues fallback was removed (July 2026) so the
+  `burners70` handle isn't exposed to anyone clicking through.
 - **Marketing URL** → `about.html` (drafted, see repo root):
-  `https://burners70.github.io/Hollow-Oath/about.html`. The pitch, the
+  `https://hollow-oath.com/about.html`. The pitch, the
   feature list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one
   place per E7 this is allowed to be explicit), and the full 8-shot gallery
   from `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
@@ -240,11 +247,12 @@ there's no free version once O7 lands, so no tension to manage.)*
     captures on Enter). These aren't reproducible under automation without
     a fixed run seed to guarantee the same terrain/scene each time.
 
-  Gyro/tilt and haptics don't work in the simulator either way — if a shot
-  needs tilt input to reach, grab that one from a real device instead
+  Haptics don't work in the simulator — for any shot that depends on
+  device-only behaviour, grab that one from a real device instead
   (`xcrun simctl io booted screenshot` works the same way over a wired
   device). The preview video still needs a real device/QuickTime screen
-  recording.
+  recording. (Gyro/tilt is no longer in the build — see the roadmap; nothing
+  in the capture set needs motion input.)
 - **O6 Submission dry run.** TestFlight internal build → full compatibility
   matrix (Bundle E8) → external TestFlight round (5–10 players, watch where
   they die/quit) → submit. Budget one rejection cycle — 4.2 ("Minimum

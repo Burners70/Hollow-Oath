@@ -12,9 +12,10 @@ a remake of any of them.
 > androids from "Doids" to **Scions**. See [CHANGELOG.md](docs/CHANGELOG.md) for the
 > full rename log (what changed, what was deliberately kept, and why).
 
-**Play it live:** https://burners70.github.io/Hollow-Oath/
-*(GitHub Pages deploys straight from `main` — see CHANGELOG.md § "Repository &
-URL").*
+**Play it live:** https://hollow-oath.com/
+*(Custom domain on GitHub Pages, deploying straight from `main`; the old
+`burners70.github.io/Hollow-Oath/` address still redirects. See CHANGELOG.md
+§ "Repository & URL".)*
 
 **Working on the code with Claude?** Start with [CLAUDE.md](CLAUDE.md) — a
 navigation map (section index into `index.html`, doc guide, conventions) that
