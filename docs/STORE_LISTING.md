@@ -149,18 +149,17 @@ App Store Connect URL fields below should point at the game itself; they
 point at three small standalone pages instead — the marketing/support/privacy
 shell (not `index.html`/`js`/`css`), per O7.
 
-> **Custom domain (owner decision, July 2026 — roadmap O8).** These pages move
-> to **`hollow-oath.com`** to keep the `burners70` handle off anything users
-> see. On an apex custom domain the shell serves at the **domain root**, so the
-> URLs below become `https://hollow-oath.com/privacy.html`, `…/support.html`,
-> `…/about.html`. The `burners70.github.io` paths shown are the *current* dev
-> URLs — swap them (and set the App Store fields) only **after** the domain
-> resolves and Pages is pointed at it. Until then they remain accurate.
+> **Custom domain (owner decision, July 2026 — roadmap O8).** These pages serve
+> on **`hollow-oath.com`** (live, HTTPS enforced) to keep the `burners70` handle
+> off anything users see. On an apex custom domain the shell serves at the
+> **domain root**, so the URLs are `https://hollow-oath.com/…`, not under
+> `/Hollow-Oath/`. The old `burners70.github.io` paths still redirect. **Set the
+> three App Store Connect URL fields to the `hollow-oath.com` URLs below.**
 
 - **Privacy Policy URL** → `privacy.html` (drafted, see repo root):
-  `https://burners70.github.io/Hollow-Oath/privacy.html`
+  `https://hollow-oath.com/privacy.html`
 - **Support URL** → `support.html` (drafted, see repo root):
-  `https://burners70.github.io/Hollow-Oath/support.html`. Contact email:
+  `https://hollow-oath.com/support.html`. Contact email:
   **hollowoath.support@gmail.com** (a dedicated Gmail alias forwarding to the
   owner's personal inbox — not the personal address itself). Also covers a
   short FAQ (save/iCloud sync, Game Center, Field Medic leaderboard
@@ -168,7 +167,7 @@ shell (not `index.html`/`js`/`css`), per O7.
   **email-only** — the GitHub Issues fallback was removed (July 2026) so the
   `burners70` handle isn't exposed to anyone clicking through.
 - **Marketing URL** → `about.html` (drafted, see repo root):
-  `https://burners70.github.io/Hollow-Oath/about.html`. The pitch, the
+  `https://hollow-oath.com/about.html`. The pitch, the
   feature list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one
   place per E7 this is allowed to be explicit), and the full 8-shot gallery
   from `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
