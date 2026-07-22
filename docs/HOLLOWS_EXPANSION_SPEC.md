@@ -8,6 +8,15 @@ the Hollows things worth carrying out, Q gives players a way back down.*
 
 Last updated: July 2026
 
+> **Release split (owner decision, July 2026).** This bundle now ships across
+> two releases, not one: **the Laennec rescue + AUSCULTATION + the ROTATION
+> CHART (fly-back to cleared sectors) move to update 1.1, alongside Bundle P**
+> (sequenced after the pendulum so the level cache lands on a settled base),
+> while **the three new caves (THE WARD, THE MINT, THE LISTENING POST) stay in
+> update 1.2**. When scheduling the items below (§9, Q1–Q10), tag each to its
+> release accordingly. See [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) Bundle Q
+> for the rationale (it answers the owner's "fly back to previous zones" ask).
+
 ---
 
 ## 1. Concept in one paragraph

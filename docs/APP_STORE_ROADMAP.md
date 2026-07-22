@@ -67,9 +67,9 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness | No (recommended before O) |
 | O | Store listing & submission | Shipping | **Yes (last)** |
 | P | The pendulum sling | **Locked: free update 1.1** | No (post-launch) |
-| Q | The deep Hollows | **Locked: free update 1.2** | No (post-launch) |
-| V | 1.01 maintenance & narrative | Fly-back, scan fairness, the Solace reveal, heard-scan parry | Post-approval 1.01 |
-| W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | 1.1 candidate (version label TBC — see bundle) |
+| Q | The deep Hollows | **Free update 1.2** (Laennec + ROTATION CHART split forward to 1.1) | No (post-launch) |
+| V | 1.01 maintenance & narrative | Scan fairness, the Solace reveal, heard-scan parry, post-completion variants | Post-approval 1.01 |
+| W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | Update 1.1 (ships with P) |
 
 Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
 the ceiling (and the defensible price). **Bundles R, S and T are the July 2026
@@ -1410,14 +1410,26 @@ inside a new Hollow, found by his knocking. AUSCULTATION makes unfound
 lift pads ring when near (the Radiosense pattern applied to lifts); his
 chart unlocks the ROTATION CHART (return travel to cleared sectors,
 cached as-left); three new caves with new discoveries (THE WARD, THE
-MINT, THE LISTENING POST). **Locked (owner decision, July 2026): ships as
-the free 1.2 content update, "1.2 — THE DEEP HOLLOWS", after P's 1.1.**
-Full spec: [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
-**Priority: second post-launch. Dependencies: P shipped and stable (the
-level cache lands best on a settled base); J, K, I, M, A all shipped.**
+MINT, THE LISTENING POST). Full spec:
+[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+
+**Split by release (owner decision, July 2026).** The owner asked for fly-back
+sooner (originally raised as a "1.01 fix"; see V1). Rather than break Q's
+in-game unlock, Bundle Q is split across two releases:
+- **Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
+  **ROTATION CHART** (fly-back to cleared sectors, cached as-left) — sequenced
+  *after* the pendulum work so the level cache lands on a settled base.
+- **Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
+  MINT, THE LISTENING POST) and their discoveries.
+
+**Priority: the 1.1 core rides with P; the caves are second post-launch (1.2).
+Dependencies: P shipped/stable before the ROTATION CHART cache (still true even
+within 1.1); J, K, I, M, A all shipped.**
 
 - [ ] **Q·impl. Implement per the spec checklist** — work through
-  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there.
+  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there. **Tag each
+  item to its release per the split above (Laennec/AUSCULTATION/ROTATION CHART
+  core → 1.1; the three caves → 1.2) when scheduling.**
 - [ ] **Q·guard. Regression gate** — the Q5 level cache touches
   `toBriefing`; the full smoke suite plus the M1 heightmap checksum must
   stay green, and remix/daily must never draw Laennec onto a surface
@@ -1445,19 +1457,16 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
-- [ ] **V1. Fly back to previous zones (rescue those left behind).** The
-  owner's request maps onto an **existing planned feature**: the **ROTATION
-  CHART in Bundle Q** (update 1.2) — return travel to cleared sectors, cached
-  as-left, **unlocked in-game** by rescuing René Laennec (AUSCULTATION). **The
-  owner wants to keep that in-game unlock (July 2026)** — this is *not* to be
-  decoupled from it. The only open question is **release timing** (leave it in
-  1.2, or bring the Laennec + ROTATION CHART core forward toward 1.1) — see the
-  owner-decision note below. No new mechanic to design; this is a scheduling
-  call against Bundle Q, whose dependency note flags that the level cache
-  "lands best on a settled base (P shipped)". Code anchors:
-  HOLLOWS_EXPANSION_SPEC.md §Q5 and Bundle Q above; the return-travel round-trip
-  must reuse the checkpoint serialization (`doids_run`, `__doids.go(n)`).
-  **Owner decision pending — do not schedule this into 1.01 without it.**
+- [ ] **V1. Fly back to previous zones (rescue those left behind) — RESOLVED
+  to 1.1, tracked under Bundle Q.** The owner's request is the **ROTATION
+  CHART**: return travel to cleared sectors (cached as-left), **unlocked
+  in-game** by rescuing René Laennec (AUSCULTATION). **Decision (owner, July
+  2026): keep the in-game unlock, and split Bundle Q so this core ships in
+  1.1** — sequenced *after* the pendulum (P) so the level cache lands on a
+  settled base — while Q's three new caves stay in 1.2. Not a 1.01 item; listed
+  here only because it was raised as a "1.01 fix". See Bundle Q's split note.
+  Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
+  checkpoint serialization (`doids_run`, `__doids.go(n)`).
 - [ ] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
   cheat).** Today you often can't land far enough from a Scion for a scan to
   complete before it reaches you, which reads as a rigged loss. Two changes:
@@ -1540,21 +1549,17 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).
 
-## Bundle W — Landscape challenge escalation (1.1 candidate)
+## Bundle W — Landscape challenge escalation (update 1.1, with P)
 
-**Why:** Owner idea (July 2026), explicitly tagged for a **1.1** feature update:
-more landscape *challenge* as the campaign progresses — **crazy deep / narrow
-valleys, rocky outcrops and overhangs you must fly under, and small caves on
-the surface levels.** Distinct from the deep Hollows (Bundle Q, which is the
-lift-down cave network) — this is difficulty and texture in the *surface*
-terrain itself. **Priority: post-launch feature update. Dependencies: builds on
-Bundle T (per-sector width/biome identity) and the terrain generators.**
-
-> **Version-label conflict to resolve.** The owner tagged this "1.1", but
-> **Bundle P (the pendulum sling) is already locked as the free 1.1 update**
-> and Bundle Q as 1.2. Either this rides *with* P in 1.1, or it takes a later
-> number (1.3+). **Owner decision needed** — captured here rather than silently
-> renumbered.
+**Why:** Owner idea (July 2026) for a **1.1** feature update: more landscape
+*challenge* as the campaign progresses — **crazy deep / narrow valleys, rocky
+outcrops and overhangs you must fly under, and small caves on the surface
+levels.** Distinct from the deep Hollows (Bundle Q, the lift-down cave network)
+— this is difficulty and texture in the *surface* terrain itself. **Decision
+(owner, July 2026): ships in 1.1 alongside Bundle P** (the pendulum), which
+already owns the 1.1 label. **Priority: post-launch, with P. Dependencies:
+builds on Bundle T (per-sector width/biome identity) and the terrain
+generators.**
 
 - [ ] **W1. Progressive surface-terrain challenge.** Scale terrain difficulty
   with sector index: deeper/narrower valleys, overhangs/outcrops that force
@@ -1589,10 +1594,10 @@ D ──┴────────────────┘                 �
       T1–T3 + T6 (zone identity core — launch)
       T4, T5 (destructible scenery, weather — launch-stretch; slip to 1.1 if needed)
       after 1.0 approval:
-      V (1.01 — maintenance & the Solace reveal; fly-back, scan fairness)
-      then the feature updates:
-      P (1.1 — THE PENDULUM) → Q (1.2 — THE DEEP HOLLOWS)   → both free
-      W (landscape challenge — 1.1 candidate; version label TBC vs P)
+      V (1.01 — maintenance & the Solace reveal; scan fairness; heard-scan parry)
+      then the feature updates (all free):
+      1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge)
+      1.2 = Q-caves (THE DEEP HOLLOWS: Ward / Mint / Listening Post)
 ```
 
 **Status (July 2026, updated):** A–D and **H–N are all shipped** on the web
@@ -1620,15 +1625,17 @@ review in [COPY_DECK.md](COPY_DECK.md) (R10).
 [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
 **Bundle V is the 1.01 plan**, captured while 1.0 is in App Review: the
 Solace sister-ship reveal (named ship, sonar hull pulse on the 41-s clock),
-fly-back to cleared sectors (recognised as Bundle Q's ROTATION CHART — the
-in-game Laennec unlock is kept; only its release timing is under decision),
-Scion scan-jeopardy fairness, a playable "heard"
-sonic-wave parry, post-completion title/intro/campaign variants, and the
-record that **tilt is dropped from the forward plan** (dormant scaffolding
-only). **Bundle W** logs the owner's landscape-challenge idea (a 1.1
-candidate whose version number still needs reconciling against Bundle P).
-Two owner decisions are flagged inside V/W: whether to surface the decoy
-MERCY earlier (V11), and the W version label.
+Scion scan-jeopardy fairness, a playable "heard" sonic-wave parry,
+post-completion title/intro/campaign variants, and the record that **tilt is
+dropped from the forward plan** (dormant scaffolding only). Fly-back to cleared
+sectors (the owner's other "1.01" ask) was **resolved to 1.1**: keep Bundle Q's
+in-game Laennec unlock and split its **ROTATION CHART** core forward to ship
+with Bundle P (after the pendulum), leaving Q's three caves in 1.2. **Bundle W**
+(landscape challenge) also **ships in 1.1 with P** (owner decision). One owner
+decision remains open — whether to surface the decoy MERCY earlier (V11).
+The support/marketing URL is moving to a **custom domain on GitHub Pages**
+(owner decision, July 2026) — the domain name is being picked; the `CNAME` and
+doc-URL updates land once it's chosen.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), second-playthrough modifiers, Android/Google Play via the
