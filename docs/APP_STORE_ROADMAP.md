@@ -1377,6 +1377,20 @@ merged; G/H strongly recommended.**
     do NOT disable it** — the marketing/support/privacy pages move to a
     **custom domain, `hollow-oath.com`** (see O8), so Pages stays on but serves
     only `about.html` / `support.html` / `privacy.html`, never the game.
+  - **Implemented via a dedicated `gh-pages` publish branch (July 2026).**
+    Deploy-from-branch only offers `/(root)` or `/docs`, and `/docs` holds the
+    internal design docs (would leak) — so a separate publish branch is the
+    clean fit. `gh-pages` contains **only** the shell: `index.html` (the
+    marketing page, promoted from `about.html`), `about.html` (now a redirect to
+    `/`), `support.html`, `privacy.html`, the `iPhone-17` marketing shots,
+    `CNAME`, and `.nojekyll`. The game (`index.html` + `js/` + `css/`) and all
+    of `docs/` are intentionally absent, so the game is not downloadable from
+    the web. `main` keeps the full game untouched for the Capacitor iOS build.
+    **Remaining owner action (repo Settings, can't be scripted):
+    Settings → Pages → Build and deployment → Source: "Deploy from a branch" →
+    Branch: `gh-pages` / `(root)` → Save.** Custom domain stays `hollow-oath.com`
+    (CNAME is on `gh-pages`); keep "Enforce HTTPS" on. Until that switch is
+    made, `main` is still the Pages source and the game remains live on the web.
 - [ ] **O8. Move the public shell to a custom domain (`hollow-oath.com`).** The
   owner registered `hollow-oath.com` (Cloudflare, July 2026) to keep the
   personal `burners70` handle off anything users see (App Store

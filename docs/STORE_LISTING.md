@@ -166,14 +166,17 @@ shell (not `index.html`/`js`/`css`), per O7.
   exclusion, touch controls, crashes, refunds via Apple). Contact is
   **email-only** — the GitHub Issues fallback was removed (July 2026) so the
   `burners70` handle isn't exposed to anyone clicking through.
-- **Marketing URL** → `about.html` (drafted, see repo root):
-  `https://hollow-oath.com/about.html`. The pitch, the
-  feature list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one
-  place per E7 this is allowed to be explicit), and the full 8-shot gallery
-  from `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
-  playable free version, since there won't be one once O7 lands. The
-  "Coming soon to the App Store" CTA is a placeholder — swap in the real App
-  Store link once the app is live.
+- **Marketing URL** → the **site root**: `https://hollow-oath.com/`. Once O7
+  landed, the marketing page *is* the homepage (`index.html` on the `gh-pages`
+  publish branch); the old `about.html` path now redirects to `/`, so the
+  previously-documented `https://hollow-oath.com/about.html` still resolves if
+  it was already entered anywhere. The page carries the pitch, the feature
+  list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one place per
+  E7 this is allowed to be explicit), and the full 8-shot gallery from
+  `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
+  playable free version, since there isn't one (O7). The "Coming soon to the
+  App Store" CTA is a placeholder — swap in the real App Store link once the
+  app is live.
 
 *(Resolved: the earlier "free web version undercuts the $2.99 ask" concern —
 there's no free version once O7 lands, so no tension to manage.)*
