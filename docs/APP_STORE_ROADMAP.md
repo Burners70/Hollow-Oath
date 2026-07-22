@@ -1384,7 +1384,11 @@ merged; G/H strongly recommended.**
   — no change to how the site deploys. Steps: in Cloudflare DNS add a `CNAME`
   for the apex `@` → `burners70.github.io` (Cloudflare flattens it) and a
   `CNAME` for `www` → `burners70.github.io`, both **DNS only (grey cloud)** so
-  GitHub issues its own HTTPS cert; set the custom domain in repo
+  GitHub issues its own HTTPS cert. (Cloudflare nags "Proxying is required for
+  most security/performance features" — safe to ignore for a static Pages site;
+  proxied/orange cloud blocks GitHub's cert issuance and, on the default
+  "Flexible" SSL mode, causes an HTTPS redirect loop.) Set the custom domain in
+  repo
   **Settings → Pages** (this commits the `CNAME` file automatically); enable
   **Enforce HTTPS**. With an *apex* custom domain the shell serves at the
   **domain root** (`https://hollow-oath.com/support.html`), not under
