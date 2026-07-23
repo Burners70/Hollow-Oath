@@ -1346,14 +1346,15 @@ merged; G/H strongly recommended.**
   15–30 s preview video of one full rescue loop. Capture from a real device
   after D (perf)
   lands.
-- [ ] **O5. Support & privacy URLs.** A one-page privacy policy ("no data
+- [x] **O5. Support & privacy URLs.** A one-page privacy policy ("no data
   collected, saves stay on device/iCloud") and support contact, hosted on the
-  existing GitHub Pages site.
+  existing GitHub Pages site. Live at `https://hollow-oath.com/privacy.html`
+  and `https://hollow-oath.com/support.html`.
 - [ ] **O6. Submission dry run.** TestFlight internal build → full E8 matrix →
   external TestFlight round (5–10 players, watch where they die and quit) →
   submit. Budget one rejection cycle; 4.2 is the likely challenge and the
   response is the native-features list (F, G, E4).
-- [ ] **O7. Take the public playable web build down before launch (owner
+- [x] **O7. Take the public playable web build down before launch (owner
   decision, July 2026).** The live GitHub Pages deploy
   (`https://burners70.github.io/Hollow-Oath/`) was a development/testing
   convenience, not an intended permanent free release — the owner does not
@@ -1393,11 +1394,12 @@ merged; G/H strongly recommended.**
     Mono, cyan glow, ECG divider — replacing the earlier plain-dark draft;
     `icon-512.png`/`manifest.webmanifest` were added to `gh-pages` at the same
     time since the new pages reference them.
-    **Remaining owner action (repo Settings, can't be scripted):
-    Settings → Pages → Build and deployment → Source: "Deploy from a branch" →
-    Branch: `gh-pages` / `(root)` → Save.** Custom domain stays `hollow-oath.com`
-    (CNAME is on `gh-pages`); keep "Enforce HTTPS" on. Until that switch is
-    made, `main` is still the Pages source and the game remains live on the web.
+    **Done: owner confirmed `hollow-oath.com` is serving from `gh-pages`
+    (July 2026)** — Settings → Pages → Build and deployment → Source:
+    "Deploy from a branch" → Branch: `gh-pages` / `(root)`. Custom domain is
+    `hollow-oath.com` (CNAME on `gh-pages`), "Enforce HTTPS" on. The playable
+    game is no longer reachable on the web; `main` keeps it for the Capacitor
+    iOS build only.
 - [ ] **O8. Move the public shell to a custom domain (`hollow-oath.com`).** The
   owner registered `hollow-oath.com` (Cloudflare, July 2026) to keep the
   personal `burners70` handle off anything users see (App Store
