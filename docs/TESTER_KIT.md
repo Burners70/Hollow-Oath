@@ -33,7 +33,7 @@ coaching. Under Apple's character limit with room to spare.)*
 > I'm mostly interested in where it grabs you and where it loses you.
 >
 > When you've had a go — even if you gave up partway — please fill in the short
-> survey: [FORM LINK]
+> survey: https://tinyurl.com/HollowOath
 >
 > If it crashes or freezes, note what phone you're on and roughly what was
 > happening, and put it in the survey. Cheers.
@@ -61,7 +61,7 @@ coaching. The informal register is deliberate — these are friends.)*
 >   and give up. That's exactly the stuff I need to know about. Don't push through
 >   to be polite.
 > - When you're done (or done-for-now), fill in the survey. It's about ten
->   minutes: [FORM LINK]
+>   minutes: https://tinyurl.com/HollowOath
 >
 > How to get it: you'll get a separate TestFlight invite from Apple. Install the
 > free TestFlight app first if you don't have it, then tap the invite.
