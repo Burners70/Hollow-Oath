@@ -28,3 +28,8 @@ The **TestFlight** column records when the App Store Connect beta invite was sen
 > **James Burnett** was invited with the group, but his status stays
 > `Approached` — no explicit "yes" was recorded. Change to `Agreed` once he
 > accepts the TestFlight invite.
+
+**Thank-you / survey email sent 2026-07-23** — Darren emailed all 8 testers
+above (from darrenpburnett@gmail.com, BCC'd), thanking them for testing and
+pointing them to the survey: https://tinyurl.com/HollowOath (see
+`docs/TESTER_KIT.md` for the survey script this links to).
