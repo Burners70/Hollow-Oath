@@ -1382,10 +1382,17 @@ merged; G/H strongly recommended.**
     internal design docs (would leak) — so a separate publish branch is the
     clean fit. `gh-pages` contains **only** the shell: `index.html` (the
     marketing page, promoted from `about.html`), `about.html` (now a redirect to
-    `/`), `support.html`, `privacy.html`, the `iPhone-17` marketing shots,
-    `CNAME`, and `.nojekyll`. The game (`index.html` + `js/` + `css/`) and all
-    of `docs/` are intentionally absent, so the game is not downloadable from
-    the web. `main` keeps the full game untouched for the Capacitor iOS build.
+    `/`), `support.html`, `privacy.html`, `icon-512.png`, `manifest.webmanifest`,
+    the `iPhone-17` marketing shots, `CNAME`, and `.nojekyll`. The game
+    (`index.html` + `js/` + `css/`) and all of `docs/` are intentionally
+    absent, so the game is not downloadable from the web. `main` keeps the
+    full game untouched for the Capacitor iOS build, plus draft copies of the
+    same three shell pages at repo root (`about.html`/`support.html`/
+    `privacy.html`) kept in sync with `gh-pages` for reference.
+    **Restyled to the shipped neon-glow brand (July 2026)** — Menlo/JetBrains
+    Mono, cyan glow, ECG divider — replacing the earlier plain-dark draft;
+    `icon-512.png`/`manifest.webmanifest` were added to `gh-pages` at the same
+    time since the new pages reference them.
     **Remaining owner action (repo Settings, can't be scripted):
     Settings → Pages → Build and deployment → Source: "Deploy from a branch" →
     Branch: `gh-pages` / `(root)` → Save.** Custom domain stays `hollow-oath.com`

@@ -172,8 +172,8 @@ shell (not `index.html`/`js`/`css`), per O7.
   previously-documented `https://hollow-oath.com/about.html` still resolves if
   it was already entered anywhere. The page carries the pitch, the feature
   list, the *named* homage paragraph (Oids/Thrust/Gravitar, the one place per
-  E7 this is allowed to be explicit), and the full 8-shot gallery from
-  `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
+  E7 this is allowed to be explicit), and a 5-shot gallery (screens 1, 2, 3,
+  5, 7) from `assets/marketing/Screenshots/iPhone-17/` (see O4). No link back to a
   playable free version, since there isn't one (O7). The "Coming soon to the
   App Store" CTA is a placeholder — swap in the real App Store link once the
   app is live.
