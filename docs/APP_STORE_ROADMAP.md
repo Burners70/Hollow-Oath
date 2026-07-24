@@ -70,6 +70,8 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 | Q | The deep Hollows | **Free update 1.2** (Laennec + ROTATION CHART split forward to 1.1) | No (post-launch) |
 | V | 1.01 maintenance & narrative | Scan fairness, the Solace reveal, heard-scan parry, post-completion variants | Post-approval 1.01 |
 | W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | Update 1.1 (ships with P) |
+| X | Onboarding & new-player experience | Learning-curve fix: guide, trainee Level 0, hint cards | Post-approval 1.01 |
+| Y | 1.01 release-fix defects | Stability + render/telegraphing fixes | Post-approval 1.01 (Y1/Y2 weigh for 1.0) |
 
 Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
 the ceiling (and the defensible price). **Bundles R, S and T are the July 2026
@@ -1624,6 +1626,212 @@ generators.**
   checksum stay green; add fairness-invariant assertions for the new terrain
   shapes across every seed the campaign and REMIX/DAILY can produce.
 
+## Bundle X — Onboarding & the new-player experience (1.01)
+
+**Why:** The loudest note from the July 2026 external TestFlight round — the
+**learning curve is too steep for players who have never played a
+thrust/gravity game**. Newton's-cradle momentum that feels obvious to a
+Gravitar/Lunar-Lander veteran reads as "the ship won't do what I tell it" to
+everyone else, and they bounce off before the game gets good. This bundle is the
+fix: an **optional, opt-in** learning path that never gets in an experienced
+player's way — an illustrated guide, a guided trainee sector, a first-play fork
+that routes each player to the right starting point, and a post-death hint-card
+bank. **Priority: highest-value retention work in 1.01 — do it first.
+Dependencies: 1.0 shipped. X2 depends on X4's guided-pause overlay; X1 and X5
+are independent.**
+
+> **Design pillar: opt-in, never mandatory.** An experienced player must be able
+> to start Level 1 on first launch and never see a tutorial pause, a training
+> sector, or a "how to thrust" card. Everything here sits behind the X3 fork or
+> a home-screen button — the same opt-in stance as ASSIST / Field Medic
+> (Bundle H).
+
+- [ ] **X1. The beginner's guide — an optional home-screen button.** A **HOW TO
+  FLY** button on the title screen (`drawTitle` in `js/render.js`, alongside the
+  existing REMIX / settings pills) opens a paged, **illustrated** guide with
+  literal step-by-step visuals, not walls of text: rotate, thrust (hold = more
+  speed / distance), counter-thrust to slow, shield on impact, fuel management,
+  fire. Each page is a labelled diagram of the ship + the on-screen buttons —
+  reuse the FIRE / THRUST / SHIELD control art already drawn in `js/input.js` /
+  `js/render.js` so the guide matches what the player actually sees. Reachable
+  any time, not only first-run. Copy authored for owner review in
+  [COPY_DECK.md](COPY_DECK.md) (R10); respect `bigText` / reduced-flash /
+  colorblind.
+- [ ] **X2. Trainee sector — "Level 0."** A new, very simple guided rescue
+  **before** the scored campaign: gentle wide terrain, **one Scion**, **one
+  optional turret placed far from the Scion** (avoidable — it introduces the
+  threat, it doesn't punish). It runs as its **own mode / flow, not a renumber
+  of the scored campaign** — the campaign stays Sector 0–10 with its seeds,
+  scores, ranks and `veteran` logic untouched, and training **never writes a
+  hiscore**. Code anchors: a bespoke trainee layout in `genLevel` / `RECIPE`
+  (`js/world.js`), the `resetRun` / `toBriefing` flow and mode plumbing
+  (`js/world.js` / `js/update.js`).
+  - **X2a. Guided proactive pauses.** Step the player through the ship using the
+    X4 overlay. Authored sequence (draft — final copy to COPY_DECK.md):
+    1. *"Press THRUST to fight gravity. The longer you hold, the faster and
+       further you go."*
+    2. *"Press RIGHT and tap THRUST to start drifting right — keep thrusting UP
+       at the same time so you don't sink."*
+    3. *"The faster you're moving one way, the more thrust it takes to stop.
+       Watch your FUEL."*
+    4. Introduce **FIRE** (and that shots count against the pacifist ranks).
+    5. Introduce **SHIELD** for impacts — **and warn that holding it burns
+       fuel.**
+    6. **Tease the parry without teaching it:** *"There are other ways to put a
+       gun down than shooting it."* (No explicit parry tutorial — X5 has a
+       discovery-gated card for when they find it.)
+  - **X2b. Free-play after the rescue.** Once the Scion is aboard, **do not end
+    the level.** Disable the 41-second Static clock and the extraction / signal
+    pulse for the trainee sector so the player keeps flying, refuelling and
+    experimenting, and **leaves only when they choose to** (a plain "END
+    TRAINING" affordance). Code anchors: the Static clock (`updateStaticClock`)
+    and extraction / MERCY logic in `js/update.js`, both gated off in training
+    mode.
+- [ ] **X3. First-play fork.** On a first launch (no `doids_intro`, or a new
+  `doids_trained` flag), ask once: **"Played thrust / gravity games before?"** —
+  **Yes → straight to Level 1** (current behaviour); **No → the trainee
+  sector.** Never shown again once answered; re-runnable from the X1 guide or
+  Settings. Code anchors: the intro gate (`doids_intro`) in `js/world.js`, the
+  title / intro flow in `js/render.js`; add a `doids_trained` key (keep the
+  `doids_` prefix).
+- [ ] **X4. Reusable "guided pause" overlay.** A small system to **pause the sim
+  and show a step card** (dim the world, instruction + a CONTINUE tap), fired by
+  game conditions (entered training, first thrust, first rightward drift, fuel
+  below a threshold, …). Built once here, reused by X2a. Code anchors: the pause
+  machinery from Bundle A (`enterPause` / `PAUSABLE`, `js/update.js`); a
+  lightweight "coach" state that does **not** snapshot / exit like the real
+  pause.
+- [ ] **X5. Post-death hint-card bank.** After each death, show **one** short
+  hint card (rotating, no repeats until the bank is exhausted). **Some cards are
+  discovery-gated** — they enter the pool only once the player has met the
+  relevant system (a parry landed, a Scion scanned, a counterfeit met, a Hollow
+  lift found), tracked via existing flags (`upgrades.*`, `veteran`, codex /
+  `doids_codex` discovery state) plus any new discovery bits (keep the `doids_`
+  prefix). Code anchors: the `gameover` screen (`js/render.js` / `js/update.js`);
+  a new hint-selection helper. **Starter bank below — for owner review and
+  approval; mirror into COPY_DECK.md when built (R10).**
+
+  *Always available:*
+  - Thrust is momentum, not a throttle — to stop, thrust the opposite way.
+  - Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.
+  - Fuel is time. Every pod you pass is a choice you'll want back.
+  - You don't have to fight. Some Scions come home without a shot fired.
+  - A long fall needs a long burn to arrest. Start slowing early.
+  - Tap, don't hold, when you only need a nudge.
+
+  *Discovery-gated (enter the pool once the thing is seen):*
+  - *(after a parry)* A shield raised at the right moment turns a shot back on its sender.
+  - *(after first scan)* Land beside a thing and read it — it can tell you what firing never will.
+  - *(after meeting a counterfeit)* Not every fuel pod wants to help you. The honest ones flicker like fire.
+  - *(after finding a lift — veteran)* The ground rings hollow in places. There is a way down.
+  - *(after Avicenna)* Your Canon now marks the fakes. Trust the mark.
+
+  (A starting point — owner to add / cut / reword. Keep each card to one
+  sentence in the game's clinical-poetic register.)
+- [ ] **X·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
+  to expose training mode, the fork flag, guided-pause state and hint-card
+  discovery bits; add a test that an experienced-path first launch (X3 "Yes")
+  reaches Level 1 with **no** training state set, and that training never writes
+  a hiscore.
+
+## Bundle Y — 1.01 release-fix defects (owner playtest, late July 2026)
+
+**Why:** Defects and over-tells caught by the owner in extended play after the
+1.0 submission, filed for **1.01**. **Y1 and Y2 are stability bugs seen after
+long iOS backgrounding — weigh them for the 1.0 build if it is still in review
+(see the sequencing note).** The rest are rendering / telegraphing corrections.
+**Priority: with X in 1.01. Dependencies: none, but Y1 and Y2 share a root cause
+(state after a long background) — fix them together.**
+
+- [ ] **Y1. Landscape vanishes after a very long background.** Reported: away
+  from the app for hours, returned to find the **ship drawn but all terrain,
+  cave roof and scenery invisible** — and still collidable (the ship crashed
+  into ground it couldn't see). Root cause (high confidence): terrain / roof are
+  drawn from **offscreen-canvas tiles cached per 512px chunk** (Bundle D4 —
+  `buildHeightTile` / `getTiles`, `level._terrainTiles` / `_roofTiles` in
+  `js/render.js`). iOS purges canvas backing stores under memory pressure while
+  backgrounded; on resume the tile objects still exist but their pixels are
+  gone, so `drawImage` paints nothing — while the ship, drawn live each frame,
+  survives. Collision reads `groundAt()` / `roofAt()` off the heightmap arrays
+  (not the tiles), which is why you still hit the invisible ground. **Fix:**
+  invalidate and rebuild the tile caches on return to foreground — clear
+  `level._terrainTiles` / `_roofTiles` (and any scenery tile caches) on
+  `pageshow` / `visibilitychange`→visible, beside the existing auto-pause handler
+  (`js/input.js:297`). Add a smoke check that clearing the caches and rendering a
+  frame repaints terrain.
+- [ ] **Y2. Blank world / frozen game after an upgrade card on a long-standing
+  run.** Reported once: after a multi-rescue drop-off, picked the **"better
+  lamp" (LAMP) upgrade card**, then a **blank screen behind the UI, no crash, no
+  input response** — on a long run repeatedly backgrounded / foregrounded. Two
+  contributing causes: (a) the **frame loop has no error guard** — `frame()`
+  (`js/main.js:10`) calls `update()` / `render()` and only *then*
+  `requestAnimationFrame`, so a single thrown frame kills the loop permanently,
+  which reads exactly as "UI stuck, world blank, nothing responds"; (b) the
+  blank *world* is most likely the Y1 purged-tile symptom surfacing at the
+  post-clear resume into play. **Fix:** wrap the `frame()` body in try/catch so
+  one bad frame can't freeze the game (log to the `__doids` handle / console,
+  keep the RAF alive); land Y1; add the repro to QA (award the LAMP card at the
+  end of a long, repeatedly-backgrounded run). Code anchors: `frame()`
+  (`js/main.js`), the sector-clear / upgrade flow (`state="clear"`,
+  `js/update.js:199`), `upgrades.lamp` (`js/update.js:827`).
+- [ ] **Y3. Curie Fields wrecks aren't occluded by the terrain profile; add
+  angled motherships.** Reported on Curie Fields: crashed wrecks **poke out
+  where the land drops away but are cut off at the base as if the ground
+  continued**, and **stay fully visible where the land rises in front of them**
+  (they should be submerged by the risen ground). This is the **single
+  ground-line clip** each wreck does today (`drawWreckM` / `drawWreckS` clip to
+  one sampled ground height) failing against a *sloping* profile — it can't
+  follow ground that drops or rises across the wreck's width. **Distinct from
+  QA3** (which fixed the broken-vs-intact *look* and relied on exactly this
+  single-sample clip): QA3's clip is the thing now shown to be insufficient.
+  **Fix (owner's steer):** the **terrain should render in front of the wrecks**
+  so a rising profile submerges them naturally — either draw a terrain-shaped
+  occluder pass *after* `drawScenery` (`js/render.js:295`; today scenery is drawn
+  *after* terrain at `:283`) or clip each wreck to the actual `groundAt()`
+  profile across its footprint, not one sample. Owner bonus: show the **crash
+  impact** on the land (a small crater / disturbed line where a wreck bit in).
+  **Also rotate some crashed motherships to an angle** rather than flat — a
+  per-wreck `sc.ang` seeded by x (stable frame to frame) in `drawWreckM`. Code
+  anchors: `drawScenery` / `drawWreckM` / `drawWreckS`, `wreckMBreachClip`, the
+  terrain draw at `js/render.js:283`, `groundAt`. See the owner's example image
+  (angled mothership).
+- [ ] **Y4. Counterfeit fuel pods over-tell — gate the obvious blink behind
+  Avicenna.** The counterfeit pods **blink in hard, perfect-time unison for
+  everyone** (`js/render.js:334`, `alpha = sin(…) > 0 ? 1 : 0.38`); Avicenna
+  (`upgrades.canon`) today only recolours them and adds the "?" mark — it does
+  **not** gate the blink, so the tell is too loud pre-upgrade. **Fix:** without
+  Avicenna, replace the hard blink with a **very subtle intermittent flicker**
+  (the "twitching trees" register — a faint, occasional waver, not a metronome);
+  **with Avicenna keep the obvious perfect-time blink** (+ the existing "?"
+  reveal) as the unmask payoff. **Design note for owner:** the BRIEFS copy
+  ("*Real pods flicker like fire; the fakes keep perfect time*", `js/world.js:61`)
+  and the counterfeit-MERCY warning ("*like the counterfeit fuel*",
+  `js/update.js:671`) lean on the perfect-time tell being *visible* — making it
+  subtle pre-Avicenna nudges unmasking toward the upgrade or the land-and-scan
+  route, which raises counterfeit difficulty for players without the upgrade.
+  Confirm that's intended; the brief line may want a small reword. Mirror any
+  copy change into COPY_DECK.md (R10).
+- [ ] **Y5. Lift pad must read above ground — and on pre-veteran runs.** The
+  "subtly thicker plate of ground" marking the secret lift is drawn **only
+  downward from the seam** (`js/render.js:1443`, `fillRect(-44, 2, 88, 9)` — all
+  below y=2), so it's invisible above the surface. Worse, the whole pad is gated
+  to veterans: `lvl.lift` is created only `if (veteran)` (`js/world.js:815`), so
+  **pre-veteran runs draw no pad at all** (`drawLift` early-returns on `!L`).
+  Owner wants the pad **visible above ground, on every run including pre-veteran
+  — subtle, not screaming.** **Fix:** (a) always store the pad position when
+  `r.lift` (the ground-flatten already runs unconditionally at
+  `js/world.js:813-814` to keep terrain byte-identical) — e.g. a `lvl.liftPad =
+  {x,y}` that exists even when the functional `lvl.lift` is null; (b) in
+  `drawLift`, render a **faint above-ground component** (a low raised lip / a few
+  px of glow above the seam) from `liftPad` even when the lift isn't usable,
+  tuned to be findable-if-you-look, not obvious. Leave the Hollows (cave) lift
+  art as-is. Code anchors: `drawLift` (`js/render.js:1409`), lift creation
+  (`js/world.js:809-815`), the `genCave` lift (`js/world.js:984`).
+- [ ] **Y·guard. Regression gate.** Smoke suite green; add coverage for the Y1
+  tile-cache invalidation and the Y4 Avicenna gate (blink loud only with
+  `upgrades.canon`); screenshot checks for Y3 occlusion (a wreck on a rise is
+  submerged) and Y5 (pad visible above ground pre-veteran).
+
 ---
 
 ## Suggested sequencing
@@ -1642,7 +1850,9 @@ D ──┴────────────────┘                 �
       T1–T3 + T6 (zone identity core — launch)
       T4, T5 (destructible scenery, weather — launch-stretch; slip to 1.1 if needed)
       after 1.0 approval:
-      V (1.01 — maintenance & the Solace reveal; scan fairness; heard-scan parry)
+      1.01 = X (onboarding — guide, trainee Level 0, hint cards; top retention fix)
+           + Y (release-fix defects; Y1/Y2 stability weigh for the 1.0 build)
+           + V (maintenance & the Solace reveal; scan fairness; heard-scan parry)
       then the feature updates (all free):
       1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge)
       1.2 = Q-caves (THE DEEP HOLLOWS: Ward / Mint / Listening Post)
@@ -1681,6 +1891,14 @@ in-game Laennec unlock and split its **ROTATION CHART** core forward to ship
 with Bundle P (after the pendulum), leaving Q's three caves in 1.2. **Bundle W**
 (landscape challenge) also **ships in 1.1 with P** (owner decision). One owner
 decision remains open — whether to surface the decoy MERCY earlier (V11).
+**The late-July 2026 owner-playtest round adds two more 1.01 bundles: X**
+(onboarding — an optional beginner's guide, a guided trainee "Level 0", a
+first-play "played thrust games?" fork, and a post-death hint-card bank; the top
+fix for the "too-steep learning curve" note) **and Y** (release-fix defects: the
+disappearing-landscape and blank-screen stability bugs after long iOS
+backgrounding, Curie Fields wreck occlusion + angled motherships, the
+Avicenna-gated counterfeit tell, and the above-ground lift-pad marker). **Y1 and
+Y2 are stability bugs — weigh them for the 1.0 build if it is still in review.**
 The support/marketing URL is moving to a **custom domain on GitHub Pages**,
 **`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). Once DNS
 is pointed at Pages and the domain resolves, the live-site links and the App
