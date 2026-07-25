@@ -14,6 +14,10 @@
 # (A manual Xcode archive does NOT run these lanes — for that path, run
 #  `npm run sync` yourself first, then verify the title's BUILD_TAG stamp shows
 #  today's date/hash. See app/MAC_SETUP.md §2.)
+#
+# These lanes do NOT run `pod install`; they assume pods are already installed
+# (setup-mac.sh / `npm run sync` handle that). Run those once after cloning or
+# after native-dependency changes.
 
 default_platform(:ios)
 
@@ -27,8 +31,14 @@ APP_DIR = File.expand_path("..", __dir__)
 platform :ios do
   desc "Mirror the web game into the native shell (never edit app/www by hand)"
   lane :sync_web do
-    # `npm run sync` == ./sync.sh (repo root -> www, stamps BUILD_TAG) + `npx cap sync ios`.
-    sh("cd '#{APP_DIR}' && npm run sync")
+    # ./sync.sh mirrors the repo root -> app/www (and stamps BUILD_TAG); `cap copy`
+    # pushes www -> the native shell's public/. We use `cap copy`, NOT `cap sync`
+    # (i.e. not `npm run sync`), on purpose: `sync` also runs `pod install`, which
+    # fails under `bundle exec` because Bundler hides Homebrew's `pod` from the
+    # environment — and refreshing web assets never needs a native-dependency
+    # reinstall. If plugins/native deps ever change, run `npm run sync` once
+    # outside fastlane (a plain terminal, where CocoaPods is on PATH).
+    sh("cd '#{APP_DIR}' && ./sync.sh && npx cap copy ios")
   end
 
   desc "Build a signed App Store archive (syncs the web build first)"

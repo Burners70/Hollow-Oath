@@ -58,6 +58,10 @@ build). Two safeguards:
   bundle exec fastlane beta    # archive + upload to TestFlight
   ```
 
+  These lanes refresh web assets with `cap copy` and do **not** run
+  `pod install` — run the §2 bootstrap (`./setup-mac.sh`, or `npm run sync` in a
+  plain terminal) once after cloning or after any native-dependency change.
+
 - **If you archive manually in Xcode instead**, run `npm run sync` yourself
   first. Either way, confirm the build is fresh: the title screen's bottom-right
   **BUILD_TAG** stamp reads `b<today's date> · <hash>` (stamped by `sync.sh` from
