@@ -367,7 +367,9 @@ F should land in the same release.**
     Evoke the era generically and link the homepage, which carries the named
     lineage. Details in O2.
   At submission (O6), verify all three tiers still hold.
-- [ ] **E8. Device test matrix.** Run on the oldest iOS you claim (~~suggest iOS
+- [x] **E8. Device test matrix.** *(Run on device — touch, gyro permission,
+  background/resume, and ringer-switch behaviour all verified; owner, July
+  2026.)* Run on the oldest iOS you claim (~~suggest iOS
   15+~~ **iOS 16+, owner decision July 2026** — perf floor at A11): touch
   controls, gyro permission flow, pause-on-background, resume, silent-switch
   behaviour (game audio should respect the ringer switch — WKWebView default —
@@ -402,7 +404,9 @@ with E). Dependencies: E (native bridge), C4 (settings toggle).**
   *(All wired, including the 41-second clock's double-tick from Bundle I and
   the arrhythmia tap every 3–5 s while a contaminant rides / the counterfeit
   bay has you. No-ops on web.)*
-- [ ] **F3. Restraint pass.** Play a full sector; if haptics fire more than ~once
+- [x] **F3. Restraint pass.** *(Played on device — haptics felt rare and
+  meaningful, no trimming needed; owner, July 2026.)* Play a full sector; if
+  haptics fire more than ~once
   per 5 s of normal flight, cut the least meaningful call sites. Haptics carry
   meaning here only if they stay rare. *(Needs a real iPhone — do with E8;
   scripted into app/MAC_SETUP.md §8. First candidates to cut if too chatty: the
@@ -1343,7 +1347,8 @@ merged; G/H strongly recommended.**
   **$2.99** with A–F+I..L shipped; $4.99 is defensible only once M (remix/daily)
   and N (counterfeit MERCY) are in. No IAP, no ads — "complete game, no data
   collected" is the positioning.
-- [ ] **O2. Metadata.** Name "Hollow Oath", subtitle ≤30 chars (e.g. "A gravity
+- [x] **O2. Metadata.** *(Store listing entered in App Store Connect — owner,
+  July 2026.)* Name "Hollow Oath", subtitle ≤30 chars (e.g. "A gravity
   rescue with a heartbeat"), description leading on: feel the heartbeat
   (haptics), trust nothing perfect, primum non nocere — **plus one nostalgia
   paragraph in generic terms** ("if you grew up steering a lander through
@@ -1359,7 +1364,8 @@ merged; G/H strongly recommended.**
   violence). The player *can* shoot medics (malpractice mechanic); answer the
   violence questions honestly and keep the store description's framing on
   consequence, not carnage.
-- [ ] **O4. Screenshots & preview.** 6.7" and 6.1" sets (landscape), 8 per
+- [x] **O4. Screenshots & preview.** *(Captured and uploaded — owner, July
+  2026.)* 6.7" and 6.1" sets (landscape), 8 per
   size: title, a landing beside a waving Scion, MERCY docking, a dark-sector
   lamp shot, a Hollows shrine, the CONTAMINANT ABOARD warning (owner call,
   swapped in for the ECG-arrhythmia moment — less compelling on screen), the
@@ -1373,7 +1379,8 @@ merged; G/H strongly recommended.**
   collected, saves stay on device/iCloud") and support contact, hosted on the
   existing GitHub Pages site. Live at `https://hollow-oath.com/privacy.html`
   and `https://hollow-oath.com/support.html`.
-- [ ] **O6. Submission dry run.** TestFlight internal build → full E8 matrix →
+- [x] **O6. Submission dry run.** *(Test submission completed via TestFlight —
+  owner, July 2026.)* TestFlight internal build → full E8 matrix →
   external TestFlight round (5–10 players, watch where they die and quit) →
   submit. Budget one rejection cycle; 4.2 is the likely challenge and the
   response is the native-features list (F, G, E4).
@@ -2017,8 +2024,12 @@ all of G live in `app/` (Capacitor scaffold, config scripts, two local Swift
 plugins) and in `index.html` (`cloud` + `gc` facades, wired and smoke-tested);
 the owner's bundle ID `com.burners70.hollowoath` and the iOS 16+ floor are
 locked. What's left needs hands on the Mac itself: run `app/setup-mac.sh`,
-sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5), then the
-on-device passes — E8 (matrix in §7), F3 (§8) — and Bundle O. The game already
+sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5). **The
+on-device passes E8 (matrix, §7) and F3 (haptics restraint, §8) are now done
+(owner, July 2026), and most of Bundle O has landed** — store listing/metadata
+(O2), screenshots (O4), support/privacy URLs (O5), the web-build takedown (O7),
+and a TestFlight test submission (O6). What remains in O is the pricing decision
+(O1) and the age-rating questionnaire (O3). The game already
 plays at the $4.99 feature bar.
 **The July 2026 owner-playtest feedback round is now bundled as R, S and T**
 (above): R is pure defect-fixing and joins the submission-blocking set; S
