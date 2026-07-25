@@ -1612,7 +1612,12 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   in `js/update.js`); render a travelling wavefront in `js/render.js`; resolve
   on a well-timed shield. **Needs a short design pass** (timing window, what
   failure costs, how it reads against the existing parry) before build.
-- [ ] **V7. Post-completion title & "start a run" framing.** After a first
+- [x] **V7. Post-completion title & "start a run" framing.** *(Shipped the copy:
+  the veteran CTA in `drawTitle` (`js/render.js`) now reads **▼ SOMETHING'S STILL
+  DOWN THERE** (owner pick) instead of ▶ START NEW FLIGHT — the downward ▼ teases
+  the Hollows — and the label auto-fits the pill so it never overruns a phone.
+  Mirrored to COPY_DECK.md. The fuller "shot of a Hollow" title visual is left as
+  an optional art follow-up.)* After a first
   completion (`veteran`), the title and the run-start language should
   acknowledge it. Change the visual — e.g. a shot of a **Hollow** to tease
   what's left to find — and change the button copy. **Options for the owner to

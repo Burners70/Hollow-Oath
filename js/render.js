@@ -2473,9 +2473,18 @@ function drawTitle(now) {
   ctx.strokeStyle = "rgba(255,255,255," + (0.55 + 0.35 * Math.sin(now * 2)).toFixed(2) + ")";
   ctx.shadowColor = "#fff"; ctx.shadowBlur = 14; ctx.lineWidth = 2;
   ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
-  ctx.font = "800 16px Menlo, monospace";
+  // V7 — after a first completion the CTA acknowledges it and teases the
+  // Hollows: a downward ▼ and "SOMETHING'S STILL DOWN THERE" instead of the
+  // first-run ▶ START NEW FLIGHT. Fit the (longer) label to the pill so it
+  // never overruns on a phone.
+  const startLabel = veteran ? "▼ SOMETHING'S STILL DOWN THERE" : "▶ START NEW FLIGHT";
+  let startFs = 16;
+  ctx.font = "800 " + startFs + "px Menlo, monospace";
+  while (startFs > 10 && ctx.measureText(startLabel).width > sr.w - 22) {
+    startFs -= 1; ctx.font = "800 " + startFs + "px Menlo, monospace";
+  }
   ctx.fillStyle = "#eaf6ff";
-  ctx.fillText("▶ START NEW FLIGHT", sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
+  ctx.fillText(startLabel, sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
   ctx.shadowBlur = 0;
 
   // build stamp + hi score along the bottom edge, out of the CTA's way
