@@ -1014,8 +1014,39 @@ function genLevel(n) {
   for (const p of lvl.fakePods) p.y = groundOf(heights, p.x);
   if (lvl.blackbox) lvl.blackbox.y = groundOf(heights, lvl.blackbox.x);
   if (lvl.beacon) lvl.beacon.y = groundOf(heights, lvl.beacon.x);
-  if (lvl.liftPad) lvl.liftPad.y = groundOf(heights, lvl.liftPad.x);
-  if (lvl.lift) lvl.lift.y = groundOf(heights, lvl.lift.x);
+  // the return-lift MUST end on a genuine FLAT — you land and hold on it, and its
+  // surface marker has to sit on that flat, not halfway up a slope. A crowded
+  // (esp. veteran) map can make pick() give up and drop the lift beside a Scion
+  // whose V2 pad-widen then re-slopes the lift's ground; the old code only
+  // re-SEATED the marker onto that slope. Re-assert the flat HERE, last of all,
+  // so nothing downstream can tilt it. Seeds where the lift was already flat are
+  // unchanged (±64 ⊂ the gen-time ±70 flat), so the M1 golden heightmap holds.
+  if (lvl.liftPad) {
+    const lx = lvl.liftPad.x;
+    const gs = [-64, -32, 0, 32, 64].map(d => groundOf(heights, lx + d));
+    // only re-flatten when the lift's ground is actually uneven (a later pass
+    // tilted it). Leaving already-flat lifts untouched keeps the RNG-free
+    // heightmap byte-identical on those seeds — so the M1 golden anchor holds.
+    if (Math.max(...gs) - Math.min(...gs) > 4) {
+      const ly = flatten(heights, lx, 64);
+      lvl.liftPad.y = ly;
+      if (lvl.lift) lvl.lift.y = ly;
+      for (const o of lvl.oids) o.y = groundOf(heights, o.x);   // a Scion the re-flatten nudged
+      // the lift flatten can overwrite a neighbouring Scion's V2 scan pad — re-carve
+      // a shelf for any Scion that now lacks one, on the side AWAY from the lift so
+      // it can't tilt the lift back (keeps the V2 fairness invariant intact).
+      for (const o of lvl.oids) {
+        if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
+        const dir = o.x >= lx ? 1 : -1;
+        const sx = clamp(o.x + dir * 150, 60, W - 60);
+        flattenTo(heights, sx, 30, groundOf(heights, o.x));
+        o.y = groundOf(heights, o.x);
+      }
+    } else {
+      lvl.liftPad.y = groundOf(heights, lx);
+      if (lvl.lift) lvl.lift.y = groundOf(heights, lx);
+    }
+  }
 
   // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
   const gy = x => {

@@ -1566,7 +1566,9 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   approach the ship rather than flee. `__doids.scanSpotFailures()` exposes the
   invariant; smoke: "V2 every scannable Scion has a fair scan-landing spot"
   (campaign + 8 REMIX seeds). Reshapes a few pads, so the M1 golden heightmap
-  was intentionally updated (1488047869 → 1837799405).)* Today you often can't land far enough from a Scion for a scan to
+  was intentionally updated (1488047869 → 1837799405; then → 1090254029 when the
+  return-lift's flat began being re-asserted last so the pad never sits on a
+  slope).)* Today you often can't land far enough from a Scion for a scan to
   complete before it reaches you, which reads as a rigged loss. Two changes:
   (a) a **running** Scion should stop fleeing and start *approaching* the ship;
   (b) generation/tuning must guarantee there is *always* a reachable landing

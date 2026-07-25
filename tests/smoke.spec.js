@@ -258,7 +258,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
 test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", async ({ page }) => {
   await page.evaluate(() => __doids.go(1));
   let sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1837799405);   // golden checksum: authored VESALIUS RIDGE terrain (T1 widths)
+  expect(sum).toBe(1090254029);   // golden checksum: authored VESALIUS RIDGE terrain (updated when the return-lift's flat is now re-asserted last, so the pad never sits on a slope)
   // remix: fresh seed, 7 famous minds drawn from the wider pool, briefing up
   await page.evaluate(() => __doids.remix());
   let s = await page.evaluate(() => __doids.get());
@@ -268,11 +268,11 @@ test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", as
   expect(s.state).toBe("brief");
   await page.evaluate(() => __doids.go(1));
   const remixSum = await page.evaluate(() => __doids.heightChecksum());
-  expect(remixSum).not.toBe(1837799405);
+  expect(remixSum).not.toBe(1090254029);
   // a fresh campaign run restores seed 0 and the exact authored terrain
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
   sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1837799405);
+  expect(sum).toBe(1090254029);
 });
 
 test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page }) => {
@@ -1499,7 +1499,7 @@ test("Y3: wrecks generate on wreck sectors; the per-wreck cant is stable and RNG
   // the authored terrain is untouched by the wreck work (no RNG draw added) —
   // seed 0 still reproduces VESALIUS RIDGE's golden heightmap (see Bundle M)
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
-  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1837799405);
+  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1090254029);
 });
 
 test("Y4: counterfeit pods only blink loud with Avicenna; a subtle Static-beat dip without", async ({ page }) => {
@@ -1560,6 +1560,27 @@ test("V2: every scannable Scion has a fair scan-landing spot (campaign + REMIX)"
       expect(fails, `remix run #${k} sector ${n}`).toEqual([]);
     }
   }
+});
+
+test("the return-lift pad always sits on a flat, never halfway up a slope", async ({ page }) => {
+  // you land and HOLD on the lift, and its surface marker must sit on that flat.
+  // A crowded map used to make pick() drop the lift beside a Scion whose V2
+  // pad-widen then re-sloped the lift's ground; the flat is now re-asserted last.
+  await page.evaluate(() => __doids.setVeteran());
+  for (const seed of [0, 1, 42, 99, 123, 777, 1000, 31337, 60123]) {
+    for (const n of [1, 3, 5]) {   // the lift-bearing surface sectors
+      const span = await page.evaluate(({ seed, n }) => {
+        runSeed = seed;
+        const lvl = genLevel(n);
+        if (!lvl.liftPad) return 0;
+        const lx = lvl.liftPad.x;
+        const ys = [-44, -22, 0, 22, 44].map(d => groundOf(lvl.heights, lx + d));
+        return Math.max(...ys) - Math.min(...ys);
+      }, { seed, n });
+      expect(span, `lift pad flat on seed ${seed} sector ${n}`).toBeLessThan(6);
+    }
+  }
+  await page.evaluate(() => __doids.reset());
 });
 
 test("V10: a veteran campaign return escalates — more guns, more Vectors, moved", async ({ page }) => {
