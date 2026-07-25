@@ -1625,7 +1625,7 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   "answered"`, replacing the old land-and-hold (owner decision). A finale miss
   costs −12 vitals + a Static surge. Owner design decisions:
   window 0.09s / 0.18s assisted; introduced at **Avicenna Shoals (sector 5)**;
-  **mid-game a miss is free** — the costly version is the finale answer only.
+  **a mid-game miss costs half** the finale penalty (−6 vitals vs −12 + surge).
   From sector 5 on, an active un-catalogued Vector casts a telegraphed violet
   wavefront (`updateWaves`/`drawWaves`, constants `WAVE_*` in `js/update.js`);
   parry it with the shield on the E3 `parryT` window to FLATTEN it — cataloguing
@@ -1655,8 +1655,9 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   down there"* · *"Return to the surface"*. Code anchors: `drawTitle` in
   `js/render.js`, the `veteran` flag, and the REMIX pill it already unlocks.
 - [x] **V8. Adapted second-run intro.** *(Shipped. `VET_INTRO` (`js/render.js`)
-  — a single panel, "SOMETHING DOESN'T SIT RIGHT", with a violet hollow-mouth in
-  the ridge teasing the descent — replaces the first-run INTRO on a veteran's
+  — a single panel, "SOMETHING DOESN'T SIT RIGHT", its art an ordinary slice of
+  surface with a lift pad sitting faint on a flat shelf (uncalled, so it quietly
+  asks "why THIS ground?") — replaces the first-run INTRO on a veteran's
   next fresh run, gated by a new `doids_vetintro` flag (`activeIntro` selects the
   set in `startFreshRun`; `finishIntro` marks the right flag). Shown once, then
   veteran runs launch straight into the tasking; re-shows after RESET PROGRESS.

@@ -3091,21 +3091,37 @@ const VET_INTRO = [
     caption: "You brought them home. But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, then two questions were never answered. Why did her call corrupt? And why did she go down at all? Fly it again. Look closer this time.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 40);
-      iRidge(px, py, pw, ph, 9);
-      // a hollow mouth in the ridge, breathing violet — the way down
-      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
-      ctx.lineWidth = 2;
-      const hx = px + pw * 0.5, hy = py + ph * 0.74;
+      // an ordinary-looking slice of surface — a low ridge with one flat shelf.
+      // Nothing is pointed at; a lift pad sits on the shelf exactly as faint as
+      // it is in play, so the only question the image raises is "why THIS patch
+      // of ground?" (owner steer — the hook is the mystery, not a diagram).
+      const gy = py + ph * 0.7;
+      const fx0 = px + pw * 0.40, fx1 = px + pw * 0.60;   // the flat shelf
       ctx.beginPath();
-      ctx.moveTo(hx - 26, hy); ctx.lineTo(hx - 11, hy - 30); ctx.lineTo(hx + 11, hy - 30); ctx.lineTo(hx + 26, hy);
+      ctx.moveTo(px, py + ph);
+      ctx.lineTo(px, gy + ph * 0.08);
+      ctx.lineTo(px + pw * 0.16, gy - ph * 0.03);
+      ctx.lineTo(px + pw * 0.30, gy + ph * 0.06);
+      ctx.lineTo(fx0, gy); ctx.lineTo(fx1, gy);
+      ctx.lineTo(px + pw * 0.72, gy + ph * 0.07);
+      ctx.lineTo(px + pw * 0.86, gy - ph * 0.04);
+      ctx.lineTo(px + pw, gy + ph * 0.05);
+      ctx.lineTo(px + pw, py + ph);
+      ctx.closePath();
+      ctx.fillStyle = "#151040"; ctx.fill();
+      ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.shadowBlur = 0;
+      // the pad on the shelf — a faint seam + four rivets, uncalled, as in play
+      const cx = (fx0 + fx1) / 2, a = 0.15 + 0.05 * Math.sin(now * 1.15);
+      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")"; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - 20, gy + 2); ctx.lineTo(cx + 20, gy + 2);
+      ctx.moveTo(cx - 20, gy); ctx.lineTo(cx - 20, gy + 4);
+      ctx.moveTo(cx + 20, gy); ctx.lineTo(cx + 20, gy + 4);
       ctx.stroke();
-      for (let k = 0; k < 3; k++) {   // faint pulses rising out of the mouth
-        const p = ((now * 0.6 + k / 3) % 1);
-        ctx.globalAlpha = (1 - p) * 0.6;
-        const yy = hy - 34 - p * 34;
-        ctx.beginPath(); ctx.moveTo(hx - 9, yy); ctx.lineTo(hx, yy - 7); ctx.lineTo(hx + 9, yy); ctx.stroke();
-      }
-      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
+      for (const rx of [-14, -5, 5, 14]) ctx.fillRect(cx + rx - 0.6, gy + 0.8, 1.2, 1.2);
     } }
 ];
 // which set the intro flow is currently showing (INTRO for a first run,

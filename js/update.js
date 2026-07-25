@@ -1594,10 +1594,15 @@ function updateWaves(dt) {
           addText(w.src.x, w.src.y - 44, "SIGNAL FLATTENED — CATALOGUED +250", PAL().REVEAL);
           checkSectorClear();
         }
-      } else if (w.finale) {
-        // only the finale answer costs anything on a miss
-        s.vitals = Math.max(0, s.vitals - WAVE_MISS_VITALS);
-        staticSurge = Math.max(staticSurge, 0.6); sabotageFlash = 0.5; camera.shake += 5;
+      } else {
+        // a wash-over costs vitals: the full hit at the finale, HALF mid-game
+        // (owner steer) — a Vector's pulse still stings, just less than Solace's.
+        const cost = w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2;
+        s.vitals = Math.max(0, s.vitals - cost);
+        staticSurge = Math.max(staticSurge, w.finale ? 0.6 : 0.35);
+        sabotageFlash = w.finale ? 0.5 : 0.3;
+        camera.shake += w.finale ? 5 : 3;
+        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, "#b388ff");
       }
     }
   }
