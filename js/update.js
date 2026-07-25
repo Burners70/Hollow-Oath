@@ -2389,8 +2389,13 @@ function updateBeacon(dt) {
   // on she pulses back on every 41-second Static beat (see updateStaticClock).
   if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) {
     b.revealed = true; b.sonarT = SONAR_DUR;
-    banner("AMS SOLACE — MERCY'S LOST SISTER", "#aef4ff");
     ringHollow();
+    // owner steer — a quiet CLUE, not an instruction: name her and hint that the
+    // signal wants answering. The player works out that "a response" means
+    // parrying her pulse; no cross-screen "raise shield" giveaway.
+    showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
+      body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
+      color: "#aef4ff" });
   }
   // V6-finale (owner: replace the old land-and-hold) — the answer is the
   // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
@@ -2405,7 +2410,6 @@ function updateBeacon(dt) {
       b.castT = 0;
       level.waves = level.waves || [];
       level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false, finale: true });
-      if (!b.hintShown) { b.hintShown = true; banner("HER SIGNAL — RAISE SHIELD TO PARRY IT BACK", "#aef4ff"); }
     }
   } else b.castT = 0;
   if (b.heardParry) resolveBeacon("answered");

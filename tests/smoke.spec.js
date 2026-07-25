@@ -1660,8 +1660,13 @@ test("V6-finale: the Solace is answered by parrying her pulse, not by holding", 
     const bx = level.beacon.x;
     ship.x = bx - 60; ship.y = __doids.ground(bx - 60) - 11; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
   });
-  // land-and-hold no longer answers: sit for well over the old 5s window
+  // examining her pops a quiet clue card (not an instruction banner) — dismiss it
   await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 2000 });
+  expect(await page.evaluate(() => __doids.get().state), "a clue card, not a big message").toBe("reveal");
+  await page.waitForTimeout(450);   // the reveal card guards taps until stateT > 0.4
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 2000 });
+  // land-and-hold no longer answers: sit for well over the old 5s window
   await page.waitForTimeout(1500);
   expect(await page.evaluate(() => __doids.get().state), "holding no longer answers").toBe("play");
   expect(await page.evaluate(() => level.beacon.resolved)).toBe(false);

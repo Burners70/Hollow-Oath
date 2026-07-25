@@ -344,6 +344,13 @@ shield to catalogue it, no shot)
 
 ## 10. Discovery & finale cards (`showCard` call sites)
 
+- **Solace reveal (V3/V6)** — on examining the finale source, kicker
+  `AMS SOLACE · MERCY'S LOST SISTER`, title `STILL TRANSMITTING`: "Her distress
+  call never stopped looping — years of it, alone out here in the dark. / It
+  isn't asking to be silenced. It's asking to be answered. / The signal seeks a
+  response." *(A clue, not an instruction — the player discovers that "a
+  response" means parrying her pulse. Replaces the old cross-screen "raise
+  shield" banner.)*
 - **Black box** — kicker `BLACK BOX RECOVERED · SIGNAL <n>/7 · +800`; body =
   the log fragment, or "The recorder is blank — wiped clean. Someone got here
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at
