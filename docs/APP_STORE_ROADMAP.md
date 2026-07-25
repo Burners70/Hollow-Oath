@@ -1424,6 +1424,10 @@ merged; G/H strongly recommended.**
     full game untouched for the Capacitor iOS build, plus draft copies of the
     same three shell pages at repo root (`about.html`/`support.html`/
     `privacy.html`) kept in sync with `gh-pages` for reference.
+  - **Confirmed complete (owner, 25 July 2026):** the playable web app is no
+    longer publicly accessible — the site now serves only from the shell-only
+    publish branch, and the game (`index.html` + `js/` + `css/`) is not reachable
+    from the web. Takedown done; ready for App Store submission.
     **Restyled to the shipped neon-glow brand (July 2026)** — Menlo/JetBrains
     Mono, cyan glow, ECG divider — replacing the earlier plain-dark draft;
     `icon-512.png`/`manifest.webmanifest` were added to `gh-pages` at the same
