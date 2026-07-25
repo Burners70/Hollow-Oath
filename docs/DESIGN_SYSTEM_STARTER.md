@@ -145,6 +145,14 @@ giving controls a faint internal light rather than a hard fill.
   letter to the 16-bit lander classics"`)
 - Never breaks the diegesis with generic app-UI phrasing ("Click here," "Settings
   saved!") — everything is framed as ship/mission language
+- **Line breaks: don't let a sentence run on across an awkward wrap.** For any
+  multi-line body copy (intro captions, briefings, reveal/clue cards), break the
+  string at sentence/thought boundaries with explicit `\n\n` so a distinct
+  sentence starts on its own line rather than trailing off the end of one line
+  and picking up mid-next. e.g. the veteran opening puts *"Why did her call
+  corrupt? And why did she go down at all?"* and *"Fly it again. Look closer this
+  time."* on their own lines. Width-wrapping (`wrapText`) then only wraps within
+  each authored line. Keep final lines from stranding a single orphan word.
 
 ## 7. Do / Don't
 

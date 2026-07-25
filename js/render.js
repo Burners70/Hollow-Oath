@@ -3086,42 +3086,67 @@ const INTRO = [
 // above; a player who has finished the game gets this once on their next fresh
 // run — a short, unsettled reframe that points back at the Solace and down at
 // the Hollows — then veteran runs launch straight into the tasking.
+// V8 — cache a REAL lift sector once, so the veteran opening shows the actual
+// terrain around one of the lift pads (VESALIUS RIDGE, the first). genLevel's
+// only global side effect is `stars`, which the intro doesn't use and the real
+// run regenerates — safe to sample here. Copy the heights so nothing aliases.
+let VET_SAMPLE = null;
+function vetIntroSample() {
+  if (VET_SAMPLE) return VET_SAMPLE;
+  const n = 1;
+  const s = genLevel(n);
+  const pal = RECIPE[n].pal;
+  VET_SAMPLE = { heights: s.heights.slice(), W: s.W,
+    padX: (s.liftPad ? s.liftPad.x : s.W * 0.5), stroke: pal.stroke, grad: pal.grad };
+  return VET_SAMPLE;
+}
 const VET_INTRO = [
   { title: "SOMETHING DOESN'T SIT RIGHT",
-    caption: "You brought them home. But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, then two questions were never answered. Why did her call corrupt? And why did she go down at all? Fly it again. Look closer this time.",
+    // owner steer on copy — key sentences start on their own line, no run-on
+    // split awkwardly across a wrap (see DESIGN_SYSTEM_STARTER.md · Copy).
+    caption: "You brought them home. But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, two questions were never answered.\n\nWhy did her call corrupt? And why did she go down at all?\n\nFly it again. Look closer this time.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 40);
-      // an ordinary-looking slice of surface — a low ridge with one flat shelf.
-      // Nothing is pointed at; a lift pad sits on the shelf exactly as faint as
-      // it is in play, so the only question the image raises is "why THIS patch
-      // of ground?" (owner steer — the hook is the mystery, not a diagram).
-      const gy = py + ph * 0.7;
-      const fx0 = px + pw * 0.40, fx1 = px + pw * 0.60;   // the flat shelf
+      // owner steer — render the ACTUAL surface around one of the lift pads
+      // (exactly as it is on that level), with the dart just sitting on it. No
+      // arrow, no motion: a veteran should recognise the ground and wonder why
+      // THIS patch, and why they're parked there.
+      const smp = vetIntroSample();
+      const winW = 1100, x0 = smp.padX - winW / 2;
+      const gAt = wx => { const i = clamp(Math.floor(wx / STEP), 0, smp.heights.length - 2);
+        return lerp(smp.heights[i], smp.heights[i + 1], clamp(wx / STEP - i, 0, 1)); };
+      const padGY = gAt(smp.padX);
+      const toX = wx => px + ((wx - x0) / winW) * pw;
+      const gsY = py + ph * 0.64, vscale = (ph * 0.42) / 320;
+      const toY = wy => gsY + (wy - padGY) * vscale;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+      // terrain fill + biome stroke, sampled from the real heightmap
       ctx.beginPath();
-      ctx.moveTo(px, py + ph);
-      ctx.lineTo(px, gy + ph * 0.08);
-      ctx.lineTo(px + pw * 0.16, gy - ph * 0.03);
-      ctx.lineTo(px + pw * 0.30, gy + ph * 0.06);
-      ctx.lineTo(fx0, gy); ctx.lineTo(fx1, gy);
-      ctx.lineTo(px + pw * 0.72, gy + ph * 0.07);
-      ctx.lineTo(px + pw * 0.86, gy - ph * 0.04);
-      ctx.lineTo(px + pw, gy + ph * 0.05);
-      ctx.lineTo(px + pw, py + ph);
-      ctx.closePath();
-      ctx.fillStyle = "#151040"; ctx.fill();
-      ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 10;
-      ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
-      ctx.shadowBlur = 0;
-      // the pad on the shelf — a faint seam + four rivets, uncalled, as in play
-      const cx = (fx0 + fx1) / 2, a = 0.15 + 0.05 * Math.sin(now * 1.15);
-      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")"; ctx.lineWidth = 1;
+      ctx.moveTo(px, py + ph); ctx.lineTo(toX(x0), toY(gAt(x0)));
+      for (let wx = x0; wx <= x0 + winW; wx += STEP) ctx.lineTo(toX(wx), toY(gAt(wx)));
+      ctx.lineTo(px + pw, py + ph); ctx.closePath();
+      ctx.fillStyle = smp.grad ? smp.grad[0] : "#151040"; ctx.fill();
+      ctx.strokeStyle = smp.stroke; ctx.shadowColor = smp.stroke; ctx.shadowBlur = 8; ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(cx - 20, gy + 2); ctx.lineTo(cx + 20, gy + 2);
-      ctx.moveTo(cx - 20, gy); ctx.lineTo(cx - 20, gy + 4);
-      ctx.moveTo(cx + 20, gy); ctx.lineTo(cx + 20, gy + 4);
+      ctx.moveTo(toX(x0), toY(gAt(x0)));
+      for (let wx = x0; wx <= x0 + winW; wx += STEP) ctx.lineTo(toX(wx), toY(gAt(wx)));
+      ctx.stroke(); ctx.shadowBlur = 0;
+      // the lift pad — visible enough to notice, still no label/arrow
+      const pcx = toX(smp.padX), pcy = toY(padGY);
+      const a = 0.34 + 0.08 * Math.sin(now * 1.3);
+      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 8; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(pcx - 26, pcy + 2); ctx.lineTo(pcx + 26, pcy + 2);
+      ctx.moveTo(pcx - 26, pcy - 1); ctx.lineTo(pcx - 26, pcy + 5);
+      ctx.moveTo(pcx + 26, pcy - 1); ctx.lineTo(pcx + 26, pcy + 5);
       ctx.stroke();
-      ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
-      for (const rx of [-14, -5, 5, 14]) ctx.fillRect(cx + rx - 0.6, gy + 0.8, 1.2, 1.2);
+      ctx.fillStyle = "rgba(179,136,255," + (a + 0.1).toFixed(2) + ")";
+      for (const rx of [-18, -6, 6, 18]) ctx.fillRect(pcx + rx - 0.8, pcy + 0.6, 1.6, 1.6);
+      ctx.shadowBlur = 0;
+      // the dart, parked on the pad — no flame, no movement
+      guideShip(pcx, pcy - 11, 0, false, now);
+      ctx.restore();
     } }
 ];
 // which set the intro flow is currently showing (INTRO for a first run,
@@ -3130,9 +3155,12 @@ let activeIntro = INTRO;
 
 function drawIntroScreen(now) {
   const pw = Math.min(660, vw - 36);
-  const ph = Math.min(vh * 0.5, 300);
-  const px = (vw - pw) / 2, py = vh * 0.09;
   const panel = activeIntro[Math.min(introIdx, activeIntro.length - 1)];
+  // a multi-paragraph caption needs more room below the panel — give the image
+  // a little less height so the copy always fits (esp. a 320-high phone)
+  const longCap = (panel.caption.match(/\n/g) || []).length >= 2;
+  const ph = Math.min(vh * (longCap ? 0.4 : 0.5), 300);
+  const px = (vw - pw) / 2, py = vh * 0.09;
 
   ctx.save();
   ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
@@ -3148,23 +3176,38 @@ function drawIntroScreen(now) {
   ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillText(panel.title, vw / 2, py + ph + 30);
   ctx.shadowBlur = 2;
-  const capPx = bodyFontPx(13), capLH = capPx + 6;
-  ctx.font = "600 " + capPx + "px Menlo, monospace";
   ctx.fillStyle = "#c9e6f7";
-  const lines = wrapText(panel.caption, Math.min(600, vw - 70));
-  lines.forEach((l, i) => ctx.fillText(l, vw / 2, py + ph + 52 + i * capLH));
+  // auto-fit the caption: a multi-paragraph veteran caption on a 320-high phone
+  // won't fit at the resting size, so shrink the font until it (and the page
+  // dots + tap prompt beneath it) clear the bottom of the viewport
+  const wrapW = Math.min(600, vw - 70);
+  const capTop = py + ph + 52;
+  const avail = vh - capTop - 34;
+  let capPx = bodyFontPx(13), lines, capLH;
+  for (;;) {
+    ctx.font = "600 " + capPx + "px Menlo, monospace";
+    lines = wrapText(panel.caption, wrapW);
+    capLH = capPx + 6;
+    if (lines.length * capLH <= avail || capPx <= 8) {
+      if (lines.length * capLH > avail) capLH = Math.max(capPx + 1, avail / lines.length);
+      break;
+    }
+    capPx -= 1;
+  }
+  lines.forEach((l, i) => ctx.fillText(l, vw / 2, capTop + i * capLH));
   ctx.shadowBlur = 0;
+  const capBottom = capTop + lines.length * capLH;
 
   // page dots
   for (let i = 0; i < activeIntro.length; i++) {
     ctx.fillStyle = i === introIdx ? "#00e5ff" : "rgba(255,255,255,.25)";
     ctx.beginPath();
-    ctx.arc(vw / 2 + (i - (activeIntro.length - 1) / 2) * 18, py + ph + 58 + lines.length * capLH, 3, 0, 7);
+    ctx.arc(vw / 2 + (i - (activeIntro.length - 1) / 2) * 18, capBottom + 8, 3, 0, 7);
     ctx.fill();
   }
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-  ctx.fillText("tap ▸", vw / 2, py + ph + 76 + lines.length * capLH);
+  ctx.fillText("tap ▸", vw / 2, capBottom + 24);
 
   const sr = skipRect();
   ctx.strokeStyle = "rgba(255,255,255,.3)"; ctx.lineWidth = 1;

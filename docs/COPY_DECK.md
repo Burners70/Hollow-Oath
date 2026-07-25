@@ -79,8 +79,13 @@ Landed (July 2026, Bundle S):
 
 **SOMETHING DOESN'T SIT RIGHT** — "You brought them home. But if all of it — the
 Vectors, the counterfeits, the Static itself — grew from a corruption of the
-Solace's distress call, then two questions were never answered. Why did her call
-corrupt? And why did she go down at all? Fly it again. Look closer this time."
+Solace's distress call, two questions were never answered. / Why did her call
+corrupt? And why did she go down at all? / Fly it again. Look closer this time."
+(the `/` marks are authored `\n\n` breaks — each key sentence starts on its own
+line, per DESIGN_SYSTEM_STARTER.md · Copy. The panel shows the **actual
+above-ground terrain** around one of the sector's lift pads, rendered exactly as
+that level generates it, with the dart parked on the faint pad — no arrow, no
+motion; a veteran should recognise the ground and wonder why *this* patch.)
 *(replaces the first-run INTRO on a veteran's next fresh run; then veteran runs
 launch straight into the tasking. Re-shows after a RESET PROGRESS wipe.)*
 
