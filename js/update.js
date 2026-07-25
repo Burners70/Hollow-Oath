@@ -25,6 +25,8 @@ const WAVE_RANGE = 460;     // it only casts when the ship is this near
 const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
 const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counterfeits
 const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
+const ANSWER_GAP = 4.5;        // V6-finale — seconds between the Solace's answerable pulses
+const ANSWER_RANGE = 300;      // you must be this near for her to pulse (and to parry)
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
 const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
@@ -2389,26 +2391,23 @@ function updateBeacon(dt) {
     banner("AMS SOLACE — MERCY'S LOST SISTER", "#aef4ff");
     ringHollow();
   }
-  if (s.landed && Math.abs(s.x - b.x) < 90) {
-    // Owner steer / the science of "being heard": answering isn't just landing
-    // nearby — you transmit her OWN looping distress heartbeat back to her, in
-    // time, so the signal finally receives the acknowledgement it has spent years
-    // asking for and can stop repeating. Reframed in copy + a visible pulse that
-    // spills from the ship to the beacon on each beat.
-    if (b.silenceT <= 0) banner("HOLD — TRANSMITTING SOLACE'S OWN HEARTBEAT BACK TO HER", "#aef4ff");
-    b.silenceT += dt;
-    b.ackT = (b.ackT || 0) + dt;
-    if (b.ackT >= 1.5) {
-      b.ackT = 0; heartbeat(0.4, true);
-      const dx = b.x - s.x, dy = (b.y - 40) - s.y, d = Math.hypot(dx, dy) || 1;
-      for (let i = 0; i < 8; i++)
-        particles.push({ x: s.x, y: s.y - 6,
-          vx: dx / d * 120 + (Math.random() - 0.5) * 20,
-          vy: dy / d * 120 + (Math.random() - 0.5) * 20,
-          t: d / 120, max: d / 120, color: "#aef4ff", size: 2 });
+  // V6-finale (owner: replace the old land-and-hold) — the answer is the
+  // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
+  // looping distress wave; parry it (shield, the E3 window) to send her own
+  // heartbeat back and mark her HEARD. A miss costs vitals + a surge (handled in
+  // updateWaves' finale branch); the pulse comes round again. FIRE still silences
+  // her (the other ending). The science of "being heard" — she stops repeating
+  // once the signal is finally acknowledged in kind.
+  if (b.revealed && !s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
+    b.castT = (b.castT || 0) + dt;
+    if (b.castT >= ANSWER_GAP) {
+      b.castT = 0;
+      level.waves = level.waves || [];
+      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false, finale: true });
+      if (!b.hintShown) { b.hintShown = true; banner("HER SIGNAL — RAISE SHIELD TO PARRY IT BACK", "#aef4ff"); }
     }
-    if (b.silenceT >= 5) resolveBeacon("answered");
-  } else { b.silenceT = Math.max(0, b.silenceT - dt * 2); b.ackT = 0; }
+  } else b.castT = 0;
+  if (b.heardParry) resolveBeacon("answered");
 }
 
 function resolveBeacon(how) {

@@ -2158,30 +2158,21 @@ function drawBeacon(now) {
     ctx.shadowBlur = 0;
   }
   if (!b.resolved) {
-    if (b.silenceT > 0) {
-      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
-      ctx.beginPath();
-      ctx.arc(0, -108, 20, -Math.PI / 2, -Math.PI / 2 + (b.silenceT / 5) * Math.PI * 2);
-      ctx.stroke();
-      ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#aef4ff";
-      ctx.fillText("ANSWERING… " + Math.round(b.silenceT / 5 * 100) + "%", 0, -128);
-    } else {
-      // V4 — the pre-scan label was 9px at .7 alpha and got lost over the busy
-      // nullwave ridge. Legible size (respects bigText), higher-contrast fill,
-      // and a dark backing plate like the other world labels; reduced-flash
-      // keeps the glow off.
-      const lp = bodyFontPx(10);
-      ctx.font = "700 " + lp + "px Menlo, monospace"; ctx.textAlign = "center";
-      const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
-      const tw = ctx.measureText(txt).width, ly = -128;
-      ctx.fillStyle = "rgba(6,4,16,.72)";
-      ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
-      if (!reducedFlash) { ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "#d9ccff";
-      ctx.fillText(txt, 0, ly);
-      ctx.shadowBlur = 0;
-    }
+    // V4/V6 — before she's named: the legible signal-source label. Once named:
+    // a parry prompt (the answer is the wave-parry now, not a hold).
+    const named = b.revealed;
+    const lp = bodyFontPx(10);
+    ctx.font = "700 " + lp + "px Menlo, monospace"; ctx.textAlign = "center";
+    const txt = named ? "PARRY HER SIGNAL — RAISE SHIELD ON THE BEAT"
+                      : "THE SIGNAL SOURCE — land beside it, or open fire";
+    const tw = ctx.measureText(txt).width, ly = -128;
+    ctx.fillStyle = "rgba(6,4,16,.72)";
+    ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
+    const glow = named ? "#00e5ff" : "#b388ff";
+    if (!reducedFlash) { ctx.shadowColor = glow; ctx.shadowBlur = 6; }
+    ctx.fillStyle = named ? "#aef4ff" : "#d9ccff";
+    ctx.fillText(txt, 0, ly);
+    ctx.shadowBlur = 0;
   }
   ctx.restore();
 }
@@ -3866,6 +3857,8 @@ window.__doids = {
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   warpShrine: () => { const sh = level.shrine; if (sh) { ship.x = sh.x; ship.y = groundAt(sh.x) - SHIP_R;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
+  // V6-finale — force a successful Solace answer (a parried pulse), for tests
+  answerBeacon: () => { if (level.beacon && !level.beacon.resolved) { level.beacon.revealed = true; level.beacon.heardParry = true; } },
   warpBeacon: () => { const b = level.beacon; if (b) { ship.x = b.x; ship.y = groundAt(b.x) - SHIP_R;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   warpScenery: kind => {

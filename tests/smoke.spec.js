@@ -244,7 +244,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   let s = await page.evaluate(() => __doids.get());
   expect(s.unresolvedHaunt).toBe(true);
   // land beside the beacon and answer the call
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
   s = await page.evaluate(() => __doids.get());
   expect(s.endingType).toBe("answered");
@@ -592,7 +592,7 @@ test("Game Center facade traces auth, rank achievements and the score report (Bu
   expect(s.cloudNative).toBe(false);
   expect(s.gcReports.map(r => r.method)).toContain("authenticate");
   // fly the answered ending without a single shot (same path as the L2 test)
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
@@ -1063,7 +1063,7 @@ test("FIELD MEDIC runs stay off the Game Center boards (H3 gate)", async ({ page
   await page.evaluate(() => localStorage.setItem("doids_easy", "1"));
   await page.reload();
   await page.waitForFunction(() => window.__doids !== undefined);
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
@@ -1650,4 +1650,26 @@ test("V3: landing beside the finale source reveals AMS Solace and pulses her hul
   const s = await page.evaluate(() => ({ revealed: level.beacon.revealed, sonarT: level.beacon.sonarT }));
   expect(s.revealed).toBe(true);
   expect(s.sonarT).toBeGreaterThan(0);   // her hull is pulsing back into view
+});
+
+test("V6-finale: the Solace is answered by parrying her pulse, not by holding", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    (level.oids || []).forEach(o => o.x = -9999);
+    const bx = level.beacon.x;
+    ship.x = bx - 60; ship.y = __doids.ground(bx - 60) - 11; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  // land-and-hold no longer answers: sit for well over the old 5s window
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 2000 });
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => __doids.get().state), "holding no longer answers").toBe("play");
+  expect(await page.evaluate(() => level.beacon.resolved)).toBe(false);
+  // parry her pulse → answered
+  await page.evaluate(() => { input.shield = false; ship.shield = false; ship.parryT = 0; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { input.shield = true; __doids.armWave({ finale: true }); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 4000 });
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("answered");
+  await page.evaluate(() => { input.shield = false; });
 });
