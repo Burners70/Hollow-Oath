@@ -102,6 +102,7 @@ function render() {
   if (state === "confirm") drawConfirm(now);
   if (state === "settings") drawSettings(now);
   if (state === "epilogue") drawEpilogue(now);
+  if (state === "destruct") drawDestruct(now);
   if (state === "ending") drawEnding(now);
   if (state === "gameover") drawGameOver(now);
   if (state === "win") drawWin();
@@ -2148,10 +2149,78 @@ function drawDecoyMercy(now) {
   }
 }
 
+// AMS SOLACE's full drowned hull — a big broken lozenge under the ridge line.
+// Shared by the V3 sonar reveal and the bad-ending destruction reveal so both
+// draw the SAME ship. Centred on the beacon origin; caller fills/strokes.
+const SOLACE_HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
+                     [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
+function solaceHullPath() {
+  ctx.beginPath();
+  ctx.moveTo(SOLACE_HULL[0][0], SOLACE_HULL[0][1]);
+  for (let i = 1; i < SOLACE_HULL.length; i++) ctx.lineTo(SOLACE_HULL[i][0], SOLACE_HULL[i][1]);
+  ctx.closePath();
+}
+
+/* (owner steer) — the bad ending's destruction reveal, drawn in the beacon's
+   own frame. The blast lights her whole hull white-hot for a beat (so the full
+   ship shape is unmistakable), then cracks split it and it burns down to a dark
+   husk while debris (spawned in updateDestruct) flies. Respects reducedFlash. */
+function drawSolaceDeath(b, now) {
+  const t = b.death || 0;
+  const flash = Math.max(0, 1 - t / 0.35);          // white-hot at the instant of the blast
+  const heat = clamp(1 - (t - 0.3) / 2.2, 0, 1);    // how lit/intact the hull still reads
+  // expanding shockwave rings
+  if (!reducedFlash) {
+    for (let k = 0; k < 3; k++) {
+      const rp = clamp((t - k * 0.18) / 1.1, 0, 1);
+      if (rp <= 0 || rp >= 1) continue;
+      ctx.globalAlpha = (1 - rp) * 0.6;
+      ctx.strokeStyle = "#ffd27f"; ctx.shadowColor = "#ff9e40"; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, -20, 20 + rp * 440, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  }
+  // the full hull, revealed whole and lit by the fire
+  solaceHullPath();
+  ctx.fillStyle = "rgba(70,24,10," + (0.35 + 0.4 * heat).toFixed(2) + ")";
+  ctx.fill();
+  const gEdge = Math.round(120 + 135 * flash), bEdge = Math.round(50 + 205 * flash);
+  ctx.strokeStyle = "rgba(255," + gEdge + "," + bEdge + "," + (0.4 + 0.55 * heat).toFixed(2) + ")";
+  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = (reducedFlash ? 4 : 16) * (0.4 + heat);
+  ctx.lineWidth = 2.6; ctx.lineJoin = "round";
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // fracture cracks that open across her as she comes apart (after the first beat)
+  const crack = clamp((t - 0.3) / 0.9, 0, 1);
+  if (crack > 0) {
+    ctx.strokeStyle = "rgba(255,210,120," + (0.7 * heat).toFixed(2) + ")";
+    ctx.shadowColor = "#ffc400"; ctx.shadowBlur = reducedFlash ? 3 : 10; ctx.lineWidth = 1.6 + 2 * crack;
+    for (const cx of [-70, 20, 96]) {
+      ctx.beginPath();
+      ctx.moveTo(cx, -46);
+      ctx.lineTo(cx + 18 * crack, 40 * crack); ctx.lineTo(cx - 14 * crack, 110 * crack);
+      ctx.lineTo(cx + 10 * crack, 180 * crack);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+  // the white-hot core at the breach
+  if (flash > 0 && !reducedFlash) {
+    const r = 34 + (1 - flash) * 130;
+    const g = ctx.createRadialGradient(0, -26, 0, 0, -26, r);
+    g.addColorStop(0, "rgba(255,255,255," + (0.92 * flash).toFixed(2) + ")");
+    g.addColorStop(1, "rgba(255,158,64,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -26, r, 0, 7); ctx.fill();
+  }
+}
+
 function drawBeacon(now) {
   const b = level.beacon;
   ctx.save();
   ctx.translate(b.x, b.y);
+  // (owner steer) — once FIRE brings her down, drawBeacon becomes the destruction
+  // reveal: the whole hull, lit and breaking. Skip the tower/rings entirely.
+  if (b.death != null) { drawSolaceDeath(b, now); ctx.restore(); return; }
   // V3 — the sonar hull pulse: once she's named, her whole drowned shape sweeps
   // back into view on reveal and on every Static beat. An x-ray outline over the
   // terrain (that IS sonar) — bright near the surface, dull deep — clipped to an
@@ -2160,14 +2229,9 @@ function drawBeacon(now) {
     const p = 1 - b.sonarT / SONAR_DUR;
     const puls = Math.sin(Math.min(1, p) * Math.PI);
     const sweepR = 30 + p * 340;
-    const HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
-                  [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
-    ctx.beginPath();
-    ctx.moveTo(HULL[0][0], HULL[0][1]);
-    for (let i = 1; i < HULL.length; i++) ctx.lineTo(HULL[i][0], HULL[i][1]);
-    ctx.closePath();
+    solaceHullPath();
     const g = ctx.createLinearGradient(0, -50, 0, 190);
     g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
     g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
@@ -3841,6 +3905,20 @@ function drawGameOver(now) {
   }
 }
 
+/* the bad ending's brief white bloom, in screen space (the hull reveal itself is
+   drawn in world space by drawSolaceDeath, via drawBeacon). Suppressed under the
+   reduced-flash accessibility setting. */
+function drawDestruct(now) {
+  const b = level && level.beacon; if (!b || reducedFlash) return;
+  const t = b.death || 0;
+  const a = Math.max(0, 0.55 * (1 - t / 0.5));
+  if (a > 0) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "rgba(255,240,220," + a.toFixed(2) + ")";
+    ctx.fillRect(0, 0, vw, vh);
+  }
+}
+
 function drawEnding(now) {
   let title, body, color;
   if (endingType === "answered") {
@@ -3852,7 +3930,9 @@ function drawEnding(now) {
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
     color = "#ffc400";
-    body = "You burned the beacon out of the dark.\n\nThe Static is gone — and so is whatever was calling. MERCY logs the sector clean.\n\nThe silence feels heavier than it should.\n\nQuiet, at a cost. The oath, hollowed.\n\n+3000";
+    // (owner steer) — you took the destroy-on-sight order. It works. The cost is
+    // in what the blast revealed: no outpost, no enemy — one of the first wave.
+    body = "The signal stops. The Static is gone, and MERCY can continue.\n\nBut the CMO is very quiet.\n\nThat was no surprise outpost. No enemy relay. That was one of ours.\n\nAMS SOLACE — crew of 214 — silenced, not answered.\n\nThe SOLACE deserved better.\n\n+3000";
   } else {
     title = "ROTATION COMPLETE";
     color = "#b388ff";
@@ -3996,6 +4076,8 @@ window.__doids = {
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   // V6-finale — force a successful Solace answer (a parried pulse), for tests
   answerBeacon: () => { if (level.beacon && !level.beacon.resolved) { level.beacon.revealed = true; level.beacon.heardParry = true; } },
+  // the bad ending — take the destroy-on-sight order and burn the Solace down
+  fireSolace: () => { if (level.beacon && !level.beacon.resolved) resolveBeacon("fire"); },
   warpBeacon: () => { const b = level.beacon; if (b) { ship.x = b.x; ship.y = groundAt(b.x) - SHIP_R;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   warpScenery: kind => {

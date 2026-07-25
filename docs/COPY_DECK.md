@@ -385,10 +385,12 @@ shield to catalogue it, no shot)
   faded like a fever breaking. / +6000 [· OATH KEPT +2000]" — plus "The oath,
   kept whole." (no-fire) or "You found what he hid. It cost you the oath to
   do it." (secrets-only fire).
-- **SILENCE BY FIRE** — "You burned the beacon out of the dark. / The Static
-  is gone — and so is whatever was calling. MERCY logs the sector clean. / The
-  silence feels heavier than it should. / Quiet, at a cost. The oath,
-  hollowed. / +3000"
+- **SILENCE BY FIRE** (the bad ending — take the destroy-on-sight order the CMO
+  refused to sign, and shoot the Solace down; the blast reveals her whole hull
+  as it breaks apart) — "The signal stops. The Static is gone, and MERCY can
+  continue. / But the CMO is very quiet. / That was no surprise outpost. No
+  enemy relay. That was one of ours. / AMS SOLACE — crew of 214 — silenced, not
+  answered. / The SOLACE deserved better. / +3000" (rank: `SECTOR WARDEN`)
 - **ROTATION COMPLETE** (unresolved) — "The tour is over and the rescued are
   home. / But on the long ride back, under everything, the Static is still
   there. Repeating. / Left hollow. The Static answers still. / ◈ Black boxes

@@ -1705,3 +1705,25 @@ test("V12: the finale spawns two identical MERCYs at randomised, separated posit
   await page.evaluate(() => clearInterval(window.__pin));
   expect(await page.evaluate(() => __doids.get().decoyOutcome)).toBe("trapped");
 });
+
+test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then SILENCE BY FIRE", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(7); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+  });
+  const hp0 = await page.evaluate(() => level.beacon.hp);
+  expect(hp0).toBeGreaterThan(0);
+  // she CAN be shot down — the destroy-on-sight order the CMO refused to sign.
+  // A player round on the tower drops her HP (the shootable path is wired).
+  await page.evaluate(() => { const b = level.beacon; level.shots.push({ x: b.x, y: b.y - 40, vx: 0, vy: 0, t: 1 }); });
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => level.beacon.hp), "a round drops her HP").toBe(hp0 - 1);
+  // finish her off → a scripted destruction plays (the full hull revealed, breaking),
+  // NOT an instant card
+  await page.evaluate(() => __doids.fireSolace());
+  expect(await page.evaluate(() => __doids.get().state)).toBe("destruct");
+  expect(await page.evaluate(() => level.beacon.resolved && level.beacon.death != null)).toBe(true);
+  // it lands on the fire ending once the blast has played out
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 6000 });
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
+});

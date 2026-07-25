@@ -1758,6 +1758,22 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   no longer answers), V8 veteran intro, V10 escalation, and V12 twin
   (randomised/separated + trap). M1 golden checksum updated for V2's
   pad-widening. V1 return-travel is a 1.1 item (Bundle Q), not part of 1.01.)*
+- [x] **V13. The bad ending — destroy the Solace.** *(Shipped. The fleet's
+  destroy-on-sight order — the one the CMO refused to sign (`primum non nocere`,
+  see BRIEF + LOG 09/10) — is now a real, spectacular choice. FIRE on the signal
+  source drops her `beacon.hp` (3 rounds; already wired in the `level.shots`
+  loop); the last round runs `resolveBeacon("fire")`, which no longer cuts
+  straight to the card. Instead a scripted **`destruct`** state plays: a blinding
+  detonation flash, then her **whole drowned hull is revealed** — the shared
+  `solaceHullPath()` (same shape as the V3 sonar reveal) lit white-hot, cracked
+  by opening fracture lines, ringed by expanding shockwaves, shedding debris —
+  then it burns down to a husk (`drawSolaceDeath` in `js/render.js`;
+  `updateDestruct` + a secondary detonation in `js/update.js`). It settles onto
+  the reworded **SILENCE BY FIRE** card: "…That was one of ours. AMS SOLACE —
+  crew of 214 — silenced, not answered. The SOLACE deserved better." Respects
+  reduced-flash (no screen bloom, dimmer glows). Rank stays `SECTOR WARDEN`.
+  `__doids.fireSolace()` + smoke "Bad ending: the Solace can be destroyed by
+  fire". COPY_DECK updated.)*
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).

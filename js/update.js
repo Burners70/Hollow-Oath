@@ -538,6 +538,7 @@ function update(dt) {
     case "confirm": updateConfirm(); return;
     case "settings": updateSettings(); return;
     case "epilogue": updateEpilogue(dt); return;
+    case "destruct": updateDestruct(dt); return;
     case "play": updatePlay(dt); return;
   }
 }
@@ -2428,10 +2429,21 @@ function resolveBeacon(how) {
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
   if (how === "fire") {
+    // (owner steer) — the destroy-on-sight order the CMO refused to sign. FIRE
+    // silences her, but spectacularly: the blast lights her whole drowned hull
+    // for a beat before it comes apart. A scripted "destruct" sequence plays it
+    // out, then the ending card lands (see updateDestruct / drawSolaceDeath).
     score += 3000;
-    explode(b.x, b.y - 40, "#b388ff", 80);
-    explode(b.x, b.y - 20, "#ffc400", 50);
-    state = "ending"; stateT = 0;
+    b.death = 0; b._boom2 = false;
+    camera.shake = 24;
+    boom();
+    for (let i = 0; i < 80; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 300;
+      particles.push({ x: b.x, y: b.y - 40, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
+        t: 0.6 + Math.random() * 1.4, max: 2, color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00",
+        size: 1.4 + Math.random() * 2.4 });
+    }
+    state = "destruct"; stateT = 0;
   } else {
     score += 6000;
     if (runFired === 0) score += 2000;
@@ -2464,6 +2476,30 @@ function updateEpilogue(dt) {
   if ((input.tap && stateT > 0.8) || stateT >= 6.5) { state = "ending"; stateT = 0; }
   input.tap = false;
 }
+/* (owner steer) — the bad ending's cinematic: FIRE brings the Solace down. The
+   camera eases to her, the blast keeps rolling for ~1.5s (a secondary detonation
+   as the spine goes), debris flies, then it settles and the ending card lands.
+   Tap skips once the first blast has read. drawSolaceDeath does the hull reveal. */
+function updateDestruct(dt) {
+  const b = level.beacon;
+  b.death = (b.death || 0) + dt;
+  camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.03, dt));
+  camera.y = lerp(camera.y, b.y - 30, 1 - Math.pow(0.03, dt));
+  if (b.death < 1.6) camera.shake = Math.max(camera.shake, 10 * (1 - b.death / 1.6));
+  if (b.death < 1.4 && Math.random() < 0.8) {
+    const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 240;
+    particles.push({ x: b.x + (Math.random() - 0.5) * 150, y: b.y - 30 + (Math.random() - 0.5) * 120,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: 0.5 + Math.random() * 1.2, max: 1.8,
+      color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 1.3 + Math.random() * 2 });
+  }
+  if (b.death > 0.5 && !b._boom2) {
+    b._boom2 = true; boom(); camera.shake = Math.max(camera.shake, 16);
+    explode(b.x - 60, b.y - 10, "#ffc400", 34); explode(b.x + 70, b.y + 20, "#ff6d00", 34);
+  }
+  if ((input.tap && b.death > 1.4) || b.death >= 4.2) { state = "ending"; stateT = 0; }
+  input.tap = false;
+}
+
 function drawEpilogue(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(3,4,12," + Math.min(0.3, stateT * 0.08).toFixed(2) + ")";
