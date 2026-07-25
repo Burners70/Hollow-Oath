@@ -1598,7 +1598,11 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   plate / shadow like other world labels). Code anchor: the label draw in
   `js/render.js` for the pre-scan Solace; check against the `bigText`
   (`bodyFontPx()`) and reduced-flash paths so it stays legible in all modes.
-- [ ] **V5. Seed the Solace in the story panels (lightly).** Reference the
+- [x] **V5. Seed the Solace in the story panels (lightly).** *(Shipped. INTRO
+  (`js/render.js`): THE MISSION now names MERCY as one of the **second relief
+  wave** alongside sisters **AMS VIGIL** and **AMS SUCCOUR**; THE ZONE seeds the
+  lost **first wave, the SOLACE among them**. Owner-picked names. Mirrored to
+  COPY_DECK.md §2.)* Reference the
   Solace without over-signposting that players *should* expect to meet it:
   establish that the MERCY is one of a **second wave** alongside **AMS X** and
   **AMS Y**, following an **initial wave** that included the **X, the Solace,
@@ -1624,13 +1628,26 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   pick from:** *"Is there more?"* · *"Go back down"* · *"Something's still
   down there"* · *"Return to the surface"*. Code anchors: `drawTitle` in
   `js/render.js`, the `veteran` flag, and the REMIX pill it already unlocks.
-- [ ] **V8. Adapted second-run intro.** The veteran (post-completion) run
+- [x] **V8. Adapted second-run intro.** *(Shipped. `VET_INTRO` (`js/render.js`)
+  — a single panel, "SOMETHING DOESN'T SIT RIGHT", with a violet hollow-mouth in
+  the ridge teasing the descent — replaces the first-run INTRO on a veteran's
+  next fresh run, gated by a new `doids_vetintro` flag (`activeIntro` selects the
+  set in `startFreshRun`; `finishIntro` marks the right flag). Shown once, then
+  veteran runs launch straight into the tasking; re-shows after RESET PROGRESS.
+  `__doids.get()` exposes `vetIntroSeen`/`introLen`; smoke: "V8 a veteran's first
+  fresh run shows the one-panel veteran intro, once". Mirrored to COPY_DECK.md.)*
+  The veteran (post-completion) run
   opens with a different intro, e.g.: *"Something doesn't feel right. If
   everything came from a corruption of Solace's distress call, we're left with
   some big questions. Why did it corrupt? And why did it crash in the first
   place?"* Code anchors: the intro sequence gated on `veteran`; `doids_intro`;
   COPY_DECK.md.
-- [ ] **V9. Sound-led level intros.** Give subsequent sector intros a similar
+- [x] **V9. Sound-led level intros.** *(Shipped — one hook, only where the audio
+  delivers it. `briefText()` (`js/update.js`) appends "And captain — is that a
+  sound coming from under the ground?" on a **lift-bearing surface sector**
+  (`level.lift && !isCave`), where the pad rings hollow underfoot (U1) — so it's
+  never a promise the audio can't keep (heeding the cut Nightingale line).
+  Mirrored to COPY_DECK.md.)* Give subsequent sector intros a similar
   sensory hook — e.g. *"Is there a sound coming from beneath the ground?"* on a
   Hollows-bearing surface sector. Light touch, per-sector. Code anchors:
   `BRIEFS[]` in `js/world.js`; keep in sync with COPY_DECK.md. (Note: an

@@ -56,21 +56,40 @@ Landed (July 2026, Bundle S):
 ## 2. Intro panels (`INTRO`, 5 panels; skippable, replayable via ▸ STORY)
 
 1. **THE MISSION** — "The hospital ship AMS MERCY runs mercy flights through
-   the outer systems. Her holds carry SCIONS — medical androids, each the
+   the outer systems, one of the second relief wave alongside her sisters AMS
+   VIGIL and AMS SUCCOUR. Her holds carry SCIONS — medical androids, each the
    inheritance of generations of human and machine endeavour, carrying true
-   medical science forward." *(panel label: `A M S · M E R C Y`)*
+   medical science forward." *(panel label: `A M S · M E R C Y`; V5 seeds the
+   second wave)*
 2. **THE CARGO** — "Most are standard units. A few carry something rarer — the
    complete minds of medicine's giants, preserved and still practising. All of
    them are needed where MERCY is headed." *(panel label: `WARD 7 · CRYOSTASIS`)*
 3. **THE ZONE** — "The route crosses an interdicted zone — automated defences,
-   dead relays, no traffic in living memory. Nobody remembers who they were
-   built to keep out."
+   dead relays, no traffic in living memory. The first wave came this way once
+   — the SOLACE among them — and none ever called home." *(V5 seeds the Solace
+   & the lost first wave)*
 4. **THE FAILURE** — "Mid-crossing, every system aboard failed at once. Cause
    unknown. The recorders kept only one thing: a signal, repeating, every 41
    seconds." *(panel label: `· 41s ·`)*
 5. **THE SCATTERING** — "The Scions evacuated in pods and were thrown across
    the zone. MERCY flies again — barely. You fly the rescue. Bring them home.
    And captain… count the heartbeats."
+
+### 2·V8. Veteran opening (`VET_INTRO`, one panel; shown once after a first completion)
+
+**SOMETHING DOESN'T SIT RIGHT** — "You brought them home. But if all of it — the
+Vectors, the counterfeits, the Static itself — grew from a corruption of the
+Solace's distress call, then two questions were never answered. Why did her call
+corrupt? And why did she go down at all? Fly it again. Look closer this time."
+*(replaces the first-run INTRO on a veteran's next fresh run; then veteran runs
+launch straight into the tasking. Re-shows after a RESET PROGRESS wipe.)*
+
+### 2·V9. Sound-led sector hook (appended by `briefText()`)
+
+On a **veteran, lift-bearing surface sector** (where the pad rings hollow
+underfoot — U1), the briefing gains one line: *"And captain — is that a sound
+coming from under the ground?"* Only where the audio tell exists — never a
+promise the sound can't keep.
 
 ## 3. HOW TO FLY guide (`GUIDE` / `GUIDE_PAGES`) — X1
 

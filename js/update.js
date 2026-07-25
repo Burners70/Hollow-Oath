@@ -556,11 +556,12 @@ function startFreshRun() {
   goFullscreen();
   if (window.hideA2HS) window.hideA2HS();
   resetRun();
-  if (introSeen) {
-    toBriefing(0);   // veterans launch straight into the tasking
+  if (veteran && !vetIntroSeen) {
+    activeIntro = VET_INTRO; introIdx = 0; state = "intro"; stateT = 0;   // V8 — the once-only veteran opening
+  } else if (introSeen) {
+    toBriefing(0);   // veterans (and repeat first-runners) launch straight into the tasking
   } else {
-    introIdx = 0;
-    state = "intro"; stateT = 0;
+    activeIntro = INTRO; introIdx = 0; state = "intro"; stateT = 0;
   }
   blip(330, 660, 0.2, "sine", 0.1);
 }
@@ -680,12 +681,17 @@ function updateIntro(dt) {
     introBeat = 0;
     if (introIdx === 3) staticTick(); else heartbeat(0.55);
   }
+  // mark whichever intro set just played (V8: the veteran opening shows once)
+  const finishIntro = () => {
+    if (activeIntro === VET_INTRO) markVetIntroSeen(); else markIntroSeen();
+    toBriefing(0);
+  };
   if (input.tap && stateT > 0.35) {
-    if (inRect(skipRect(), input.tapX, input.tapY)) { markIntroSeen(); toBriefing(0); }
+    if (inRect(skipRect(), input.tapX, input.tapY)) { finishIntro(); }
     else {
       introIdx++; stateT = 0;
       blip(440, 550, 0.08, "sine", 0.07);
-      if (introIdx >= INTRO.length) { markIntroSeen(); toBriefing(0); }
+      if (introIdx >= activeIntro.length) { finishIntro(); }
     }
   }
   input.tap = false;
@@ -702,6 +708,11 @@ function briefText() {
   // like a heart, his keeps a machine's perfect time.
   if (levelIdx === FINALE_IDX && level && level.fakeMercy)
     t += "\n\nOne more thing, and it matters. Two ships will answer as MERCY on approach. One is ours. One is his — a hull built to wear the shape you stopped checking.\n\nTell them apart by the emblem. OURS beats like a heart: uneven, alive. HIS blinks in perfect mechanical time, like the counterfeit fuel. Count the beats before you dock.";
+  // V9 — a light, sound-led hook, only where the audio actually delivers it: a
+  // veteran sector that hides a usable lift, whose pad rings hollow underfoot
+  // (U1). No promise the audio can't keep — hence veteran + lvl.lift only.
+  if (level && level.lift && !level.isCave)
+    t += "\n\nAnd captain — is that a sound coming from under the ground?";
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
       dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n\n" + t;
@@ -773,13 +784,14 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro", "doids_trained"];   // X3 — a wipe re-shows the first-play fork
+    "doids_intro", "doids_trained", "doids_vetintro"];   // X3 fork + V8 veteran intro re-show after a wipe
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
   }
   hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set();
   savedRun = null; checkpoint = null; veteran = false; introSeen = false;
+  vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
   unresolvedHaunt = false;
 }

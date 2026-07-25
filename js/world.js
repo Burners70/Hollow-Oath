@@ -432,6 +432,13 @@ function startDaily() {
 }
 let introSeen = false;
 try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
+// V8 — the veteran (post-completion) opening intro, shown once
+let vetIntroSeen = false;
+try { vetIntroSeen = localStorage.getItem("doids_vetintro") === "1"; } catch (e) {}
+function markVetIntroSeen() {
+  vetIntroSeen = true;
+  try { localStorage.setItem("doids_vetintro", "1"); } catch (e) {}
+}
 function markIntroSeen() {
   introSeen = true;
   try { localStorage.setItem("doids_intro", "1"); } catch (e) {}

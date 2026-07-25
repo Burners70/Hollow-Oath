@@ -2896,7 +2896,7 @@ function iRidge(px, py, pw, ph, seed) {
 
 const INTRO = [
   { title: "THE MISSION",
-    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems. Her holds carry SCIONS — medical androids, each the inheritance of generations of human and machine endeavour, carrying true medical science forward.",
+    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems, one of the second relief wave alongside her sisters AMS VIGIL and AMS SUCCOUR. Her holds carry SCIONS — medical androids, each the inheritance of generations of human and machine endeavour, carrying true medical science forward.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 11);
       iShip(px + pw / 2, py + ph * 0.45, Math.min(1.4, pw / 320), 0,
@@ -2923,7 +2923,7 @@ const INTRO = [
       ctx.fillText("WARD 7 · CRYOSTASIS", px + pw / 2, py + ph * 0.2);
     } },
   { title: "THE ZONE",
-    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. Nobody remembers who they were built to keep out.",
+    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. The first wave came this way once — the SOLACE among them — and none ever called home.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 33);
       iRidge(px, py, pw, ph, 7);
@@ -2988,11 +2988,41 @@ const INTRO = [
     } }
 ];
 
+// V8 — the veteran (post-completion) opening. A first playthrough sees INTRO
+// above; a player who has finished the game gets this once on their next fresh
+// run — a short, unsettled reframe that points back at the Solace and down at
+// the Hollows — then veteran runs launch straight into the tasking.
+const VET_INTRO = [
+  { title: "SOMETHING DOESN'T SIT RIGHT",
+    caption: "You brought them home. But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, then two questions were never answered. Why did her call corrupt? And why did she go down at all? Fly it again. Look closer this time.",
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 40);
+      iRidge(px, py, pw, ph, 9);
+      // a hollow mouth in the ridge, breathing violet — the way down
+      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+      const hx = px + pw * 0.5, hy = py + ph * 0.74;
+      ctx.beginPath();
+      ctx.moveTo(hx - 26, hy); ctx.lineTo(hx - 11, hy - 30); ctx.lineTo(hx + 11, hy - 30); ctx.lineTo(hx + 26, hy);
+      ctx.stroke();
+      for (let k = 0; k < 3; k++) {   // faint pulses rising out of the mouth
+        const p = ((now * 0.6 + k / 3) % 1);
+        ctx.globalAlpha = (1 - p) * 0.6;
+        const yy = hy - 34 - p * 34;
+        ctx.beginPath(); ctx.moveTo(hx - 9, yy); ctx.lineTo(hx, yy - 7); ctx.lineTo(hx + 9, yy); ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    } }
+];
+// which set the intro flow is currently showing (INTRO for a first run,
+// VET_INTRO for a veteran's post-completion opening)
+let activeIntro = INTRO;
+
 function drawIntroScreen(now) {
   const pw = Math.min(660, vw - 36);
   const ph = Math.min(vh * 0.5, 300);
   const px = (vw - pw) / 2, py = vh * 0.09;
-  const panel = INTRO[Math.min(introIdx, INTRO.length - 1)];
+  const panel = activeIntro[Math.min(introIdx, activeIntro.length - 1)];
 
   ctx.save();
   ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
@@ -3016,10 +3046,10 @@ function drawIntroScreen(now) {
   ctx.shadowBlur = 0;
 
   // page dots
-  for (let i = 0; i < INTRO.length; i++) {
+  for (let i = 0; i < activeIntro.length; i++) {
     ctx.fillStyle = i === introIdx ? "#00e5ff" : "rgba(255,255,255,.25)";
     ctx.beginPath();
-    ctx.arc(vw / 2 + (i - (INTRO.length - 1) / 2) * 18, py + ph + 58 + lines.length * capLH, 3, 0, 7);
+    ctx.arc(vw / 2 + (i - (activeIntro.length - 1) / 2) * 18, py + ph + 58 + lines.length * capLH, 3, 0, 7);
     ctx.fill();
   }
   ctx.font = "700 11px Menlo, monospace";
@@ -3697,6 +3727,8 @@ window.__doids = {
     input: Object.assign({}, input), ctlShown, introSeen,
     // X1/X3 — onboarding introspection for the guard tests
     trained, guideReturn,
+    // V8 — veteran-opening introspection
+    vetIntroSeen, introLen: activeIntro.length,
     guide: { page: GUIDE.page, pages: GUIDE.pages, footY: GUIDE._footY },
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,

@@ -55,8 +55,12 @@ test("finale sector has the beacon; campaign sectors have black boxes", async ({
 
 test("secret lift descends into the Hollows", async ({ page }) => {
   // sector 1 hides a lift; land on it and hold ~2.4s. The Hollows are a
-  // veteran-only layer now, so unlock it first.
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  // veteran-only layer now, so unlock it first. (V10 escalates the veteran
+  // return with extra guns; this test is about the descent, so quiet the field.)
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.blackbox = null;   // a box near the (V10-relocated) lift would interrupt the hold
+    __doids.warpLift(); });
   await page.waitForFunction(() => __doids.get().inCave, null, { timeout: 6000 });
   const s = await page.evaluate(() => __doids.get());
   expect(s.inCave).toBe(true);
@@ -430,7 +434,12 @@ test("riding the lift back up lands the ship ON the pad, not below ground", asyn
 });
 
 test("lift transition fades out, swaps level, and fades back in", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  // V10 escalates the veteran return with extra guns; quiet the field so the
+  // descent (what this test checks) isn't interrupted by a turret.
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.blackbox = null;   // a box near the (V10-relocated) lift would interrupt the hold
+    __doids.warpLift(); });
   // "black" is a full 0.3s window before the swap — safe to poll on, unlike
   // fade>0.95 which the tail of "black" and the head of "reveal" both hit
   await page.waitForFunction(() => liftTransit && liftTransit.phase === "black", null, { timeout: 6000 });
@@ -1573,4 +1582,32 @@ test("V10: a veteran campaign return escalates — more guns, more Vectors, move
   expect(vet.turrets, "more guns on return").toBeGreaterThan(first.turrets);
   expect(vet.sab, "higher Vector proportion on return").toBeGreaterThan(first.sab);
   expect(vet.xs, "different placements on return").not.toEqual(first.xs);
+});
+
+test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", async ({ page }) => {
+  // a first-time (non-veteran) run shows the full multi-panel INTRO
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => { markTrained(); startFreshRun(); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("intro");
+  expect(s.introLen).toBeGreaterThan(1);       // the full first-run INTRO
+  // now become a veteran and start again → the single-panel veteran opening
+  await page.evaluate(() => { markVeteran(); startFreshRun(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("intro");
+  expect(s.introLen).toBe(1);                  // VET_INTRO is one panel
+  expect(s.vetIntroSeen).toBe(false);
+  // tap through it → briefing, and it's marked seen
+  await page.waitForTimeout(400);              // clear the intro's stateT guard
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForTimeout(80);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.vetIntroSeen).toBe(true);
+  expect(s.state).toBe("brief");
+  // a subsequent veteran run skips straight to the tasking
+  await page.evaluate(() => { startFreshRun(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("brief");
 });
