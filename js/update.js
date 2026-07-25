@@ -10,6 +10,20 @@ let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: FIELD MEDIC parry window (forgiving)
 const PARRY_WINDOW_STRICT = 0.09; // E3: the default, stricter window — a real timing test
+// V6 — the "heard" sonic-wave parry. A Vector (Avicenna Shoals on) emits a
+// telegraphed violet wavefront; parry it with the shield (the same parryT window
+// as E3) to FLATTEN the signal and catalogue the Vector without a shot. The wave
+// resolves at a fixed time after it's cast, decoupled from distance, so the
+// timing is learnable regardless of how near you are. Mid-game a miss is
+// free (a teaching beat); the costly version is the finale answer (V3/V12).
+const WAVE_WINDUP = 0.5;    // telegraph flash at the emitter before the front sweeps
+const WAVE_TRAVEL = 0.42;   // the front sweeps emitter → ship over this
+const WAVE_ARRIVE = WAVE_WINDUP + WAVE_TRAVEL;   // resolve (check the shield) here
+const WAVE_LIFE = WAVE_ARRIVE + 0.35;            // brief fade after it lands
+const WAVE_GAP = 4.2;       // seconds between a Vector's casts while you're in range
+const WAVE_RANGE = 460;     // it only casts when the ship is this near
+const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
+const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counterfeits
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
 const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
@@ -1035,6 +1049,7 @@ function updatePlay(dt) {
   updateShrine(dt);
   updateScan(dt);
   updateScionScan(dt);    // S5 — read a grounded unit's vitals; flag the fakes
+  updateWaves(dt);        // V6 — Vectors cast a sonic wave; parry it to catalogue them
   updateContagion(dt);    // Semmelweis Deep — unscreened contagion spreads
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
@@ -1533,6 +1548,56 @@ function updateScionScan(dt) {
       addText(target.x, target.y - 44, "VITALS VERIFIED — A HEARTBEAT", "#69f0ae");
     }
   }
+}
+
+/* V6 — the heard-scan sonic-wave parry. An active, un-catalogued Vector from
+   Avicenna Shoals on casts a telegraphed violet wavefront while you're in range;
+   raise the shield as it lands (the E3 parryT window) to FLATTEN it and catalogue
+   the Vector — the "heard" read, no shot, oath clean. The wave resolves at a
+   fixed WAVE_ARRIVE after casting, so the timing is learnable regardless of how
+   near you are. Mid-game a miss is free (a teaching beat); the costly version is
+   the finale answer to the Solace (wired with V3/V12, flagged `finale`). */
+function waveEligible(o) {
+  return o.role === "saboteur" && !o.flagged && !o.sleeper && !o.dead &&
+    (o.state === "wait" || o.state === "walk");
+}
+function updateWaves(dt) {
+  if (!level.waves) level.waves = [];
+  const s = ship;
+  if (levelIdx >= WAVE_FIRST_SECTOR && !s.dead && state === "play") {
+    for (const o of level.oids) {
+      if (!waveEligible(o) || Math.hypot(s.x - o.x, s.y - o.y) > WAVE_RANGE) { o.waveT = 0; continue; }
+      o.waveT = (o.waveT || 0) + dt;
+      if (o.waveT >= WAVE_GAP) {
+        o.waveT = 0;
+        level.waves.push({ src: o, ox: o.x, oy: o.y - 10, t: 0, done: false, hit: false, finale: false });
+        staticTick(0.25);   // a wrong little tone — the telegraph
+      }
+    }
+  }
+  for (const w of level.waves) {
+    const prev = w.t; w.t += dt;
+    if (!w.done && prev < WAVE_ARRIVE && w.t >= WAVE_ARRIVE) {
+      w.done = true;
+      w.hit = s.shield && s.parryT > 0;
+      if (w.hit) {
+        shieldParry();
+        if (w.finale) {
+          // the answer — resolved by the finale beacon logic (V3/V12)
+          if (level.beacon && !level.beacon.resolved) level.beacon.heardParry = true;
+        } else if (w.src && !w.src.flagged) {
+          w.src.flagged = true; score += 250; staticTick();
+          addText(w.src.x, w.src.y - 44, "SIGNAL FLATTENED — CATALOGUED +250", PAL().REVEAL);
+          checkSectorClear();
+        }
+      } else if (w.finale) {
+        // only the finale answer costs anything on a miss
+        s.vitals = Math.max(0, s.vitals - WAVE_MISS_VITALS);
+        staticSurge = Math.max(staticSurge, 0.6); sabotageFlash = 0.5; camera.shake += 5;
+      }
+    }
+  }
+  level.waves = level.waves.filter(w => w.t < WAVE_LIFE);
 }
 
 function contaminantAboard() {

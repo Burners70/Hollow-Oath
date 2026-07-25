@@ -286,6 +286,38 @@ function fakePodAlpha(now, known) {
   return 0.82 - 0.34 * beat;
 }
 
+/* V6 — the sonic-wave parry fronts (world space). Telegraph knot at the emitter,
+   then a violet ring sweeping to the ship; on landing, a cyan flash if it was
+   flattened (parried) or a violet one if it washed over you. Shape-based so it
+   reads under colorblind; reduced-flash tones the glow. */
+function drawWaves(now) {
+  if (!level.waves || !level.waves.length) return;
+  for (const w of level.waves) {
+    ctx.save();
+    if (w.t < WAVE_WINDUP) {
+      const p = w.t / WAVE_WINDUP;
+      const a = (reducedFlash ? 0.45 : 0.75) * (0.4 + 0.6 * Math.abs(Math.sin(now * 20)));
+      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w.ox, w.oy, 6 + p * 10, 0, 7); ctx.stroke();
+    } else if (w.t < WAVE_ARRIVE) {
+      const p = (w.t - WAVE_WINDUP) / WAVE_TRAVEL;
+      const r = Math.max(2, Math.hypot(ship.x - w.ox, ship.y - w.oy) * p);
+      ctx.strokeStyle = "rgba(179,136,255," + (0.75 * (1 - p * 0.25)).toFixed(2) + ")";
+      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 5 : 12; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(w.ox, w.oy, r, 0, 7); ctx.stroke();
+    } else {
+      const p = (w.t - WAVE_ARRIVE) / (WAVE_LIFE - WAVE_ARRIVE);
+      const col = w.hit ? "0,229,255" : "179,136,255";
+      ctx.globalAlpha = (1 - p) * 0.85;
+      ctx.strokeStyle = "rgb(" + col + ")"; ctx.shadowColor = "rgb(" + col + ")";
+      ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = w.hit ? 3 : 2;
+      ctx.beginPath(); ctx.arc(ship.x, ship.y, 14 + p * 18, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
 function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
@@ -456,6 +488,7 @@ function drawWorld(now) {
     ctx.fillStyle = "#a7f6ff";
     ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, 7); ctx.fill();
   }
+  drawWaves(now);   // V6 — Vector sonic-wave parry fronts
 
   for (const p of particles) {
     const a = clamp(p.t / p.max, 0, 1);
@@ -3768,6 +3801,14 @@ window.__doids = {
   fakePodAlpha: (now, known) => fakePodAlpha(now, known),
   // Y3 — the deterministic per-wreck cant (stable frame to frame, RNG-free).
   wreckCant,
+  // V6 — sonic-wave introspection + a test hook to arm a wave about to land
+  waves: () => (level.waves || []).map(w => ({ t: +w.t.toFixed(2), done: w.done, hit: w.hit, finale: w.finale })),
+  armWave: opts => {
+    level.waves = level.waves || [];
+    const src = (level.oids || []).find(o => o.role === "saboteur");
+    level.waves.push({ src, ox: ship.x - 90, oy: ship.y, t: WAVE_ARRIVE - 0.01,
+      done: false, hit: false, finale: !!(opts && opts.finale) });
+  },
   // V2 — x of every scannable Scion that LACKS a fair scan-landing spot in the
   // current level (empty array = the fairness invariant holds).
   scanSpotFailures: () => (level.oids || [])

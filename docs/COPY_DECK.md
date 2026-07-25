@@ -337,7 +337,9 @@ PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
 `PRIMER MIST — FLY TO THE LINE` · `-<n>` (U2 running resupply toll, drained
 live as the tank fills) · `TANK TOPPED — RESUPPLY COST -<n>` (U2, replaces the
 old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
-`THE PAD RINGS HOLLOW…` · `SCANNING…` · `SCANNING… hold position`
+`THE PAD RINGS HOLLOW…` · `SCANNING…` · `SCANNING… hold position` ·
+`SIGNAL FLATTENED — CATALOGUED +250` (V6 — parry a Vector's sonic wave with the
+shield to catalogue it, no shot)
 
 ## 10. Discovery & finale cards (`showCard` call sites)
 

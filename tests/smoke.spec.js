@@ -1613,3 +1613,26 @@ test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", 
   s = await page.evaluate(() => __doids.get());
   expect(s.state).toBe("brief");
 });
+
+test("V6: parrying a Vector's sonic wave flattens it and catalogues the Vector; a mid-game miss is free", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });   // Avicenna Shoals — waves start here
+  await page.evaluate(() => {
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.oids = [{ role: "saboteur", state: "wait", x: 720, y: __doids.ground(720),
+      sleeper: false, flagged: false, verified: false, wave: 0, persona: "wave1", scale: 1 }];
+    ship.x = 650; ship.y = __doids.ground(650) - 11; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  // MISS (no shield): the wave washes over — no catalogue, and mid-game costs no vitals
+  await page.evaluate(() => { input.shield = false; ship.shield = false; ship.parryT = 0; ship.vitals = 80; __doids.armWave(); });
+  await page.waitForTimeout(200);
+  let s = await page.evaluate(() => ({ flagged: !!level.oids[0].flagged, vitals: ship.vitals }));
+  expect(s.flagged, "a missed wave does not catalogue").toBe(false);
+  expect(s.vitals, "mid-game miss costs no vitals").toBe(80);
+  // PARRY (shield raised into the window): the signal is flattened, Vector catalogued
+  await page.evaluate(() => { input.shield = false; ship.shield = false; ship.parryT = 0; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { input.shield = true; __doids.armWave(); });
+  await page.waitForFunction(() => level.oids[0].flagged === true, null, { timeout: 2000 });
+  expect(await page.evaluate(() => level.oids[0].flagged)).toBe(true);
+  await page.evaluate(() => { input.shield = false; });
+});

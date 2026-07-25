@@ -1609,7 +1609,20 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   and the Y**. A line or two in the intro / early BRIEFS. Code anchors:
   `BRIEFS` / intro copy in `js/world.js`; **mirror every changed string into
   [COPY_DECK.md](COPY_DECK.md) in the same PR (R10).**
-- [ ] **V6. Make the "heard" scan playable — a sonic-wave parry.** Mirror the
+- [~] **V6. Make the "heard" scan playable — a sonic-wave parry.** *(Mid-game
+  half shipped; finale-answer half lands with V3/V12. Owner design decisions:
+  window 0.09s / 0.18s assisted; introduced at **Avicenna Shoals (sector 5)**;
+  **mid-game a miss is free** — the costly version is the finale answer only.
+  From sector 5 on, an active un-catalogued Vector casts a telegraphed violet
+  wavefront (`updateWaves`/`drawWaves`, constants `WAVE_*` in `js/update.js`);
+  parry it with the shield on the E3 `parryT` window to FLATTEN it — cataloguing
+  the Vector (+250, "SIGNAL FLATTENED", oath clean, no shot). The wave resolves
+  at a fixed `WAVE_ARRIVE` after casting, so timing is learnable regardless of
+  distance; shape-based (expanding ring) so it survives colorblind, reduced-flash
+  tones the glow. The `finale` wave flag + `beacon.heardParry` hook are in place
+  for the Solace answer (V3/V12), where a miss costs −12 vitals + a surge.
+  `__doids.waves()`/`armWave()` expose it; smoke: "V6 parrying a Vector's sonic
+  wave …".)* Mirror the
   shield-parry mechanic, but instead of a bullet it's a **visible sonic wave**
   you must parry back to *flatten the corrupting signal*. Code anchors: the
   existing shield/parry code (deflection in `updatePlay` / the shield handling
