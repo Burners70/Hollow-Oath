@@ -90,9 +90,9 @@ touched code?" That's why the sequencing calls below (pull a stability fix into
 | Q | The deep Hollows | **Free update 1.2** (Laennec + ROTATION CHART split forward to 1.1) | No (post-launch) |
 | V | 1.01 maintenance & narrative | Scan fairness, the Solace reveal, heard-scan parry, post-completion variants | Post-approval 1.01 |
 | W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | Update 1.1 (ships with P) |
-| X | Onboarding & new-player experience | Learning-curve fix: guide, trainee Level 0, hint cards | Post-approval 1.01 |
-| Y | 1.01 release-fix defects | Stability + render/telegraphing fixes | Post-approval 1.01 (Y1/Y2 weigh for 1.0) |
-| Z | REMIX replay modifiers | Variable gravity (+ future modifiers) | Update 1.1 (with P) |
+| X | Onboarding & new-player experience | Learning-curve fix: guide, trainee Level 0, hint cards | **X1+X3 → 1.0 launch**; X2/X4/X5 → 1.01 |
+| Y | 1.01 release-fix defects | Stability + render/telegraphing fixes | **Y1+Y2 → 1.0 launch**; Y3–Y7 → 1.01 |
+| Z | REMIX replay modifiers | Variable gravity (+ future modifiers) | Pulled to 1.01 (was 1.1); Z2 re-tune gates it |
 
 Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
 the ceiling (and the defensible price). **Bundles R, S and T are the July 2026
@@ -1626,9 +1626,10 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
     (`js/update.js:671`) and keep the Solace / second-wave seeding (V5) light, so
     a *second MERCY* is genuinely unexpected. Trust the tells. (This is also what
     clears the Y7 overspill.) Mirror into COPY_DECK.md (R10).
-  - **V12b. Identical but for the tell; position uninformative.** Owner's
-    proposed reveal (**one to discuss**): a single MERCY **flickers, splits into
-    two, both fade out, then reappear in randomised / ambiguous locations** —
+  - **V12b. Identical but for the tell; position uninformative.**
+    **Owner-approved (late July 2026): build the full reveal.** A single MERCY
+    **flickers, splits into two, both fade out, then reappear in randomised /
+    ambiguous locations** —
     visually identical, so *where* they are tells you nothing. The only honest
     difference is the beat: the real one **beats like an uneven heart** (already
     `js/update.js:671`'s "ours beats like a heart: uneven, alive"); the counterfeit
@@ -1687,9 +1688,9 @@ everyone else, and they bounce off before the game gets good. This bundle is the
 fix: an **optional, opt-in** learning path that never gets in an experienced
 player's way — an illustrated guide, a guided trainee sector, a first-play fork
 that routes each player to the right starting point, and a post-death hint-card
-bank. **Priority: highest-value retention work in 1.01 — do it first.
-Dependencies: 1.0 shipped. X2 depends on X4's guided-pause overlay; X1 and X5
-are independent.**
+bank. **Priority: highest-value retention work — do it first.
+Dependencies: X2 depends on X4's guided-pause overlay; X1 and X5 are
+independent.**
 
 > **Design pillar: opt-in, never mandatory.** An experienced player must be able
 > to start Level 1 on first launch and never see a tutorial pause, a training
@@ -1697,7 +1698,15 @@ are independent.**
 > a home-screen button — the same opt-in stance as ASSIST / Field Medic
 > (Bundle H).
 
-- [ ] **X1. The beginner's guide — an optional home-screen button.** A **HOW TO
+> **Launch split (owner decision, late July 2026).** The low-risk, high-impact
+> slices ship in the **1.0 launch build**: **X1** (beginner's guide) and **X3**
+> (first-play fork). The heavier new subsystems — **X2** (trainee sector), **X4**
+> (guided-pause overlay), **X5** (hint-card bank) — stay **1.01**, so the trainee
+> level never gates App-Completeness review of the launch binary. Consequence for
+> X3: with X2 not in 1.0, the fork's **"No" branch routes into the X1 guide** at
+> launch, and upgrades to route into the trainee sector once X2 ships in 1.01.
+
+- [ ] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** A **HOW TO
   FLY** button on the title screen (`drawTitle` in `js/render.js`, alongside the
   existing REMIX / settings pills) opens a paged, **illustrated** guide with
   literal step-by-step visuals, not walls of text: rotate, thrust (hold = more
@@ -1738,13 +1747,14 @@ are independent.**
     TRAINING" affordance). Code anchors: the Static clock (`updateStaticClock`)
     and extraction / MERCY logic in `js/update.js`, both gated off in training
     mode.
-- [ ] **X3. First-play fork.** On a first launch (no `doids_intro`, or a new
-  `doids_trained` flag), ask once: **"Played thrust / gravity games before?"** —
-  **Yes → straight to Level 1** (current behaviour); **No → the trainee
-  sector.** Never shown again once answered; re-runnable from the X1 guide or
-  Settings. Code anchors: the intro gate (`doids_intro`) in `js/world.js`, the
-  title / intro flow in `js/render.js`; add a `doids_trained` key (keep the
-  `doids_` prefix).
+- [ ] **X3. First-play fork. [→1.0 launch]** On a first launch (no `doids_intro`,
+  or a new `doids_trained` flag), ask once: **"Played thrust / gravity games
+  before?"** — **Yes → straight to Level 1** (current behaviour); **No →** the
+  onboarding path. **In 1.0** (X2 not yet built) **"No" opens the X1 guide**, then
+  drops into Level 1; **in 1.01** "No" routes into the **trainee sector** (X2).
+  Never shown again once answered; re-runnable from the X1 guide or Settings. Code
+  anchors: the intro gate (`doids_intro`) in `js/world.js`, the title / intro flow
+  in `js/render.js`; add a `doids_trained` key (keep the `doids_` prefix).
 - [ ] **X4. Reusable "guided pause" overlay.** A small system to **pause the sim
   and show a step card** (dim the world, instruction + a CONTINUE tap), fired by
   game conditions (entered training, first thrust, first rightward drift, fuel
@@ -1794,13 +1804,14 @@ are independent.**
 ## Bundle Y — 1.01 release-fix defects (owner playtest, late July 2026)
 
 **Why:** Defects and over-tells caught by the owner in extended play after the
-1.0 submission, filed for **1.01**. **Y1 and Y2 are stability bugs seen after
-long iOS backgrounding — weigh them for the 1.0 build if it is still in review
-(see the sequencing note).** The rest are rendering / telegraphing corrections.
-**Priority: with X in 1.01. Dependencies: none, but Y1 and Y2 share a root cause
-(state after a long background) — fix them together.**
+1.0 submission. **Launch split (owner decision, late July 2026): Y1 and Y2 — the
+stability bugs after long iOS backgrounding — are pulled into the 1.0 launch
+build** (they're what App Review is most likely to hit, and cheap: a cache-clear
+and a try/catch). **Y3–Y7 stay 1.01** (rendering / telegraphing corrections).
+**Dependencies: none, but Y1 and Y2 share a root cause (state after a long
+background) — fix them together.**
 
-- [ ] **Y1. Landscape vanishes after a very long background.** Reported: away
+- [ ] **Y1. Landscape vanishes after a very long background. [→1.0 launch]** Reported: away
   from the app for hours, returned to find the **ship drawn but all terrain,
   cave roof and scenery invisible** — and still collidable (the ship crashed
   into ground it couldn't see). Root cause (high confidence): terrain / roof are
@@ -1817,7 +1828,7 @@ long iOS backgrounding — weigh them for the 1.0 build if it is still in review
   (`js/input.js:297`). Add a smoke check that clearing the caches and rendering a
   frame repaints terrain.
 - [ ] **Y2. Blank world / frozen game after an upgrade card on a long-standing
-  run.** Reported once: after a multi-rescue drop-off, picked the **"better
+  run. [→1.0 launch]** Reported once: after a multi-rescue drop-off, picked the **"better
   lamp" (LAMP) upgrade card**, then a **blank screen behind the UI, no crash, no
   input response** — on a long run repeatedly backgrounded / foregrounded. Two
   contributing causes: (a) the **frame loop has no error guard** — `frame()`
@@ -1886,12 +1897,11 @@ long iOS backgrounding — weigh them for the 1.0 build if it is still in review
   tuned to be findable-if-you-look, not obvious. Leave the Hollows (cave) lift
   art as-is. Code anchors: `drawLift` (`js/render.js:1409`), lift creation
   (`js/world.js:809-815`), the `genCave` lift (`js/world.js:984`).
-- [ ] **Y6. Jenner codex copy — "took smallpox" reads wrong.** EDWARD JENNER's
-  story line (`js/world.js:125`) reads *"milkmaids who caught cowpox never **took**
-  smallpox."* Change **"took" → "caught."** Heads-up: that yields "caught cowpox …
-  never caught smallpox" — accurate, but a slight echo; if the repeat grates,
-  *"milkmaids who'd had cowpox never caught smallpox"* reads cleaner (owner's
-  call). Mirror into COPY_DECK.md (R10).
+- [ ] **Y6. Jenner codex copy — fix "took smallpox."** EDWARD JENNER's story line
+  (`js/world.js:125`) reads *"milkmaids who caught cowpox never **took**
+  smallpox."* **Owner-approved wording (late July 2026):** *"He noticed milkmaids
+  who'd **had** cowpox never **caught** smallpox …"* — the had/caught form fixes
+  the odd "took" and avoids a caught/caught echo. Mirror into COPY_DECK.md (R10).
 - [ ] **Y7. Veteran Nullwave intro copy overspills the panel.** On a veteran
   return, the finale (THE NULLWAVE) intro overruns its box. The extra length is
   the counterfeit-MERCY warning appended for veterans (`js/update.js:665-671`) on
@@ -1914,8 +1924,10 @@ long iOS backgrounding — weigh them for the 1.0 build if it is still in review
 **Why:** Owner idea (late July 2026) — add **variable gravity to REMIX** for
 replay variety. Gravity is a single global (`GRAV = 46`, `js/world.js:149`), so a
 per-run scale is cheap to *apply*; the real work is **fairness tuning**, not
-plumbing. **Priority: 1.1 feature update (ships with P); easily pulled earlier if
-wanted. Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
+plumbing. **Priority: pulled forward to 1.01 (owner decision, late July 2026; was
+1.1). The Z2 fairness re-tune gates it — this is *not* a lean-1.0 "low-risk win,"
+so it rides 1.01, not the launch binary, unless the re-tune proves trivial.
+Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
 
 - [ ] **Z1. Variable-gravity modifier.** Scale `GRAV` by a per-run factor drawn
   from `runSeed` (e.g. ~0.7×–1.4×), **REMIX / DAILY only — never seed 0**, so the
@@ -1951,12 +1963,15 @@ D ──┴────────────────┘                 �
       S (sound / endgame / saboteurs — owner-requested for launch)
       T1–T3 + T6 (zone identity core — launch)
       T4, T5 (destructible scenery, weather — launch-stretch; slip to 1.1 if needed)
+      pulled into the 1.0 launch build (owner decision, late July 2026):
+      Y1, Y2 (stability) + X1 (beginner's guide) + X3 (first-play fork → guide)
       after 1.0 approval:
-      1.01 = X (onboarding — guide, trainee Level 0, hint cards; top retention fix)
-           + Y (release-fix defects; Y1/Y2 stability weigh for the 1.0 build)
-           + V (maintenance & the Solace reveal; scan fairness; heard-scan parry)
+      1.01 = X2/X4/X5 (trainee level, guided-pause overlay, hint-card bank)
+           + Y3–Y7 (wreck occlusion, counterfeit tell, lift pad, copy fixes)
+           + V (Solace reveal; scan fairness; heard-scan parry; V12 fake-MERCY reveal)
+           + Z (REMIX variable gravity — after the Z2 fairness re-tune)
       then the feature updates (all free):
-      1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge) + Z (REMIX variable gravity)
+      1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge)
       1.2 = Q-caves (THE DEEP HOLLOWS: Ward / Mint / Listening Post)
 ```
 
@@ -1999,8 +2014,11 @@ first-play "played thrust games?" fork, and a post-death hint-card bank; the top
 fix for the "too-steep learning curve" note) **and Y** (release-fix defects: the
 disappearing-landscape and blank-screen stability bugs after long iOS
 backgrounding, Curie Fields wreck occlusion + angled motherships, the
-Avicenna-gated counterfeit tell, and the above-ground lift-pad marker). **Y1 and
-Y2 are stability bugs — weigh them for the 1.0 build if it is still in review.**
+Avicenna-gated counterfeit tell, and the above-ground lift-pad marker). **Owner
+decision (late July 2026): pull the low-risk wins into the 1.0 launch build —
+Y1/Y2 (stability), X1 (guide) and X3 (fork) — and keep the heavier subsystems
+(X2/X4/X5, Y3–Y7, V + the V12 fake-MERCY reveal) and Z (variable gravity, after
+its fairness re-tune) for 1.01.**
 The support/marketing URL is moving to a **custom domain on GitHub Pages**,
 **`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). Once DNS
 is pointed at Pages and the domain resolves, the live-site links and the App
