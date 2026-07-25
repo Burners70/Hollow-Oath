@@ -1396,22 +1396,27 @@ function drawWreckM(sc, now) {
   ctx.rotate(sc.tilt + sc.lean * 0.5 + cant);
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
   ctx.lineWidth = 2.5;
+  // Y3-readability — the two halves used to be shoved far enough apart (and the
+  // hull filled at .55) that at gameplay scale the wreck read as loose,
+  // disconnected lines rather than a broken ship. Tightened the offset so the
+  // pieces read as ONE hull cracked along the breach, and filled each piece near
+  // solid so it's a mass with a glowing edge, not a wireframe you can see through.
   // the fore piece — nose through the forward command tower — nudged one way
   ctx.save();
   wreckMBreachClip("fore");
-  ctx.translate(-3, -2); ctx.rotate(-0.035);
-  ctx.fillStyle = "rgba(8,12,26,.55)";
+  ctx.translate(-1, -0.5); ctx.rotate(-0.014);
+  ctx.fillStyle = "rgba(8,12,26,.9)";
   mercyHullPath(); ctx.fill();
-  glowStroke("rgba(0,229,255,.3)", 2.5);
+  glowStroke("rgba(0,229,255,.4)", 2.5);
   ctx.restore();
   // the aft piece — the rest of the spine — nudged the other way, so the
-  // seam between the two shows real daylight, not just an overlaid line
+  // seam between the two still shows the break, just no longer a wide gap
   ctx.save();
   wreckMBreachClip("aft");
-  ctx.translate(4, 3); ctx.rotate(0.045);
-  ctx.fillStyle = "rgba(8,12,26,.55)";
+  ctx.translate(1.5, 1); ctx.rotate(0.02);
+  ctx.fillStyle = "rgba(8,12,26,.9)";
   mercyHullPath(); ctx.fill();
-  glowStroke("rgba(0,229,255,.3)", 2.5);
+  glowStroke("rgba(0,229,255,.4)", 2.5);
   ctx.restore();
   // torn edges along the actual break, drawn in the shared (unshifted) frame
   // so they read as the seam between the two pieces above, in the spirit of
@@ -1471,8 +1476,10 @@ function drawWreckS(sc, now) {
   // dart reads as ship-sized or a touch smaller, collapsed.
   const ws = Math.min(1.0, sc.s);
   ctx.scale(ws, ws);
-  ctx.strokeStyle = "rgba(0,229,255,.32)";
-  ctx.fillStyle = "rgba(6,10,22,.45)";
+  // Y3-readability — solid fill + a touch more edge so the downed dart reads as
+  // a broken hull, not a see-through wireframe (matches the wreckM treatment)
+  ctx.strokeStyle = "rgba(0,229,255,.42)";
+  ctx.fillStyle = "rgba(6,10,22,.9)";
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.moveTo(0, -13);
