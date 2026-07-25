@@ -1576,7 +1576,12 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   41-s pulse; a new draw pass in `js/render.js` for the hull outline (exposed
   vs. submerged alpha). Ties into the counterfeit-tell language — a real pulse
   that lives *with* the heartbeat clock. Update GAME_DESIGN.md narrative canon.
-- [ ] **V4. Solace pre-scan label legibility.** The text above the Solace
+- [x] **V4. Solace pre-scan label legibility.** *(Shipped. The pre-scan "THE
+  SIGNAL SOURCE — land beside it, or open fire" label in `drawBeacon`
+  (`js/render.js`) went from 9px at .7 alpha to a `bodyFontPx(10)` 700-weight
+  line in high-contrast `#d9ccff` on a dark backing plate, so it reads over the
+  nullwave ridge; respects `bigText` (via `bodyFontPx`) and drops the glow under
+  reduced-flash.)* The text above the Solace
   before it's scanned is illegible — fix size and contrast (add a backing
   plate / shadow like other world labels). Code anchor: the label draw in
   `js/render.js` for the pre-scan Solace; check against the `bigText`

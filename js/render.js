@@ -2102,9 +2102,20 @@ function drawBeacon(now) {
       ctx.fillStyle = "#aef4ff";
       ctx.fillText("ANSWERING… " + Math.round(b.silenceT / 5 * 100) + "%", 0, -128);
     } else {
-      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(179,136,255,.7)";
-      ctx.fillText("THE SIGNAL SOURCE — land beside it, or open fire", 0, -128);
+      // V4 — the pre-scan label was 9px at .7 alpha and got lost over the busy
+      // nullwave ridge. Legible size (respects bigText), higher-contrast fill,
+      // and a dark backing plate like the other world labels; reduced-flash
+      // keeps the glow off.
+      const lp = bodyFontPx(10);
+      ctx.font = "700 " + lp + "px Menlo, monospace"; ctx.textAlign = "center";
+      const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
+      const tw = ctx.measureText(txt).width, ly = -128;
+      ctx.fillStyle = "rgba(6,4,16,.72)";
+      ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
+      if (!reducedFlash) { ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 6; }
+      ctx.fillStyle = "#d9ccff";
+      ctx.fillText(txt, 0, ly);
+      ctx.shadowBlur = 0;
     }
   }
   ctx.restore();
