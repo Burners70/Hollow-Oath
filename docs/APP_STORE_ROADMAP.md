@@ -1775,7 +1775,13 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   and (5) resolves to a **smoking crater** in the ridge (`drawSolaceDeath` in
   `js/render.js`; `updateDestruct` in `js/update.js`; `drawDarkness` keeps a
   blast-growing light hole open so the reveal reads through the nullwave dark).
-  It settles onto
+  Terrain interaction, so the logic reads true: generation flattens a WIDE ridge
+  over her buried hull footprint (`flatten(...,250)`) so she is genuinely buried
+  — only the tower breaks the surface, no hull poking over open land — the tower
+  TOP is drawn poking out (not just a floating aerial), and the detonation sinks
+  a REAL crater into the heightmap (`crushCrater` in `js/world.js` +
+  `invalidateTiles`) so the ridge visibly collapses into a hole, not a flat
+  scorch. It settles onto
   the reworded **SILENCE BY FIRE** card: "…That was one of ours. AMS SOLACE —
   crew of 214 — silenced, not answered. The SOLACE deserved better." Respects
   reduced-flash (no screen bloom, dimmer glows). Rank stays `SECTOR WARDEN`.

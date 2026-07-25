@@ -2514,22 +2514,41 @@ function updateDestruct(dt) {
       t: 0.35 + Math.random() * 0.5, max: 0.9,
       color: Math.random() < 0.5 ? "#fff3d6" : "#ffc400", size: 1 + Math.random() * 1.6 });
   }
-  // DETONATION — once: the big boom + a shower of sparks off the whole hull
+  // DETONATION — once: a huge shower of sparks + debris off the whole hull, and
+  // the ridge COLLAPSES into a real crater (her mass is gone) — deform the
+  // heightmap and drop the terrain tile cache so the sunken profile re-renders.
   if (t >= SOL_BOOM && !b._det) {
-    b._det = true; boom(); camera.shake = Math.max(camera.shake, 28);
-    for (let i = 0; i < 130; i++) {
-      const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 380;
-      particles.push({ x: b.x, y: b.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70,
-        t: 0.7 + Math.random() * 1.7, max: 2.4,
+    b._det = true; boom(); camera.shake = Math.max(camera.shake, 34);
+    crushCrater(level.heights, b.x, 240, 96);
+    invalidateTiles();
+    // the shower: a big omnidirectional burst of fine sparks…
+    for (let i = 0; i < 320; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 70 + Math.random() * 460;
+      particles.push({ x: b.x + (Math.random() - 0.5) * 60, y: b.y - 20 + (Math.random() - 0.5) * 60,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80,
+        t: 0.6 + Math.random() * 1.9, max: 2.5,
         color: Math.random() < 0.4 ? "#fff3d6" : (Math.random() < 0.6 ? "#ffc400" : "#ff6d00"),
-        size: 1.4 + Math.random() * 2.8 });
+        size: 1 + Math.random() * 2.6 });
+    }
+    // …plus a scatter of heavier, slower burning chunks thrown up and out
+    for (let i = 0; i < 40; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4, sp = 120 + Math.random() * 300;
+      particles.push({ x: b.x + (Math.random() - 0.5) * 40, y: b.y - 20,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        t: 1.2 + Math.random() * 1.6, max: 2.8,
+        color: Math.random() < 0.5 ? "#ff6d00" : "#ffae40", size: 3 + Math.random() * 3.5 });
     }
   }
-  // after the blast: settling sparks + smoke rising from the crater
-  if (t >= SOL_BOOM && t < SOL_BOOM + 1.6 && Math.random() < 0.7) particles.push({
-    x: b.x + (Math.random() - 0.5) * 130, y: b.y - 4 - Math.random() * 12,
+  // a couple of delayed secondary pops as she settles
+  for (const s of [0.25, 0.55]) if (t >= SOL_BOOM + s && prev < SOL_BOOM + s) {
+    explode(b.x + (s === 0.25 ? -70 : 80), b.y - 6, s === 0.25 ? "#ffc400" : "#ff6d00", 40);
+    camera.shake = Math.max(camera.shake, 12);
+  }
+  // after the blast: smoke rising from the crater for a good while
+  if (t >= SOL_BOOM && t < SOL_BOOM + 2.0 && Math.random() < 0.8) particles.push({
+    x: b.x + (Math.random() - 0.5) * 180, y: b.y + 10 - Math.random() * 16,
     vx: (Math.random() - 0.5) * 12, vy: -8 - Math.random() * 12,
-    t: 1.2 + Math.random() * 1.3, max: 2.5, color: "#6b6560", size: 2 + Math.random() * 3.2 });
+    t: 1.4 + Math.random() * 1.5, max: 2.9, color: "#6b6560", size: 2.4 + Math.random() * 3.6 });
 
   if ((input.tap && t > SOL_BOOM + 0.6) || t >= SOL_END) { state = "ending"; stateT = 0; }
   input.tap = false;

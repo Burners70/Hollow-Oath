@@ -2250,13 +2250,26 @@ function drawSolaceDeath(b, now) {
     ctx.restore();
     // a hot spot riding the heat front down through the hull
     if (revP > 0 && revP < 1 && !reducedFlash) drawGlow(0, front, 66, "#ffe0a0", 1);
-    // the exposed tower cap + mast, ignited (drawn unclipped — always visible)
+    // the EXPOSED command-tower top poking out of the ground, with the aerial
+    // atop it — this is exactly what broke the surface before we fired, so it
+    // must read as a solid tower, not a mast floating in mid-air. Drawn unclipped
+    // (always above the surface) and it ignites first.
     const ign = clamp(t / SOL_IGNITE, 0, 1);
     ctx.save();
     ctx.translate(0, HY); ctx.scale(MS, MS);
+    ctx.beginPath();
+    ctx.moveTo(-46, -18); ctx.lineTo(-19, -60); ctx.lineTo(19, -60); ctx.lineTo(46, -18);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(34,18,10,.92)"; ctx.fill();          // solid tower mass
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = "rgba(255," + Math.round(180 + 60 * ign) + "," + Math.round(120 + 90 * ign) + ",1)";
+    ctx.lineJoin = "round"; ctx.lineWidth = 2.4 / MS;
+    ctx.shadowColor = "#ff8a2c"; ctx.shadowBlur = (reducedFlash ? 5 : 18) / MS;
+    ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
     mercyAntenna(now, "255,236,196", true);
     ctx.restore();
-    if (!reducedFlash) drawGlow(0, -54, 26 + 22 * ign, "#fff3d6", 0.45 + 0.4 * ign);
+    if (!reducedFlash) drawGlow(0, -54, 24 + 22 * ign, "#fff3d6", 0.4 + 0.4 * ign);
   } else {
     // ---- detonation → smoking crater ----
     const cf = clamp(boomT / 0.45, 0, 1);
@@ -2277,18 +2290,21 @@ function drawSolaceDeath(b, now) {
       }
       ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     }
-    // the smoking crater she leaves in the ridge — a scorched gouge that settles
-    const cr = clamp(boomT / 0.7, 0, 1);
-    ctx.save();
-    ctx.fillStyle = "rgba(6,4,3," + (0.9 * cr).toFixed(2) + ")";
-    ctx.beginPath(); ctx.ellipse(0, 8, 150, 20 + 34 * cr, 0, 0, Math.PI); ctx.fill();
-    ctx.strokeStyle = "rgba(150,60,26," + (0.55 * cr).toFixed(2) + ")"; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.ellipse(0, 8, 150, 20 + 34 * cr, 0, 0, Math.PI); ctx.stroke();
+    // the crater itself is now a REAL sunken hole in the terrain (crushCrater
+    // deformed the heightmap at detonation). All we add is what's left burning in
+    // it: coals glowing along the new pit floor + a low residual heat wash, with
+    // smoke (from updateDestruct) rising out. groundY is the old surface; the pit
+    // bottoms out ~96px below it (see crushCrater's depth), i.e. beacon-frame +96.
     if (!reducedFlash) {
-      const emb = 0.28 + 0.22 * Math.sin(now * 4);
-      for (const ex of [-72, -12, 52, 108]) drawGlow(ex, 22, 6, "#ff6d00", emb * cr);
+      const gy = (b.groundY != null ? b.groundY : b.y) - b.y;   // surface in beacon frame (≈0)
+      const floor = gy + 78;
+      const cool = clamp(1 - boomT / 2.4, 0.15, 1);             // embers fade as she cools
+      drawGlow(0, floor, 130, "#ff6d00", 0.28 * cool);          // heat wash down in the hole
+      for (const ex of [-118, -64, -14, 40, 96, 138]) {
+        const fl = 0.4 + 0.4 * Math.sin(now * 4 + ex);
+        drawGlow(ex, floor - 6 + (ex & 8 ? 6 : 0), 5.5, "#ff8a2c", fl * cool);
+      }
     }
-    ctx.restore();
   }
 }
 

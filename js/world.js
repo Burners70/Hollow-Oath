@@ -658,6 +658,25 @@ function flattenTo(heights, cx, halfW, y) {
   if (i1 < heights.length - 2) heights[i1 + 1] = (heights[i1 + 2] + y) / 2;
 }
 
+/* (owner steer) — the Solace fire-death sinks a real CRATER into the heightmap:
+   the mass that made up her hull is gone, so the ridge collapses into a bowl.
+   Deepens the terrain across ±rad around cx (a cos² bowl, deepest at centre),
+   only ever pushing DOWN (max), leaving raised lips at the rim. The caller
+   invalidates the terrain tile cache so the sunken profile actually re-renders. */
+function crushCrater(heights, cx, rad, depth) {
+  const base = groundOf(heights, cx);
+  const i0 = Math.max(1, Math.floor((cx - rad) / STEP));
+  const i1 = Math.min(heights.length - 2, Math.ceil((cx + rad) / STEP));
+  for (let i = i0; i <= i1; i++) {
+    const dx = (i * STEP - cx) / rad;               // -1..1 across the crater
+    if (Math.abs(dx) >= 1) continue;
+    const bowl = Math.cos(dx * Math.PI / 2);        // 1 at centre → 0 at rim
+    const lip = Math.abs(dx) > 0.8 ? -8 * Math.sin((Math.abs(dx) - 0.8) / 0.2 * Math.PI) : 0;
+    heights[i] = base + depth * bowl * bowl + lip;  // down in the middle, a small raised rim
+  }
+  return base;
+}
+
 /* V2 — scan-jeopardy fairness. Is there a landable spot from which a landed scan
    of the Scion at cx COMPLETES before the Scion creeps to the hatch and boards
    unread? The band is derived from the scan/creep constants (updateScionScan):
@@ -923,8 +942,12 @@ function genLevel(n) {
   // the finale's beacon — the source of the Static
   if (n === FINALE_IDX) {
     const bx = W - 420;
-    const by = flatten(heights, bx, 120);
-    lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false };
+    // flatten a WIDE ridge over her whole buried hull footprint (the fire-death
+    // reveal draws a ~±200px MERCY-class hull; ±250 covers it with margin) so she
+    // is genuinely buried — only the command tower breaks the surface — and the
+    // reveal never shows hull poking out over open land. by is the surface level.
+    const by = flatten(heights, bx, 250);
+    lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false, groundY: by };
     // Bundle N1 — Glycon's third act: a second, identical MERCY. One difference
     // only: the real emblem pulses like a heart; the counterfeit's ticks in
     // perfect mechanical time, like the fake fuel. Now distrust the thing you've
