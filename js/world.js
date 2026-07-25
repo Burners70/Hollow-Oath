@@ -290,8 +290,11 @@ function bodyFontPx(base) { return base + 1 + (bigText ? 2 : 0); }
 let reducedFlash = false;
 try { reducedFlash = localStorage.getItem("doids_flash") === "1"; } catch (e) {}
 /* a visible build stamp so stale Home-Screen caches / TestFlight builds are
-   diagnosable at a glance (GAME_DESIGN §10 idea) */
-const BUILD_TAG = "v1.0 · b2026-07";
+   diagnosable at a glance (GAME_DESIGN §10 idea). This literal is the value the
+   *web* build shows; `app/sync.sh` overwrites it in the generated app/www copy
+   with the sync date + a content hash of the bundled JS/CSS, so a native wrapper
+   archived without re-syncing shows a stale tag instead of matching the source. */
+const BUILD_TAG = "v1.0 · web";
 /* Bundle L1 — an unresolved ending follows the player home: the title
    screen ticks faintly on the Static's own period until a run resolves it */
 let unresolvedHaunt = false;
