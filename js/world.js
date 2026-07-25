@@ -60,7 +60,7 @@ const BRIEFS = [
   "Supply lines to the deep are cut — no fresh fuel from the fleet. Our resupply drone runs on scavenged reserves now: it comes slower, and it can spare far less. Scavenge surface fuel pods where you find them.\n\nAnd it's worse than rationing. Leave an unscreened unit standing among the survivors and the sickness jumps between them — the ward breeds its own carriers. Screen your rescues, or lift the bad ones out before they spread it.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds, and every black box you recover tightens the bearing. The projection keeps landing on the same dead patch of sky — a silence the old charts marked THE NULLWAVE, where no signal has ever come back.\n\nRecover the recorders and we'll know for certain what's down there.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
-  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\n\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Last leg before the nullwave. Ground crews are matching patterns across every lure and every tampered unit out here — too many to be coincidence.\n\nWhoever's behind this has been at it a long time, and hasn't finished. Bring our people home anyway.",
   "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
 ];
 
@@ -256,6 +256,13 @@ function saveShrinesSeen() {
   try { localStorage.setItem("doids_shrines_seen", JSON.stringify([...shrinesSeen])); } catch (e) {}
   cloud.set("doids_shrines_seen", JSON.stringify([...shrinesSeen]));   // E4 mirror
 }
+// V13 — the "husks" reveal: the WORKSHOP shrine (cave 1, under Semmelweis's
+// lift) shows the Vectors are hollow, never-rescued chassis. Until it's been
+// seen, even a veteran doesn't know that yet — every disguised unit reads as
+// a CORRUPTED person who might still be saved, not a proven fake, so killing
+// one is still malpractice and the only clean outcome is the isolation bay.
+const HUSK_SHRINE_IDX = 1;   // SHRINES[1] — "THEY WERE NEVER RESCUED"
+function husksKnown() { return shrinesSeen.has(HUSK_SHRINE_IDX); }
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
 // haptics is a web no-op (the facade below bridges to the native wrapper
@@ -316,6 +323,21 @@ function markVeteran() {
   veteran = true;
   try { localStorage.setItem("doids_veteran", "1"); } catch (e) {}
   cloud.set("doids_veteran", "1");   // E4 mirror
+}
+// V13 — the veteran-intro recap ("SOMETHING DOESN'T SIT RIGHT") needs to know
+// whether the finished campaign actually brought everyone home, so its line
+// isn't a blanket claim when it often wasn't. Snapshotted once, at the ending
+// that finishes a run (see resolveBeacon), before the next run resets the tally.
+let lastRunSaved = 0, lastRunLost = 0;
+try {
+  const lr = JSON.parse(localStorage.getItem("doids_lastrun_tally") || "null");
+  if (lr) { lastRunSaved = lr.saved || 0; lastRunLost = lr.lost || 0; }
+} catch (e) {}
+function saveLastRunTally() {
+  const rec = { saved: runSaved, lost: runLost };
+  try { localStorage.setItem("doids_lastrun_tally", JSON.stringify(rec)); } catch (e) {}
+  cloud.set("doids_lastrun_tally", JSON.stringify(rec));
+  lastRunSaved = runSaved; lastRunLost = runLost;
 }
 
 /* Bundle E4 — on a native launch, fold the iCloud copy into local state:

@@ -115,7 +115,11 @@ function render() {
     ctx.shadowColor = bannerMsg.color; ctx.shadowBlur = 18;
     ctx.fillStyle = bannerMsg.color;
     ctx.globalAlpha = clamp(bannerMsg.t, 0, 1);
-    bannerMsg.str.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.26 + i * 28));
+    // V13 (owner steer) — most banners sit in the top quarter, but the S4
+    // "MERCY is spooling" call sits right over MERCY and your own ship during
+    // the hangar approach, so it carries a lower yFrac to clear both.
+    const bannerY = vh * (bannerMsg.yFrac != null ? bannerMsg.yFrac : 0.26);
+    bannerMsg.str.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, bannerY + i * 28));
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   }
 
@@ -288,9 +292,10 @@ function fakePodAlpha(now, known) {
 }
 
 /* V6 — the sonic-wave parry fronts (world space). Telegraph knot at the emitter,
-   then a violet ring sweeping to the ship; on landing, a cyan flash if it was
-   flattened (parried) or a violet one if it washed over you. Shape-based so it
-   reads under colorblind; reduced-flash tones the glow. */
+   then a violet ring sweeping to the ship. On a miss it washes over you (a
+   violet ring at the ship); on a parry (V13) it's knocked straight back into
+   whatever cast it, ending in a cyan burst there. Shape-based so it reads
+   under colorblind; reduced-flash tones the glow. */
 function drawWaves(now) {
   if (!level.waves || !level.waves.length) return;
   for (const w of level.waves) {
@@ -307,12 +312,27 @@ function drawWaves(now) {
       ctx.strokeStyle = "rgba(179,136,255," + (0.75 * (1 - p * 0.25)).toFixed(2) + ")";
       ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 5 : 12; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(w.ox, w.oy, r, 0, 7); ctx.stroke();
+    } else if (w.hit) {
+      // V13 (owner steer) — a parried wave doesn't just flash at the ship; the
+      // shield knocks it straight back the way it came, into whatever cast it
+      // (the Vector, or the Solace at the finale), landing as a burst there.
+      const src = w.src && !w.src.dead ? w.src : null;
+      const sx = src ? src.x : w.ox, sy = src ? src.y - 10 : w.oy;
+      const p = clamp((w.t - WAVE_ARRIVE) / WAVE_RETURN, 0, 1);
+      const rx = lerp(ship.x, sx, p), ry = lerp(ship.y, sy, p);
+      ctx.globalAlpha = 1 - p * 0.2;
+      ctx.strokeStyle = "rgb(0,229,255)"; ctx.shadowColor = "#00e5ff";
+      ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(rx, ry, 9, 0, 7); ctx.stroke();
+      if (p >= 1 && !w.returnBurst) {
+        w.returnBurst = true;
+        explode(sx, sy, "#00e5ff", 16);
+      }
     } else {
       const p = (w.t - WAVE_ARRIVE) / (WAVE_LIFE - WAVE_ARRIVE);
-      const col = w.hit ? "0,229,255" : "179,136,255";
       ctx.globalAlpha = (1 - p) * 0.85;
-      ctx.strokeStyle = "rgb(" + col + ")"; ctx.shadowColor = "rgb(" + col + ")";
-      ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = w.hit ? 3 : 2;
+      ctx.strokeStyle = "rgb(179,136,255)"; ctx.shadowColor = "rgb(179,136,255)";
+      ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(ship.x, ship.y, 14 + p * 18, 0, 7); ctx.stroke();
     }
     ctx.restore();
@@ -3302,7 +3322,16 @@ const VET_INTRO = [
   { title: "SOMETHING DOESN'T SIT RIGHT",
     // owner steer on copy — key sentences start on their own line, no run-on
     // split awkwardly across a wrap (see DESIGN_SYSTEM_STARTER.md · Copy).
-    caption: "You brought them home. But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, two questions were never answered.\n\nWhy did her call corrupt? And why did she go down at all?\n\nFly it again. Look closer this time.",
+    // V13 (owner steer) — this used to open with a flat "You brought them
+    // home," even on a run that lost people. lastRunSaved/lastRunLost (set
+    // once, at the ending that finished that run — see saveLastRunTally) let
+    // it say what actually happened instead.
+    caption: () => {
+      const open = lastRunLost === 0
+        ? "You brought them all home."
+        : "You brought " + lastRunSaved + " home. " + lastRunLost + " didn't make it.";
+      return open + " But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, two questions were never answered.\n\nWhy did her call corrupt? And why did she go down at all?\n\nFly it again. Look closer this time.";
+    },
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 40);
       // owner steer — render the ACTUAL surface around one of the lift pads
@@ -3351,12 +3380,17 @@ const VET_INTRO = [
 // VET_INTRO for a veteran's post-completion opening)
 let activeIntro = INTRO;
 
+// V13 — a caption may be a plain string (INTRO) or a fn of current state
+// (VET_INTRO's recap, which varies with how the finished run actually went)
+function resolveCaption(panel) { return typeof panel.caption === "function" ? panel.caption() : panel.caption; }
+
 function drawIntroScreen(now) {
   const pw = Math.min(660, vw - 36);
   const panel = activeIntro[Math.min(introIdx, activeIntro.length - 1)];
+  const caption = resolveCaption(panel);
   // a multi-paragraph caption needs more room below the panel — give the image
   // a little less height so the copy always fits (esp. a 320-high phone)
-  const longCap = (panel.caption.match(/\n/g) || []).length >= 2;
+  const longCap = (caption.match(/\n/g) || []).length >= 2;
   const ph = Math.min(vh * (longCap ? 0.4 : 0.5), 300);
   const px = (vw - pw) / 2, py = vh * 0.09;
 
@@ -3384,7 +3418,7 @@ function drawIntroScreen(now) {
   let capPx = bodyFontPx(13), lines, capLH;
   for (;;) {
     ctx.font = "600 " + capPx + "px Menlo, monospace";
-    lines = wrapText(panel.caption, wrapW);
+    lines = wrapText(caption, wrapW);
     capLH = capPx + 6;
     if (lines.length * capLH <= avail || capPx <= 8) {
       if (lines.length * capLH > avail) capLH = Math.max(capPx + 1, avail / lines.length);
@@ -3869,8 +3903,15 @@ function drawPause(now) {
 function drawConfirm(now) {
   if (!confirmCard) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "rgba(5,6,15,.8)";
+  // V13 (owner steer) — ease the card in over ~0.28s instead of popping up
+  // instantly; lands just before the existing 0.25s input debounce opens.
+  const cIn = clamp(stateT / 0.28, 0, 1);
+  const cEase = 1 - Math.pow(1 - cIn, 3);
+  ctx.fillStyle = "rgba(5,6,15," + (0.8 * cEase).toFixed(2) + ")";
   ctx.fillRect(0, 0, vw, vh);
+  ctx.save();
+  ctx.globalAlpha = cEase;
+  ctx.translate(0, (1 - cEase) * 18);
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,196,0,.75)"; ctx.font = "700 11px Menlo, monospace";
   ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.20);
@@ -3900,6 +3941,7 @@ function drawConfirm(now) {
       ctx.shadowBlur = 0;
     }
   }
+  ctx.restore();
 }
 
 /* SOUND/MUSIC/ASSIST/COLORBLIND/FIELD MEDIC/BIG TEXT all take effect now;
@@ -4052,6 +4094,9 @@ function drawEnding(now) {
 }
 
 function drawWin() {
+  // V13 (owner steer) — burning the Solace isn't a clean win; it gets its own
+  // panel entirely, not a reskinned MISSION COMPLETE (see drawFireEnding).
+  if (endingType === "fire") { drawFireEnding(); return; }
   let rank = "FLIGHT SURGEON, MERCY RESCUE DIVISION";
   if (endingType === "answered") {
     // "eyes open": the oath held AND Glycon's lies were still read (Bundle J3)
@@ -4060,7 +4105,6 @@ function drawWin() {
     else if (firedAtSecret && !firedAtCombat) rank = "HOLLOW KEEPER";
     else rank = "THE ONE WHO ANSWERED";
   }
-  else if (endingType === "fire") rank = "SECTOR WARDEN";
   const spotless = runLost === 0 ? "\nspotless record — no Scion lost" : "";
   const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
   drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
@@ -4068,6 +4112,37 @@ function drawWin() {
     "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
     spotless + serpent +
     "\nrank: " + rank + "\ntap to play again", "#69f0ae");
+}
+
+/* V13 (owner steer) — the bad ending's own end panel: a dark, cooled
+   silhouette of the sister ship you burned (reusing solaceMercyPath — the
+   same hull the destruction reveal drew), under a line that isn't a victory
+   boast. SECTOR WARDEN is still earned (see gc.achieve / GC_ACH.sectorWarden
+   in update.js), but the framing here is regret, not triumph. */
+function drawFireEnding() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.6)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.save();
+  ctx.translate(vw / 2, vh * 0.24);
+  ctx.scale(Math.min(1, vw / 380), Math.min(1, vw / 380));
+  solaceMercyPath();
+  ctx.fillStyle = "rgba(18,12,20,.92)"; ctx.fill();
+  ctx.strokeStyle = "rgba(255,109,0,.5)"; ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = 16;
+  ctx.fillStyle = "#ffab73";
+  ctx.font = "900 " + Math.min(28, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("THERE HAS TO BE A BETTER WAY", vw / 2, vh * 0.47);
+  ctx.shadowBlur = 4;
+  ctx.font = "600 14px Menlo, monospace";
+  ctx.fillStyle = "#dff8ff";
+  ["score " + score + "  ·  hi " + hiscore, tallyLine(), "rank: SECTOR WARDEN", "tap to play again"]
+    .forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.56 + i * 22));
+  ctx.shadowBlur = 0;
 }
 
 function drawCenter(big, small, color) {
@@ -4138,7 +4213,8 @@ window.__doids = {
   // Y3 — the deterministic per-wreck cant (stable frame to frame, RNG-free).
   wreckCant,
   // V6 — sonic-wave introspection + a test hook to arm a wave about to land
-  waves: () => (level.waves || []).map(w => ({ t: +w.t.toFixed(2), done: w.done, hit: w.hit, finale: w.finale })),
+  waves: () => (level.waves || []).map(w => ({ t: +w.t.toFixed(2), done: w.done, hit: w.hit,
+    finale: w.finale, returnBurst: !!w.returnBurst })),   // V13 — the parry knock-back's landing
   armWave: opts => {
     level.waves = level.waves || [];
     const src = (level.oids || []).find(o => o.role === "saboteur");
@@ -4154,6 +4230,15 @@ window.__doids = {
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),
+  // V13 — the "husks" reveal gate (WORKSHOP shrine): before it, a disguised
+  // unit is CORRUPTED not COUNTERFEIT, and there's no clean kill. Exposed so
+  // tests can assert both sides without actually visiting the Hollows.
+  husksKnown: () => husksKnown(),
+  setHusksKnown: () => { shrinesSeen.add(HUSK_SHRINE_IDX); saveShrinesSeen(); },
+  // V13 — the finished run's actual save/loss tally, for the veteran-intro
+  // recap's variable opening line
+  lastRunTally: () => ({ saved: lastRunSaved, lost: lastRunLost }),
+  introCaption: () => resolveCaption(activeIntro[Math.min(introIdx, activeIntro.length - 1)]),
   remix: startRemix,
   daily: startDaily,
   // M1 regression anchor: seed 0 must always produce today's exact levels

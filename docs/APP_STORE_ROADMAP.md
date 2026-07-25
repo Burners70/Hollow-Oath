@@ -1789,6 +1789,46 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   reduced-flash (no screen bloom, dimmer glows). Rank stays `SECTOR WARDEN`.
   `__doids.fireSolace()` + smoke "Bad ending: the Solace can be destroyed by
   fire". COPY_DECK updated.)*
+- [x] **V13a. Owner playtest follow-ups on the bad ending + logic tightening.**
+  *(Shipped.)*
+  - **Bad-ending end panel.** `drawWin()` now branches to its own
+    `drawFireEnding()` for `endingType === "fire"` instead of reusing MISSION
+    COMPLETE — a dark silhouette of the Solace's hull (`solaceMercyPath()`,
+    reused from the destruction reveal) under "THERE HAS TO BE A BETTER WAY."
+    SECTOR WARDEN still stands; the framing is regret, not triumph.
+  - **Variable homecoming line.** The veteran-intro recap's opening line
+    ("You brought them home") was a flat claim regardless of outcome. It's now
+    built from `lastRunSaved`/`lastRunLost` — a fresh pair snapshotted once via
+    `saveLastRunTally()` when `resolveBeacon()` resolves an ending, persisted as
+    `doids_lastrun_tally` — so it reads "You brought them all home" only when
+    true, otherwise "You brought N home. M didn't make it."
+  - **Jenner brief detuned.** `BRIEFS[6]` named the serpent mark/mask outright,
+    scooping LOG 12/13's gradual reveal on a first run. Reworded to keep the
+    dread without the spoiler; COPY_DECK mirrored.
+  - **Signal-wash parry knockback.** `drawWaves()` (`js/render.js`) now sends a
+    parried wave back the way it came — travelling ship → source over
+    `WAVE_RETURN` (0.4 s) and landing as a burst on the Vector (or the Solace at
+    the finale) — instead of only flashing at the ship.
+  - **Graceful early-extraction confirm.** `drawConfirm()` eases in (fade +
+    slight rise) over ~0.28 s instead of popping up instantly, landing just
+    before the existing 0.25 s input debounce opens.
+  - **MERCY-spooling banner repositioned.** `banner()` takes an optional
+    `yFrac`; the S4 "MANIFEST CLOSED — MERCY IS SPOOLING" call now sits lower
+    (0.58) so it clears MERCY and your own ship, both near the top of the
+    screen during the hangar approach.
+  - **Corrupted vs. counterfeit (the big one).** Before the husks are known
+    (`husksKnown()`, `js/world.js` — true once the WORKSHOP shrine, `SHRINES[1]`
+    "THEY WERE NEVER RESCUED," has been found; even a veteran doesn't start a
+    run knowing it), a disguised unit is framed as **CORRUPTED**, not
+    COUNTERFEIT, and the "proven, so it's a clean kill" exception is off: a
+    flagged/catalogued unit still boards (rather than sitting inert on the
+    ground) and must go through the red isolation bay like any other saboteur
+    passenger; destroying one on the ground is malpractice regardless of
+    flagged state. Once the husks are known, all of this reverts to the
+    original rules (clean kill, may be left on the ground). See `husksKnown()`
+    call sites in `js/update.js` (the S5 landed-scan catalogue text + the
+    "dying" kill resolution) and the boarding-exemption change in the oid
+    update loop.
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).

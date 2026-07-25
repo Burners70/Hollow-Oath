@@ -19,7 +19,11 @@ const PARRY_WINDOW_STRICT = 0.09; // E3: the default, stricter window — a real
 const WAVE_WINDUP = 0.5;    // telegraph flash at the emitter before the front sweeps
 const WAVE_TRAVEL = 0.42;   // the front sweeps emitter → ship over this
 const WAVE_ARRIVE = WAVE_WINDUP + WAVE_TRAVEL;   // resolve (check the shield) here
-const WAVE_LIFE = WAVE_ARRIVE + 0.35;            // brief fade after it lands
+const WAVE_RETURN = 0.4;   // V13 — a parried wave's knock-back flight time, ship → source
+// brief fade after it lands — padded past WAVE_RETURN so the knock-back's
+// landing burst (drawWaves, at p>=1) gets at least one render before the wave
+// is pruned from level.waves, rather than being cut on the exact same tick.
+const WAVE_LIFE = WAVE_ARRIVE + Math.max(0.35, WAVE_RETURN + 0.12);
 const WAVE_GAP = 4.2;       // seconds between a Vector's casts while you're in range
 const WAVE_RANGE = 460;     // it only casts when the ship is this near
 const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
@@ -81,8 +85,11 @@ function updateStaticClock(dt) {
 
 let bannerMsg = null;
 /* R8 — in-flight copy lingers longer for a phone held at arm's length; the
-   banner keeps its last-second alpha fade (see render), the float slows. */
-function banner(str, color) { bannerMsg = { str, color, t: 4.2 }; }
+   banner keeps its last-second alpha fade (see render), the float slows.
+   V13 — an optional yFrac (0–1 of screen height) overrides the default
+   top-quarter position, for a banner that would otherwise sit over the
+   action (see the S4 extraction call below). */
+function banner(str, color, yFrac) { bannerMsg = { str, color, t: 4.2, yFrac }; }
 function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 2.6 }); }
 
 function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
@@ -210,7 +217,9 @@ function checkSectorClear() {
    withheld. */
 function beginExtraction(early) {
   level.extraction = { t: 0, pulseT: 0, hold: 0, done: false, beatT: 0, early: !!early };
-  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", "#ffc400");
+  // V13 — lowered (yFrac) so it clears MERCY and your own ship, both up near
+  // the top of the screen during the hangar approach this banner announces.
+  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", "#ffc400", 0.58);
   blip(660, 220, 0.6, "sawtooth", 0.15);
 }
 
@@ -1178,8 +1187,11 @@ function updateOids(dt, now) {
         // with no heartbeat — not one of the medics we came for — so destroying
         // it is no malpractice; it's neutralised, off the manifest, no penalty.
         // An UNidentified unit still costs you: you couldn't know it wasn't a
-        // living medic, and that risk is the whole tension.
-        if (o.role === "saboteur" && o.flagged) {
+        // living medic, and that risk is the whole tension. V13 — that clean
+        // kill is only earned once the husks are known; before then a flagged
+        // unit is only CORRUPTED, not proven, so destroying it stays malpractice
+        // — the isolation bay, not the trigger, is the correct call.
+        if (o.role === "saboteur" && o.flagged && husksKnown()) {
           o.state = "contained"; level.contained++;
           addText(o.x, o.y - 40, "COUNTERFEIT DESTROYED", PAL().REVEAL);
           explode(o.x, o.y - 8, PAL().REVEAL, 18);
@@ -1217,12 +1229,15 @@ function updateOids(dt, now) {
       // S5 / owner steer: with ANTISEPSIS earned, a grounded unit within scan
       // range is READ rather than boarded — it stays "wait" while updateScionScan
       // runs the diagnostic and creeps it slowly toward you. Once verified it
-      // climbs aboard; a catalogued (flagged) counterfeit is left where it lies
-      // and never boards. Without the upgrade there's no read — units board as
-      // they always did.
+      // climbs aboard. A catalogued (flagged) unit, once the husks are known,
+      // is a proven hollow chassis and is left where it lies, never boarding.
+      // Pre-discovery (V13) it's only CORRUPTED, not proven — the correct play
+      // is still to carry it home and hand it to the red isolation bay, so it
+      // boards like anyone else. Without the upgrade there's no read — units
+      // board as they always did.
       const scanCandidate = upgrades.antisepsis && !o.verified && !o.flagged &&
         Math.abs(s.x - o.x) < SCION_SCAN_RANGE && Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20;
-      if (!scanCandidate && !o.flagged) o.state = "walk";
+      if (!scanCandidate && (!o.flagged || !husksKnown())) o.state = "walk";
     }
     if (o.state === "walk") {
       if (!s.landed) { o.state = "wait"; continue; }
@@ -1526,10 +1541,13 @@ function updateScan(dt) {
 
 /* S5 — the landed Scion scan, the diagnostic EARNED by rescuing Semmelweis
    (ANTISEPSIS). Park directly on a waiting unit and hold ~4 s to read its
-   vitals: a counterfeit is CATALOGUED (+250, marked with a permanent "?", may
-   be left on the ground); a real Scion's heartbeat is VERIFIED (no score) and
-   it then boards as normal. Priced in time and exposure. Before you've earned
-   it there is no positive identification — only the behavioural tells. */
+   vitals: a Vector is CATALOGUED (+250, marked with a permanent "?"); a real
+   Scion's heartbeat is VERIFIED (no score) and it then boards as normal.
+   Priced in time and exposure. Before you've earned it there is no positive
+   identification — only the behavioural tells. V13 — a catalogued unit is
+   only proven hollow (COUNTERFEIT, may be left on the ground / destroyed
+   clean) once the husks are known; until then it's only CORRUPTED, so it
+   still boards and must go through the red isolation bay, see husksKnown(). */
 const SCION_SCAN_T = 4;
 const SCION_SCAN_RANGE = 200;   // land anywhere within this to begin reading a grounded unit
 const SCAN_CREEP = 22;          // px/s it drifts toward you while read — far edge ≈ 8s > the 4s read
@@ -1562,10 +1580,11 @@ function updateScionScan(dt) {
   if (target.oidScanT >= SCION_SCAN_T) {
     target.oidScanT = 0;
     if (target.role === "saboteur") {
-      target.flagged = true;   // stays on the ground, catalogued; oath untouched (no shot)
+      target.flagged = true;   // catalogued; oath untouched (no shot) — V13: boards for isolation until the husks are known, then stays put
       score += 250;
       staticTick();
-      addText(target.x, target.y - 44, "CATALOGUED — COUNTERFEIT +250", PAL().REVEAL);
+      addText(target.x, target.y - 44,
+        "CATALOGUED — " + (husksKnown() ? "COUNTERFEIT" : "CORRUPTED") + " +250", PAL().REVEAL);
       checkSectorClear();
     } else {
       target.verified = true;
@@ -2448,6 +2467,7 @@ function resolveBeacon(how) {
   endingFirstRun = !veteran;   // capture BEFORE markVeteran — did this run have the Glycon layer sealed?
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
+  saveLastRunTally();   // V13 — so the next veteran-intro recap can be honest about it
   if (how === "fire") {
     // (owner steer) — the destroy-on-sight order the CMO refused to sign. The
     // killing round IGNITES her exposed broadcast tower; the heat then flows down

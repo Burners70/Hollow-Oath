@@ -77,10 +77,14 @@ Landed (July 2026, Bundle S):
 
 ### 2·V8. Veteran opening (`VET_INTRO`, one panel; shown once after a first completion)
 
-**SOMETHING DOESN'T SIT RIGHT** — "You brought them home. But if all of it — the
-Vectors, the counterfeits, the Static itself — grew from a corruption of the
-Solace's distress call, two questions were never answered. / Why did her call
-corrupt? And why did she go down at all? / Fly it again. Look closer this time."
+**SOMETHING DOESN'T SIT RIGHT** — "You brought them all home." *(or, if the
+finished run lost anyone: "You brought N home. M didn't make it." — V13, the
+opening line is now built from that run's actual `runSaved`/`runLost` tally,
+snapshotted once via `saveLastRunTally()` right as the ending resolves, since
+it often wasn't everyone)* "But if all of it — the Vectors, the counterfeits,
+the Static itself — grew from a corruption of the Solace's distress call, two
+questions were never answered. / Why did her call corrupt? And why did she go
+down at all? / Fly it again. Look closer this time."
 (the `/` marks are authored `\n\n` breaks — each key sentence starts on its own
 line, per DESIGN_SYSTEM_STARTER.md · Copy. The panel shows the **actual
 above-ground terrain** around one of the sector's lift pads, rendered exactly as
@@ -222,11 +226,12 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
    fire; the fakes keep perfect time. Trust nothing that looks too convenient.
    / And if you won't fire on a lie — land beside it and look at it long
    enough."
-6. **JENNER TERRACES** — "Last leg before the nullwave. The counterfeiter has a
-   mark now — ground crews found the same coiled serpent stamped on every lure
-   and every tampered unit. / Archive is still matching it. Whoever wears that
-   mask has been rewriting rescue into ruin for a long time. Bring our people
-   home anyway."
+6. **JENNER TERRACES** — "Last leg before the nullwave. Ground crews are
+   matching patterns across every lure and every tampered unit out here — too
+   many to be coincidence. / Whoever's behind this has been at it a long time,
+   and hasn't finished. Bring our people home anyway." *(V13 — trimmed so a
+   first run doesn't spoil the serpent mark/mask, which LOG 12/13 reveal
+   gradually instead.)*
 7. **THE NULLWAVE** — "Triangulation complete. The source of the Static is
    below the nullwave ridge. / Fleet orders: destroy on sight. The chief medical
    officer refused to sign. Her note is one line — primum non nocere. / Your

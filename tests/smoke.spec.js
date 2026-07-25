@@ -958,9 +958,9 @@ test("S5: the landed scan flags a counterfeit and verifies a real Scion without 
   expect(await page.evaluate(() => !!level.oids[0].flagged)).toBe(false);
 });
 
-test("S5: destroying a PROVEN counterfeit is not malpractice; an unproven one still is", async ({ page }) => {
-  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
-  // a catalogued (flagged) Vector: shooting it neutralises it, no penalty
+test("S5: once the husks are known, destroying a PROVEN counterfeit is not malpractice; an unproven one still is", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.setHusksKnown(); });
+  // a catalogued (flagged) Vector, post-discovery: shooting it neutralises it, no penalty
   let before = await page.evaluate(() => {
     level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
       flagged: true, wave: 0, persona: "wave1", scale: 1 }];
@@ -989,6 +989,38 @@ test("S5: destroying a PROVEN counterfeit is not malpractice; an unproven one st
   s = await page.evaluate(() => __doids.get());
   expect(s.runLost).toBe(1);
   expect(s.score).toBeLessThan(before);   // penalised
+});
+
+test("V13: before the husks are known, a flagged unit is only CORRUPTED — destroying it is still malpractice, and it boards for isolation instead of sitting inert", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  expect(await page.evaluate(() => __doids.husksKnown())).toBe(false);
+  // pre-discovery, a catalogued (flagged) Vector destroyed on the ground is
+  // still malpractice — it's suspected CORRUPTED, not proven hollow
+  const before = await page.evaluate(() => {
+    score = 1000;
+    level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
+      flagged: true, wave: 0, persona: "wave1", scale: 1 }];
+    level.lost = 0; level.contained = 0; runLost = 0;
+    const s = __doids.get().score;
+    killOid(level.oids[0], "shot"); level.oids[0].deathT = 1.35;
+    return s;
+  });
+  await page.waitForTimeout(150);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.runLost).toBe(1);
+  expect(s.score).toBeLessThan(before);   // still penalised, unlike post-discovery
+  // pre-discovery, a flagged unit left standing boards like anyone else (it no
+  // longer sits inert on the ground once catalogued) — the correct play is to
+  // carry it to the red isolation bay, not leave it or shoot it
+  await page.evaluate(() => {
+    level.heights.fill(1000);
+    level.oids = [{ role: "saboteur", state: "wait", x: 740, y: 1000, flagged: true,
+      wave: 0, persona: "wave1", scale: 1, panicT: 0, sabT: 0 }];
+    ship.x = 600; ship.y = 1000 - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false;
+    ship.passengers = [];
+  });
+  await page.waitForFunction(() => level.oids[0].state === "aboard", null, { timeout: 8000 });
+  expect(await page.evaluate(() => ship.passengers.length)).toBe(1);
 });
 
 test("S4: manifest close opens the ventral hangar; bays go inert; the hover-hold clears the sector", async ({ page }) => {
@@ -1635,6 +1667,30 @@ test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", 
   expect(s.state).toBe("brief");
 });
 
+test("V13: the veteran-intro recap names how many actually came home, not a blanket claim", async ({ page }) => {
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  // everything in one tick, as answerBeacon() must be — landing at the beacon
+  // and waiting a frame would trigger the proximity reveal card first (state
+  // flips to "reveal", where updateBeacon stops running and heardParry never
+  // gets checked); answerBeacon sets revealed itself so that branch is skipped
+  await page.evaluate(() => {
+    markTrained(); startFreshRun(); __doids.go(7); __doids.launch(); __doids.warpBeacon();
+    // stamp a tally with a loss before resolving the ending, so the snapshot
+    // saveLastRunTally() takes is deterministic
+    runSaved = 4; runLost = 2;
+    __doids.answerBeacon();
+  });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  expect(await page.evaluate(() => __doids.get().veteran)).toBe(true);
+  expect(await page.evaluate(() => __doids.lastRunTally())).toEqual({ saved: 4, lost: 2 });
+  // the next fresh (veteran) run's opening recap reflects it
+  await page.evaluate(() => { markIntroSeen(); startFreshRun(); });
+  expect(await page.evaluate(() => __doids.get().state)).toBe("intro");
+  expect(await page.evaluate(() => __doids.introCaption())).toContain("You brought 4 home. 2 didn't make it.");
+});
+
 test("V6: parrying a Vector's sonic wave flattens it and catalogues the Vector; a mid-game miss costs half", async ({ page }) => {
   await page.evaluate(() => { __doids.go(5); __doids.launch(); });   // Avicenna Shoals — waves start here
   await page.evaluate(() => {
@@ -1656,6 +1712,12 @@ test("V6: parrying a Vector's sonic wave flattens it and catalogues the Vector; 
   await page.evaluate(() => { input.shield = true; __doids.armWave(); });
   await page.waitForFunction(() => level.oids[0].flagged === true, null, { timeout: 2000 });
   expect(await page.evaluate(() => level.oids[0].flagged)).toBe(true);
+  // V13 — a parried wave is knocked back into whatever cast it, not just
+  // flashed at the ship; give it its return-flight time and confirm the
+  // landing burst fires
+  await page.waitForFunction(
+    () => (__doids.waves() || []).some(w => w.hit && w.returnBurst),
+    null, { timeout: 2000 });
   await page.evaluate(() => { input.shield = false; });
 });
 
@@ -1748,4 +1810,15 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
   // lands on the fire ending card
   await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 9000 });
   expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
+  // V13 — the bad ending gets its own "win" panel (drawFireEnding), not a
+  // reskinned MISSION COMPLETE; tap through and confirm it renders (no JS
+  // error surfaces as a hung/blank page) and the tally is persisted for the
+  // next veteran-intro recap
+  await page.waitForTimeout(1100);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "win", null, { timeout: 2000 });
+  await page.waitForTimeout(100);   // let drawFireEnding actually paint a frame
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
+  expect(await page.evaluate(() => __doids.lastRunTally())).toEqual(
+    await page.evaluate(() => ({ saved: __doids.get().runSaved, lost: __doids.get().runLost })));
 });
