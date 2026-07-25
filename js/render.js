@@ -1327,19 +1327,26 @@ function drawBuilding(sc, now, ruined) {
    float as an invisible edge. Draw a jagged TORN edge along that line so the
    hull always reads as a broken wreck, buried or jutting out over a drop. The
    zigzag is seeded by the wreck's x so it never jitters frame to frame. */
-function tornHullEdge(sc, halfW, rgb) {
-  ctx.save();
-  ctx.translate(sc.x, sc.y);
-  ctx.rotate(sc.tilt);
-  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
-  let r = Math.floor(sc.x) | 1;
+/* Y3 — a ragged torn edge along the hull's broken underside. Drawn in the
+   caller's CURRENT transform — i.e. INSIDE the hull's own translate/rotate/
+   scale — so it tracks the wreck exactly. (It used to set up its own
+   translate(sc.x,sc.y)+rotate(sc.tilt) frame, ignoring the hull's lean/cant/
+   scale/offset, so on the plateau it floated off to one side as a stray line
+   that read as a drawing glitch, not damage.) Runs from local x0..x1 along the
+   hull base at `baseY`, jagging upward; jaggedness is seeded from x so it's
+   stable frame to frame. */
+function tornHullEdge(seedX, x0, x1, baseY, rgb) {
+  let r = Math.floor(seedX) | 1;
   const rnd = () => { r = (r * 1103515245 + 12345) & 0x7fffffff; return r / 0x7fffffff; };
+  const span = x1 - x0, step = Math.max(3, span / 10), jag = Math.min(7, span / 6);
+  ctx.save();
+  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
   ctx.beginPath();
-  let x = -halfW;
-  ctx.moveTo(x, 5);
-  while (x < halfW) {
-    x += 5 + rnd() * 7;
-    ctx.lineTo(Math.min(x, halfW), 5 - rnd() * 7);
+  let x = x0;
+  ctx.moveTo(x, baseY);
+  while (x < x1) {
+    x += step * 0.6 + rnd() * step;
+    ctx.lineTo(Math.min(x, x1), baseY - rnd() * jag);
   }
   ctx.stroke();
   ctx.restore();
@@ -1470,8 +1477,10 @@ function drawWreckM(sc, now) {
   ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
+  // broken underside along the hull base — drawn in the hull frame so it tracks
+  // the (canted/leaned/scaled) wreck; the ground clip still submerges its lower reach
+  tornHullEdge(sc.x, -95, 95, 20, "0,229,255");
   ctx.restore();   // pop the hull transform; the ground clip is still active
-  tornHullEdge(sc, 92, "0,229,255");   // broken underside along the land line — clipped to the span too
   // Y3 — the scar where she bit into the land: a shallow dark gouge that hugs the
   // ground directly under the hull. Clamped to the same plateau span as the clip
   // so it follows the real surface and never trails off a cliff edge into the air.
@@ -1529,8 +1538,9 @@ function drawWreckS(sc, now) {
   ctx.globalCompositeOperation = "source-over";
   ctx.beginPath(); ctx.moveTo(3, 6); ctx.lineTo(7, 4); ctx.lineTo(6, 8);
   glowStroke("rgba(150,140,200,.5)", 1.3);
+  // broken underside along the hull base — in the hull frame so it tracks the tilt
+  tornHullEdge(sc.x, -9, 9, 9, "0,229,255");
   ctx.restore();   // pop the hull transform; the ground clip is still active
-  tornHullEdge(sc, 12, "0,229,255");   // broken underside along the land line
   // scorch trail where it came down — clipped to the span so it doesn't run off a drop
   ctx.strokeStyle = "rgba(30,20,50,.9)"; ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1933,7 +1943,9 @@ function drawHangar(now, active) {
     ctx.globalAlpha = fade;
     ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
-    ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 20);
+    // sit clear of the "A M S · M E R C Y" hull nameplate (hull-frame y≈34, i.e.
+    // my+34): bot is my+20, so bot+34 clears it instead of overlapping at bot+20
+    ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 34);
   }
   ctx.restore();
 }
