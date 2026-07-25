@@ -719,6 +719,15 @@ function updateIntro(dt) {
 
 /* the daily's two modifiers arrive inside the transmission itself — the
    conditions are part of the tasking, not HUD furniture */
+// V9 — the sound-led hook, one per lift-bearing surface sector so it never
+// repeats verbatim. levelIdx % 3 maps the three lift sectors (1,3,5) to three
+// distinct lines; all stay in the "something is below" register without
+// over-promising what the pad's hollow ring can deliver.
+const SOUND_HOOKS = [
+  "And captain — listen when you touch down. Something below the rock is keeping time.",
+  "And captain — is that a sound coming from under the ground?",
+  "And captain — the ground hums where you land here. Tell me you hear it too.",
+];
 function briefText() {
   let t = BRIEFS[levelIdx];
   // V12a — the finale twin is no longer signposted. The old briefing spelled out
@@ -727,10 +736,12 @@ function briefText() {
   // genuinely unexpected, read from the beat you've learned all game, not a
   // printed key. (Also removes the Y7 overspill at source.)
   // V9 — a light, sound-led hook, only where the audio actually delivers it: a
-  // veteran sector that hides a usable lift, whose pad rings hollow underfoot
-  // (U1). No promise the audio can't keep — hence veteran + lvl.lift only.
+  // sector that hides a usable lift, whose pad rings hollow underfoot (U1). No
+  // promise the audio can't keep — hence lvl.lift only. Three surface sectors
+  // carry a lift (VESALIUS/SEMMELWEIS/AVICENNA), so the hook is VARIED per sector
+  // (indexed by levelIdx) rather than the same line repeated each time.
   if (level && level.lift && !level.isCave)
-    t += "\n\nAnd captain — is that a sound coming from under the ground?";
+    t += "\n\n" + SOUND_HOOKS[levelIdx % SOUND_HOOKS.length];
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
       dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n\n" + t;

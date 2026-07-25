@@ -1353,27 +1353,42 @@ function tornHullEdge(seedX, x0, x1, baseY, rgb) {
   ctx.restore();
 }
 
-/* Y3-fix — a ragged vertical bulkhead that CLOSES a hull sheared by the ground
-   clip. Where a wreck sits near a step-down, wreckGroundSpan caps the clip at
-   the ledge and the hull's overhanging side is cut by a hard vertical clip edge
-   with no outline — so it read as unfinished (a "missing vertical line"). We
-   draw a torn metal edge at that boundary, in world space, from the ground up to
-   the hull top, jittering INTO the hull (dir) so it reads as a bulkhead snapped
-   off / buried in the rock. Stable per wreck (seeded from x). */
-function tornBulkhead(x, yTop, yBot, rgb, dir, seedX) {
+/* Y3-fix — the torn face of a hull SHEARED by the ground clip. Where a wreck
+   sits near a step-down, wreckGroundSpan caps the clip at the ledge and the
+   hull's overhanging side is cut by a hard, outline-less vertical clip edge — so
+   it read as unfinished. This closes that cut with a ragged vertical edge that
+   spans only the hull's OWN cross-section there (yTop..yBot from wreckMEdge), so
+   it reads as "this part of the ship was sheared off", NOT a bracket rising
+   above the deck or a line running down the cliff face. Jitter is symmetric
+   (a torn edge, not a bow) and seeded from x so it's stable frame to frame. */
+function tornBulkhead(x, yTop, yBot, rgb, seedX) {
+  if (yBot <= yTop) return;
   let r = Math.floor(seedX + x) | 1;
   const rnd = () => { r = (r * 1103515245 + 12345) & 0x7fffffff; return r / 0x7fffffff; };
   ctx.save();
-  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.8; ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(" + rgb + ",.45)"; ctx.lineWidth = 2; ctx.lineJoin = "round";
   ctx.beginPath();
-  ctx.moveTo(x, yBot);
   let y = yBot;
+  ctx.moveTo(x + (rnd() - 0.5) * 4, y);
   while (y > yTop) {
-    y -= 4 + rnd() * 6;
-    ctx.lineTo(x + dir * rnd() * 6, Math.max(y, yTop));
+    y -= 2.5 + rnd() * 3.5;
+    ctx.lineTo(x + (rnd() - 0.5) * 5, Math.max(y, yTop));
   }
   ctx.stroke();
   ctx.restore();
+}
+
+/* the MERCY-class hull's top and bottom silhouette (world y) at a given world x,
+   so a sheared-face bulkhead matches the ship's cross-section right there —
+   short at the nose, full through the body. Rotation is tiny; ignore it. */
+function wreckMEdge(sc, worldX) {
+  const sc62 = sc.s * 0.62;
+  const ax = Math.abs((worldX - sc.x) / sc62);
+  let topL, botL;
+  if (ax >= 145) { topL = 0; botL = 0; }
+  else if (ax >= 95) { const f = (145 - ax) / 50; topL = -22 * f; botL = 20 * f; }
+  else { topL = -22; botL = 20; }   // deck..underside (never the tower — shears hit the flanks)
+  return { top: sc.y + 4 + topL * sc62, bot: sc.y + 4 + botL * sc62 };
 }
 
 /* QA3 — the breach used to be a couple of stroked lines drawn ON TOP of one
@@ -1506,10 +1521,11 @@ function drawWreckM(sc, now) {
   tornHullEdge(sc.x, -95, 95, 20, "0,229,255");
   ctx.restore();   // pop the hull transform; the ground clip is still active
   // Y3-fix — if the ground clip sheared a side of the hull at a ledge, close that
-  // cut with a ragged bulkhead so it reads as broken/buried, not unfinished
-  const reachM = 132 * sc.s * 0.62, topM = sc.y + 4 - 34 * sc.s * 0.62;
-  if (span.lo > sc.x - reachM + 4) tornBulkhead(span.lo, topM, groundAt(span.lo) + 6, "0,229,255", 1, sc.x);
-  if (span.hi < sc.x + reachM - 4) tornBulkhead(span.hi, topM, groundAt(span.hi) + 6, "0,229,255", -1, sc.x);
+  // cut with a ragged torn FACE across the hull's cross-section there, so it
+  // reads as a sheared-off section (not a bracket over the deck / a cliff line)
+  const reachM = 132 * sc.s * 0.62;
+  if (span.lo > sc.x - reachM + 4) { const e = wreckMEdge(sc, span.lo); tornBulkhead(span.lo, e.top, e.bot, "0,229,255", sc.x); }
+  if (span.hi < sc.x + reachM - 4) { const e = wreckMEdge(sc, span.hi); tornBulkhead(span.hi, e.top, e.bot, "0,229,255", sc.x); }
   // Y3 — the scar where she bit into the land: a shallow dark gouge that hugs the
   // ground directly under the hull. Clamped to the same plateau span as the clip
   // so it follows the real surface and never trails off a cliff edge into the air.
@@ -2190,6 +2206,22 @@ function drawSolaceDeath(b, now) {
   ctx.lineWidth = 2.6; ctx.lineJoin = "round";
   ctx.stroke();
   ctx.shadowBlur = 0;
+  // her command tower + big antenna mast — the MERCY-class tells, so she reads
+  // unmistakably as a ship even as she burns. The mast cants over as she dies.
+  ctx.save();
+  ctx.globalAlpha = 0.35 + 0.65 * heat;
+  ctx.beginPath();
+  ctx.moveTo(-50, 6); ctx.lineTo(-40, -22); ctx.lineTo(-26, -50);
+  ctx.lineTo(26, -50); ctx.lineTo(40, -22); ctx.lineTo(50, 6);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(70,24,10," + (0.5 * heat).toFixed(2) + ")"; ctx.fill();
+  ctx.strokeStyle = "rgba(255," + gEdge + "," + bEdge + ",.85)";
+  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = reducedFlash ? 3 : 11; ctx.lineWidth = 2.4;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.rotate(0.22 * (1 - heat));   // the mast tips as she goes
+  mercyAntenna(now, "255," + gEdge + "," + bEdge, false);
+  ctx.restore();
   // fracture cracks that open across her as she comes apart (after the first beat)
   const crack = clamp((t - 0.3) / 0.9, 0, 1);
   if (crack > 0) {

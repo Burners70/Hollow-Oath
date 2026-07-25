@@ -91,10 +91,14 @@ launch straight into the tasking. Re-shows after a RESET PROGRESS wipe.)*
 
 ### 2·V9. Sound-led sector hook (appended by `briefText()`)
 
-On a **veteran, lift-bearing surface sector** (where the pad rings hollow
-underfoot — U1), the briefing gains one line: *"And captain — is that a sound
-coming from under the ground?"* Only where the audio tell exists — never a
-promise the sound can't keep.
+On a **lift-bearing surface sector** (where the pad rings hollow underfoot —
+U1), the briefing gains one line. Three sectors carry a lift, so the hook is
+**varied per sector** (`SOUND_HOOKS[levelIdx % 3]`) rather than repeating the
+same line each time — all in the "something is below" register, none promising
+what the pad's hollow ring can't deliver:
+- *"And captain — listen when you touch down. Something below the rock is keeping time."*
+- *"And captain — is that a sound coming from under the ground?"*
+- *"And captain — the ground hums where you land here. Tell me you hear it too."*
 
 ## 3. HOW TO FLY guide (`GUIDE` / `GUIDE_PAGES`) — X1
 
