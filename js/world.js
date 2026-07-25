@@ -635,6 +635,34 @@ function flatten(heights, cx, halfW) {
   return y;
 }
 
+function groundOf(heights, x) {
+  const i = clamp(Math.floor(x / STEP), 0, heights.length - 2);
+  return lerp(heights[i], heights[i + 1], clamp(x / STEP - i, 0, 1));
+}
+
+/* V2 — scan-jeopardy fairness. Is there a landable spot from which a landed scan
+   of the Scion at cx COMPLETES before the Scion creeps to the hatch and boards
+   unread? The band is derived from the scan/creep constants (updateScionScan):
+   the read takes SCION_SCAN_T seconds at the base rate, over which the Scion
+   closes SCAN_CREEP·that px toward the hatch (~15px), so the touchdown must be
+   beyond ~110px yet within the SCION_SCAN_RANGE read radius — on ground shallow
+   enough to land (slope < the 0.25 landing max) and within 70px vertically so
+   the read can even start. Only the touchdown must be shallow; the Scion's
+   approach may be up or down a slope it walks. */
+function scanSpotOK(heights, W, cx) {
+  const g = x => groundOf(heights, x);
+  const LO = 15 + SCAN_CREEP * SCION_SCAN_T + 7;   // ~110 — read finishes before the hatch
+  const HI = SCION_SCAN_RANGE - 5;                 // ~195 — still inside the read radius
+  const gy0 = g(cx);
+  for (const side of [-1, 1])
+    for (let d = LO; d <= HI; d += 3) {
+      const x = cx + side * d;
+      if (x < 40 || x > W - 40) continue;
+      if (Math.abs(g(x + 10) - g(x - 10)) / 20 < 0.25 && Math.abs(g(x) - gy0) < 70) return true;
+    }
+  return false;
+}
+
 /* per-sector recipe: each sector introduces one new element.
    scn = decorative scenery counts; fakes = Glycon's counterfeit fuel pods;
    lift marks the sectors whose ground hides a secret lift into the Hollows. */
@@ -876,6 +904,33 @@ function genLevel(n) {
     if (veteran)
       lvl.fakeMercy = { x: W * 0.45, y: 170, dead: false, dockT: 0, scanT: 0 };
   }
+
+  // V2 — scan-jeopardy fairness invariant: every scannable Scion must have a
+  // landable spot in the scan-distance band (see scanSpotOK). Where the terrain
+  // doesn't offer one, widen the Scion's own flat pad until it does —
+  // deterministic, no RNG, so only the heightmap changes and only where needed
+  // (a Scion in a clearing you can always back off from, never a rigged loss).
+  // Run as a final pass over the settled terrain, iterated a few times so it
+  // holds even where widening one pad nicks a neighbour's band.
+  const scannableOid = o => o.role === "normal" || o.role === "saboteur" || o.role === "famous";
+  for (let pass = 0; pass < 5; pass++) {
+    let changed = false;
+    for (const o of lvl.oids) {
+      if (!scannableOid(o)) continue;
+      let hw = 80;
+      while (hw < 150 && !scanSpotOK(heights, W, o.x)) { hw += 14; flatten(heights, o.x, hw); changed = true; }
+    }
+    if (!changed) break;
+  }
+  // re-seat ground-anchored entities in case a widened pad moved the ground
+  // under them (turrets are re-seated with the scenery pass below)
+  for (const o of lvl.oids) o.y = groundOf(heights, o.x);
+  for (const p of lvl.pods) p.y = groundOf(heights, p.x);
+  for (const p of lvl.fakePods) p.y = groundOf(heights, p.x);
+  if (lvl.blackbox) lvl.blackbox.y = groundOf(heights, lvl.blackbox.x);
+  if (lvl.beacon) lvl.beacon.y = groundOf(heights, lvl.beacon.x);
+  if (lvl.liftPad) lvl.liftPad.y = groundOf(heights, lvl.liftPad.x);
+  if (lvl.lift) lvl.lift.y = groundOf(heights, lvl.lift.x);
 
   // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
   const gy = x => {

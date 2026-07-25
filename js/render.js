@@ -3727,6 +3727,12 @@ window.__doids = {
   fakePodAlpha: (now, known) => fakePodAlpha(now, known),
   // Y3 — the deterministic per-wreck cant (stable frame to frame, RNG-free).
   wreckCant,
+  // V2 — x of every scannable Scion that LACKS a fair scan-landing spot in the
+  // current level (empty array = the fairness invariant holds).
+  scanSpotFailures: () => (level.oids || [])
+    .filter(o => o.role === "normal" || o.role === "saboteur" || o.role === "famous")
+    .filter(o => !scanSpotOK(level.heights, level.W, o.x))
+    .map(o => Math.round(o.x)),
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),

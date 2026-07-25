@@ -254,7 +254,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
 test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", async ({ page }) => {
   await page.evaluate(() => __doids.go(1));
   let sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1488047869);   // golden checksum: authored VESALIUS RIDGE terrain (T1 widths)
+  expect(sum).toBe(1837799405);   // golden checksum: authored VESALIUS RIDGE terrain (T1 widths)
   // remix: fresh seed, 7 famous minds drawn from the wider pool, briefing up
   await page.evaluate(() => __doids.remix());
   let s = await page.evaluate(() => __doids.get());
@@ -264,11 +264,11 @@ test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", as
   expect(s.state).toBe("brief");
   await page.evaluate(() => __doids.go(1));
   const remixSum = await page.evaluate(() => __doids.heightChecksum());
-  expect(remixSum).not.toBe(1488047869);
+  expect(remixSum).not.toBe(1837799405);
   // a fresh campaign run restores seed 0 and the exact authored terrain
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
   sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1488047869);
+  expect(sum).toBe(1837799405);
 });
 
 test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page }) => {
@@ -1490,7 +1490,7 @@ test("Y3: wrecks generate on wreck sectors; the per-wreck cant is stable and RNG
   // the authored terrain is untouched by the wreck work (no RNG draw added) —
   // seed 0 still reproduces VESALIUS RIDGE's golden heightmap (see Bundle M)
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
-  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1488047869);
+  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1837799405);
 });
 
 test("Y4: counterfeit pods only blink loud with Avicenna; a subtle Static-beat dip without", async ({ page }) => {
@@ -1531,4 +1531,24 @@ test("Y5: the secret lift pad is marked on EVERY run, even pre-veteran", async (
   expect(v.level.lift).toBeTruthy();
   expect(v.level.liftPad).toBeTruthy();
   expect(v.level.liftPad.x).toBe(v.level.lift.x);
+});
+
+test("V2: every scannable Scion has a fair scan-landing spot (campaign + REMIX)", async ({ page }) => {
+  // fairness invariant: from some reachable, landable spot the scan must finish
+  // before the Scion creeps to the hatch — guaranteed at generation (widened
+  // pads). __doids.scanSpotFailures() returns the x of any Scion without one.
+  for (let n = 0; n < 8; n++) {
+    await page.evaluate(i => __doids.go(i), n);
+    const fails = await page.evaluate(() => __doids.scanSpotFailures());
+    expect(fails, `campaign sector ${n}`).toEqual([]);
+  }
+  // the invariant must also hold across the REMIX seed space
+  for (let k = 0; k < 8; k++) {
+    await page.evaluate(() => __doids.remix());
+    for (let n = 0; n < 7; n++) {
+      await page.evaluate(i => __doids.go(i), n);
+      const fails = await page.evaluate(() => __doids.scanSpotFailures());
+      expect(fails, `remix run #${k} sector ${n}`).toEqual([]);
+    }
+  }
 });

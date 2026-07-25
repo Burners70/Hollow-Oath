@@ -1085,7 +1085,7 @@ checksum deliberately).**
 
 **Status (shipped):** the launch core **T1–T3 + T6 are done** on the web build.
 Progressive widths + distance-scaled fuel pods (golden checksum updated to
-`1488047869`), per-sector biome palettes (grad/stroke/glow + `night`/`star`
+`1837799405`), per-sector biome palettes (grad/stroke/glow + `night`/`star`
 tints, caves keep the Static violet), biome ornamentation (boulders, reeds +
 ward-lanterns that light the dark, ice spires, banded dunes, hedgerows) with
 per-sector surface ambience (wind on the shoals, insect shimmer over the
@@ -1553,8 +1553,20 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   here only because it was raised as a "1.01 fix". See Bundle Q's split note.
   Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
   checkpoint serialization (`doids_run`, `__doids.go(n)`).
-- [ ] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
-  cheat).** Today you often can't land far enough from a Scion for a scan to
+- [x] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
+  cheat).** *(Shipped — generation invariant. `scanSpotOK(heights,W,cx)`
+  (`js/world.js`) derives, from the scan/creep constants, the band of landable
+  touchdowns from which a read finishes before the creeping Scion reaches the
+  hatch (beyond ~110px, within `SCION_SCAN_RANGE`, slope < the 0.25 landing max,
+  within 70px vertically). A final generation pass widens each scannable Scion's
+  own flat pad — deterministically, no RNG, only where the terrain doesn't
+  already offer a spot — until the invariant holds, then re-seats ground-anchored
+  entities. Measured 13/62 campaign + ~21% of REMIX Scions failing before →
+  0/62 and 0/720 after. The creep behaviour (a) is unchanged: Scions already
+  approach the ship rather than flee. `__doids.scanSpotFailures()` exposes the
+  invariant; smoke: "V2 every scannable Scion has a fair scan-landing spot"
+  (campaign + 8 REMIX seeds). Reshapes a few pads, so the M1 golden heightmap
+  was intentionally updated (1488047869 → 1837799405).)* Today you often can't land far enough from a Scion for a scan to
   complete before it reaches you, which reads as a rigged loss. Two changes:
   (a) a **running** Scion should stop fleeing and start *approaching* the ship;
   (b) generation/tuning must guarantee there is *always* a reachable landing
@@ -1666,7 +1678,10 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
 - [ ] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
   to expose new state (Solace pulse, heard-scan parry, fly-back availability, the
   counterfeit-MERCY reveal V12); add tests for the V2 fairness invariant and V1
-  return-travel round-trip.
+  return-travel round-trip. *(In progress: the V2 fairness invariant is covered —
+  `__doids.scanSpotFailures()` + the campaign/REMIX smoke test — and the M1
+  golden checksum updated for V2's pad-widening. The remaining assertions land
+  with their features.)*
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).
