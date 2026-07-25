@@ -2080,6 +2080,38 @@ function drawBeacon(now) {
   const b = level.beacon;
   ctx.save();
   ctx.translate(b.x, b.y);
+  // V3 — the sonar hull pulse: once she's named, her whole drowned shape sweeps
+  // back into view on reveal and on every Static beat. An x-ray outline over the
+  // terrain (that IS sonar) — bright near the surface, dull deep — clipped to an
+  // expanding sweep so it "draws in", fading with sonarT. Drawn behind the tower.
+  if (b.sonarT > 0) {
+    const p = 1 - b.sonarT / SONAR_DUR;
+    const puls = Math.sin(Math.min(1, p) * Math.PI);
+    const sweepR = 30 + p * 340;
+    const HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
+                  [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
+    ctx.beginPath();
+    ctx.moveTo(HULL[0][0], HULL[0][1]);
+    for (let i = 1; i < HULL.length; i++) ctx.lineTo(HULL[i][0], HULL[i][1]);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, -50, 0, 190);
+    g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
+    g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
+    g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
+    ctx.strokeStyle = g; ctx.lineWidth = 2;
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
+    ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = puls * 0.55;
+    ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.stroke();
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
   // Owner steer: the Static's source is the top of a half-buried ship breaking
   // the nullwave ridge — and it carries AMS MERCY's own big antenna. On the
   // ANSWER it lights MERCY-cyan and gives up its name: her lost sister, SOLACE.

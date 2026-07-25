@@ -1636,3 +1636,18 @@ test("V6: parrying a Vector's sonic wave flattens it and catalogues the Vector; 
   expect(await page.evaluate(() => level.oids[0].flagged)).toBe(true);
   await page.evaluate(() => { input.shield = false; });
 });
+
+test("V3: landing beside the finale source reveals AMS Solace and pulses her hull", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    (level.oids || []).forEach(o => o.x = -9999);
+    const bx = level.beacon.x;
+    ship.x = bx - 70; ship.y = __doids.ground(bx - 70) - 11;
+    ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 2000 });
+  const s = await page.evaluate(() => ({ revealed: level.beacon.revealed, sonarT: level.beacon.sonarT }));
+  expect(s.revealed).toBe(true);
+  expect(s.sonarT).toBeGreaterThan(0);   // her hull is pulsing back into view
+});

@@ -1577,7 +1577,16 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   approach logic (`updateScionScan`, the `scanCandidate` gate and `"wait"` /
   `"run"` states around `js/update.js:1131`), `SCAN_T`, `scanRate()`,
   `slopeAt()` and the walkability the Scion uses to climb.
-- [ ] **V3. The Solace reveal — a proper beat.** The discovery currently lacks
+- [x] **V3. The Solace reveal — a proper beat.** *(Shipped. Landing beside the
+  finale source now names it — banner **"AMS SOLACE — MERCY'S LOST SISTER"** +
+  `ringHollow()` — and fires a **sonar hull pulse** (`drawBeacon`, gated on
+  `beacon.revealed`/`beacon.sonarT`, `SONAR_DUR`): her whole drowned hull sweeps
+  into view as an x-ray outline over the terrain, bright near the surface and
+  dull deep, clipped to an expanding sweep so it "draws in". It re-pulses on
+  every 41-second Static beat (hooked in `updateStaticClock`). Respects
+  reduced-flash. Smoke: "V3 landing beside the finale source reveals AMS Solace".
+  The answer mechanic itself is reworked with V12 (the V6 wave-parry answer).)*
+  The discovery currently lacks
   a moment. Make the **first scan announce it is the top of a sister ship, the
   AMS Solace** (big reveal, not a whisper). On scan completion, trigger a
   **sonar-style pulse that draws the whole hull shape** — including the

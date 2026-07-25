@@ -24,6 +24,7 @@ const WAVE_GAP = 4.2;       // seconds between a Vector's casts while you're in 
 const WAVE_RANGE = 460;     // it only casts when the ship is this near
 const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
 const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counterfeits
+const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
 const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
@@ -60,6 +61,8 @@ function updateStaticClock(dt) {
     const near = 1 - clamp(d / 2200, 0, 1);
     staticSurge = 1.2;
     camera.shake += 2 + 4 * near;
+    // V3 — once she's named, her whole hull pulses back into view on the beat
+    if (level.beacon.revealed) level.beacon.sonarT = SONAR_DUR;
   } else {
     staticSurge = 0.6;
   }
@@ -2377,6 +2380,15 @@ function updateBeacon(dt) {
   const b = level.beacon;
   if (!b || b.resolved) return;
   const s = ship;
+  if (b.sonarT > 0) b.sonarT = Math.max(0, b.sonarT - dt);
+  // V3 — the reveal beat: land beside the source and it gives up its name, the
+  // AMS SOLACE, with a sonar pulse that draws her whole drowned hull. From then
+  // on she pulses back on every 41-second Static beat (see updateStaticClock).
+  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) {
+    b.revealed = true; b.sonarT = SONAR_DUR;
+    banner("AMS SOLACE — MERCY'S LOST SISTER", "#aef4ff");
+    ringHollow();
+  }
   if (s.landed && Math.abs(s.x - b.x) < 90) {
     // Owner steer / the science of "being heard": answering isn't just landing
     // nearby — you transmit her OWN looping distress heartbeat back to her, in
