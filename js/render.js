@@ -1149,7 +1149,7 @@ function drawSpire(sc, now) {
   ctx.moveTo(-w, 0); ctx.lineTo(-w * 0.4, -h * 0.55); ctx.lineTo(0, -h);
   ctx.lineTo(w * 0.4, -h * 0.5); ctx.lineTo(w, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(120,110,200,.16)"; ctx.fill();
+  ctx.fillStyle = "rgba(120,110,200,.16)"; ctx.fill();   // ice/crystal — see-through BY MATERIAL (layering rule §2)
   glowStroke("rgba(166,255,156,.5)", 1.6);
   ctx.restore();
   const g = 0.3 + 0.2 * Math.abs(Math.sin(now * 1.2 + sc.ph));
@@ -1165,7 +1165,7 @@ function drawDune(sc, now) {
   ctx.quadraticCurveTo(-w * 0.15, -w * 0.16, 0, -w * 0.2);
   ctx.quadraticCurveTo(w * 0.25, -w * 0.16, w / 2, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(28,22,8," + DECO_ALPHA + ")"; ctx.fill();
+  ctx.fillStyle = "rgba(28,22,8," + SOLID_ALPHA + ")"; ctx.fill();   // solid sand mass — occludes (layering rule)
   glowStroke("rgba(230,200,95,.4)", 1.4);
   ctx.save();
   ctx.globalAlpha = 0.3; ctx.strokeStyle = "rgba(230,200,95,.5)"; ctx.lineWidth = 1;
@@ -1194,7 +1194,7 @@ function drawHedge(sc, now) {
   }
   ctx.lineTo(w / 2, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(20,38,15," + DECO_ALPHA + ")"; ctx.fill();
+  ctx.fillStyle = "rgba(20,38,15," + SOLID_ALPHA + ")"; ctx.fill();   // dense hedge mass — occludes (layering rule)
   glowStroke("rgba(168,227,154,.4)", 1.4);
   ctx.restore();
 }
@@ -1217,7 +1217,7 @@ function drawTree(sc, now) {
   ctx.moveTo(0.6, -h * 0.45); ctx.lineTo(8 + sway * 2, -h * 0.7);
   ctx.moveTo(0, -h * 0.6); ctx.lineTo(-7 + sway * 2, -h * 0.85);
   ctx.stroke();
-  ctx.fillStyle = "rgba(0,191,165,.1)";
+  ctx.fillStyle = "rgba(0,191,165,.1)";   // airy foliage — see-through BY MATERIAL (layering rule §2)
   const puff = (px, py, r) => {
     ctx.beginPath(); ctx.arc(px + sway * 3, py, r, 0, 7);
     ctx.fill();
@@ -1242,7 +1242,7 @@ function drawRockScn(sc, now) {
   ctx.scale(sc.s, sc.s);
   const breathe = sc.hollow ? 0.16 * Math.sin(now * 1.1 + sc.ph) : 0;
   ctx.strokeStyle = "rgba(150,140,200," + (0.4 + breathe).toFixed(2) + ")";
-  ctx.fillStyle = "rgba(20,16,49," + DECO_ALPHA + ")";
+  ctx.fillStyle = "rgba(20,16,49," + SOLID_ALPHA + ")";   // solid stone — occludes (layering rule)
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   sc.verts.forEach(([vx, vy], i) => i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy));
@@ -1250,28 +1250,30 @@ function drawRockScn(sc, now) {
   ctx.restore();
 }
 
-/* QA1 — every entry in drawScenery() is purely decorative: drawScenery has no
-   ship-collision check at all, only terrain/turrets/drones/bullets and the
-   fake/hollow secrets (shootable, not collidable) can end a flight. Terrain
-   fills fully opaque (buildHeightTile); every decorative fill below stays
-   translucent instead, on purpose, so "solid" vs. "flavour" reads at a
-   glance without inventing a second colour language on top of H1/H2. */
-const DECO_ALPHA = 0.4;
-// buildings are the one decorative shape this reads badly on: a big flat
-// rectangular mass at DECO_ALPHA lets the terrain it should be standing in
-// front of show through crisply — an X-ray glitch, not "flavour," where the
-// same translucency reads fine on trees/hedges/rocks (small or organic
-// silhouettes) and on the wrecks (translucent = intentionally damaged).
-// Found on-device: a building on sloped ground showed the hillside's own
-// outline passing straight through it. Kept solid enough to actually occlude
-// what's behind it, just a touch softer than terrain's full opacity.
-const BUILDING_ALPHA = 0.82;
-// VESALIUS's stacked boulders hit the same X-ray glitch as buildings, but worse
-// because they OVERLAP: at DECO_ALPHA a front rock in the pile fails to hide the
-// rocks (and the trees / lift pad) behind it, so the stack reads as a tangle of
-// wireframes rather than a solid heap. Kept opaque enough to occlude, like the
-// buildings, while the neon edge stroke still carries the flavour.
-const BOULDER_ALPHA = 0.9;
+/* ===== LAYERING STANDARD (the "one is always in front" rule) =====
+   drawScenery() is purely decorative (no ship-collision — only terrain / turrets
+   / drones / bullets and the shootable fake/hollow secrets end a flight). But
+   decoration must still respect depth: the terrain is fully opaque, and anything
+   layered over it has to read as clearly IN FRONT OF or BEHIND it — never a
+   translucent overlap where the hillside's own outline shows straight through an
+   object ("X-ray glitch").
+
+   The rule, applied to every drawn element:
+   1. A SOLID MASS in the landscape — rock, dune, hedge, building, boulder, the
+      wrecks — fills its body at SOLID_ALPHA (near-opaque), so it OCCLUDES the
+      terrain and any scenery behind it. Draw order (drawWorld) already puts
+      scenery after terrain, so opaque body + drawn-after = reliably "in front".
+   2. Only a genuinely NON-SOLID MATERIAL may stay see-through, and only where
+      the translucency reads AS that material, not as a bug: airy foliage (tree
+      canopies), ice/crystal (Curie spires), thin line-art with no body to X-ray
+      (reeds, lantern poles), and flat surface accents that lie ON the ground
+      (dune bands, salt-pan sheen, the lift-pad seam). Each is deliberately faint
+      at its own draw site, noted there.
+   Found on-device three times — a building, a boulder stack, then an Avicenna
+   dune — all the same root cause (a solid mass left at the old 0.4 deco alpha),
+   so it's ONE shared constant now rather than a per-shape patch. */
+const SOLID_ALPHA = 0.88;
+const BUILDING_ALPHA = SOLID_ALPHA, BOULDER_ALPHA = SOLID_ALPHA;
 
 /* settlements: intact towers with lit windows, and what's left of them */
 function drawBuilding(sc, now, ruined) {
