@@ -1070,7 +1070,7 @@ function drawBoulder(sc, now) {
     } else {
       ctx.arc(b.dx, b.dy, b.r, 0, 7);   // legacy fallback
     }
-    ctx.fillStyle = "rgba(27,15,6," + DECO_ALPHA + ")"; ctx.fill();
+    ctx.fillStyle = "rgba(27,15,6," + BOULDER_ALPHA + ")"; ctx.fill();
     glowStroke("rgba(224,151,90,.5)", 1.6);
   }
   ctx.restore();
@@ -1231,6 +1231,12 @@ const DECO_ALPHA = 0.4;
 // outline passing straight through it. Kept solid enough to actually occlude
 // what's behind it, just a touch softer than terrain's full opacity.
 const BUILDING_ALPHA = 0.82;
+// VESALIUS's stacked boulders hit the same X-ray glitch as buildings, but worse
+// because they OVERLAP: at DECO_ALPHA a front rock in the pile fails to hide the
+// rocks (and the trees / lift pad) behind it, so the stack reads as a tangle of
+// wireframes rather than a solid heap. Kept opaque enough to occlude, like the
+// buildings, while the neon edge stroke still carries the flavour.
+const BOULDER_ALPHA = 0.9;
 
 /* settlements: intact towers with lit windows, and what's left of them */
 function drawBuilding(sc, now, ruined) {
@@ -1350,6 +1356,19 @@ function wreckMBreachClip(side) {
   ctx.clip();
 }
 
+/* Y3 — the contiguous ground span around a wreck to clip against. It extends
+   THROUGH rises (a rise still occludes the hull) but stops where the land drops
+   away by more than `cap` — a cliff / chasm edge — so the hull is sheared at the
+   edge rather than left hanging out over the void (the "poke out where the land
+   drops away" half of the original report). */
+function wreckGroundSpan(cx, halfW, cap) {
+  const base = groundAt(cx);
+  let lo = cx, hi = cx;
+  for (let x = cx - 4; x >= cx - halfW; x -= 4) { if (groundAt(x) - base > cap) break; lo = x; }
+  for (let x = cx + 4; x <= cx + halfW; x += 4) { if (groundAt(x) - base > cap) break; hi = x; }
+  return { lo, hi };
+}
+
 /* Y3 — a stable per-wreck cant seeded from x, so about half of the downed
    motherships lie canted rather than perfectly flat. Deterministic (frame to
    frame steady) and RNG-free, so world generation stays byte-identical. */
@@ -1365,8 +1384,11 @@ function drawWreckM(sc, now) {
   // ground height, so a rise in front of the wreck submerges it naturally. The
   // clip is set in world space first, then the hull's own transform is applied
   // on top; everything above the ground line — breach, emblem, hull tag —
-  // renders as before, everything below is cut by the actual land.
-  clipAboveGround(sc.x - 170, sc.x + 170);
+  // renders as before, everything below is cut by the actual land. The span is
+  // capped at a cliff edge so the hull shears there instead of hanging over a drop.
+  const span = wreckGroundSpan(sc.x, 132, 28);
+  clipAboveGround(span.lo, span.hi);
+  ctx.save();   // hull transform, kept inside the ground clip
   // Y3 — some downed motherships lie canted, not flat (see wreckCant).
   const cant = wreckCant(sc.x);
   ctx.translate(sc.x, sc.y);
@@ -1409,20 +1431,26 @@ function drawWreckM(sc, now) {
   ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
-  ctx.restore();
-  tornHullEdge(sc, 92, "0,229,255");   // broken underside along the land line
-  // Y3 — the scar where she bit into the land: a shallow dark gouge along the
-  // ground under the wreck, so a mothership reads as having crashed, not parked.
-  ctx.save();
-  ctx.strokeStyle = "rgba(14,10,26,.8)"; ctx.lineWidth = 3; ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(sc.x - 66 * sc.s, groundAt(sc.x - 66 * sc.s) + 2);
-  ctx.quadraticCurveTo(sc.x, sc.y + 8, sc.x + 58 * sc.s, groundAt(sc.x + 58 * sc.s) + 2);
-  ctx.stroke();
-  ctx.restore();
+  ctx.restore();   // pop the hull transform; the ground clip is still active
+  tornHullEdge(sc, 92, "0,229,255");   // broken underside along the land line — clipped to the span too
+  // Y3 — the scar where she bit into the land: a shallow dark gouge that hugs the
+  // ground directly under the hull. Clamped to the same plateau span as the clip
+  // so it follows the real surface and never trails off a cliff edge into the air.
+  const s0 = Math.max(span.lo, sc.x - 66 * sc.s), s1 = Math.min(span.hi, sc.x + 58 * sc.s);
+  if (s1 > s0) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(14,10,26,.8)"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(s0, groundAt(s0) + 2);
+    for (let x = s0 + 8; x < s1; x += 8) ctx.lineTo(x, groundAt(x) + 2);
+    ctx.lineTo(s1, groundAt(s1) + 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (Math.random() < 0.006) particles.push({
     x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
     t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
+  ctx.restore();   // pop the ground clip (spanned tornHullEdge + scar)
 }
 
 /* one of ours — a rescue dart that didn't make it. It's the SAME hull the player
@@ -1432,8 +1460,11 @@ function drawWreckS(sc, now) {
   ctx.save();
   // Y3 — bury against the real terrain profile (set in world space first), so a
   // rise in front submerges the wreck instead of a single ground sample cutting
-  // it off flat. The hull's own transform is applied on top of the clip.
-  clipAboveGround(sc.x - 50, sc.x + 50);
+  // it off flat. The span is capped at a cliff edge so a wreck near a drop shears
+  // there rather than hanging over the void. Transform is applied on top of the clip.
+  const spanS = wreckGroundSpan(sc.x, 46, 28);
+  clipAboveGround(spanS.lo, spanS.hi);
+  ctx.save();   // hull transform, kept inside the ground clip
   ctx.translate(sc.x, sc.y);
   ctx.rotate(sc.tilt + 2.35 + sc.lean);
   // never bigger than the ship the player flies (sc.s runs 0.8–1.5); a downed
@@ -1457,9 +1488,9 @@ function drawWreckS(sc, now) {
   ctx.globalCompositeOperation = "source-over";
   ctx.beginPath(); ctx.moveTo(3, 6); ctx.lineTo(7, 4); ctx.lineTo(6, 8);
   glowStroke("rgba(150,140,200,.5)", 1.3);
-  ctx.restore();
+  ctx.restore();   // pop the hull transform; the ground clip is still active
   tornHullEdge(sc, 12, "0,229,255");   // broken underside along the land line
-  // scorch trail where it came down
+  // scorch trail where it came down — clipped to the span so it doesn't run off a drop
   ctx.strokeStyle = "rgba(30,20,50,.9)"; ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(sc.x - 34 * sc.s, sc.y + 1); ctx.lineTo(sc.x + 8 * sc.s, sc.y + 2);
@@ -1467,6 +1498,7 @@ function drawWreckS(sc, now) {
   if (Math.random() < 0.005) particles.push({
     x: sc.x, y: sc.y - 10, vx: (Math.random() - 0.5) * 14, vy: -24,
     t: 0.5, max: 0.6, color: "#ff6d00", size: 1.6 });
+  ctx.restore();   // pop the ground clip
 }
 
 /* the secret lift. On the surface it is almost nothing: two hairline
