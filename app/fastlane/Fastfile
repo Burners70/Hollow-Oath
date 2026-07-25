@@ -8,12 +8,17 @@
 # it was a manual step that could be skipped before archiving.
 #
 # Run from app/:
-#   bundle exec fastlane build   # signed App Store archive
-#   bundle exec fastlane beta    # archive + upload to TestFlight
+#   bundle exec fastlane build   # sync + signed App Store archive (no upload)
+#   bundle exec fastlane beta    # ...+ upload to TestFlight (needs auth, see below)
 #
-# (A manual Xcode archive does NOT run these lanes — for that path, run
-#  `npm run sync` yourself first, then verify the title's BUILD_TAG stamp shows
-#  today's date/hash. See app/MAC_SETUP.md §2.)
+# UPLOAD IS MANUAL for now. The current release path archives + uploads in Xcode
+# (Product → Archive → Distribute App → App Store Connect), because Xcode handles
+# Apple ID sign-in / 2FA interactively. The `beta` lane's `upload_to_testflight`
+# needs an App Store Connect API key or an app-specific password
+# (FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD) — without it altool fails with
+# "-22910 Please sign in with an app-specific password". `sync_web` and `build`
+# work today; use them to produce a fresh, correctly-stamped archive, then upload
+# from Xcode. See app/MAC_SETUP.md §2 "Building for TestFlight".
 #
 # These lanes do NOT run `pod install`; they assume pods are already installed
 # (setup-mac.sh / `npm run sync` handle that). Run those once after cloning or
@@ -47,7 +52,7 @@ platform :ios do
     build_app(workspace: WORKSPACE, scheme: SCHEME, export_method: "app-store")
   end
 
-  desc "Build and upload to TestFlight (syncs the web build first)"
+  desc "Build + upload to TestFlight (NEEDS App Store Connect API key / app-specific password — see header; upload is manual in Xcode until then)"
   lane :beta do
     sync_web
     build_app(workspace: WORKSPACE, scheme: SCHEME, export_method: "app-store")

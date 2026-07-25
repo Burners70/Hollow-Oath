@@ -43,30 +43,40 @@ native shell config (`configure-ios.sh`):
 Re-run `./setup-mac.sh` any time; it is idempotent. After changing the web
 game, refresh the wrapper with `npm run sync`.
 
-### Building for TestFlight — always sync first
+### Building for TestFlight — sync first, then upload from Xcode
 
 `app/www` is a **generated copy** of the web game; syncing it is easy to forget
 before an archive, and a build that skips it ships the *old* JS (this is how the
 updated HOW TO FLY guide and the first-play fork went missing from a native
-build). Two safeguards:
+build). The release path — **sync, then archive + upload manually in Xcode**:
 
-- **Build via fastlane** (recommended) — the lanes sync the web build *before*
-  archiving, so they can never bundle stale JS. From `app/`:
+1. **Refresh the web assets** (plain terminal from `app/`, no bundler):
 
-  ```
-  bundle exec fastlane build   # signed App Store archive
-  bundle exec fastlane beta    # archive + upload to TestFlight
-  ```
+   ```
+   ./sync.sh && npx cap copy ios
+   ```
 
-  These lanes refresh web assets with `cap copy` and do **not** run
-  `pod install` — run the §2 bootstrap (`./setup-mac.sh`, or `npm run sync` in a
-  plain terminal) once after cloning or after any native-dependency change.
+   `sync.sh` stamps `BUILD_TAG`; `cap copy` pushes `www/` into the native shell.
+   (Equivalently `npm run sync`. Neither needs `pod install` — run the §2
+   bootstrap once after cloning or after any native-dependency change.)
 
-- **If you archive manually in Xcode instead**, run `npm run sync` yourself
-  first. Either way, confirm the build is fresh: the title screen's bottom-right
-  **BUILD_TAG** stamp reads `b<today's date> · <hash>` (stamped by `sync.sh` from
-  the actual bundled JS/CSS). If it shows an older date/hash than your last sync,
-  the wrapper is stale — re-sync and rebuild.
+2. **Bump the build number** — App target → *General* → Identity → *Build*
+   (Apple rejects a re-used number).
+
+3. **Archive + upload in Xcode** — `npx cap open ios`, select
+   *Any iOS Device (arm64)*, then **Product → Archive**; in the Organizer,
+   **Distribute App → App Store Connect → Upload**. Xcode handles Apple ID
+   sign-in and 2FA interactively — this is why we upload here rather than via
+   fastlane (`upload_to_testflight` needs an App Store Connect API key or an
+   app-specific password, which isn't configured — see the Fastfile note).
+
+**Verify the build is fresh** on device: the title's bottom-right **BUILD_TAG**
+stamp reads `b<today's date> · <hash>` (from the actual bundled JS/CSS). An older
+date/hash than your last sync means the wrapper is stale — re-sync and rebuild.
+
+> `cd app && bundle exec fastlane build` can produce the archive from the command
+> line (it syncs first, no `pod install`), but the **upload step stays manual in
+> Xcode** until API-key auth is set up.
 
 ## 3. Signing (Xcode, one time)
 
