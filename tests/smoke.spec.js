@@ -1593,8 +1593,10 @@ test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", 
   let s = await page.evaluate(() => __doids.get());
   expect(s.state).toBe("intro");
   expect(s.introLen).toBeGreaterThan(1);       // the full first-run INTRO
-  // now become a veteran and start again → the single-panel veteran opening
-  await page.evaluate(() => { markVeteran(); startFreshRun(); });
+  // now become a veteran and start again → the single-panel veteran opening.
+  // (a real veteran also has introSeen from their first run; set it so the
+  // final "subsequent run skips to the tasking" step exercises the right path)
+  await page.evaluate(() => { markVeteran(); markIntroSeen(); startFreshRun(); });
   s = await page.evaluate(() => __doids.get());
   expect(s.state).toBe("intro");
   expect(s.introLen).toBe(1);                  // VET_INTRO is one panel
