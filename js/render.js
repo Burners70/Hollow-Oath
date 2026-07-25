@@ -1352,6 +1352,29 @@ function tornHullEdge(seedX, x0, x1, baseY, rgb) {
   ctx.restore();
 }
 
+/* Y3-fix — a ragged vertical bulkhead that CLOSES a hull sheared by the ground
+   clip. Where a wreck sits near a step-down, wreckGroundSpan caps the clip at
+   the ledge and the hull's overhanging side is cut by a hard vertical clip edge
+   with no outline — so it read as unfinished (a "missing vertical line"). We
+   draw a torn metal edge at that boundary, in world space, from the ground up to
+   the hull top, jittering INTO the hull (dir) so it reads as a bulkhead snapped
+   off / buried in the rock. Stable per wreck (seeded from x). */
+function tornBulkhead(x, yTop, yBot, rgb, dir, seedX) {
+  let r = Math.floor(seedX + x) | 1;
+  const rnd = () => { r = (r * 1103515245 + 12345) & 0x7fffffff; return r / 0x7fffffff; };
+  ctx.save();
+  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.8; ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(x, yBot);
+  let y = yBot;
+  while (y > yTop) {
+    y -= 4 + rnd() * 6;
+    ctx.lineTo(x + dir * rnd() * 6, Math.max(y, yTop));
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* QA3 — the breach used to be a couple of stroked lines drawn ON TOP of one
    unbroken mercyHullPath() fill, so the silhouette never actually broke
    apart; it read as "the intact ship, tipped over," not wreckage. Split the
@@ -1481,6 +1504,11 @@ function drawWreckM(sc, now) {
   // the (canted/leaned/scaled) wreck; the ground clip still submerges its lower reach
   tornHullEdge(sc.x, -95, 95, 20, "0,229,255");
   ctx.restore();   // pop the hull transform; the ground clip is still active
+  // Y3-fix — if the ground clip sheared a side of the hull at a ledge, close that
+  // cut with a ragged bulkhead so it reads as broken/buried, not unfinished
+  const reachM = 132 * sc.s * 0.62, topM = sc.y + 4 - 34 * sc.s * 0.62;
+  if (span.lo > sc.x - reachM + 4) tornBulkhead(span.lo, topM, groundAt(span.lo) + 6, "0,229,255", 1, sc.x);
+  if (span.hi < sc.x + reachM - 4) tornBulkhead(span.hi, topM, groundAt(span.hi) + 6, "0,229,255", -1, sc.x);
   // Y3 — the scar where she bit into the land: a shallow dark gouge that hugs the
   // ground directly under the hull. Clamped to the same plateau span as the clip
   // so it follows the real surface and never trails off a cliff edge into the air.
