@@ -17,6 +17,11 @@ this checklist.
 - Node 18+ (`brew install node`)
 - CocoaPods (`brew install cocoapods`)
 - An Apple Developer Program membership (for device runs, TestFlight, submission)
+- **Where the clone lives:** `/Users/darrenburnett/Documents/GitHub/Hollow-Oath` —
+  GitHub Desktop's default clone path. If `cd` there fails (moved machines, fresh
+  clone elsewhere), check other common spots first before a slow full-disk
+  search: `ls -d ~/Documents/GitHub/Hollow-Oath ~/Developer/Hollow-Oath
+  ~/Documents/Hollow-Oath ~/Hollow-Oath ~/Downloads/Hollow-Oath 2>/dev/null`
 
 ## 2. One-shot bootstrap
 
