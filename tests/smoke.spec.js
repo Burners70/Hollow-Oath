@@ -606,6 +606,7 @@ test("Game Center facade traces auth, rank achievements and the score report (Bu
 });
 
 test("R5: the title launches only from the START pill, not a stray tap", async ({ page }) => {
+  await page.evaluate(() => markTrained());   // skip the X3 first-play fork — R5 tests the pill
   await page.waitForTimeout(700);   // clear the title's stateT > 0.6 guard
   // a tap on empty title space no longer starts a run
   await page.evaluate(() => { input.tap = true; input.tapX = 4; input.tapY = innerHeight / 2; });
@@ -622,6 +623,7 @@ test("R5: the title launches only from the START pill, not a stray tap", async (
 });
 
 test("R5: Enter aims the synthetic tap at the START pill", async ({ page }) => {
+  await page.evaluate(() => markTrained());   // skip the X3 first-play fork — R5 tests the pill
   await page.waitForTimeout(700);
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
   await page.waitForTimeout(60);
@@ -629,11 +631,12 @@ test("R5: Enter aims the synthetic tap at the START pill", async ({ page }) => {
   expect(["intro", "brief", "play"]).toContain(s.state);
 });
 
-test("R1: the HOW TO FLY card paginates and never runs off a 320-high phone", async ({ browser }) => {
+test("R1/X1: the illustrated HOW TO FLY guide paginates and never runs off a 320-high phone", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 568, height: 320 } });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", e => errs.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errs.push("console.error: " + m.text()); });
   await page.goto(GAME_URL);
   await page.waitForFunction(() => window.__doids !== undefined);
   await page.waitForTimeout(700);
@@ -644,18 +647,131 @@ test("R1: the HOW TO FLY card paginates and never runs off a 320-high phone", as
   await page.mouse.click(row0.x + row0.w / 2, row0.y + row0.h / 2);
   await page.waitForTimeout(120);
   expect(await page.evaluate(() => __doids.get().state)).toBe("help");
-  const pages = await page.evaluate(() => HELP_CARD.pages);
-  expect(pages).toBeGreaterThan(1);   // the six-paragraph card must split
-  await page.waitForTimeout(450);     // clear the card's stateT > 0.4 tap guard
-  // walk every page; the footer must stay on-screen the whole way
+  const pages = await page.evaluate(() => __doids.get().guide.pages);
+  expect(pages).toBeGreaterThan(1);   // the illustrated guide is multi-page
+  await page.waitForTimeout(450);     // clear the guide's stateT > 0.4 tap guard
+  // walk every page; the footer must stay on-screen the whole way (X1 respects
+  // the R1 on-screen-fit contract — illustrated pages must fit too)
   for (let p = 0; p < pages; p++) {
-    const foot = await page.evaluate(() => HELP_CARD._footY);
+    const foot = await page.evaluate(() => __doids.get().guide.footY);
     expect(foot).toBeLessThan(320);
     await page.evaluate(() => { input.tap = true; });
     await page.waitForTimeout(80);
   }
-  // after the last page the card dismisses back to the title
+  // after the last page the guide dismisses back to the title
   expect(await page.evaluate(() => __doids.get().state)).toBe("title");
+  expect(errs).toEqual([]);
+  await ctx.close();
+});
+
+test("Y1: a foreground return clears and repaints the terrain tile cache", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  await page.waitForTimeout(300);   // let a few frames build the terrain tiles
+  expect(await page.evaluate(() => __doids.tileCacheSizes().terrain)).toBeGreaterThan(0);
+  // the direct invalidation (what the foreground handlers call). Clear and read
+  // in ONE evaluate so no render frame rebuilds the cache in between.
+  const cleared = await page.evaluate(() => { __doids.invalidateTiles(); return __doids.tileCacheSizes().terrain; });
+  expect(cleared).toBe(0);
+  // the next frames repaint from the heightmap — terrain comes back, not blank
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => __doids.tileCacheSizes().terrain)).toBeGreaterThan(0);
+  // and the real pageshow wiring in input.js clears it too (same synchronous read)
+  const cleared2 = await page.evaluate(() => { window.dispatchEvent(new Event("pageshow")); return __doids.tileCacheSizes().terrain; });
+  expect(cleared2).toBe(0);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => __doids.tileCacheSizes().terrain)).toBeGreaterThan(0);
+});
+
+test("Y2: a thrown frame is caught and the RAF loop stays alive", async ({ browser }) => {
+  // own context — this test deliberately throws inside a frame, which logs a
+  // console.error the shared harness would otherwise fail on
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.waitForTimeout(200);
+  const before = await page.evaluate(() => window.__doids.frameErrors || 0);
+  // make exactly one render() call throw, then it repairs itself
+  await page.evaluate(() => {
+    window.__y2orig = render;
+    let thrown = false;
+    render = function () { if (!thrown) { thrown = true; throw new Error("Y2 injected"); } return window.__y2orig(); };
+  });
+  await page.waitForTimeout(250);   // several frames — the loop must keep ticking
+  await page.evaluate(() => { render = window.__y2orig; });
+  const after = await page.evaluate(() => window.__doids.frameErrors || 0);
+  expect(after).toBeGreaterThan(before);
+  expect(await page.evaluate(() => !!window.__doids.lastFrameError)).toBe(true);
+  // the loop is still alive: navigation still advances the sim
+  await page.evaluate(() => { __doids.go(2); __doids.launch(); });
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("play");
+  await ctx.close();
+});
+
+test("X3: first START opens the fork; YES flies straight in and is remembered", async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", e => errs.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errs.push("console.error: " + m.text()); });
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.waitForTimeout(700);
+  expect(await page.evaluate(() => __doids.get().trained)).toBe(false);
+  // tap START NEW FLIGHT — an untrained first launch shows the fork, not a run
+  let r = await page.evaluate(() => __doids.get().rects.start);
+  await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("fork");
+  // tap YES — straight into the mission, no training state (no trainee level in 1.0)
+  await page.waitForTimeout(300);
+  r = await page.evaluate(() => window.forkRowRect(0));
+  await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
+  await page.waitForTimeout(200);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.trained).toBe(true);
+  expect(["intro", "brief", "play"]).toContain(s.state);   // a run has begun
+  expect(errs).toEqual([]);
+  await ctx.close();
+});
+
+test("X3: fork NO opens the HOW TO FLY guide, then flies in", async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", e => errs.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errs.push("console.error: " + m.text()); });
+  await page.goto(GAME_URL);
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.waitForTimeout(700);
+  let r = await page.evaluate(() => __doids.get().rects.start);
+  await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("fork");
+  // tap NO — opens the guide, primed to fly in when finished
+  await page.waitForTimeout(300);
+  r = await page.evaluate(() => window.forkRowRect(1));
+  await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => __doids.get().state)).toBe("help");
+  expect(await page.evaluate(() => __doids.get().guideReturn)).toBe("start");
+  // page through the whole guide; the last tap flies in
+  const pages = await page.evaluate(() => __doids.get().guide.pages);
+  await page.waitForTimeout(450);
+  for (let p = 0; p < pages; p++) {
+    await page.evaluate(() => { input.tap = true; });
+    await page.waitForTimeout(80);
+  }
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.trained).toBe(true);
+  expect(["intro", "brief", "play"]).toContain(s.state);
   expect(errs).toEqual([]);
   await ctx.close();
 });

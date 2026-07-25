@@ -72,41 +72,65 @@ Landed (July 2026, Bundle S):
    the zone. MERCY flies again — barely. You fly the rescue. Bring them home.
    And captain… count the heartbeats."
 
-## 3. HOW TO FLY card (`HELP_CARD`)
+## 3. HOW TO FLY guide (`GUIDE` / `GUIDE_PAGES`) — X1
 
-> kicker `FLIGHT MANUAL` · title `HOW TO FLY`
->
-> Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a
-> force field — it eats fuel, but stops bullets, drones, rough landings and
-> cave ceilings.
->
-> Land slow and upright on flat ground near a stranded Scion — it walks over
-> and climbs aboard. The approach guide turns GREEN when touchdown is safe;
-> watch ↓ descent and ↔ drift.
->
-> Ferry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The
-> RED BAY is isolation — you'll know when you need it.
->
-> Listen to what boards. Watch how they wave. Watch your own ECG. A full cabin
-> steadies you, a little, between drop-offs. _(S9)_
->
-> Suspect a unit? Park right on top of it and hold still to read its vitals — a
-> real Scion's heartbeat verifies and it boards; a proven counterfeit is
-> catalogued and can be left where it lies. Land a step away instead to rescue
-> at speed. _(S5)_
->
-> ◈ The zone hides black boxes, log fragments and famous healers — and
-> stranger things. Some ground rings hollow under your struts. Real fuel pods
-> flicker like fire; counterfeits keep perfect time. A counterfeit can be
-> opened by fire — or unmasked without a shot: land beside it and hold still
-> long enough. Explore.
->
-> 🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields.
-> Keyboard: arrows + space · X fire · C/⇧/↓ shield.
+The HOW TO FLY reference is now an **illustrated, paged guide** (Bundle X1): each
+page is a labelled diagram of the ship + the real on-screen buttons with one
+short caption, not a wall of text. Reached from the title's HELP submenu
+(`✦ HOW TO FLY`) and from the X3 first-play "No" branch; reachable any time.
+Header on every page: kicker `FLIGHT MANUAL · HOW TO FLY`, per-page title below.
 
-On a short landscape phone this card paginates (R1): the footer reads
-`<page>/<pages> · tap for more` and, on the last page, `<page>/<pages> · tap to
-continue`. Short cards show a single `tap to continue` as before.
+> **TURN** — The two left buttons turn the ship. ↺ spins it left, ↻ spins it
+> right. Thrust always pushes the way the nose points — so aim first, then burn.
+>
+> **THRUST** — Hold THRUST to fire the engine. It's momentum, not a throttle:
+> the longer you hold, the faster and further you drift. For a small nudge, tap
+> — don't hold.
+>
+> **SLOW DOWN** — There are no brakes. To slow, turn to face the way you're
+> moving and thrust against it. A long fall needs a long burn to arrest — start
+> slowing early.
+>
+> **SHIELD** — Hold SHIELD the instant before you hit rock, a drone or a shot.
+> It saves the ship — but it drinks fuel. Raise it late, drop it the moment
+> you're clear.
+>
+> **FUEL** — THRUST and SHIELD both burn FUEL — the yellow bar, top-left. Run
+> dry and you're stranded. Land by a Scion or reach MERCY's bay to top up.
+>
+> **FIRE** — FIRE shoots — but firing is malpractice and costs your rank. Every
+> Scion can come home without a shot; keep FIRE for when there's truly no other
+> way.
+>
+> **LAND & RESCUE** — Set down slow and upright on flat ground beside a stranded
+> Scion and it climbs aboard. The approach guide turns GREEN when it's safe —
+> watch ↓ descent and ↔ drift — then ferry them to MERCY's cyan bay.
+>
+> **OTHER CONTROLS** — 🎮 Gamepad: stick or d-pad steers, A thrusts, X fires,
+> LB/B shields.  ⌨ Keyboard: arrows steer, SPACE thrusts, X fires, C / ⇧ / ↓
+> shields.
+
+The guide always paginates: the footer reads `<page>/<pages> · tap for more`
+and, on the last page, `<page>/<pages> · tap to fly`. It respects BIG TEXT
+(caption scales), REDUCED FLASH (no pulsing footer / softened glow) and
+COLORBLIND (the SAFE/WARN semantic colours in the shield/fuel/fire diagrams).
+
+### 3·X3. First-play fork (`updateFork`)
+
+The first time a brand-new player taps `▶ START NEW FLIGHT` (no `doids_trained`),
+a one-time fork asks how to route them. Answering either way sets `doids_trained`
+so it never shows again (a RESET PROGRESS in Settings brings it back).
+
+> heading `BEFORE YOU FLY`
+> prompt `Played a thrust / gravity flying game before?`
+> `✓ YES — I know how to fly` · sub `straight into the mission`
+> `✦ NO — show me how` · sub `a quick illustrated guide first`
+> footnote `you can reopen HOW TO FLY any time from HELP`
+
+**YES** launches straight in (the veteran path — story intro then Level 1).
+**NO** opens the HOW TO FLY guide above; finishing its last page (`tap to fly`)
+drops into the same run. _(In 1.01, "No" will route into the X2 trainee sector
+instead of the guide.)_
 
 ### 3a. WHAT YOU'RE LOOKING AT card (`LEGEND_CARD`, U3)
 

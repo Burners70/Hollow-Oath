@@ -367,7 +367,9 @@ F should land in the same release.**
     Evoke the era generically and link the homepage, which carries the named
     lineage. Details in O2.
   At submission (O6), verify all three tiers still hold.
-- [ ] **E8. Device test matrix.** Run on the oldest iOS you claim (~~suggest iOS
+- [x] **E8. Device test matrix.** *(Run on device — touch, gyro permission,
+  background/resume, and ringer-switch behaviour all verified; owner, July
+  2026.)* Run on the oldest iOS you claim (~~suggest iOS
   15+~~ **iOS 16+, owner decision July 2026** — perf floor at A11): touch
   controls, gyro permission flow, pause-on-background, resume, silent-switch
   behaviour (game audio should respect the ringer switch — WKWebView default —
@@ -402,7 +404,9 @@ with E). Dependencies: E (native bridge), C4 (settings toggle).**
   *(All wired, including the 41-second clock's double-tick from Bundle I and
   the arrhythmia tap every 3–5 s while a contaminant rides / the counterfeit
   bay has you. No-ops on web.)*
-- [ ] **F3. Restraint pass.** Play a full sector; if haptics fire more than ~once
+- [x] **F3. Restraint pass.** *(Played on device — haptics felt rare and
+  meaningful, no trimming needed; owner, July 2026.)* Play a full sector; if
+  haptics fire more than ~once
   per 5 s of normal flight, cut the least meaningful call sites. Haptics carry
   meaning here only if they stay rare. *(Needs a real iPhone — do with E8;
   scripted into app/MAC_SETUP.md §8. First candidates to cut if too chatty: the
@@ -1339,11 +1343,16 @@ None blocks Apple review on its own. Dependencies: none.**
 **Why:** The actual shipping checklist. **Priority: last. Dependencies: A–F
 merged; G/H strongly recommended.**
 
-- [ ] **O1. Pricing decision** with the owner. Recommendation from review: launch
+- [x] **O1. Pricing decision** with the owner. **Locked (owner, July 2026):
+  launch at $2.99 / £2.99** — the UK point is Apple's direct equivalent of the
+  $2.99 tier (confirm the auto-filled figure in App Store Connect when setting
+  the base price); £1.99 held in reserve as an optional launch-week promo only.
+  Recommendation from review: launch
   **$2.99** with A–F+I..L shipped; $4.99 is defensible only once M (remix/daily)
   and N (counterfeit MERCY) are in. No IAP, no ads — "complete game, no data
   collected" is the positioning.
-- [ ] **O2. Metadata.** Name "Hollow Oath", subtitle ≤30 chars (e.g. "A gravity
+- [x] **O2. Metadata.** *(Store listing entered in App Store Connect — owner,
+  July 2026.)* Name "Hollow Oath", subtitle ≤30 chars (e.g. "A gravity
   rescue with a heartbeat"), description leading on: feel the heartbeat
   (haptics), trust nothing perfect, primum non nocere — **plus one nostalgia
   paragraph in generic terms** ("if you grew up steering a lander through
@@ -1355,11 +1364,12 @@ merged; G/H strongly recommended.**
   and README instead, which is what search engines index for "games like Oids".
   **Owner decision, updated:** the store-linked homepage is a dedicated
   marketing page (`about.html`), **not** the live playable build — see O7.
-- [ ] **O3. Age rating questionnaire** — expect 9+ (infrequent mild fantasy
+- [x] **O3. Age rating questionnaire** *(completed — owner, July 2026)* — expect 9+ (infrequent mild fantasy
   violence). The player *can* shoot medics (malpractice mechanic); answer the
   violence questions honestly and keep the store description's framing on
   consequence, not carnage.
-- [ ] **O4. Screenshots & preview.** 6.7" and 6.1" sets (landscape), 8 per
+- [x] **O4. Screenshots & preview.** *(Captured and uploaded — owner, July
+  2026.)* 6.7" and 6.1" sets (landscape), 8 per
   size: title, a landing beside a waving Scion, MERCY docking, a dark-sector
   lamp shot, a Hollows shrine, the CONTAMINANT ABOARD warning (owner call,
   swapped in for the ECG-arrhythmia moment — less compelling on screen), the
@@ -1373,7 +1383,8 @@ merged; G/H strongly recommended.**
   collected, saves stay on device/iCloud") and support contact, hosted on the
   existing GitHub Pages site. Live at `https://hollow-oath.com/privacy.html`
   and `https://hollow-oath.com/support.html`.
-- [ ] **O6. Submission dry run.** TestFlight internal build → full E8 matrix →
+- [x] **O6. Submission dry run.** *(Test submission completed via TestFlight —
+  owner, July 2026.)* TestFlight internal build → full E8 matrix →
   external TestFlight round (5–10 players, watch where they die and quit) →
   submit. Budget one rejection cycle; 4.2 is the likely challenge and the
   response is the native-features list (F, G, E4).
@@ -1706,7 +1717,15 @@ independent.**
 > X3: with X2 not in 1.0, the fork's **"No" branch routes into the X1 guide** at
 > launch, and upgrades to route into the trainee sector once X2 ships in 1.01.
 
-- [ ] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** A **HOW TO
+- [x] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** *(Shipped.
+  The `✦ HOW TO FLY` HELP-submenu entry now opens an illustrated, paged guide
+  — `GUIDE` / `GUIDE_PAGES` in `js/world.js`, `drawGuide` / `drawGuideArt` /
+  `guideShip` / `guideButton` in `js/render.js`, paged via the `help` state in
+  `js/update.js`. Eight diagram pages — TURN, THRUST, SLOW DOWN, SHIELD, FUEL,
+  FIRE, LAND & RESCUE, OTHER CONTROLS — reusing the real hull path and the
+  on-screen button art. Respects `bigText` / `reducedFlash` / `colorblind`;
+  fits a 320-high phone (R1 contract). Copy mirrored to COPY_DECK.md §3. Smoke:
+  "R1/X1 illustrated guide paginates".)* A **HOW TO
   FLY** button on the title screen (`drawTitle` in `js/render.js`, alongside the
   existing REMIX / settings pills) opens a paged, **illustrated** guide with
   literal step-by-step visuals, not walls of text: rotate, thrust (hold = more
@@ -1747,7 +1766,16 @@ independent.**
     TRAINING" affordance). Code anchors: the Static clock (`updateStaticClock`)
     and extraction / MERCY logic in `js/update.js`, both gated off in training
     mode.
-- [ ] **X3. First-play fork. [→1.0 launch]** On a first launch (no `doids_intro`,
+- [x] **X3. First-play fork. [→1.0 launch]** *(Shipped. A first-ever `▶ START NEW
+  FLIGHT` on an untrained install (`doids_trained` absent) opens a one-time
+  `"fork"` screen — `updateFork` / `drawFork` / `forkRowRect`, the `trained`
+  flag + `markTrained()` in `js/world.js`. **YES** flies straight in (veteran
+  path); **NO** opens the X1 guide (`guideReturn = "start"`) and finishing it
+  drops into the run. Answering sets `doids_trained` so it never shows again; a
+  RESET PROGRESS clears the key so it re-shows (the "from Settings" path). Copy
+  in COPY_DECK.md §3·X3. Smoke: "X3 first START opens the fork" + "fork NO opens
+  the guide". In 1.01 the "No" branch re-routes to the X2 trainee sector.)* On a
+  first launch (no `doids_intro`,
   or a new `doids_trained` flag), ask once: **"Played thrust / gravity games
   before?"** — **Yes → straight to Level 1** (current behaviour); **No →** the
   onboarding path. **In 1.0** (X2 not yet built) **"No" opens the X1 guide**, then
@@ -1799,7 +1827,11 @@ independent.**
   to expose training mode, the fork flag, guided-pause state and hint-card
   discovery bits; add a test that an experienced-path first launch (X3 "Yes")
   reaches Level 1 with **no** training state set, and that training never writes
-  a hiscore.
+  a hiscore. *(1.0-launch slice done: `__doids.get()` now exposes `trained`,
+  `guideReturn` and `guide` {page,pages,footY}; smoke covers the X3 "Yes"→run
+  and "No"→guide→run paths and the illustrated-guide pagination/on-screen fit.
+  The trainee-sector / guided-pause / hint-card assertions land with X2/X4/X5 in
+  1.01.)*
 
 ## Bundle Y — 1.01 release-fix defects (owner playtest, late July 2026)
 
@@ -1811,7 +1843,13 @@ and a try/catch). **Y3–Y7 stay 1.01** (rendering / telegraphing corrections).
 **Dependencies: none, but Y1 and Y2 share a root cause (state after a long
 background) — fix them together.**
 
-- [ ] **Y1. Landscape vanishes after a very long background. [→1.0 launch]** Reported: away
+- [x] **Y1. Landscape vanishes after a very long background. [→1.0 launch]** *(Shipped.
+  `invalidateTiles()` (`js/render.js`) drops `level._terrainTiles` / `_roofTiles`;
+  it's called from `onForeground()` in `js/input.js` on `visibilitychange`→visible,
+  `pageshow`, and the native `appStateChange`→active, so purged tiles rebuild from
+  the heightmaps on resume. Exposed via `__doids.invalidateTiles` /
+  `__doids.tileCacheSizes()`. Smoke: "Y1 foreground clears and repaints the tile
+  cache".)* Reported: away
   from the app for hours, returned to find the **ship drawn but all terrain,
   cave roof and scenery invisible** — and still collidable (the ship crashed
   into ground it couldn't see). Root cause (high confidence): terrain / roof are
@@ -1827,8 +1865,14 @@ background) — fix them together.**
   `pageshow` / `visibilitychange`→visible, beside the existing auto-pause handler
   (`js/input.js:297`). Add a smoke check that clearing the caches and rendering a
   frame repaints terrain.
-- [ ] **Y2. Blank world / frozen game after an upgrade card on a long-standing
-  run. [→1.0 launch]** Reported once: after a multi-rescue drop-off, picked the **"better
+- [x] **Y2. Blank world / frozen game after an upgrade card on a long-standing
+  run. [→1.0 launch]** *(Shipped. `frame()` (`js/main.js`) now wraps its
+  `update()`/`render()` body in try/catch, so a single thrown frame is logged
+  and skipped while `requestAnimationFrame` keeps the loop alive — a bad frame
+  can no longer freeze the game. Error count + last stack surfaced on
+  `__doids.frameErrors` / `.lastFrameError`. The blank-*world* half is the Y1
+  purged-tile fix. Smoke: "Y2 a thrown frame is caught and the RAF loop stays
+  alive".)* Reported once: after a multi-rescue drop-off, picked the **"better
   lamp" (LAMP) upgrade card**, then a **blank screen behind the UI, no crash, no
   input response** — on a long run repeatedly backgrounded / foregrounded. Two
   contributing causes: (a) the **frame loop has no error guard** — `frame()`
@@ -1917,7 +1961,9 @@ background) — fix them together.**
 - [ ] **Y·guard. Regression gate.** Smoke suite green; add coverage for the Y1
   tile-cache invalidation and the Y4 Avicenna gate (blink loud only with
   `upgrades.canon`); screenshot checks for Y3 occlusion (a wreck on a rise is
-  submerged) and Y5 (pad visible above ground pre-veteran).
+  submerged) and Y5 (pad visible above ground pre-veteran). *(1.0-launch slice
+  done: smoke covers Y1 tile-cache invalidation (direct + `pageshow`) and the Y2
+  frame-loop guard. The Y3/Y4/Y5 checks land with those 1.01 fixes.)*
 
 ## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
 
@@ -1982,8 +2028,14 @@ all of G live in `app/` (Capacitor scaffold, config scripts, two local Swift
 plugins) and in `index.html` (`cloud` + `gc` facades, wired and smoke-tested);
 the owner's bundle ID `com.burners70.hollowoath` and the iOS 16+ floor are
 locked. What's left needs hands on the Mac itself: run `app/setup-mac.sh`,
-sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5), then the
-on-device passes — E8 (matrix in §7), F3 (§8) — and Bundle O. The game already
+sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5). **The
+on-device passes E8 (matrix, §7) and F3 (haptics restraint, §8) are now done
+(owner, July 2026), and most of Bundle O has landed** — store listing/metadata
+(O2), screenshots (O4), support/privacy URLs (O5), the web-build takedown (O7),
+and a TestFlight test submission (O6). Pricing is locked at $2.99 / £2.99 (O1)
+and the age-rating questionnaire is done (O3), so **Bundle O is now complete on
+the code/docs side** — what's left is the owner's final "submit for review" tap
+in App Store Connect. The game already
 plays at the $4.99 feature bar.
 **The July 2026 owner-playtest feedback round is now bundled as R, S and T**
 (above): R is pure defect-fixing and joins the submission-blocking set; S
