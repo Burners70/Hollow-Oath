@@ -1618,8 +1618,12 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   and the Y**. A line or two in the intro / early BRIEFS. Code anchors:
   `BRIEFS` / intro copy in `js/world.js`; **mirror every changed string into
   [COPY_DECK.md](COPY_DECK.md) in the same PR (R10).**
-- [~] **V6. Make the "heard" scan playable — a sonic-wave parry.** *(Mid-game
-  half shipped; finale-answer half lands with V3/V12. Owner design decisions:
+- [x] **V6. Make the "heard" scan playable — a sonic-wave parry.** *(Both halves
+  shipped. Finale-answer half: the Solace now casts an answerable pulse
+  (`updateBeacon` pushes a `finale` wave every `ANSWER_GAP` while you're within
+  `ANSWER_RANGE`); parrying it sets `beacon.heardParry` → `resolveBeacon
+  "answered"`, replacing the old land-and-hold (owner decision). A finale miss
+  costs −12 vitals + a Static surge. Owner design decisions:
   window 0.09s / 0.18s assisted; introduced at **Avicenna Shoals (sector 5)**;
   **mid-game a miss is free** — the costly version is the finale answer only.
   From sector 5 on, an active un-catalogued Vector casts a telegraphed violet
@@ -1712,6 +1716,19 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
     (`js/update.js:671`) and keep the Solace / second-wave seeding (V5) light, so
     a *second MERCY* is genuinely unexpected. Trust the tells. (This is also what
     clears the Y7 overspill.) Mirror into COPY_DECK.md (R10).
+  *(Shipped V12a–c. **V12a** — the explicit twin warning is cut from `briefText()`
+  (the old "two ships … count the beats" paragraph is gone; nothing signposts a
+  second MERCY). **V12b** — on the veteran finale, `genLevel` gives BOTH MERCYs
+  randomised, well-separated positions (`level.mx` and the decoy, ~0.20–0.34·W
+  vs ~0.60–0.76·W, side randomised), so location tells you nothing; a
+  `drawMercySplit` reveal flickers one ship into two that drift to those spots
+  (`mercySplitT`/`MERCY_SPLIT_DUR`), during which docking is inert
+  (`updateDecoy`/`updateDocking` gated). Both already render identically (N1's
+  shared `mercy*` helpers); the only tell is the emblem beat — real = uneven
+  heartbeat, counterfeit = 41s metronome. **V12c** — the read is the beat alone,
+  and the reveal/tell respect reduced-flash. Docking the fake springs the
+  existing trap; identifying/answering the real is the win. Smoke: "V12 the
+  finale spawns two identical MERCYs …".)*
   - **V12b. Identical but for the tell; position uninformative.**
     **Owner-approved (late July 2026): build the full reveal.** A single MERCY
     **flickers, splits into two, both fade out, then reappear in randomised /
@@ -1729,13 +1746,17 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
     the read is fair from the learned beat cue — and that ASSIST / colorblind /
     reduced-flash don't wash the beat out. Ties to V11 (whether the decoy is
     surfaced more widely at all).
-- [ ] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
+- [x] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
   to expose new state (Solace pulse, heard-scan parry, fly-back availability, the
   counterfeit-MERCY reveal V12); add tests for the V2 fairness invariant and V1
-  return-travel round-trip. *(In progress: the V2 fairness invariant is covered —
-  `__doids.scanSpotFailures()` + the campaign/REMIX smoke test — and the M1
-  golden checksum updated for V2's pad-widening. The remaining assertions land
-  with their features.)*
+  return-travel round-trip. *(Done for everything built this round: `__doids`
+  exposes `scanSpotFailures` (V2), `waves()`/`armWave()` (V6), `vetIntroSeen`/
+  `introLen` (V8), `answerBeacon()` (V6-finale), and `beacon.revealed/sonarT` +
+  `mercySplitT` via `level`. Smoke covers V2 fairness (campaign + REMIX), V6
+  mid-game parry, V3 Solace reveal, the V6-finale parry answer (and that holding
+  no longer answers), V8 veteran intro, V10 escalation, and V12 twin
+  (randomised/separated + trap). M1 golden checksum updated for V2's
+  pad-widening. V1 return-travel is a 1.1 item (Bundle Q), not part of 1.01.)*
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).

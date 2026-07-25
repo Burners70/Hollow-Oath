@@ -368,6 +368,7 @@ function drawWorld(now) {
 
   if (!level.isCave) drawMothership(now);
   if (level.fakeMercy) drawDecoyMercy(now);
+  drawMercySplit(now);   // V12 — the one-into-two reveal on finale arrival
   drawLift(now);
   if (level.shrine) drawShrine(now);
 
@@ -1800,6 +1801,7 @@ function drawMothership(now) {
   // no idle bob: the hull, the bays and the ventral hangar all sit on the exact
   // same mercyPos, so the hangar can never drift out of sync with the hull
   ctx.save();
+  if (level.mercySplitT > 0) ctx.globalAlpha *= 1 - level.mercySplitT / MERCY_SPLIT_DUR;   // V12 fade-in
   ctx.translate(mx, my);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
@@ -1996,10 +1998,40 @@ function drawJumpStreak(now) {
    emblem pulses organically (0.55 + 0.45·sin) — this one blinks in perfect
    mechanical unison with the fake fuel pods (sin(now·π·2) > 0), the exact
    tell the game has taught since Avicenna Shoals. */
+/* V12 — the finale twin's arrival: one MERCY flickers, then peels into two that
+   drift to their (randomised) positions, where the real drawMothership /
+   drawDecoyMercy fade in. Location tells you nothing; only the beat will. */
+function drawMercySplit(now) {
+  if (!(level.mercySplitT > 0) || !level.fakeMercy) return;
+  const p = 1 - level.mercySplitT / MERCY_SPLIT_DUR;   // 0..1 through the reveal
+  const midX = (level.mx + level.fakeMercy.x) / 2, midY = 170;
+  const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  const flick = reducedFlash ? 0.7 : (0.5 + 0.5 * Math.abs(Math.sin(now * 26)));
+  // the origin ghost, dissolving as the two resolve
+  ctx.save();
+  ctx.globalAlpha = (1 - p) * 0.7 * flick;
+  ctx.translate(midX, midY);
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = reducedFlash ? 4 : 16;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.4)";
+  mercyHullPath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // two echoes peeling off toward the endpoints
+  for (const tx of [level.mx, level.fakeMercy.x]) {
+    ctx.save();
+    ctx.globalAlpha = (1 - p) * 0.5;
+    ctx.translate(midX + (tx - midX) * ease(p), midY);
+    ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.lineWidth = 2;
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = reducedFlash ? 3 : 10;
+    mercyHullPath(); ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawDecoyMercy(now) {
   const f = level.fakeMercy;
   const bob = Math.sin(now * 1.2 + 2.1) * 4;
   ctx.save();
+  if (level.mercySplitT > 0) ctx.globalAlpha *= 1 - level.mercySplitT / MERCY_SPLIT_DUR;   // V12 fade-in
   ctx.translate(f.x, f.y + bob);
   if (f.dead) {
     // powered down for good: dark hull, Glycon's masked serpent flickering

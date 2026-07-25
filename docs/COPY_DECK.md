@@ -219,10 +219,11 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
    mask has been rewriting rescue into ruin for a long time. Bring our people
    home anyway."
 7. **THE NULLWAVE** — "Triangulation complete. The source of the Static is
-   below the nullwave ridge. / One more thing. Two beacons answer as MERCY on
-   approach. One of them is lying. Count the beats, captain. / Fleet orders:
-   destroy on sight. The chief medical officer refused to sign. Her note is
-   one line — primum non nocere. / Your call, captain."
+   below the nullwave ridge. / Fleet orders: destroy on sight. The chief medical
+   officer refused to sign. Her note is one line — primum non nocere. / Your
+   call, captain." *(V12a — the old "two ships answer as MERCY … count the
+   beats" twin warning is cut; the finale twin is no longer signposted, and the
+   beat you've learned all game is the only read.)*
 
 Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 `REMIX ROTATION // seed <n>` · `DAILY FLIGHT // <n> · yesterday-you: <score>` ·

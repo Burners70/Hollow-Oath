@@ -43,6 +43,7 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
                       "SEMMELWEIS DEEP", "CURIE FIELDS", "AVICENNA SHOALS",
                       "JENNER TERRACES", "THE NULLWAVE"];
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
+const MERCY_SPLIT_DUR = 2.2;   // V12 — the finale twin's flicker-and-split reveal on arrival
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 // Owner steer: three boxes was too easy a bar for the secret finale. Real
 // triangulation needs most of the recorders — ~80% of them (6 of 7). Missing
@@ -924,15 +925,25 @@ function genLevel(n) {
     const bx = W - 420;
     const by = flatten(heights, bx, 120);
     lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false };
-    // Bundle N1 — Glycon's third act: a second, identical MERCY parked
-    // between spawn and the beacon. One difference only: the real emblem
-    // pulses like a pulse; the counterfeit's blinks in perfect mechanical
-    // unison with the fake fuel pods. Now distrust the thing you've
+    // Bundle N1 — Glycon's third act: a second, identical MERCY. One difference
+    // only: the real emblem pulses like a heart; the counterfeit's ticks in
+    // perfect mechanical time, like the fake fuel. Now distrust the thing you've
     // trusted all game. Gated with the rest of the Glycon layer: a first
-    // playthrough meets only the true beacon; the counterfeit MERCY waits
-    // for the veteran return pass (see the lift gate above).
-    if (veteran)
-      lvl.fakeMercy = { x: W * 0.45, y: 170, dead: false, dockT: 0, scanT: 0 };
+    // playthrough meets only the true beacon; the counterfeit MERCY waits for
+    // the veteran return pass (see the lift gate above).
+    // V12 — location must tell you NOTHING: instead of the real MERCY at her
+    // usual home and the decoy parked mid-map, both ships take randomised,
+    // reachable positions (well separated), and which side is real varies. The
+    // only honest read is the beat. Everything downstream (bays, delivery,
+    // epilogue) reads level.mx live, so moving her is safe.
+    if (veteran) {
+      const a = W * (0.20 + rng() * 0.14);   // ~0.20–0.34
+      const b = W * (0.60 + rng() * 0.16);   // ~0.60–0.76  (≥ ~0.26·W apart)
+      const realLeft = rng() < 0.5;
+      lvl.mx = realLeft ? a : b; lvl.my = 170;
+      lvl.fakeMercy = { x: realLeft ? b : a, y: 170, dead: false, dockT: 0, scanT: 0 };
+      lvl.mercySplitT = MERCY_SPLIT_DUR;   // V12 — the split-into-two reveal on arrival
+    }
   }
 
   // V2 — scan-jeopardy fairness invariant: every scannable Scion must have a

@@ -290,7 +290,7 @@ test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page })
 });
 
 test("the counterfeit MERCY: docking springs the trap; the real bays still work (Bundle N)", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
   let s = await page.evaluate(() => __doids.get());
   expect(s.fakeMercy).toBeTruthy();
   expect(s.fakeMercy.dead).toBe(false);
@@ -314,7 +314,7 @@ test("the counterfeit MERCY: docking springs the trap; the real bays still work 
 });
 
 test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
   await page.evaluate(() => {
     level.turrets.forEach(t => { t.alive = false; });
     level.drones.forEach(d => { d.alive = false; });
@@ -1672,4 +1672,30 @@ test("V6-finale: the Solace is answered by parrying her pulse, not by holding", 
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 4000 });
   expect(await page.evaluate(() => __doids.get().endingType)).toBe("answered");
   await page.evaluate(() => { input.shield = false; });
+});
+
+test("V12: the finale spawns two identical MERCYs at randomised, separated positions; the beat is the only tell", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  const s = await page.evaluate(() => ({
+    mx: level.mx, fx: level.fakeMercy.x, split: level.mercySplitT, W: level.W
+  }));
+  // both well inside the field and well separated (no fixed home / no fixed decoy spot)
+  expect(Math.abs(s.mx - s.fx), "the two MERCYs are well separated").toBeGreaterThan(s.W * 0.2);
+  expect(s.mx).toBeGreaterThan(s.W * 0.1);
+  expect(s.fx).toBeGreaterThan(s.W * 0.1);
+  expect(s.split, "arrives with the split-reveal running").toBeGreaterThan(0);
+  // the decoy is inert while the split reveal plays
+  await page.evaluate(() => {
+    const f = level.fakeMercy; ship.x = f.x; ship.y = f.y + 70; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => level.fakeMercy.dead), "inert during the reveal").toBe(false);
+  // once the reveal settles, docking the counterfeit still springs the trap
+  await page.evaluate(() => {
+    level.mercySplitT = 0;
+    window.__pin = setInterval(() => { const f = level.fakeMercy; ship.x = f.x; ship.y = f.y + 70; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false; }, 16);
+  });
+  await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
+  await page.evaluate(() => clearInterval(window.__pin));
+  expect(await page.evaluate(() => __doids.get().decoyOutcome)).toBe("trapped");
 });

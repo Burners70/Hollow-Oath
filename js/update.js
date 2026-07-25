@@ -720,13 +720,11 @@ function updateIntro(dt) {
    conditions are part of the tasking, not HUD furniture */
 function briefText() {
   let t = BRIEFS[levelIdx];
-  // The counterfeit MERCY only exists on a veteran return pass, so its warning
-  // (and the "count the beats" tell that tells the two ships apart) belongs in
-  // the finale briefing only then — a first run meets one true MERCY and never
-  // hears this. Spelled out so "count the beats" is never a mystery: ours beats
-  // like a heart, his keeps a machine's perfect time.
-  if (levelIdx === FINALE_IDX && level && level.fakeMercy)
-    t += "\n\nOne more thing, and it matters. Two ships will answer as MERCY on approach. One is ours. One is his — a hull built to wear the shape you stopped checking.\n\nTell them apart by the emblem. OURS beats like a heart: uneven, alive. HIS blinks in perfect mechanical time, like the counterfeit fuel. Count the beats before you dock.";
+  // V12a — the finale twin is no longer signposted. The old briefing spelled out
+  // "two ships will answer as MERCY … count the beats", which pre-announced the
+  // surprise and overran the panel (Y7). It's cut: a second MERCY should be
+  // genuinely unexpected, read from the beat you've learned all game, not a
+  // printed key. (Also removes the Y7 overspill at source.)
   // V9 — a light, sound-led hook, only where the audio actually delivers it: a
   // veteran sector that hides a usable lift, whose pad rings hollow underfoot
   // (U1). No promise the audio can't keep — hence veteran + lvl.lift only.
@@ -1059,6 +1057,7 @@ function updatePlay(dt) {
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
+  if (level.mercySplitT > 0) level.mercySplitT = Math.max(0, level.mercySplitT - dt);   // V12 reveal
   if (level.isFinale) updateBeacon(dt);
   if (level.fakeMercy) updateDecoy(dt);
 
@@ -1777,6 +1776,7 @@ function inBay(b) {
 
 function updateDocking(dt) {
   if (level.isCave) return;   // no MERCY down in the Hollows
+  if (level.mercySplitT > 0) { ship.dockT = 0; return; }   // V12 — bays inert until the twin has resolved
   // S4 — the moment the manifest closes MERCY retracts her bays: they go inert,
   // the recovery beam is dead, and the only way aboard is the ventral hangar.
   // A ship parked in the bay at that instant simply has the deck rise away.
@@ -2342,6 +2342,7 @@ function decoySnared() {
 function updateDecoy(dt) {
   const f = level.fakeMercy;
   if (f.dead) return;
+  if (level.mercySplitT > 0) { f.dockT = 0; return; }   // V12 — inert until the split reveal settles
   const s = ship;
   if (decoySnared()) {
     // N2 — the trap: no heal, no fuel; the bay drinks, and after two
