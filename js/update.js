@@ -27,6 +27,15 @@ const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counte
 const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
 const ANSWER_GAP = 4.5;        // V6-finale — seconds between the Solace's answerable pulses
 const ANSWER_RANGE = 300;      // you must be this near for her to pulse (and to parry)
+// (owner steer) — the Solace's fire-death beats, shared by updateDestruct +
+// drawSolaceDeath. The glow ignites on her exposed broadcast tower; the red heat
+// then flows DOWN below the ground, drawing out her buried MERCY-class hull; a
+// held beat to take the shape in; then she blows in a shower of sparks and
+// resolves to a smoking crater.
+const SOL_IGNITE = 0.6;    // tower lit white-hot; reveal front starts descending
+const SOL_REVEAL = 2.1;    // heat front reaches the buried underside (full hull shown)
+const SOL_BOOM = 2.7;      // detonation instant (after a beat to absorb the shape)
+const SOL_END = 5.2;       // → ending card
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
 const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
@@ -2440,20 +2449,16 @@ function resolveBeacon(how) {
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
   if (how === "fire") {
-    // (owner steer) — the destroy-on-sight order the CMO refused to sign. FIRE
-    // silences her, but spectacularly: the blast lights her whole drowned hull
-    // for a beat before it comes apart. A scripted "destruct" sequence plays it
-    // out, then the ending card lands (see updateDestruct / drawSolaceDeath).
+    // (owner steer) — the destroy-on-sight order the CMO refused to sign. The
+    // killing round IGNITES her exposed broadcast tower; the heat then flows down
+    // to draw out her buried MERCY-class hull, we get a beat to see the shape,
+    // and only THEN does she detonate and leave a crater. Scripted in the
+    // "destruct" state (updateDestruct / drawSolaceDeath); the ending card lands
+    // after. The big boom is deferred to SOL_BOOM — this is just the first spark.
     score += 3000;
-    b.death = 0; b._boom2 = false;
-    camera.shake = 24;
-    boom();
-    for (let i = 0; i < 80; i++) {
-      const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 300;
-      particles.push({ x: b.x, y: b.y - 40, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
-        t: 0.6 + Math.random() * 1.4, max: 2, color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00",
-        size: 1.4 + Math.random() * 2.4 });
-    }
+    b.death = 0; b._det = false;
+    camera.shake = 8;
+    staticTick(0.5);
     state = "destruct"; stateT = 0;
   } else {
     score += 6000;
@@ -2493,21 +2498,40 @@ function updateEpilogue(dt) {
    Tap skips once the first blast has read. drawSolaceDeath does the hull reveal. */
 function updateDestruct(dt) {
   const b = level.beacon;
-  b.death = (b.death || 0) + dt;
+  const prev = b.death || 0;
+  b.death = prev + dt;
+  const t = b.death;
   camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.03, dt));
-  camera.y = lerp(camera.y, b.y - 30, 1 - Math.pow(0.03, dt));
-  if (b.death < 1.6) camera.shake = Math.max(camera.shake, 10 * (1 - b.death / 1.6));
-  if (b.death < 1.4 && Math.random() < 0.8) {
-    const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 240;
-    particles.push({ x: b.x + (Math.random() - 0.5) * 150, y: b.y - 30 + (Math.random() - 0.5) * 120,
-      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: 0.5 + Math.random() * 1.2, max: 1.8,
-      color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 1.3 + Math.random() * 2 });
+  camera.y = lerp(camera.y, b.y - 10, 1 - Math.pow(0.03, dt));
+
+  if (t < SOL_BOOM) {
+    // ignition + the heat flowing down: a rising rumble, sparks streaming off the
+    // exposed tower, the shake building toward the blast
+    camera.shake = Math.max(camera.shake, 3 + 7 * (t / SOL_BOOM));
+    if (Math.random() < 0.6) particles.push({
+      x: b.x + (Math.random() - 0.5) * 34, y: b.y - 70 - Math.random() * 44,
+      vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 46,
+      t: 0.35 + Math.random() * 0.5, max: 0.9,
+      color: Math.random() < 0.5 ? "#fff3d6" : "#ffc400", size: 1 + Math.random() * 1.6 });
   }
-  if (b.death > 0.5 && !b._boom2) {
-    b._boom2 = true; boom(); camera.shake = Math.max(camera.shake, 16);
-    explode(b.x - 60, b.y - 10, "#ffc400", 34); explode(b.x + 70, b.y + 20, "#ff6d00", 34);
+  // DETONATION — once: the big boom + a shower of sparks off the whole hull
+  if (t >= SOL_BOOM && !b._det) {
+    b._det = true; boom(); camera.shake = Math.max(camera.shake, 28);
+    for (let i = 0; i < 130; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 380;
+      particles.push({ x: b.x, y: b.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70,
+        t: 0.7 + Math.random() * 1.7, max: 2.4,
+        color: Math.random() < 0.4 ? "#fff3d6" : (Math.random() < 0.6 ? "#ffc400" : "#ff6d00"),
+        size: 1.4 + Math.random() * 2.8 });
+    }
   }
-  if ((input.tap && b.death > 1.4) || b.death >= 4.2) { state = "ending"; stateT = 0; }
+  // after the blast: settling sparks + smoke rising from the crater
+  if (t >= SOL_BOOM && t < SOL_BOOM + 1.6 && Math.random() < 0.7) particles.push({
+    x: b.x + (Math.random() - 0.5) * 130, y: b.y - 4 - Math.random() * 12,
+    vx: (Math.random() - 0.5) * 12, vy: -8 - Math.random() * 12,
+    t: 1.2 + Math.random() * 1.3, max: 2.5, color: "#6b6560", size: 2 + Math.random() * 3.2 });
+
+  if ((input.tap && t > SOL_BOOM + 0.6) || t >= SOL_END) { state = "ending"; stateT = 0; }
   input.tap = false;
 }
 

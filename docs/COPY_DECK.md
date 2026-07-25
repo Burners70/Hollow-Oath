@@ -390,8 +390,11 @@ shield to catalogue it, no shot)
   kept whole." (no-fire) or "You found what he hid. It cost you the oath to
   do it." (secrets-only fire).
 - **SILENCE BY FIRE** (the bad ending — take the destroy-on-sight order the CMO
-  refused to sign, and shoot the Solace down; the blast reveals her whole hull
-  as it breaks apart) — "The signal stops. The Static is gone, and MERCY can
+  refused to sign, and shoot the Solace down. The kill plays out in beats: the
+  glow ignites on her exposed broadcast tower, the red heat flows DOWN below the
+  ground to draw out her buried hull — a MERCY-class *sister*, not a clone — we
+  get a beat to realise the shape, then she blows in a shower of sparks and
+  leaves a smoking crater) — "The signal stops. The Static is gone, and MERCY can
   continue. / But the CMO is very quiet. / That was no surprise outpost. No
   enemy relay. That was one of ours. / AMS SOLACE — crew of 214 — silenced, not
   answered. / The SOLACE deserved better. / +3000" (rank: `SECTOR WARDEN`)

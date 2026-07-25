@@ -1723,7 +1723,8 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
   await page.evaluate(() => __doids.fireSolace());
   expect(await page.evaluate(() => __doids.get().state)).toBe("destruct");
   expect(await page.evaluate(() => level.beacon.resolved && level.beacon.death != null)).toBe(true);
-  // it lands on the fire ending once the blast has played out
-  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 6000 });
+  // the scripted destruction (ignite → reveal → boom → crater) plays, then it
+  // lands on the fire ending card
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 9000 });
   expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
 });

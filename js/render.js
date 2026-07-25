@@ -615,7 +615,17 @@ function drawDarkness(now) {
   for (const c of level.scenery)   // T3 — ward-lanterns carve small pools of light
     if (c.type === "lantern" && !c.dead)
       punch(c.x, c.y - c.pole * c.s, 72, 0.4 + 0.15 * Math.abs(Math.sin(now * 3 + c.ph)));
-  if (level.beacon && !level.beacon.resolved) punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
+  if (level.beacon && level.beacon.death != null) {
+    // her fire-death lights the whole area — a big, blast-growing hole so the
+    // heat reveal + detonation read through the nullwave dark (else the darkness
+    // overlay, drawn after the beacon, would swallow them)
+    const bt = level.beacon.death - SOL_BOOM;
+    const r = bt < 0 ? 240 + 150 * clamp(level.beacon.death / SOL_BOOM, 0, 1)
+                     : 400 + 220 * clamp(bt / 0.5, 0, 1);
+    punch(level.beacon.x, level.beacon.y - 20, r, 1);
+  } else if (level.beacon && !level.beacon.resolved) {
+    punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
+  }
   if (level.blackbox && !level.blackbox.found) punch(level.blackbox.x, level.blackbox.y, 36, 0.4);
   if (level.isCave) {   // the Hollows keep their own faint lights
     punch(level.lift.x, level.lift.y - 20, 120, 0.6);
@@ -2179,72 +2189,106 @@ function solaceHullPath() {
   ctx.closePath();
 }
 
+/* AMS SOLACE's own silhouette — the SAME MERCY-class family (dorsal command
+   tower rising out of a lozenge hull, with the signature mast), but a sister,
+   not a clone: a taller, narrower tower and a slightly longer, deeper hull, so
+   she reads as related to MERCY, not identical. The tower is part of the TOP
+   edge of the outline (as on MERCY), so she reads as one ship — not a tower
+   pasted onto the middle of a blob. Centred at the local origin. */
+function solaceMercyPath() {
+  ctx.beginPath();
+  ctx.moveTo(-152, 0);
+  ctx.lineTo(-100, -18); ctx.lineTo(-46, -18);
+  ctx.lineTo(-19, -60); ctx.lineTo(19, -60); ctx.lineTo(46, -18);   // taller, narrower tower
+  ctx.lineTo(100, -18); ctx.lineTo(152, 0);
+  ctx.lineTo(90, 26); ctx.lineTo(-90, 26);                          // longer, deeper belly
+  ctx.closePath();
+}
+
 /* (owner steer) — the bad ending's destruction reveal, drawn in the beacon's
-   own frame. The blast lights her whole hull white-hot for a beat (so the full
-   ship shape is unmistakable), then cracks split it and it burns down to a dark
-   husk while debris (spawned in updateDestruct) flies. Respects reducedFlash. */
+   own frame, in scripted beats (timings in js/update.js: SOL_IGNITE / SOL_REVEAL
+   / SOL_BOOM / SOL_END):
+     1. IGNITE — the glow lights on her exposed broadcast tower + mast.
+     2. REVEAL — the red heat then flows DOWN below the ground line, drawing out
+        her buried hull top-to-bottom, and we realise the shape is a MERCY-class
+        sister (solaceMercyPath, scaled so the tower sits where the beacon's did
+        and the hull runs deep below the surface).
+     3. a held beat to take it in, then
+     4. BOOM — she blows in a shower of sparks (particles from updateDestruct) +
+        a flash and shockwave, resolving to a smoking crater in the ridge.
+   Respects reducedFlash. */
 function drawSolaceDeath(b, now) {
   const t = b.death || 0;
-  const flash = Math.max(0, 1 - t / 0.35);          // white-hot at the instant of the blast
-  const heat = clamp(1 - (t - 0.3) / 2.2, 0, 1);    // how lit/intact the hull still reads
-  // expanding shockwave rings
-  if (!reducedFlash) {
-    for (let k = 0; k < 3; k++) {
-      const rp = clamp((t - k * 0.18) / 1.1, 0, 1);
-      if (rp <= 0 || rp >= 1) continue;
-      ctx.globalAlpha = (1 - rp) * 0.6;
-      ctx.strokeStyle = "#ffd27f"; ctx.shadowColor = "#ff9e40"; ctx.shadowBlur = 12; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(0, -20, 20 + rp * 440, 0, 7); ctx.stroke();
+  const MS = 1.3, HY = 28;                       // scale + offset: tower peak lands at world y≈-50
+  const topY = -112, botY = 72;                  // antenna tip → below the buried belly
+  const revP = clamp((t - SOL_IGNITE) / (SOL_REVEAL - SOL_IGNITE), 0, 1);
+  const front = topY + (botY - topY) * revP;     // the descending heat front
+  const boomT = t - SOL_BOOM;
+
+  if (boomT < 0) {
+    // ---- ignition + heat-flows-down reveal ----
+    // reveal everything the heat has reached — i.e. ABOVE the descending front
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-600, -3200, 1200, front + 3200); ctx.clip();
+    // an ambient heat bloom filling the hull so she glows hot, not dark-maroon
+    if (!reducedFlash) { drawGlow(0, HY, 150, "#ff6d00", 0.5); drawGlow(0, HY - 6, 90, "#ffae40", 0.45); }
+    ctx.save();
+    ctx.translate(0, HY); ctx.scale(MS, MS);
+    solaceMercyPath();
+    const g = ctx.createLinearGradient(0, -60, 0, 26);
+    g.addColorStop(0, "rgba(255,250,232,1)");        // white-hot at the tower
+    g.addColorStop(0.4, "rgba(255,170,60,.98)");     // bright amber through the body
+    g.addColorStop(1, "rgba(255,80,26,.9)");          // hot orange-red at the belly
+    ctx.fillStyle = g; ctx.fill();
+    ctx.globalCompositeOperation = "lighter";        // additive edge so it reads as fire, not paint
+    ctx.strokeStyle = "rgba(255,224,170,1)"; ctx.lineWidth = 2.6 / MS; ctx.lineJoin = "round";
+    ctx.shadowColor = "#ff8a2c"; ctx.shadowBlur = (reducedFlash ? 6 : 30) / MS;
+    ctx.stroke();
+    if (!reducedFlash) ctx.stroke();   // double for bloom
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+    ctx.restore();
+    // a hot spot riding the heat front down through the hull
+    if (revP > 0 && revP < 1 && !reducedFlash) drawGlow(0, front, 66, "#ffe0a0", 1);
+    // the exposed tower cap + mast, ignited (drawn unclipped — always visible)
+    const ign = clamp(t / SOL_IGNITE, 0, 1);
+    ctx.save();
+    ctx.translate(0, HY); ctx.scale(MS, MS);
+    mercyAntenna(now, "255,236,196", true);
+    ctx.restore();
+    if (!reducedFlash) drawGlow(0, -54, 26 + 22 * ign, "#fff3d6", 0.45 + 0.4 * ign);
+  } else {
+    // ---- detonation → smoking crater ----
+    const cf = clamp(boomT / 0.45, 0, 1);
+    if (!reducedFlash) {
+      if (cf < 1) {
+        const r = 60 + cf * 300;
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        g.addColorStop(0, "rgba(255,246,220," + (0.92 * (1 - cf)).toFixed(2) + ")");
+        g.addColorStop(1, "rgba(255,120,40,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+      }
+      for (let k = 0; k < 3; k++) {
+        const rp = clamp((boomT - k * 0.12) / 0.9, 0, 1);
+        if (rp <= 0 || rp >= 1) continue;
+        ctx.globalAlpha = (1 - rp) * 0.6;
+        ctx.strokeStyle = "#ffd27f"; ctx.shadowColor = "#ff9e40"; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, 30 + rp * 460, 0, 7); ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     }
-    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-  }
-  // the full hull, revealed whole and lit by the fire
-  solaceHullPath();
-  ctx.fillStyle = "rgba(70,24,10," + (0.35 + 0.4 * heat).toFixed(2) + ")";
-  ctx.fill();
-  const gEdge = Math.round(120 + 135 * flash), bEdge = Math.round(50 + 205 * flash);
-  ctx.strokeStyle = "rgba(255," + gEdge + "," + bEdge + "," + (0.4 + 0.55 * heat).toFixed(2) + ")";
-  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = (reducedFlash ? 4 : 16) * (0.4 + heat);
-  ctx.lineWidth = 2.6; ctx.lineJoin = "round";
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-  // her command tower + big antenna mast — the MERCY-class tells, so she reads
-  // unmistakably as a ship even as she burns. The mast cants over as she dies.
-  ctx.save();
-  ctx.globalAlpha = 0.35 + 0.65 * heat;
-  ctx.beginPath();
-  ctx.moveTo(-50, 6); ctx.lineTo(-40, -22); ctx.lineTo(-26, -50);
-  ctx.lineTo(26, -50); ctx.lineTo(40, -22); ctx.lineTo(50, 6);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(70,24,10," + (0.5 * heat).toFixed(2) + ")"; ctx.fill();
-  ctx.strokeStyle = "rgba(255," + gEdge + "," + bEdge + ",.85)";
-  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = reducedFlash ? 3 : 11; ctx.lineWidth = 2.4;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.rotate(0.22 * (1 - heat));   // the mast tips as she goes
-  mercyAntenna(now, "255," + gEdge + "," + bEdge, false);
-  ctx.restore();
-  // fracture cracks that open across her as she comes apart (after the first beat)
-  const crack = clamp((t - 0.3) / 0.9, 0, 1);
-  if (crack > 0) {
-    ctx.strokeStyle = "rgba(255,210,120," + (0.7 * heat).toFixed(2) + ")";
-    ctx.shadowColor = "#ffc400"; ctx.shadowBlur = reducedFlash ? 3 : 10; ctx.lineWidth = 1.6 + 2 * crack;
-    for (const cx of [-70, 20, 96]) {
-      ctx.beginPath();
-      ctx.moveTo(cx, -46);
-      ctx.lineTo(cx + 18 * crack, 40 * crack); ctx.lineTo(cx - 14 * crack, 110 * crack);
-      ctx.lineTo(cx + 10 * crack, 180 * crack);
-      ctx.stroke();
+    // the smoking crater she leaves in the ridge — a scorched gouge that settles
+    const cr = clamp(boomT / 0.7, 0, 1);
+    ctx.save();
+    ctx.fillStyle = "rgba(6,4,3," + (0.9 * cr).toFixed(2) + ")";
+    ctx.beginPath(); ctx.ellipse(0, 8, 150, 20 + 34 * cr, 0, 0, Math.PI); ctx.fill();
+    ctx.strokeStyle = "rgba(150,60,26," + (0.55 * cr).toFixed(2) + ")"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(0, 8, 150, 20 + 34 * cr, 0, 0, Math.PI); ctx.stroke();
+    if (!reducedFlash) {
+      const emb = 0.28 + 0.22 * Math.sin(now * 4);
+      for (const ex of [-72, -12, 52, 108]) drawGlow(ex, 22, 6, "#ff6d00", emb * cr);
     }
-    ctx.shadowBlur = 0;
-  }
-  // the white-hot core at the breach
-  if (flash > 0 && !reducedFlash) {
-    const r = 34 + (1 - flash) * 130;
-    const g = ctx.createRadialGradient(0, -26, 0, 0, -26, r);
-    g.addColorStop(0, "rgba(255,255,255," + (0.92 * flash).toFixed(2) + ")");
-    g.addColorStop(1, "rgba(255,158,64,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -26, r, 0, 7); ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -3944,8 +3988,10 @@ function drawGameOver(now) {
    reduced-flash accessibility setting. */
 function drawDestruct(now) {
   const b = level && level.beacon; if (!b || reducedFlash) return;
-  const t = b.death || 0;
-  const a = Math.max(0, 0.55 * (1 - t / 0.5));
+  // the screen bloom belongs to the DETONATION beat (SOL_BOOM), not the quiet
+  // ignition — the hull reveal before it is drawn in world space by drawSolaceDeath
+  const bt = (b.death || 0) - SOL_BOOM;
+  const a = bt >= 0 ? Math.max(0, 0.6 * (1 - bt / 0.5)) : 0;
   if (a > 0) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "rgba(255,240,220," + a.toFixed(2) + ")";

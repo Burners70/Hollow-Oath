@@ -1763,12 +1763,19 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   see BRIEF + LOG 09/10) — is now a real, spectacular choice. FIRE on the signal
   source drops her `beacon.hp` (3 rounds; already wired in the `level.shots`
   loop); the last round runs `resolveBeacon("fire")`, which no longer cuts
-  straight to the card. Instead a scripted **`destruct`** state plays: a blinding
-  detonation flash, then her **whole drowned hull is revealed** — the shared
-  `solaceHullPath()` (same shape as the V3 sonar reveal) lit white-hot, cracked
-  by opening fracture lines, ringed by expanding shockwaves, shedding debris —
-  then it burns down to a husk (`drawSolaceDeath` in `js/render.js`;
-  `updateDestruct` + a secondary detonation in `js/update.js`). It settles onto
+  straight to the card. Instead a scripted **`destruct`** state plays out in
+  beats (owner steer — timings `SOL_IGNITE`/`SOL_REVEAL`/`SOL_BOOM`/`SOL_END` in
+  `js/update.js`): (1) the glow **ignites on her exposed broadcast tower + mast**;
+  (2) the red heat then **flows DOWN below the ground line**, drawing out her
+  buried hull top-to-bottom via a descending clip front — and the shape reads as
+  a **MERCY-class _sister_** (`solaceMercyPath()`: same family as `mercyHullPath`
+  — dorsal tower integral to the top edge, mast — but a taller/narrower tower and
+  a longer, deeper hull, so related not identical); (3) a held beat to take the
+  shape in; (4) she **detonates in a shower of sparks** with a flash + shockwave
+  and (5) resolves to a **smoking crater** in the ridge (`drawSolaceDeath` in
+  `js/render.js`; `updateDestruct` in `js/update.js`; `drawDarkness` keeps a
+  blast-growing light hole open so the reveal reads through the nullwave dark).
+  It settles onto
   the reworded **SILENCE BY FIRE** card: "…That was one of ours. AMS SOLACE —
   crew of 214 — silenced, not answered. The SOLACE deserved better." Respects
   reduced-flash (no screen bloom, dimmer glows). Rank stays `SECTOR WARDEN`.
