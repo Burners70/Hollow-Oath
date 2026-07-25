@@ -640,6 +640,16 @@ function groundOf(heights, x) {
   return lerp(heights[i], heights[i + 1], clamp(x / STEP - i, 0, 1));
 }
 
+// like flatten, but to a GIVEN height (a landing shelf level with a Scion,
+// rather than to whatever height sat at cx) — used by the V2 fairness pass.
+function flattenTo(heights, cx, halfW, y) {
+  const i0 = Math.max(1, Math.floor((cx - halfW) / STEP));
+  const i1 = Math.min(heights.length - 2, Math.ceil((cx + halfW) / STEP));
+  for (let i = i0; i <= i1; i++) heights[i] = y;
+  if (i0 > 1) heights[i0 - 1] = (heights[i0 - 2] + y) / 2;
+  if (i1 < heights.length - 2) heights[i1 + 1] = (heights[i1 + 2] + y) / 2;
+}
+
 /* V2 — scan-jeopardy fairness. Is there a landable spot from which a landed scan
    of the Scion at cx COMPLETES before the Scion creeps to the hatch and boards
    unread? The band is derived from the scan/creep constants (updateScionScan):
@@ -912,15 +922,36 @@ function genLevel(n) {
   // (a Scion in a clearing you can always back off from, never a rigged loss).
   // Run as a final pass over the settled terrain, iterated a few times so it
   // holds even where widening one pad nicks a neighbour's band.
+  // Cap the widen at 122: Scions are placed ≥260px apart (pick() minDist), so a
+  // ±122 pad can never overlap a neighbour's — which keeps this convergent (no
+  // two pads fight across passes). ±122 still reaches past the band's ~110px
+  // lower edge, so the pad itself always yields a valid touchdown.
   const scannableOid = o => o.role === "normal" || o.role === "saboteur" || o.role === "famous";
-  for (let pass = 0; pass < 5; pass++) {
+  const PAD_CAP = 122;
+  for (let pass = 0; pass < 3; pass++) {
     let changed = false;
     for (const o of lvl.oids) {
       if (!scannableOid(o)) continue;
       let hw = 80;
-      while (hw < 150 && !scanSpotOK(heights, W, o.x)) { hw += 14; flatten(heights, o.x, hw); changed = true; }
+      while (hw < PAD_CAP && !scanSpotOK(heights, W, o.x)) {
+        hw = Math.min(hw + 14, PAD_CAP); flatten(heights, o.x, hw); changed = true;
+      }
     }
     if (!changed) break;
+  }
+  // Last resort for the rare crowded map where pick() had to place two Scions
+  // closer than 260 and their pads still can't both hold: carve a small landing
+  // shelf at the Scion's own height, on the side away from its nearest
+  // scannable neighbour (so two such shelves point apart and never collide).
+  for (const o of lvl.oids) {
+    if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
+    let nearest = Infinity, dir = 1;
+    for (const q of lvl.oids)
+      if (q !== o && scannableOid(q) && Math.abs(q.x - o.x) < nearest) {
+        nearest = Math.abs(q.x - o.x); dir = q.x >= o.x ? -1 : 1;
+      }
+    const sx = clamp(o.x + dir * 140, 60, W - 60);
+    flattenTo(heights, sx, 26, groundOf(heights, o.x));
   }
   // re-seat ground-anchored entities in case a widened pad moved the ground
   // under them (turrets are re-seated with the scenery pass below)
