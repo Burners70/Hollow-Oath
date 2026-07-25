@@ -790,6 +790,18 @@ function genLevel(n) {
   // T1 — the wide campaign sectors (4–6) get +1 Scion and +1 turret each, so
   // the extra room reads as denser wilderness, not emptier ground.
   const wideBump = (n >= 4 && n < FINALE_IDX) ? 1 : 0;
+  // V10 — the veteran campaign RETURN is not a re-run of the first: same
+  // landscape (the terrain octaves above are untouched), but MORE GUNS, a HIGHER
+  // PROPORTION OF VECTORS, and — by decorrelating the placement RNG here, after
+  // the terrain is fixed — DIFFERENT Scion/Vector/turret positions. Gated to a
+  // veteran campaign run on the scored sectors: REMIX/DAILY already re-roll, and
+  // the finale keeps its authored setup + the counterfeit MERCY (N1). The
+  // non-veteran first run (and the M1 golden heightmap) is byte-for-byte as
+  // before — none of this fires unless `veteran`.
+  const vetReturn = veteran && runMode === "campaign" && n < FINALE_IDX;
+  const vetGuns = vetReturn ? 2 : 0;
+  const vetVectors = vetReturn && n >= 1 ? (n >= 3 ? 2 : 1) : 0;
+  if (vetReturn) { rng(); rng(); rng(); }   // shift the stream → a different layout
   for (let i = 0; i < r.oids + wideBump; i++) {
     const x = pick(280);
     const y = flatten(heights, x, 80);
@@ -808,7 +820,8 @@ function genLevel(n) {
     f.role = "famous"; f.famousId = famousIdFor(n);
   }
   // saboteurs are extra figures, indistinguishable at a distance
-  const nSabs = r.sabs + (dailyMod("sleepers") && r.sabs ? 1 : 0);
+  // (V10 raises the Vector proportion on a veteran return via vetVectors)
+  const nSabs = r.sabs + (dailyMod("sleepers") && r.sabs ? 1 : 0) + vetVectors;
   for (let i = 0; i < nSabs; i++) {
     const x = pick(260);
     const y = flatten(heights, x, 70);
@@ -824,7 +837,7 @@ function genLevel(n) {
   }
   lvl.total = lvl.oids.length;
 
-  for (let i = 0; i < r.turrets + wideBump; i++) {
+  for (let i = 0; i < r.turrets + wideBump + vetGuns; i++) {   // V10 — more guns on a veteran return
     const x = pick(220);
     const y = flatten(heights, x, 40);
     lvl.turrets.push({ x, y, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });

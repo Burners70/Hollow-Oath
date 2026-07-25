@@ -1637,7 +1637,17 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   earlier "Listen for them in the dark" promise on Nightingale Basin was cut
   for lack of an audio tell — see the parked stereo-beacon idea below; don't
   re-introduce a promise the audio can't yet keep.)
-- [ ] **V10. Post-win campaign variant.** The return (post-completion) run
+- [x] **V10. Post-win campaign variant.** *(Shipped. `genLevel` (`js/world.js`)
+  now detects a veteran campaign return (`veteran && runMode === "campaign" &&
+  n < FINALE_IDX`) and: adds +2 turrets (`vetGuns`) and +1–2 saboteurs
+  (`vetVectors`, raising the Vector proportion), and decorrelates the placement
+  RNG **after** the terrain octaves are generated — so the landscape is the same
+  but Scion/Vector/turret positions differ. Strictly veteran-gated: the
+  non-veteran first run and the M1 golden heightmap are byte-for-byte unchanged
+  (verified 1837799405). The early-sector no-pocket fairness pass and the V2
+  scan-spot invariant both still hold under the escalation. REMIX/DAILY already
+  re-roll and the finale keeps its authored setup + counterfeit MERCY. Smoke:
+  "V10 a veteran campaign return escalates".)* The return (post-completion) run
   should differ from the first: **same landscape, but different Scion/Vector
   placements, more guns, and a higher proportion of Vectors.** This extends the
   existing veteran-return machinery (the finale already spawns the counterfeit

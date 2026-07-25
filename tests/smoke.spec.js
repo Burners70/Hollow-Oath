@@ -1552,3 +1552,25 @@ test("V2: every scannable Scion has a fair scan-landing spot (campaign + REMIX)"
     }
   }
 });
+
+test("V10: a veteran campaign return escalates — more guns, more Vectors, moved", async ({ page }) => {
+  // first run (non-veteran) of a mid campaign sector
+  await page.evaluate(() => __doids.go(3));
+  const first = await page.evaluate(() => {
+    const g = __doids.get();
+    return { turrets: g.level.turrets.length,
+      sab: g.level.oids.filter(o => o.role === "saboteur").length,
+      xs: g.level.oids.map(o => Math.round(o.x)) };
+  });
+  // the veteran RETURN of the same sector: same landscape, escalated
+  await page.evaluate(() => { __doids.setVeteran(); __doids.reset(); __doids.go(3); });
+  const vet = await page.evaluate(() => {
+    const g = __doids.get();
+    return { turrets: g.level.turrets.length,
+      sab: g.level.oids.filter(o => o.role === "saboteur").length,
+      xs: g.level.oids.map(o => Math.round(o.x)) };
+  });
+  expect(vet.turrets, "more guns on return").toBeGreaterThan(first.turrets);
+  expect(vet.sab, "higher Vector proportion on return").toBeGreaterThan(first.sab);
+  expect(vet.xs, "different placements on return").not.toEqual(first.xs);
+});
