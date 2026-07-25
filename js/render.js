@@ -91,8 +91,9 @@ function render() {
       state === "pause" || state === "confirm") drawHUD(now);
 
   if (state === "title") drawTitle(now);
+  if (state === "fork") drawFork(now);
   if (state === "helpmenu") drawHelpMenu(now);
-  if (state === "help") drawCardPanel(HELP_CARD, now);
+  if (state === "help") drawGuide(now);
   if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
@@ -221,6 +222,19 @@ function getTiles(lvl, cacheKey, arr, xLo, xHi, padAbove, padBelow, closeAt, gra
     out.push(tileTouch(map, ti, tile));
   }
   return out;
+}
+
+/* Y1 — iOS purges offscreen-canvas backing stores under memory pressure while
+   the app is backgrounded. On resume the cached tile objects still exist but
+   their pixels are gone, so drawImage() paints nothing and the terrain / roof
+   goes invisible (while the live-drawn ship survives, and collision — which
+   reads the heightmap arrays, not the tiles — still bites). Drop the tile
+   caches so the next getTiles() rebuilds them from the heightmaps. Called from
+   the foreground handlers (pageshow / visibilitychange→visible) in input.js. */
+function invalidateTiles() {
+  if (!level) return;
+  level._terrainTiles = null;
+  level._roofTiles = null;
 }
 
 /* T2 — the Hollows keep the Static's violet regardless of which sector's lift
@@ -2992,6 +3006,228 @@ function paginateLines(lines, maxLines) {
   return pages.length ? pages : [[]];
 }
 
+/* ===== X1 — the illustrated HOW TO FLY guide ===== */
+
+// a small labelled ship, reusing the real hull path (drawShip) so the diagram
+// matches the ship the player actually flies. ang in radians; thrust draws the
+// engine flame off the tail.
+function guideShip(cx, cy, ang, thrust, now) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(ang);
+  if (thrust) {   // engine flame off the tail, behind the hull
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = "#ffb14e"; ctx.shadowColor = "#ff8a3d"; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(-5, 6); ctx.lineTo(0, 6 + (14 + Math.sin(now * 22) * 4)); ctx.lineTo(5, 6);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 12;
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
+  ctx.fillStyle = "rgba(0,229,255,.12)";
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+// one of the real on-screen control buttons, drawn as the rounded square the
+// player sees, with its glyph/label. `active` gives it the pressed glow.
+function guideButton(cx, cy, label, active, tint) {
+  const s = 26, col = tint || "#7fe9ff";
+  ctx.save();
+  ctx.strokeStyle = active ? col : "rgba(127,233,255,.55)";
+  ctx.fillStyle = active ? "rgba(0,229,255,.18)" : "rgba(0,229,255,.06)";
+  ctx.shadowColor = col; ctx.shadowBlur = active && !reducedFlash ? 14 : 6;
+  ctx.lineWidth = 1.6;
+  const r = 6, x = cx - s, y = cy - s, w = s * 2, h = s * 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = active ? "#eaf6ff" : col;
+  ctx.textAlign = "center";
+  ctx.font = (label.length > 3 ? "700 9px" : "700 15px") + " Menlo, monospace";
+  ctx.fillText(label, cx, cy + (label.length > 3 ? 3 : 5));
+  ctx.restore();
+}
+
+// each guide page's diagram. cx = panel centre x; cy = centre of the art band.
+function drawGuideArt(art, cx, cy, now) {
+  const PAL_ = PAL();
+  ctx.textAlign = "center";
+  if (art === "rotate") {
+    guideShip(cx, cy - 2, -0.35, false, now);
+    // curved turn arrows either side of the ship
+    ctx.strokeStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy - 2, 34, Math.PI * 0.75, Math.PI * 1.15); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy - 2, 34, -Math.PI * 0.15, Math.PI * 0.25); ctx.stroke();
+    ctx.shadowBlur = 0;
+    guideButton(cx - 58, cy + 2, "↺", false);
+    guideButton(cx + 58, cy + 2, "↻", false);
+  } else if (art === "thrust") {
+    guideShip(cx - 30, cy, 0, true, now);
+    // motion arrow up the nose
+    ctx.strokeStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6; ctx.lineWidth = 2;
+    arrow(cx - 30, cy - 22, cx - 30, cy - 46);
+    ctx.shadowBlur = 0;
+    guideButton(cx + 46, cy, "THRUST", true);
+  } else if (art === "counter") {
+    // ship moving right (ghost arrow) but nosed left, burning to brake
+    ctx.strokeStyle = "rgba(155,234,249,.5)"; ctx.lineWidth = 2;
+    arrow(cx - 4, cy - 30, cx + 44, cy - 30);
+    guideShip(cx, cy, -Math.PI / 2, true, now);   // nose points left, flame pushes right
+    ctx.fillStyle = "rgba(155,234,249,.7)"; ctx.font = "600 9px Menlo, monospace";
+    ctx.fillText("moving →", cx + 20, cy - 38);
+  } else if (art === "shield") {
+    guideShip(cx - 30, cy, 0, false);
+    ctx.strokeStyle = PAL_.SAFE; ctx.shadowColor = PAL_.SAFE; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.arc(cx - 30, cy - 2, 22, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.12; ctx.fillStyle = PAL_.SAFE;
+    ctx.beginPath(); ctx.arc(cx - 30, cy - 2, 22, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    guideButton(cx + 46, cy, "SHIELD", true, PAL_.SAFE);
+  } else if (art === "fuel") {
+    // the real top-left fuel bar, in miniature
+    const bw = 120, bh = 14, bx = cx - bw / 2, by = cy - 8;
+    ctx.strokeStyle = "rgba(255,196,0,.7)"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle = PAL_.WARN; ctx.shadowColor = PAL_.WARN; ctx.shadowBlur = 8;
+    ctx.fillRect(bx + 2, by + 2, (bw - 4) * 0.62, bh - 4);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255,196,0,.85)"; ctx.font = "700 9px Menlo, monospace";
+    ctx.fillText("FUEL", bx + 16, by - 6);
+  } else if (art === "fire") {
+    guideShip(cx - 30, cy, 0, false);
+    // a shot leaving the nose
+    ctx.strokeStyle = PAL_.WARN; ctx.shadowColor = PAL_.WARN; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+    arrow(cx - 30, cy - 16, cx - 30, cy - 44);
+    ctx.shadowBlur = 0;
+    guideButton(cx + 46, cy, "FIRE", true, PAL_.WARN);
+  } else if (art === "land") {
+    // ship above flat ground with the green approach chevrons
+    guideShip(cx, cy - 14, 0, false);
+    ctx.strokeStyle = PAL_.SAFE; ctx.shadowColor = PAL_.SAFE; ctx.shadowBlur = 6; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 8, cy + 2); ctx.lineTo(cx, cy + 8); ctx.lineTo(cx + 8, cy + 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx, cy + 14); ctx.lineTo(cx + 8, cy + 8); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#5fe3c8"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 46, cy + 24); ctx.lineTo(cx + 46, cy + 24); ctx.stroke();
+  } else if (art === "controls") {
+    guideButton(cx - 44, cy, "A", false);
+    guideButton(cx + 4, cy, "X", false);
+    guideButton(cx + 52, cy, "⇧", false);
+    ctx.fillStyle = "rgba(155,234,249,.6)"; ctx.font = "600 9px Menlo, monospace";
+    ctx.fillText("thrust", cx - 44, cy + 40);
+    ctx.fillText("fire", cx + 4, cy + 40);
+    ctx.fillText("shield", cx + 52, cy + 40);
+  }
+}
+
+// a little arrow helper for the diagrams
+function arrow(x0, y0, x1, y1) {
+  const a = Math.atan2(y1 - y0, x1 - x0), hl = 6;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - hl * Math.cos(a - 0.5), y1 - hl * Math.sin(a - 0.5));
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - hl * Math.cos(a + 0.5), y1 - hl * Math.sin(a + 0.5));
+  ctx.stroke();
+}
+
+function drawGuide(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.82)";
+  ctx.fillRect(0, 0, vw, vh);
+  GUIDE.pages = GUIDE_PAGES.length;
+  const page = clamp(GUIDE.page || 0, 0, GUIDE.pages - 1);
+  const pg = GUIDE_PAGES[page];
+
+  const w = Math.min(560, vw - 40);
+  const capPx = bodyFontPx(13), capLH = capPx + 6;
+  ctx.font = "600 " + capPx + "px Menlo, monospace";
+  const capLines = wrapText(pg.caption, w - 60);
+  // fit the panel to a short landscape phone: art band shrinks if space is tight
+  const chrome = 30 + 34;                        // kicker+title block
+  const foot = 26;
+  const avail = (vh - 40) - chrome - foot - capLines.length * capLH;
+  const artH = clamp(avail, 44, 96);
+  const h = chrome + artH + capLines.length * capLH + foot;
+  const x = (vw - w) / 2, y = Math.max(20, (vh - h) / 2);
+
+  ctx.fillStyle = "rgba(8,10,26,.94)";
+  ctx.strokeStyle = GUIDE.color; ctx.shadowColor = GUIDE.color;
+  ctx.shadowBlur = reducedFlash ? 8 : 18; ctx.lineWidth = 2;
+  ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+  ctx.shadowBlur = 6;
+  ctx.textAlign = "center";
+  ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = GUIDE.color;
+  ctx.fillText("FLIGHT MANUAL · HOW TO FLY", vw / 2, y + 22);
+  ctx.font = "900 20px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillStyle = "#f4f8ff";
+  ctx.fillText(pg.title, vw / 2, y + 48);
+  ctx.shadowBlur = 0;
+
+  // the diagram, centred in its band
+  drawGuideArt(pg.art, vw / 2, y + chrome + artH / 2, now);
+
+  // the caption
+  ctx.font = "600 " + capPx + "px Menlo, monospace";
+  ctx.fillStyle = "#d9e8ff";
+  const capY = y + chrome + artH + capPx + 2;
+  capLines.forEach((l, i) => ctx.fillText(l, vw / 2, capY + i * capLH));
+
+  // footer — page count + tap affordance (steady when reduced-flash is on)
+  ctx.font = "700 11px Menlo, monospace";
+  const fa = reducedFlash ? 0.8 : (0.5 + 0.4 * Math.sin(now * 4));
+  ctx.fillStyle = "rgba(255,255,255," + fa.toFixed(2) + ")";
+  GUIDE._footY = y + h - 12;
+  const more = page < GUIDE.pages - 1 ? " · tap for more" : " · tap to fly";
+  ctx.fillText((page + 1) + "/" + GUIDE.pages + more, vw / 2, GUIDE._footY);
+}
+
+/* ===== X3 — the first-play fork ===== */
+function drawFork(now) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.9)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = reducedFlash ? 8 : 18;
+  ctx.fillStyle = "#aef4ff";
+  ctx.font = "900 " + Math.min(26, vw * 0.055) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("BEFORE YOU FLY", vw / 2, forkRowRect(0).y - 66);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#d9e8ff"; ctx.font = "600 " + bodyFontPx(13) + "px Menlo, monospace";
+  ctx.fillText("Played a thrust / gravity flying game before?", vw / 2, forkRowRect(0).y - 34);
+  const rows = [["✓ YES — I know how to fly", "straight into the mission"],
+                ["✦ NO — show me how", "a quick illustrated guide first"]];
+  for (let i = 0; i < 2; i++) {
+    const r = forkRowRect(i);
+    ctx.strokeStyle = "rgba(0,229,255,.75)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#7fe9ff"; ctx.font = "700 15px Menlo, monospace";
+    ctx.fillText(rows[i][0], vw / 2, r.y + r.h / 2 - 2);
+    ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = "600 10px Menlo, monospace";
+    ctx.fillText(rows[i][1], vw / 2, r.y + r.h / 2 + 15);
+  }
+  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.font = "600 10px Menlo, monospace";
+  ctx.fillText("you can reopen HOW TO FLY any time from HELP", vw / 2,
+    forkRowRect(1).y + forkRowRect(1).h + 24);
+}
+
 function drawCardPanel(card, now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(5,6,15,.7)";
@@ -3319,6 +3555,9 @@ window.__doids = {
     endingType, clearCards, revealCard, score, lives,
     shrines: [...shrines], inCave: !!(level && level.isCave),
     input: Object.assign({}, input), ctlShown, introSeen,
+    // X1/X3 — onboarding introspection for the guard tests
+    trained, guideReturn,
+    guide: { page: GUIDE.page, pages: GUIDE.pages, footY: GUIDE._footY },
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
     resetArmed, settingsRows: SETTINGS_ROWS, buildTag: BUILD_TAG,
@@ -3340,6 +3579,12 @@ window.__doids = {
     darkAlpha: level && level.darkAlpha, nightFell: level && !!level.nightFell,   // T6
     gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
   go: toBriefing,
+  // Y1 — the foreground tile-cache invalidation, plus a peek at the current
+  // cache sizes so a test can assert the caches drop and then repaint.
+  invalidateTiles,
+  tileCacheSizes: () => ({
+    terrain: level && level._terrainTiles ? level._terrainTiles.size : 0,
+    roof: level && level._roofTiles ? level._roofTiles.size : 0 }),
   // R9 / S5 (owner steer): a Vector is NEVER given away by colour — with or
   // without ANTISEPSIS a saboteur (mech) renders exactly like a true Scion.
   // Identification is the earned SCAN (the "?" over a catalogued unit), not a

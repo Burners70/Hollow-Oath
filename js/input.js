@@ -280,7 +280,13 @@ window.addEventListener("keydown", e => {
     // R2 — Escape also backs out of the overlay menu screens, like tapping outside
     else if (e.key === "Escape") {
       if (state === "helpmenu") { state = "title"; stateT = 0.5; }
-      else if (state === "help") { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+      else if (state === "fork") { state = "title"; stateT = 0.5; }   // X3 — back out unanswered
+      else if (state === "help") {
+        GUIDE.page = 0;
+        // X1/X3 — Escape from a guide opened by the fork's "No" still flies in
+        if (typeof guideReturn !== "undefined" && guideReturn === "start") { guideReturn = "title"; startFreshRun(); }
+        else { state = "title"; stateT = 0.7; }
+      }
       else if (state === "legend") { LEGEND_CARD.page = 0; state = legendReturnState || "title"; stateT = 0.4; }
       else if (state === "codex") {
         if (codexCard) codexCard = null; else { state = "title"; stateT = 0.7; }
@@ -293,13 +299,24 @@ window.addEventListener("keydown", e => {
 });
 window.addEventListener("keyup", e => { if (keyFor(e) !== undefined) input[keyFor(e)] = false; });
 
+/* Y1 — iOS purges offscreen-canvas backing stores under memory pressure while
+   backgrounded; on return the cached terrain / roof tiles are blank. Drop the
+   tile caches on every foreground so the next frame rebuilds them from the
+   heightmaps. Cheap (a couple of Map derefs) and safe to over-call. */
+function onForeground() {
+  if (typeof invalidateTiles === "function") invalidateTiles();
+}
+
 /* auto-pause when the tab/app is backgrounded — deliberate, not mid-flight */
 document.addEventListener("visibilitychange", () => {
   // pause (and, in a live run, snapshot) whatever pausable screen you were on, so
   // backgrounding mid-briefing / mid-card / mid-ending never loses your place
   if (document.hidden && typeof enterPause === "function" &&
       typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
+  else if (!document.hidden) onForeground();   // Y1 — repaint purged tiles
 });
+// pageshow fires on bfcache restore (Safari) where visibilitychange may not
+window.addEventListener("pageshow", onForeground);
 /* E2/A4 — inside the wrapper the iOS lifecycle backs the same auto-pause.
    WKWebView does fire visibilitychange on backgrounding, but the App
    plugin's appStateChange is the definitive native signal — belt and
@@ -309,8 +326,10 @@ if (NATIVE) {
     const A = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
     if (A && A.addListener)
       A.addListener("appStateChange", st => {
-        if (st && st.isActive === false && typeof enterPause === "function" &&
+        if (!st) return;
+        if (st.isActive === false && typeof enterPause === "function" &&
             typeof PAUSABLE !== "undefined" && PAUSABLE.has(state)) enterPause();
+        else if (st.isActive === true) onForeground();   // Y1 — repaint purged tiles
       });
   } catch (e) {}
 }

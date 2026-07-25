@@ -463,11 +463,17 @@ function update(dt) {
     case "title": case "gameover": case "win": updateMenu(); return;
     case "intro": updateIntro(dt); return;
     case "help":
-      // R1 — page through a paginated help card before it dismisses
+      // X1 — page through the illustrated HOW TO FLY guide before it dismisses.
+      // When it was opened from the X3 "No" branch, dismissing flies straight
+      // into the run (guideReturn === "start"); otherwise back to the title.
       if (input.tap && stateT > 0.4) {
-        if ((HELP_CARD.pages || 1) > 1 && (HELP_CARD.page || 0) < HELP_CARD.pages - 1) {
-          HELP_CARD.page++; blip(440, 550, 0.06, "sine", 0.06);
-        } else { HELP_CARD.page = 0; state = "title"; stateT = 0.7; }
+        if ((GUIDE.pages || 1) > 1 && (GUIDE.page || 0) < GUIDE.pages - 1) {
+          GUIDE.page++; blip(440, 550, 0.06, "sine", 0.06);
+        } else {
+          GUIDE.page = 0;
+          if (guideReturn === "start") { guideReturn = "title"; startFreshRun(); }
+          else { state = "title"; stateT = 0.7; }
+        }
       }
       input.tap = false; return;
     case "legend":
@@ -479,6 +485,7 @@ function update(dt) {
       }
       input.tap = false; return;
     case "helpmenu": updateHelpMenu(); return;
+    case "fork": updateFork(); return;
     case "codex": updateCodex(); return;
     case "brief": updateBrief(dt); return;
     case "reveal":
@@ -582,7 +589,10 @@ function updateMenu() {
     } else if (state === "title" && veteran && inRect(dailyRect(), input.tapX, input.tapY)) {
       startDaily();
     } else if (state === "title" && inRect(startRect(), input.tapX, input.tapY)) {
-      startFreshRun();
+      // X3 — a first-ever START asks the one-time fork; afterwards it launches
+      // straight in like before.
+      if (!trained) { state = "fork"; stateT = 0; blip(440, 660, 0.1, "sine", 0.08); }
+      else startFreshRun();
     } else if (state === "gameover") {
       if (checkpoint && inRect(continueRect(), input.tapX, input.tapY)) {
         const r = checkpoint;
@@ -615,11 +625,17 @@ function updateMenu() {
   input.tap = false;
 }
 
+/* X1/X3 — where the HOW TO FLY guide returns to when it's dismissed: "title"
+   (opened from the HELP submenu) or "start" (opened from the first-play fork's
+   "No" branch, where finishing the guide flies straight into the run). */
+let guideReturn = "title";
+
 /* the HELP submenu — the three reference screens, one tap away from the title */
 function updateHelpMenu() {
   if (input.tap && stateT > 0.25) {
     if (inRect(helpMenuRowRect(0), input.tapX, input.tapY)) {
-      state = "help"; stateT = 0; HELP_CARD.page = 0; blip(440, 660, 0.1, "sine", 0.08);
+      state = "help"; stateT = 0; GUIDE.page = 0; guideReturn = "title";
+      blip(440, 660, 0.1, "sine", 0.08);
     } else if (inRect(helpMenuRowRect(1), input.tapX, input.tapY)) {
       state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "title";
       blip(440, 660, 0.1, "sine", 0.08);
@@ -633,6 +649,23 @@ function updateHelpMenu() {
     } else {
       state = "title"; stateT = 0.5;   // tap outside → back to the title
     }
+  }
+  input.tap = false;
+}
+
+/* X3 — the first-play fork. YES flies straight in (the veteran path); NO opens
+   the HOW TO FLY guide, which then flies in. Either answer marks the player
+   trained so the fork never shows again (until a RESET PROGRESS). */
+function updateFork() {
+  if (input.tap && stateT > 0.25) {
+    if (inRect(forkRowRect(0), input.tapX, input.tapY)) {
+      markTrained(); startFreshRun();
+    } else if (inRect(forkRowRect(1), input.tapX, input.tapY)) {
+      markTrained();
+      GUIDE.page = 0; guideReturn = "start"; state = "help"; stateT = 0;
+      blip(440, 660, 0.1, "sine", 0.08);
+    }
+    // taps that miss both rows are ignored — the fork is a required choice
   }
   input.tap = false;
 }
@@ -740,13 +773,14 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro"];
+    "doids_intro", "doids_trained"];   // X3 — a wipe re-shows the first-play fork
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
   }
   hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set();
   savedRun = null; checkpoint = null; veteran = false; introSeen = false;
+  trained = false;   // X3 — the first-play fork asks again after a full wipe
   unresolvedHaunt = false;
 }
 let settingsReturnState = "title";

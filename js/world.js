@@ -433,6 +433,16 @@ function markIntroSeen() {
   introSeen = true;
   try { localStorage.setItem("doids_intro", "1"); } catch (e) {}
 }
+/* X3 — the first-play fork. `trained` records that the player has answered the
+   one-time "played thrust games before?" prompt (Yes → straight in; No → the
+   HOW TO FLY guide first). Once answered it never shows again; RESET PROGRESS
+   clears it so it can be run again from Settings. */
+let trained = false;
+try { trained = localStorage.getItem("doids_trained") === "1"; } catch (e) {}
+function markTrained() {
+  trained = true;
+  try { localStorage.setItem("doids_trained", "1"); } catch (e) {}
+}
 const ASSIST_RATE = 4.5;
 
 /* Title pills sit in two tidy, equal-width columns instead of a right-heavy
@@ -561,13 +571,43 @@ function confirmRowRect(i) {
 }
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
-const HELP_CARD = {
-  kicker: "FLIGHT MANUAL", title: "HOW TO FLY", subtitle: "",
-  body: "Left buttons rotate. THRUST burns fuel. FIRE shoots. SHIELD (hold) raises a force field — it eats fuel, but stops bullets, drones, rough landings and cave ceilings.\n\nLand slow and upright on flat ground near a stranded Scion — it walks over and climbs aboard. The approach guide turns GREEN when touchdown is safe; watch ↓ descent and ↔ drift.\n\nFerry Scions to MERCY's cyan RECOVERY BAY to deliver, refuel and heal. The RED BAY is isolation — you'll know when you need it.\n\nListen to what boards. Watch how they wave. Watch your own ECG. A full cabin steadies you, a little, between drop-offs.\n\nRescue the right healer and you learn to read a grounded unit's vitals: park on it and hold to confirm a heartbeat, or catalogue a counterfeit and leave it where it lies. Land a step away to rescue at speed.\n\n◈ The zone hides black boxes, log fragments and famous healers — and stranger things. Some ground rings hollow under your struts. Real fuel pods flicker like fire; counterfeits keep perfect time. A counterfeit can be opened by fire — or unmasked without a shot: land beside it and hold still long enough. Explore.\n\n🎮 Gamepads work: stick or d-pad steers, A thrusts, X fires, LB/B shields. Keyboard: arrows + space · X fire · C/⇧/↓ shield.",
-  color: "#00e5ff"
-};
+/* X3 — the two answer buttons on the first-play fork ("played thrust games
+   before?"). Row 0 = YES (straight in), row 1 = NO (open the guide first).
+   Sized and centred to clear a 320-high landscape phone. */
+function forkRowRect(i) {
+  const w = Math.min(320, vw * 0.72), h = 44, gap = 14;
+  const y0 = vh * 0.56;
+  return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
+}
 
-/* U3 — HELP_CARD teaches the controls but never names the on-screen readouts.
+/* X1 — the beginner's guide: an illustrated, paged HOW TO FLY. Each page pairs
+   a labelled diagram (drawn in render.js drawGuide — a ship + the real on-screen
+   buttons) with one short caption, so a new player *sees* the ship and the
+   controls doing the thing rather than reading a wall of text. Reached from the
+   title HELP submenu and from the X3 first-play "No" branch. Reachable any time.
+   `GUIDE` holds the shared paging state (mirrors the card-panel contract: .page,
+   .pages, ._footY). Copy mirrored in docs/COPY_DECK.md (R10). */
+const GUIDE = { page: 0, pages: 1, _footY: 0, color: "#00e5ff" };
+const GUIDE_PAGES = [
+  { art: "rotate", title: "TURN",
+    caption: "The two left buttons turn the ship. ↺ spins it left, ↻ spins it right. Thrust always pushes the way the nose points — so aim first, then burn." },
+  { art: "thrust", title: "THRUST",
+    caption: "Hold THRUST to fire the engine. It's momentum, not a throttle: the longer you hold, the faster and further you drift. For a small nudge, tap — don't hold." },
+  { art: "counter", title: "SLOW DOWN",
+    caption: "There are no brakes. To slow, turn to face the way you're moving and thrust against it. A long fall needs a long burn to arrest — start slowing early." },
+  { art: "shield", title: "SHIELD",
+    caption: "Hold SHIELD the instant before you hit rock, a drone or a shot. It saves the ship — but it drinks fuel. Raise it late, drop it the moment you're clear." },
+  { art: "fuel", title: "FUEL",
+    caption: "THRUST and SHIELD both burn FUEL — the yellow bar, top-left. Run dry and you're stranded. Land by a Scion or reach MERCY's bay to top up." },
+  { art: "fire", title: "FIRE",
+    caption: "FIRE shoots — but firing is malpractice and costs your rank. Every Scion can come home without a shot; keep FIRE for when there's truly no other way." },
+  { art: "land", title: "LAND & RESCUE",
+    caption: "Set down slow and upright on flat ground beside a stranded Scion and it climbs aboard. The approach guide turns GREEN when it's safe — watch ↓ descent and ↔ drift — then ferry them to MERCY's cyan bay." },
+  { art: "controls", title: "OTHER CONTROLS",
+    caption: "🎮 Gamepad: stick or d-pad steers, A thrusts, X fires, LB/B shields.  ⌨ Keyboard: arrows steer, SPACE thrusts, X fires, C / ⇧ / ↓ shields." }
+];
+
+/* U3 — the HOW TO FLY guide teaches the controls but never names the on-screen readouts.
    The HUD guide (render.js drawHudGuide) is now an ANNOTATED layout, not prose:
    it draws each real readout where it sits and names it, so a new player can map
    word to widget. This object just holds the paging/tap state the guide shares

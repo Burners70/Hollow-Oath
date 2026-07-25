@@ -1706,7 +1706,15 @@ independent.**
 > X3: with X2 not in 1.0, the fork's **"No" branch routes into the X1 guide** at
 > launch, and upgrades to route into the trainee sector once X2 ships in 1.01.
 
-- [ ] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** A **HOW TO
+- [x] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** *(Shipped.
+  The `✦ HOW TO FLY` HELP-submenu entry now opens an illustrated, paged guide
+  — `GUIDE` / `GUIDE_PAGES` in `js/world.js`, `drawGuide` / `drawGuideArt` /
+  `guideShip` / `guideButton` in `js/render.js`, paged via the `help` state in
+  `js/update.js`. Eight diagram pages — TURN, THRUST, SLOW DOWN, SHIELD, FUEL,
+  FIRE, LAND & RESCUE, OTHER CONTROLS — reusing the real hull path and the
+  on-screen button art. Respects `bigText` / `reducedFlash` / `colorblind`;
+  fits a 320-high phone (R1 contract). Copy mirrored to COPY_DECK.md §3. Smoke:
+  "R1/X1 illustrated guide paginates".)* A **HOW TO
   FLY** button on the title screen (`drawTitle` in `js/render.js`, alongside the
   existing REMIX / settings pills) opens a paged, **illustrated** guide with
   literal step-by-step visuals, not walls of text: rotate, thrust (hold = more
@@ -1747,7 +1755,16 @@ independent.**
     TRAINING" affordance). Code anchors: the Static clock (`updateStaticClock`)
     and extraction / MERCY logic in `js/update.js`, both gated off in training
     mode.
-- [ ] **X3. First-play fork. [→1.0 launch]** On a first launch (no `doids_intro`,
+- [x] **X3. First-play fork. [→1.0 launch]** *(Shipped. A first-ever `▶ START NEW
+  FLIGHT` on an untrained install (`doids_trained` absent) opens a one-time
+  `"fork"` screen — `updateFork` / `drawFork` / `forkRowRect`, the `trained`
+  flag + `markTrained()` in `js/world.js`. **YES** flies straight in (veteran
+  path); **NO** opens the X1 guide (`guideReturn = "start"`) and finishing it
+  drops into the run. Answering sets `doids_trained` so it never shows again; a
+  RESET PROGRESS clears the key so it re-shows (the "from Settings" path). Copy
+  in COPY_DECK.md §3·X3. Smoke: "X3 first START opens the fork" + "fork NO opens
+  the guide". In 1.01 the "No" branch re-routes to the X2 trainee sector.)* On a
+  first launch (no `doids_intro`,
   or a new `doids_trained` flag), ask once: **"Played thrust / gravity games
   before?"** — **Yes → straight to Level 1** (current behaviour); **No →** the
   onboarding path. **In 1.0** (X2 not yet built) **"No" opens the X1 guide**, then
@@ -1799,7 +1816,11 @@ independent.**
   to expose training mode, the fork flag, guided-pause state and hint-card
   discovery bits; add a test that an experienced-path first launch (X3 "Yes")
   reaches Level 1 with **no** training state set, and that training never writes
-  a hiscore.
+  a hiscore. *(1.0-launch slice done: `__doids.get()` now exposes `trained`,
+  `guideReturn` and `guide` {page,pages,footY}; smoke covers the X3 "Yes"→run
+  and "No"→guide→run paths and the illustrated-guide pagination/on-screen fit.
+  The trainee-sector / guided-pause / hint-card assertions land with X2/X4/X5 in
+  1.01.)*
 
 ## Bundle Y — 1.01 release-fix defects (owner playtest, late July 2026)
 
@@ -1811,7 +1832,13 @@ and a try/catch). **Y3–Y7 stay 1.01** (rendering / telegraphing corrections).
 **Dependencies: none, but Y1 and Y2 share a root cause (state after a long
 background) — fix them together.**
 
-- [ ] **Y1. Landscape vanishes after a very long background. [→1.0 launch]** Reported: away
+- [x] **Y1. Landscape vanishes after a very long background. [→1.0 launch]** *(Shipped.
+  `invalidateTiles()` (`js/render.js`) drops `level._terrainTiles` / `_roofTiles`;
+  it's called from `onForeground()` in `js/input.js` on `visibilitychange`→visible,
+  `pageshow`, and the native `appStateChange`→active, so purged tiles rebuild from
+  the heightmaps on resume. Exposed via `__doids.invalidateTiles` /
+  `__doids.tileCacheSizes()`. Smoke: "Y1 foreground clears and repaints the tile
+  cache".)* Reported: away
   from the app for hours, returned to find the **ship drawn but all terrain,
   cave roof and scenery invisible** — and still collidable (the ship crashed
   into ground it couldn't see). Root cause (high confidence): terrain / roof are
@@ -1827,8 +1854,14 @@ background) — fix them together.**
   `pageshow` / `visibilitychange`→visible, beside the existing auto-pause handler
   (`js/input.js:297`). Add a smoke check that clearing the caches and rendering a
   frame repaints terrain.
-- [ ] **Y2. Blank world / frozen game after an upgrade card on a long-standing
-  run. [→1.0 launch]** Reported once: after a multi-rescue drop-off, picked the **"better
+- [x] **Y2. Blank world / frozen game after an upgrade card on a long-standing
+  run. [→1.0 launch]** *(Shipped. `frame()` (`js/main.js`) now wraps its
+  `update()`/`render()` body in try/catch, so a single thrown frame is logged
+  and skipped while `requestAnimationFrame` keeps the loop alive — a bad frame
+  can no longer freeze the game. Error count + last stack surfaced on
+  `__doids.frameErrors` / `.lastFrameError`. The blank-*world* half is the Y1
+  purged-tile fix. Smoke: "Y2 a thrown frame is caught and the RAF loop stays
+  alive".)* Reported once: after a multi-rescue drop-off, picked the **"better
   lamp" (LAMP) upgrade card**, then a **blank screen behind the UI, no crash, no
   input response** — on a long run repeatedly backgrounded / foregrounded. Two
   contributing causes: (a) the **frame loop has no error guard** — `frame()`
@@ -1917,7 +1950,9 @@ background) — fix them together.**
 - [ ] **Y·guard. Regression gate.** Smoke suite green; add coverage for the Y1
   tile-cache invalidation and the Y4 Avicenna gate (blink loud only with
   `upgrades.canon`); screenshot checks for Y3 occlusion (a wreck on a rise is
-  submerged) and Y5 (pad visible above ground pre-veteran).
+  submerged) and Y5 (pad visible above ground pre-veteran). *(1.0-launch slice
+  done: smoke covers Y1 tile-cache invalidation (direct + `pageshow`) and the Y2
+  frame-loop guard. The Y3/Y4/Y5 checks land with those 1.01 fixes.)*
 
 ## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
 
