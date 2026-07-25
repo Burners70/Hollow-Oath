@@ -38,6 +38,27 @@ native shell config (`configure-ios.sh`):
 Re-run `./setup-mac.sh` any time; it is idempotent. After changing the web
 game, refresh the wrapper with `npm run sync`.
 
+### Building for TestFlight — always sync first
+
+`app/www` is a **generated copy** of the web game; syncing it is easy to forget
+before an archive, and a build that skips it ships the *old* JS (this is how the
+updated HOW TO FLY guide and the first-play fork went missing from a native
+build). Two safeguards:
+
+- **Build via fastlane** (recommended) — the lanes sync the web build *before*
+  archiving, so they can never bundle stale JS. From `app/`:
+
+  ```
+  bundle exec fastlane build   # signed App Store archive
+  bundle exec fastlane beta    # archive + upload to TestFlight
+  ```
+
+- **If you archive manually in Xcode instead**, run `npm run sync` yourself
+  first. Either way, confirm the build is fresh: the title screen's bottom-right
+  **BUILD_TAG** stamp reads `b<today's date> · <hash>` (stamped by `sync.sh` from
+  the actual bundled JS/CSS). If it shows an older date/hash than your last sync,
+  the wrapper is stale — re-sync and rebuild.
+
 ## 3. Signing (Xcode, one time)
 
 `npx cap open ios` → select the **App** target → *Signing & Capabilities*:

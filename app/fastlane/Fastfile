@@ -1,0 +1,46 @@
+# Build & release lanes for Hollow Oath.
+#
+# Every lane that produces an app runs the web sync FIRST — mirroring the repo
+# root into app/www (which stamps BUILD_TAG with the bundled content's hash) and
+# copying it into the native shell. This makes it impossible for a fastlane build
+# to ship stale JS: the "updated HOW TO FLY / first-play fork missing from the
+# native build" report happened because app/www is a generated copy and syncing
+# it was a manual step that could be skipped before archiving.
+#
+# Run from app/:
+#   bundle exec fastlane build   # signed App Store archive
+#   bundle exec fastlane beta    # archive + upload to TestFlight
+#
+# (A manual Xcode archive does NOT run these lanes — for that path, run
+#  `npm run sync` yourself first, then verify the title's BUILD_TAG stamp shows
+#  today's date/hash. See app/MAC_SETUP.md §2.)
+
+default_platform(:ios)
+
+WORKSPACE = "ios/App/App.xcworkspace"
+SCHEME    = "App"
+
+# app/ — the parent of this fastlane/ dir; where sync.sh and capacitor.config.ts
+# live. Resolved absolutely so it holds regardless of fastlane's working dir.
+APP_DIR = File.expand_path("..", __dir__)
+
+platform :ios do
+  desc "Mirror the web game into the native shell (never edit app/www by hand)"
+  lane :sync_web do
+    # `npm run sync` == ./sync.sh (repo root -> www, stamps BUILD_TAG) + `npx cap sync ios`.
+    sh("cd '#{APP_DIR}' && npm run sync")
+  end
+
+  desc "Build a signed App Store archive (syncs the web build first)"
+  lane :build do
+    sync_web
+    build_app(workspace: WORKSPACE, scheme: SCHEME, export_method: "app-store")
+  end
+
+  desc "Build and upload to TestFlight (syncs the web build first)"
+  lane :beta do
+    sync_web
+    build_app(workspace: WORKSPACE, scheme: SCHEME, export_method: "app-store")
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end
