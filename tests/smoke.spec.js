@@ -1468,3 +1468,67 @@ test("E4: an infected Scion is CURED at isolation; a born Vector is only sealed"
   await page.evaluate(() => clearInterval(window.__pin));
   expect(sealed, "a born Vector is sealed, never cured").toBe("contained");
 });
+
+test("Y3: wrecks generate on wreck sectors; the per-wreck cant is stable and RNG-free", async ({ page }) => {
+  // sector 5 carries a wreck; render a few frames (afterEach fails on any error
+  // thrown by the new groundAt-profile clip / cant / crash-scar draw paths)
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });
+  await page.waitForTimeout(200);
+  const wrecks = await page.evaluate(() =>
+    __doids.get().level.scenery.filter(s => s.type === "wreckM" || s.type === "wreckS").length);
+  expect(wrecks).toBeGreaterThan(0);
+  // the cant is a pure function of x — same x always yields the same angle,
+  // frame to frame, and roughly half of a spread of positions lie flat (cant 0)
+  const stable = await page.evaluate(() => __doids.wreckCant(1234) === __doids.wreckCant(1234));
+  expect(stable).toBe(true);
+  const flatCount = await page.evaluate(() => {
+    let flat = 0;
+    for (let x = 400; x < 4400; x += 37) if (__doids.wreckCant(x) === 0) flat++;
+    return flat;
+  });
+  expect(flatCount).toBeGreaterThan(20);   // a meaningful share sit level, not all canted
+  // the authored terrain is untouched by the wreck work (no RNG draw added) —
+  // seed 0 still reproduces VESALIUS RIDGE's golden heightmap (see Bundle M)
+  await page.evaluate(() => { __doids.reset(); __doids.go(1); });
+  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1488047869);
+});
+
+test("Y4: counterfeit pods only blink loud with Avicenna; a subtle Static-beat dip without", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });
+  // unmasked (canon): the loud 1Hz metronome swings fully between bright and dim
+  const loud = await page.evaluate(() => {
+    let hi = 0, lo = 1;
+    for (let t = 0; t < 2; t += 0.02) { const a = __doids.fakePodAlpha(t, true); hi = Math.max(hi, a); lo = Math.min(lo, a); }
+    return { hi, lo };
+  });
+  expect(loud.hi).toBeCloseTo(1, 2);
+  expect(loud.lo).toBeCloseTo(0.38, 2);
+  // pre-Avicenna: near-steady, never the loud blink — a faint dip only on the beat
+  await page.evaluate(() => __doids.setStaticClock(0));   // right on the Static tick
+  const onBeat = await page.evaluate(() => __doids.fakePodAlpha(0, false));
+  await page.evaluate(() => __doids.setStaticClock(20));  // mid-cycle, quiet
+  const quiet = await page.evaluate(() => __doids.fakePodAlpha(0, false));
+  expect(quiet).toBeCloseTo(0.82, 2);          // steady between beats
+  expect(onBeat).toBeLessThan(quiet);          // a dip lands on Glycon's clock
+  expect(onBeat).toBeGreaterThan(0.4);         // subtle, never the loud 0.38 strobe
+});
+
+test("Y5: the secret lift pad is marked on EVERY run, even pre-veteran", async ({ page }) => {
+  // a first (non-veteran) run seals the usable lift but must still mark the pad
+  // so it reads on the surface — drawLift renders the marker from level.liftPad
+  for (const n of [1, 3, 5]) {
+    await page.evaluate(i => __doids.go(i), n);
+    const s = await page.evaluate(() => __doids.get());
+    expect(s.level.lift, "sector " + n + " usable lift sealed pre-veteran").toBeFalsy();
+    expect(s.level.liftPad, "sector " + n + " pad still marked").toBeTruthy();
+  }
+  // a sector without a lift has no pad marker at all
+  await page.evaluate(() => __doids.go(0));
+  expect(await page.evaluate(() => __doids.get().level.liftPad)).toBeFalsy();
+  // a veteran run keeps the pad and unlocks the usable lift, both at the same x
+  await page.evaluate(() => { __doids.setVeteran(); __doids.reset(); __doids.go(1); });
+  const v = await page.evaluate(() => __doids.get());
+  expect(v.level.lift).toBeTruthy();
+  expect(v.level.liftPad).toBeTruthy();
+  expect(v.level.liftPad.x).toBe(v.level.lift.x);
+});

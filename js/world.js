@@ -122,7 +122,7 @@ const FAMOUS = [
     upgrade: "canon", upgradeName: "CANON OF TRUTH",
     upgradeDesc: "Counterfeits are unmasked — the counterfeiter's lures and lure-trees are marked for what they are." },
   { name: "EDWARD JENNER", era: "1749–1823",
-    story: "He noticed milkmaids who caught cowpox never took smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
+    story: "He noticed milkmaids who'd had cowpox never caught smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
     upgrade: "inoculation", upgradeName: "INOCULATION",
     upgradeDesc: "Your passengers are immunised — Vectors aboard can no longer kill them." },
   /* the wider pool (Bundle M4) — the campaign carries the canonical seven;
@@ -855,6 +855,10 @@ function genLevel(n) {
     // unlocked; only the usable lift itself is gated to a veteran return pass.
     const x = pick(320);
     const y = flatten(heights, x, 70);
+    // Y5 — always record the pad position (even pre-veteran, when the usable
+    // lift below is null) so drawLift can mark it on the surface on EVERY run:
+    // subtle, findable-if-you-look, not a beacon.
+    lvl.liftPad = { x, y };
     if (veteran) lvl.lift = { x, y, cave: LIFT_CAVE[n], holdT: 0, armed: true };
   }
   // the finale's beacon — the source of the Static

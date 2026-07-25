@@ -91,7 +91,7 @@ touched code?" That's why the sequencing calls below (pull a stability fix into
 | V | 1.01 maintenance & narrative | Scan fairness, the Solace reveal, heard-scan parry, post-completion variants | Post-approval 1.01 |
 | W | Landscape challenge escalation | Deeper valleys, overhangs, surface caves | Update 1.1 (ships with P) |
 | X | Onboarding & new-player experience | Learning-curve fix: guide, trainee Level 0, hint cards | **X1+X3 → 1.0 launch**; X2/X4/X5 → 1.01 |
-| Y | 1.01 release-fix defects | Stability + render/telegraphing fixes | **Y1+Y2 → 1.0 launch**; Y3–Y7 → 1.01 |
+| Y | 1.01 release-fix defects | Stability + render/telegraphing fixes | **Y1+Y2 → 1.0 launch (done)**; Y3–Y7 → 1.01 (done) |
 | Z | REMIX replay modifiers | Variable gravity (+ future modifiers) | Pulled to 1.01 (was 1.1); Z2 re-tune gates it |
 
 Minimum viable paid release = **A + B + C + D + E + F + R + O**. Everything else raises
@@ -1890,8 +1890,17 @@ background) — fix them together.**
   end of a long, repeatedly-backgrounded run). Code anchors: `frame()`
   (`js/main.js`), the sector-clear / upgrade flow (`state="clear"`,
   `js/update.js:199`), `upgrades.lamp` (`js/update.js:827`).
-- [ ] **Y3. Curie Fields wrecks aren't occluded by the terrain profile; add
-  angled motherships.** Reported on Curie Fields: crashed wrecks **poke out
+- [x] **Y3. Curie Fields wrecks aren't occluded by the terrain profile; add
+  angled motherships.** *(Shipped. `clipAboveGround(x0,x1)` (`js/render.js`) sets
+  a world-space clip to the region above the true `groundAt()` profile across
+  each wreck's footprint — set before the hull's own transform, so a rising
+  ground line now submerges the hull naturally instead of the old single-sample
+  ground clip cutting it off flat. `drawWreckM`/`drawWreckS` both clip this way.
+  `wreckCant(x)` gives ~half the downed motherships a stable, RNG-free cant
+  (seeded from x, so world-gen stays byte-identical), and `drawWreckM` now draws
+  a shallow dark crash scar along the land under the hull. Smoke: "Y3 wrecks
+  generate … cant is stable and RNG-free" (seed-0 heightmap golden unchanged).)*
+  Reported on Curie Fields: crashed wrecks **poke out
   where the land drops away but are cut off at the base as if the ground
   continued**, and **stay fully visible where the land rises in front of them**
   (they should be submerged by the risen ground). This is the **single
@@ -1911,8 +1920,16 @@ background) — fix them together.**
   anchors: `drawScenery` / `drawWreckM` / `drawWreckS`, `wreckMBreachClip`, the
   terrain draw at `js/render.js:283`, `groundAt`. See the owner's example image
   (angled mothership).
-- [ ] **Y4. Counterfeit fuel pods over-tell — gate the obvious blink behind
-  Avicenna.** The counterfeit pods **blink in hard, perfect-time unison for
+- [x] **Y4. Counterfeit fuel pods over-tell — gate the obvious blink behind
+  Avicenna.** *(Shipped. `fakePodAlpha(now, known)` (`js/render.js`) replaces the
+  always-on per-frame metronome: without Avicenna the lures sit near-steady
+  (~0.82) and give a single faint dip on the 41-second Static beat — sourced
+  from `staticClock` (which wraps to ~0 on each tick and runs wherever
+  counterfeits appear, sector 5+ / the Hollows), so every lure dips in unison —
+  coherent motion, not a strobe. With Avicenna (`upgrades.canon`) the loud 1Hz
+  blink + "?" reveal return as the unmask payoff. The BRIEFS "keep perfect time"
+  line still holds — the time is now Glycon's clock. Smoke: "Y4 counterfeit pods
+  only blink loud with Avicenna".)* The counterfeit pods **blink in hard, perfect-time unison for
   everyone** (`js/render.js:334`, `alpha = sin(…) > 0 ? 1 : 0.38`); Avicenna
   (`upgrades.canon`) today only recolours them and adds the "?" mark — it does
   **not** gate the blink, so the tell is too loud pre-upgrade. **Fix (owner
@@ -1929,7 +1946,15 @@ background) — fix them together.**
   uneven heart.** Code anchors: the counterfeit draw (`js/render.js:330-351`), the
   Static clock (`updateStaticClock`, `js/update.js`) to source the beat. Mirror
   any brief reword into COPY_DECK.md (R10).
-- [ ] **Y5. Lift pad must read above ground — and on pre-veteran runs.** The
+- [x] **Y5. Lift pad must read above ground — and on pre-veteran runs.**
+  *(Shipped. `genLevel` now always records `lvl.liftPad = {x,y}` when `r.lift`
+  (the ground-flatten already ran unconditionally), even pre-veteran when the
+  usable `lvl.lift` is null. `drawSurfacePad(now,x,y)` (`js/render.js`, factored
+  out of `drawLift`) renders the pad from `L` when a veteran has unlocked it and
+  otherwise from `level.liftPad`, so it reads on EVERY run — and it now adds a
+  faint ABOVE-ground lip (a low raised plate fading up from the seam) so the pad
+  isn't hidden below y=2. Cave lift art unchanged. Smoke: "Y5 the secret lift pad
+  is marked on EVERY run, even pre-veteran".)* The
   "subtly thicker plate of ground" marking the secret lift is drawn **only
   downward from the seam** (`js/render.js:1443`, `fillRect(-44, 2, 88, 9)` — all
   below y=2), so it's invisible above the surface. Worse, the whole pad is gated
@@ -1945,12 +1970,22 @@ background) — fix them together.**
   tuned to be findable-if-you-look, not obvious. Leave the Hollows (cave) lift
   art as-is. Code anchors: `drawLift` (`js/render.js:1409`), lift creation
   (`js/world.js:809-815`), the `genCave` lift (`js/world.js:984`).
-- [ ] **Y6. Jenner codex copy — fix "took smallpox."** EDWARD JENNER's story line
+- [x] **Y6. Jenner codex copy — fix "took smallpox."** *(Shipped. EDWARD JENNER's
+  story (`js/world.js`) now reads *"He noticed milkmaids who'd had cowpox never
+  caught smallpox …"*; mirrored into COPY_DECK.md §Famous minds.)* EDWARD JENNER's story line
   (`js/world.js:125`) reads *"milkmaids who caught cowpox never **took**
   smallpox."* **Owner-approved wording (late July 2026):** *"He noticed milkmaids
   who'd **had** cowpox never **caught** smallpox …"* — the had/caught form fixes
   the odd "took" and avoids a caught/caught echo. Mirror into COPY_DECK.md (R10).
-- [ ] **Y7. Veteran Nullwave intro copy overspills the panel.** On a veteran
+- [x] **Y7. Veteran Nullwave intro copy overspills the panel.** *(Shipped part
+  (b) — the durable fit, independent of V12. `drawBrief` (`js/render.js`) now
+  fits long copy to the panel: it first tightens the line height, then, if even
+  the tightest readable spacing still overflows the panel, scales the body font
+  down and re-wraps until it fits (down to a 9px floor), and clamps the TAP
+  prompt inside the panel. The veteran finale brief — `BRIEFS[7]` plus the
+  appended counterfeit-MERCY warning (`briefText()` in `js/update.js`) — is the
+  long case this guards; short briefs stay at full size. Part (a), V12 trimming
+  the warning copy, remains a separate 1.01 narrative item.)* On a veteran
   return, the finale (THE NULLWAVE) intro overruns its box. The extra length is
   the counterfeit-MERCY warning appended for veterans (`js/update.js:665-671`) on
   top of the finale brief (`BRIEFS[7]`, `js/world.js:63`); `drawBrief` wraps each
@@ -1962,12 +1997,18 @@ background) — fix them together.**
   paginate instead of running off the edge (same class of bug the Bundle B pass
   fixed for long sector titles — see line ~172 / CHANGELOG). Add a headless
   screenshot check of the veteran finale intro at a small viewport.
-- [ ] **Y·guard. Regression gate.** Smoke suite green; add coverage for the Y1
+- [x] **Y·guard. Regression gate.** Smoke suite green; add coverage for the Y1
   tile-cache invalidation and the Y4 Avicenna gate (blink loud only with
   `upgrades.canon`); screenshot checks for Y3 occlusion (a wreck on a rise is
   submerged) and Y5 (pad visible above ground pre-veteran). *(1.0-launch slice
   done: smoke covers Y1 tile-cache invalidation (direct + `pageshow`) and the Y2
-  frame-loop guard. The Y3/Y4/Y5 checks land with those 1.01 fixes.)*
+  frame-loop guard. 1.01 slice (Y3–Y7) done: `__doids` now exposes `fakePodAlpha`
+  and `wreckCant`, and `level.liftPad`; smoke asserts the Y4 gate (loud only with
+  `canon`, a subtle Static-beat dip without), the Y3 cant is stable/RNG-free with
+  the seed-0 heightmap golden unchanged, and the Y5 pad is marked on every run
+  including pre-veteran. Y3 occlusion and Y7 panel-fit are visual/behavioural and
+  covered by the shared no-page-error harness rather than pixel screenshots — all
+  73 smoke tests green.)*
 
 ## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
 

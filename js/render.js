@@ -274,6 +274,18 @@ function drawBoundaryField(now) {
   ctx.setLineDash([]);
 }
 
+/* Y4 — counterfeit fuel-pod opacity. Unmasked (Avicenna/`canon`): the loud 1Hz
+   metronome that reads as an obvious blink. Pre-Avicenna: near-steady, with a
+   single faint dip right on the Static tick. `staticClock` wraps to ~0 on each
+   41s beat and runs wherever counterfeits appear (sector 5+ and the Hollows —
+   `levelIdx >= 4 || isCave`), so every lure dips together: coherent, not a
+   strobe. Pulled out of the draw loop so a guard test can assert the gate. */
+function fakePodAlpha(now, known) {
+  if (known) return Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;
+  const beat = staticClock < 0.45 ? (1 - staticClock / 0.45) : 0;
+  return 0.82 - 0.34 * beat;
+}
+
 function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
@@ -341,11 +353,15 @@ function drawWorld(now) {
     ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
     ctx.restore();
   }
-  // counterfeits — every lure blinks in perfect, mechanical unison
+  // counterfeits — Y4: the tell is Glycon's clock, not a strobe. Without
+  // Avicenna they sit near-steady and give ONE faint flicker in unison on the
+  // 41-second Static beat (coherent motion the eye still catches when it's
+  // quiet) — so they DO "keep perfect time," but the time is the Static's, not
+  // a visible metronome. Avicenna unmasks them with the loud blink + "?".
   for (const p of level.fakePods) {
     if (p.taken) continue;
     const known = upgrades.canon;
-    const alpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;
+    const alpha = fakePodAlpha(now, known);
     const col = known ? PAL().REVEAL : "#ffc400";
     drawGlow(p.x, p.y - 8, 14, col, alpha * 0.7);
     ctx.save();
@@ -1299,6 +1315,24 @@ function tornHullEdge(sc, halfW, rgb) {
    halves visibly fail to line up right at the seam, the way a snapped hull
    actually would, rather than one continuous silhouette with lines on it. */
 const WRECKM_BREACH = [[15, -60], [20, -22], [34, -4], [24, 8], [40, 20], [46, 60]];
+/* Y3 — clip to the region ABOVE the true terrain profile across [x0,x1], set in
+   world space before the wreck's own translate/rotate/scale (clip paths compose
+   in device space, so the later transforms don't undo it). A rising ground line
+   now submerges the hull naturally, instead of a single sampled ground height
+   cutting every wreck off flat regardless of slope. +6 sinks the base a hair
+   into the crust (the overlap the old per-wreck rect clip used) so there's no
+   seam between wreck and terrain. */
+function clipAboveGround(x0, x1) {
+  ctx.beginPath();
+  ctx.moveTo(x0, -3000);
+  ctx.lineTo(x1, -3000);
+  ctx.lineTo(x1, groundAt(x1) + 6);
+  for (let x = x1 - STEP; x > x0; x -= STEP) ctx.lineTo(x, groundAt(x) + 6);
+  ctx.lineTo(x0, groundAt(x0) + 6);
+  ctx.closePath();
+  ctx.clip();
+}
+
 function wreckMBreachClip(side) {
   ctx.beginPath();
   if (side === "fore") {
@@ -1316,19 +1350,28 @@ function wreckMBreachClip(side) {
   ctx.clip();
 }
 
+/* Y3 — a stable per-wreck cant seeded from x, so about half of the downed
+   motherships lie canted rather than perfectly flat. Deterministic (frame to
+   frame steady) and RNG-free, so world generation stays byte-identical. */
+function wreckCant(x) {
+  const seed = Math.abs(Math.sin(x * 0.7));
+  return seed > 0.5 ? (seed - 0.5) * 0.7 * ((Math.floor(x) & 1) ? 1 : -1) : 0;
+}
+
 /* a MERCY-class sister, down and half-dark — her emblem still flickers */
 function drawWreckM(sc, now) {
   ctx.save();
-  // sink the broken hull into the ridge rather than perching it on the crust:
-  // set a ground-line clip (in the ground-aligned frame), then undo the tilt and
-  // re-apply the original transform so the hull below the surface is buried while
-  // everything above — breach, emblem, hull tag — renders exactly as before.
+  // Y3 — bury the broken hull against the REAL terrain profile, not one sampled
+  // ground height, so a rise in front of the wreck submerges it naturally. The
+  // clip is set in world space first, then the hull's own transform is applied
+  // on top; everything above the ground line — breach, emblem, hull tag —
+  // renders as before, everything below is cut by the actual land.
+  clipAboveGround(sc.x - 170, sc.x + 170);
+  // Y3 — some downed motherships lie canted, not flat (see wreckCant).
+  const cant = wreckCant(sc.x);
   ctx.translate(sc.x, sc.y);
-  ctx.rotate(sc.tilt);
-  ctx.beginPath(); ctx.rect(-200, -500, 400, 506); ctx.clip();
-  ctx.rotate(-sc.tilt);
   ctx.translate(0, 4);
-  ctx.rotate(sc.tilt + sc.lean * 0.5);
+  ctx.rotate(sc.tilt + sc.lean * 0.5 + cant);
   ctx.scale(sc.s * 0.62, sc.s * 0.62);
   ctx.lineWidth = 2.5;
   // the fore piece — nose through the forward command tower — nudged one way
@@ -1368,6 +1411,15 @@ function drawWreckM(sc, now) {
   ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
   ctx.restore();
   tornHullEdge(sc, 92, "0,229,255");   // broken underside along the land line
+  // Y3 — the scar where she bit into the land: a shallow dark gouge along the
+  // ground under the wreck, so a mothership reads as having crashed, not parked.
+  ctx.save();
+  ctx.strokeStyle = "rgba(14,10,26,.8)"; ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(sc.x - 66 * sc.s, groundAt(sc.x - 66 * sc.s) + 2);
+  ctx.quadraticCurveTo(sc.x, sc.y + 8, sc.x + 58 * sc.s, groundAt(sc.x + 58 * sc.s) + 2);
+  ctx.stroke();
+  ctx.restore();
   if (Math.random() < 0.006) particles.push({
     x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
     t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
@@ -1378,12 +1430,12 @@ function drawWreckM(sc, now) {
    oversized — and half-buried like the boulders rather than perched on the crust. */
 function drawWreckS(sc, now) {
   ctx.save();
+  // Y3 — bury against the real terrain profile (set in world space first), so a
+  // rise in front submerges the wreck instead of a single ground sample cutting
+  // it off flat. The hull's own transform is applied on top of the clip.
+  clipAboveGround(sc.x - 50, sc.x + 50);
   ctx.translate(sc.x, sc.y);
-  ctx.rotate(sc.tilt);
-  // half-buried: clip away everything below the ground line so the wreck sinks
-  // INTO the slope. +5 keeps a hair of overlap so there's no seam.
-  ctx.beginPath(); ctx.rect(-80, -300, 160, 305); ctx.clip();
-  ctx.rotate(2.35 + sc.lean);
+  ctx.rotate(sc.tilt + 2.35 + sc.lean);
   // never bigger than the ship the player flies (sc.s runs 0.8–1.5); a downed
   // dart reads as ship-sized or a touch smaller, collapsed.
   const ws = Math.min(1.0, sc.s);
@@ -1420,8 +1472,59 @@ function drawWreckS(sc, now) {
 /* the secret lift. On the surface it is almost nothing: two hairline
    seams, four rivets, a glint every few seconds. In the Hollows it is
    the way home, and glows like it. */
+// the surface pad, drawn from a world x/y. Y5: it now reads on EVERY run — the
+// usable lift (veteran) and the pre-veteran marker share this art — and carries
+// a faint ABOVE-ground lip so it isn't hidden below the seam.
+function drawSurfacePad(now, x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  const glint = Math.sin(now * 0.43 + x) > 0.988 ? 0.4 : 0;
+  // C2 — a slow "breathing" so the seam has faint life between the rare
+  // glints, and (below) an occasional mote rising from the pad. Motion is
+  // what the eye catches; both stay dim so the lift is findable, not blatant.
+  const breathe = 0.05 * (0.5 + 0.5 * Math.sin(now * 1.15 + x));
+  const a = 0.13 + glint + breathe;
+  // a subtly thicker plate of ground under the pad — visible if you look,
+  // not blatant if you don't
+  const thickG = ctx.createLinearGradient(0, 2, 0, 11);
+  thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25 + breathe).toFixed(2) + ")");
+  thickG.addColorStop(1, "rgba(179,136,255,0)");
+  ctx.fillStyle = thickG;
+  ctx.fillRect(-44, 2, 88, 9);
+  // Y5 — a faint ABOVE-ground component: a low raised lip fading up from the
+  // seam, so the pad reads on the surface and not only below it. Kept dim (same
+  // register as the seam) so it's a glance-catcher, not a screaming marker.
+  const lipG = ctx.createLinearGradient(0, 0, 0, -7);
+  lipG.addColorStop(0, "rgba(179,136,255," + (0.11 + glint * 0.25 + breathe).toFixed(2) + ")");
+  lipG.addColorStop(1, "rgba(179,136,255,0)");
+  ctx.fillStyle = lipG;
+  ctx.fillRect(-40, -6, 80, 6);
+  ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-44, 1); ctx.lineTo(-44, 4); ctx.moveTo(44, 1); ctx.lineTo(44, 4);
+  ctx.moveTo(-44, 2.5); ctx.lineTo(44, 2.5);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
+  for (const rx of [-36, -12, 12, 36]) ctx.fillRect(rx - 1, 0, 2, 2);
+  // a rare, dim mote lifting off the seam — world-space, so pushed with
+  // absolute coords. ~0.5/s, faint and small: a glance-catcher, not a beacon.
+  if (Math.random() < 0.009) particles.push({
+    x: x + (Math.random() - 0.5) * 74, y: y + 1,
+    vx: (Math.random() - 0.5) * 3, vy: -7 - Math.random() * 5,
+    t: 0.9, max: 1.7, color: "#b388ff", size: 0.8 + Math.random() * 0.6 });
+  ctx.restore();
+}
+
 function drawLift(now) {
   const L = level.lift;
+  // Y5 — the surface pad shows on EVERY run: from the usable lift when a veteran
+  // has unlocked it, otherwise from level.liftPad (the pre-veteran marker). Caves
+  // never carry the pre-veteran marker; their lift art is drawn below.
+  if (!level.isCave) {
+    if (L) drawSurfacePad(now, L.x, L.y);
+    else if (level.liftPad) drawSurfacePad(now, level.liftPad.x, level.liftPad.y);
+  }
   if (!L) return;
   ctx.save();
   ctx.translate(L.x, L.y);
@@ -1441,34 +1544,6 @@ function drawLift(now) {
     ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = "rgba(179,136,255,.75)";
     ctx.fillText("RETURN LIFT — land and hold", 0, -52);
-  } else {
-    const glint = Math.sin(now * 0.43 + L.x) > 0.988 ? 0.4 : 0;
-    // C2 — a slow "breathing" so the seam has faint life between the rare
-    // glints, and (below) an occasional mote rising from the pad. Motion is
-    // what the eye catches; both stay dim so the lift is findable, not blatant.
-    const breathe = 0.05 * (0.5 + 0.5 * Math.sin(now * 1.15 + L.x));
-    const a = 0.13 + glint + breathe;
-    // a subtly thicker plate of ground under the pad — visible if you look,
-    // not blatant if you don't
-    const thickG = ctx.createLinearGradient(0, 2, 0, 11);
-    thickG.addColorStop(0, "rgba(179,136,255," + (0.1 + glint * 0.25 + breathe).toFixed(2) + ")");
-    thickG.addColorStop(1, "rgba(179,136,255,0)");
-    ctx.fillStyle = thickG;
-    ctx.fillRect(-44, 2, 88, 9);
-    ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-44, 1); ctx.lineTo(-44, 4); ctx.moveTo(44, 1); ctx.lineTo(44, 4);
-    ctx.moveTo(-44, 2.5); ctx.lineTo(44, 2.5);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(179,136,255," + (a + 0.06).toFixed(2) + ")";
-    for (const rx of [-36, -12, 12, 36]) ctx.fillRect(rx - 1, 0, 2, 2);
-    // a rare, dim mote lifting off the seam — world-space, so pushed with
-    // absolute coords. ~0.5/s, faint and small: a glance-catcher, not a beacon.
-    if (Math.random() < 0.009) particles.push({
-      x: L.x + (Math.random() - 0.5) * 74, y: L.y + 1,
-      vx: (Math.random() - 0.5) * 3, vy: -7 - Math.random() * 5,
-      t: 0.9, max: 1.7, color: "#b388ff", size: 0.8 + Math.random() * 0.6 });
   }
   if (L.holdT > 0) {   // the hold ring, once you've noticed
     ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
@@ -2963,25 +3038,31 @@ function drawBrief(now) {
   const titleY = Math.max(vh * 0.25, afterHeaderY + 30);
   ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, titleY);
   ctx.shadowBlur = 4;
-  const briefPx = bodyFontPx(14);
-  ctx.font = "600 " + briefPx + "px Menlo, monospace";
-  ctx.fillStyle = "#c9f3dd";
   const wrapW = Math.min(560, vw - 60);
-  // Lay the block against the FULL brief so paragraph spacing and the TAP prompt
-  // don't jump around as the text types out. On a short screen, tighten the line
-  // height (floored at a readable minimum) so extra paragraphs never run off the
-  // bottom — paragraphs are cheap, overflow is not.
-  const nAll = wrapText(briefText(), wrapW).length;
   const topY = Math.max(vh * 0.32, titleY + 26), botY = vh * 0.95;
-  let briefLH = briefPx + 8;
-  if (nAll * briefLH > botY - topY - 34)
-    briefLH = Math.max(briefPx + 2, (botY - topY - 34) / nAll);
-  const shown = briefText().slice(0, Math.floor(briefChars));
+  const avail = botY - topY - 34;   // body room, leaving space for the TAP prompt
+  const full = briefText();
+  ctx.fillStyle = "#c9f3dd";
+  // Y7 — fit long copy to the panel instead of running off the bottom. Lay the
+  // block against the FULL brief so paragraph spacing and the TAP prompt don't
+  // jump around as the text types out. First tighten the line height; if even
+  // the tightest readable spacing still overflows (the veteran finale brief,
+  // which appends the counterfeit-MERCY warning, is the long case), scale the
+  // font down and re-wrap until it fits. Short briefs stay at full size.
+  let briefPx = bodyFontPx(14), nAll, briefLH;
+  for (;;) {
+    ctx.font = "600 " + briefPx + "px Menlo, monospace";
+    nAll = wrapText(full, wrapW).length;
+    briefLH = Math.min(briefPx + 8, avail / nAll);
+    if (briefLH >= briefPx + 1 || briefPx <= 9) break;   // fits, or hit the floor
+    briefPx--;
+  }
+  const shown = full.slice(0, Math.floor(briefChars));
   wrapText(shown, wrapW).forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * briefLH));
-  if (briefChars >= briefText().length) {
+  if (briefChars >= full.length) {
     ctx.font = "800 15px Menlo, monospace";
     ctx.fillStyle = "rgba(255,255,255," + (0.6 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-    ctx.fillText("TAP TO LAUNCH", vw / 2, topY + nAll * briefLH + 30);
+    ctx.fillText("TAP TO LAUNCH", vw / 2, Math.min(botY - 4, topY + nAll * briefLH + 30));
   }
   ctx.shadowBlur = 0;
 }
@@ -3591,6 +3672,11 @@ window.__doids = {
   // tint. Exposed so a test can assert the colour parity always holds.
   oidTint: () => "#69f0ae",
   setStaticClock: v => { staticClock = v; },
+  // Y4 — counterfeit-pod opacity, exposed so a guard test can assert the gate:
+  // loud strobe only with Avicenna (`canon`), a faint Static-beat dip without.
+  fakePodAlpha: (now, known) => fakePodAlpha(now, known),
+  // Y3 — the deterministic per-wreck cant (stable frame to frame, RNG-free).
+  wreckCant,
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),
