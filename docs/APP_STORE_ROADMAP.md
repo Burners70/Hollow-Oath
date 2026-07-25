@@ -1360,7 +1360,7 @@ merged; G/H strongly recommended.**
   and README instead, which is what search engines index for "games like Oids".
   **Owner decision, updated:** the store-linked homepage is a dedicated
   marketing page (`about.html`), **not** the live playable build — see O7.
-- [ ] **O3. Age rating questionnaire** — expect 9+ (infrequent mild fantasy
+- [x] **O3. Age rating questionnaire** *(completed — owner, July 2026)* — expect 9+ (infrequent mild fantasy
   violence). The player *can* shoot medics (malpractice mechanic); answer the
   violence questions honestly and keep the store description's framing on
   consequence, not carnage.
