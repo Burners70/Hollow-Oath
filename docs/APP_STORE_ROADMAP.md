@@ -1343,7 +1343,11 @@ None blocks Apple review on its own. Dependencies: none.**
 **Why:** The actual shipping checklist. **Priority: last. Dependencies: A–F
 merged; G/H strongly recommended.**
 
-- [ ] **O1. Pricing decision** with the owner. Recommendation from review: launch
+- [x] **O1. Pricing decision** with the owner. **Locked (owner, July 2026):
+  launch at $2.99 / £2.99** — the UK point is Apple's direct equivalent of the
+  $2.99 tier (confirm the auto-filled figure in App Store Connect when setting
+  the base price); £1.99 held in reserve as an optional launch-week promo only.
+  Recommendation from review: launch
   **$2.99** with A–F+I..L shipped; $4.99 is defensible only once M (remix/daily)
   and N (counterfeit MERCY) are in. No IAP, no ads — "complete game, no data
   collected" is the positioning.
@@ -2028,8 +2032,10 @@ sign in Xcode, create the Game Center records (app/MAC_SETUP.md §5). **The
 on-device passes E8 (matrix, §7) and F3 (haptics restraint, §8) are now done
 (owner, July 2026), and most of Bundle O has landed** — store listing/metadata
 (O2), screenshots (O4), support/privacy URLs (O5), the web-build takedown (O7),
-and a TestFlight test submission (O6). What remains in O is the pricing decision
-(O1) and the age-rating questionnaire (O3). The game already
+and a TestFlight test submission (O6). Pricing is locked at $2.99 / £2.99 (O1)
+and the age-rating questionnaire is done (O3), so **Bundle O is now complete on
+the code/docs side** — what's left is the owner's final "submit for review" tap
+in App Store Connect. The game already
 plays at the $4.99 feature bar.
 **The July 2026 owner-playtest feedback round is now bundled as R, S and T**
 (above): R is pure defect-fixing and joins the submission-blocking set; S
