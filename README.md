@@ -12,10 +12,12 @@ a remake of any of them.
 > androids from "Doids" to **Scions**. See [CHANGELOG.md](docs/CHANGELOG.md) for the
 > full rename log (what changed, what was deliberately kept, and why).
 
-**Play it live:** https://hollow-oath.com/
-*(Custom domain on GitHub Pages, deploying straight from `main`; the old
-`burners70.github.io/Hollow-Oath/` address still redirects. See CHANGELOG.md
-§ "Repository & URL".)*
+**Play it:** shipping as a paid iOS app via TestFlight/the App Store — there is
+no public web build to play in a browser. The free web demo that used to live
+at https://hollow-oath.com/ was retired ahead of launch so it wouldn't compete
+with the paid release (see `docs/APP_STORE_ROADMAP.md`, Bundle O7); that URL
+now serves the marketing/support/privacy pages only, from a separate
+`gh-pages` branch.
 
 **Working on the code with Claude?** Start with [CLAUDE.md](CLAUDE.md) — a
 navigation map (section index into `index.html`, doc guide, conventions) that
@@ -31,11 +33,12 @@ Build-out history is in [ROADMAP.md](docs/ROADMAP.md); the rename & narrative br
 drove the current naming is in [HOLLOW_OATH_BRIEF.md](docs/HOLLOW_OATH_BRIEF.md).
 All reference docs now live in [`docs/`](docs/README.md).
 
-## Play
+## Play (local/dev only)
 
-Open `index.html` in any browser — on iPhone, serve it (e.g. GitHub Pages) and use
-Safari's **Share → Add to Home Screen** for a fullscreen, app-like experience.
-Landscape is best.
+The game itself isn't publicly hosted (see above). To try it from a clone,
+open `index.html` in any browser — desktop keyboard controls work, but touch,
+haptics, and gyro need an actual phone, i.e. the iOS build via `app/` (see
+`app/MAC_SETUP.md`). Landscape is best.
 
 ## How it plays
 
