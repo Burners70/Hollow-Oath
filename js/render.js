@@ -76,7 +76,7 @@ function render() {
   const now = performance.now() / 1000;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const bg = ctx.createLinearGradient(0, 0, 0, vh);
-  bg.addColorStop(0, "#05060f"); bg.addColorStop(0.7, "#0a0d22"); bg.addColorStop(1, "#101433");
+  bg.addColorStop(0, TOK.VOID); bg.addColorStop(0.7, TOK.VOID_MID); bg.addColorStop(1, TOK.VOID_HIGH);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, vw, vh);
 
@@ -111,7 +111,7 @@ function render() {
 
   if (bannerMsg && (state === "play" || state === "dead")) {
     ctx.textAlign = "center";
-    ctx.font = "800 22px 'Helvetica Neue', Arial, sans-serif";
+    ctx.font = display(22);
     ctx.shadowColor = bannerMsg.color; ctx.shadowBlur = 18;
     ctx.fillStyle = bannerMsg.color;
     ctx.globalAlpha = clamp(bannerMsg.t, 0, 1);
@@ -131,9 +131,9 @@ function render() {
     if (liftTransit.fade > 0.9) {
       const down = liftTransit.dir === "down";
       ctx.textAlign = "center";
-      ctx.font = "700 13px Menlo, monospace";
+      ctx.font = mono(13);
       ctx.fillStyle = "rgba(179,136,255,.85)";
-      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
+      ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 12;
       ctx.fillText(down ? "▼ DESCENDING — THE HOLLOWS"
                         : "▲ ASCENDING — " + SECTOR_NAMES[levelIdx], vw / 2, vh / 2 - 34);
       ctx.strokeStyle = "rgba(179,136,255,.8)"; ctx.lineWidth = 2; ctx.lineCap = "round";
@@ -210,8 +210,8 @@ function buildHeightTile(x0, x1, arr, padAbove, padBelow, closeAt, gradFrom, gra
   const grad = tctx.createLinearGradient(0, gradFrom, 0, gradTo);
   grad.addColorStop(0, gradStops[0]); grad.addColorStop(1, gradStops[1]);
   tctx.fillStyle = grad; tctx.fill();
-  tctx.shadowColor = glow || "#7c4dff"; tctx.shadowBlur = 12;
-  tctx.strokeStyle = stroke || "#b388ff"; tctx.lineWidth = 2; tctx.stroke();
+  tctx.shadowColor = glow || TOK.VIOLET_DEEP; tctx.shadowBlur = 12;
+  tctx.strokeStyle = stroke || TOK.VIOLET; tctx.lineWidth = 2; tctx.stroke();
   return { canvas: c, x0, y0: top, w: x1 - x0, h: bottom - top };
 }
 
@@ -244,7 +244,7 @@ function invalidateTiles() {
 
 /* T2 — the Hollows keep the Static's violet regardless of which sector's lift
    opened them. Surface biomes come from RECIPE[n].pal. */
-const CAVE_PAL = { grad: ["#1b1040", "#0c0820"], stroke: "#b388ff", glow: "#7c4dff",
+const CAVE_PAL = { grad: ["#1b1040", "#0c0820"], stroke: TOK.VIOLET, glow: TOK.VIOLET_DEEP,
                    night: [2, 3, 10], star: [200, 220, 255] };
 function biomePal() {
   return level.isCave ? CAVE_PAL : ((RECIPE[level.n] && RECIPE[level.n].pal) || CAVE_PAL);
@@ -304,13 +304,13 @@ function drawWaves(now) {
       const p = w.t / WAVE_WINDUP;
       const a = (reducedFlash ? 0.45 : 0.75) * (0.4 + 0.6 * Math.abs(Math.sin(now * 20)));
       ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
-      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
+      ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(w.ox, w.oy, 6 + p * 10, 0, 7); ctx.stroke();
     } else if (w.t < WAVE_ARRIVE) {
       const p = (w.t - WAVE_WINDUP) / WAVE_TRAVEL;
       const r = Math.max(2, Math.hypot(ship.x - w.ox, ship.y - w.oy) * p);
       ctx.strokeStyle = "rgba(179,136,255," + (0.75 * (1 - p * 0.25)).toFixed(2) + ")";
-      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 5 : 12; ctx.lineWidth = 3;
+      ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = reducedFlash ? 5 : 12; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(w.ox, w.oy, r, 0, 7); ctx.stroke();
     } else if (w.hit) {
       // V13 (owner steer) — a parried wave doesn't just flash at the ship; the
@@ -321,12 +321,12 @@ function drawWaves(now) {
       const p = clamp((w.t - WAVE_ARRIVE) / WAVE_RETURN, 0, 1);
       const rx = lerp(ship.x, sx, p), ry = lerp(ship.y, sy, p);
       ctx.globalAlpha = 1 - p * 0.2;
-      ctx.strokeStyle = "rgb(0,229,255)"; ctx.shadowColor = "#00e5ff";
+      ctx.strokeStyle = "rgb(0,229,255)"; ctx.shadowColor = TOK.CYAN;
       ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(rx, ry, 9, 0, 7); ctx.stroke();
       if (p >= 1 && !w.returnBurst) {
         w.returnBurst = true;
-        explode(sx, sy, "#00e5ff", 16);
+        explode(sx, sy, TOK.CYAN, 16);
       }
     } else {
       const p = (w.t - WAVE_ARRIVE) / (WAVE_LIFE - WAVE_ARRIVE);
@@ -397,12 +397,12 @@ function drawWorld(now) {
   for (const p of level.pods) {
     if (p.taken) continue;
     const flicker = 0.72 + 0.28 * Math.abs(Math.sin(now * 2.7 + (p.ph || 0)) * Math.sin(now * 1.3 + (p.ph || 0) * 2));
-    drawGlow(p.x, p.y - 8, 14, "#ffc400", flicker * 0.7);
+    drawGlow(p.x, p.y - 8, 14, PAL().WARN, flicker * 0.7);
     ctx.save();
     ctx.translate(p.x, p.y - 8);
     ctx.globalAlpha = flicker;
-    ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2;
-    ctx.fillStyle = "rgba(255,196,0,.15)";
+    ctx.strokeStyle = PAL().WARN; ctx.lineWidth = 2;
+    ctx.fillStyle = shade(PAL().WARN, .15);
     ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
     ctx.restore();
@@ -416,18 +416,20 @@ function drawWorld(now) {
     if (p.taken) continue;
     const known = upgrades.canon;
     const alpha = fakePodAlpha(now, known);
-    const col = known ? PAL().REVEAL : "#ffc400";
+    const col = known ? PAL().REVEAL : PAL().WARN;
     drawGlow(p.x, p.y - 8, 14, col, alpha * 0.7);
     ctx.save();
     ctx.translate(p.x, p.y - 8);
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = col; ctx.lineWidth = 2;
-    ctx.fillStyle = known ? "rgba(198,255,0,.15)" : "rgba(255,196,0,.15)";
+    // DS1 — the fill had drifted off the glow/stroke colour (a magenta "?" pod
+    // with a yellow-green body); design system §7 wants them the same hue.
+    ctx.fillStyle = shade(col, .15);
     ctx.beginPath(); ctx.rect(-5, -7, 10, 14); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-3, -10); ctx.moveTo(3, -7); ctx.lineTo(3, -10); ctx.stroke();
     if (known) {
       ctx.globalAlpha = 1;
-      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.font = mono(10); ctx.textAlign = "center";
       ctx.fillStyle = col;
       ctx.fillText("?", 0, -16);
     }
@@ -443,18 +445,18 @@ function drawWorld(now) {
     ctx.translate(bb.x, bb.y);
     ctx.rotate(0.4);
     ctx.strokeStyle = "rgba(179,136,255," + blink.toFixed(2) + ")";
-    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = near ? 14 : 4;
+    ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = near ? 14 : 4;
     ctx.lineWidth = 2;
     ctx.strokeRect(-8, -6, 16, 10);
     ctx.beginPath(); ctx.arc(0, -10, 2, 0, 7); ctx.stroke();
     ctx.restore();
     if (bb.scanT > 0) {
-      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = TOK.VIOLET; ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.arc(bb.x, bb.y - 24, 16, -Math.PI / 2, -Math.PI / 2 + (bb.scanT / 1.5) * Math.PI * 2);
       ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#b388ff";
+      ctx.font = mono(10); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.VIOLET;
       ctx.fillText("SCANNING…", bb.x, bb.y - 48);
     }
   }
@@ -474,11 +476,11 @@ function drawWorld(now) {
     ctx.fillStyle = "#3a0d24";
     ctx.beginPath(); ctx.arc(0, 0, 12, Math.PI, 0); ctx.closePath();
     ctx.fill();
-    glowStroke("#ff4081", 2);
+    glowStroke(PAL().DANGER, 2);
     ctx.beginPath();
     ctx.moveTo(Math.cos(t.ang) * 6, -10 + Math.sin(t.ang) * 6);
     ctx.lineTo(Math.cos(t.ang) * 18, -10 + Math.sin(t.ang) * 18);
-    glowStroke("#ff4081", 2);
+    glowStroke(PAL().DANGER, 2);
     ctx.restore();
   }
 
@@ -487,11 +489,11 @@ function drawWorld(now) {
     ctx.save();
     ctx.translate(dr.x, dr.y);
     ctx.rotate(Math.sin(dr.bob * 2) * 0.2);
-    ctx.fillStyle = "rgba(255,64,129,.12)";
+    ctx.fillStyle = shade(PAL().DANGER, .12);
     ctx.beginPath();
     ctx.moveTo(0, -10); ctx.lineTo(9, 0); ctx.lineTo(0, 10); ctx.lineTo(-9, 0);
     ctx.closePath(); ctx.fill();
-    glowStroke("#ff4081", 2);
+    glowStroke(PAL().DANGER, 2);
     ctx.fillStyle = "#ff8ab3";
     ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill();
     ctx.restore();
@@ -499,14 +501,14 @@ function drawWorld(now) {
 
   for (const b of level.bullets) {
     // E3 — a parried bullet flies home as a friendly (yellow) round
-    const glow = b.reflected ? "#eaff6b" : "#ff4081";
-    const core = b.reflected ? "#f7ffd0" : "#ff8ab3";
+    const glow = b.reflected ? TOK.PARRIED : PAL().DANGER;
+    const core = b.reflected ? TOK.PARRIED_INK : "#ff8ab3";
     drawGlow(b.x, b.y, 8, glow);
     ctx.fillStyle = core;
     ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill();
   }
   for (const b of level.shots) {
-    drawGlow(b.x, b.y, 7, "#00e5ff");
+    drawGlow(b.x, b.y, 7, TOK.CYAN);
     ctx.fillStyle = "#a7f6ff";
     ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, 7); ctx.fill();
   }
@@ -544,7 +546,7 @@ function drawWorld(now) {
   if (resupplyDrone) drawResupplyDrone(now);
 
   ctx.textAlign = "center";
-  ctx.font = "700 13px Menlo, monospace";
+  ctx.font = mono(13);
   for (const t of texts) {
     ctx.globalAlpha = clamp(t.t, 0, 1);
     ctx.shadowColor = t.color; ctx.shadowBlur = 8;
@@ -693,15 +695,15 @@ function drawShip(now) {
     const dirs = [-Math.PI / 2, Math.atan2(0.85, -0.6), Math.atan2(0.85, 0.6)];
     for (let i = 0; i < 3; i++) {
       drawLightBeam(pts[i][0], pts[i][1], s.ang + dirs[i], len, hw, rgb, al);
-      drawGlow(pts[i][0], pts[i][1], coreR, "#aef4ff", 0.7 * beamGlow);   // bright emitter core
+      drawGlow(pts[i][0], pts[i][1], coreR, TOK.CYAN_INK, 0.7 * beamGlow);   // bright emitter core
     }
   }
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.rotate(s.ang);
   // less bloom on the hull itself once the beams are doing the lighting
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = lerp(14, 6, beamGlow);
-  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = lerp(14, 6, beamGlow);
+  ctx.strokeStyle = TOK.CYAN; ctx.lineWidth = 2;
   ctx.fillStyle = "rgba(0,229,255,.12)";
   ctx.beginPath();
   ctx.moveTo(0, -13);
@@ -712,18 +714,18 @@ function drawShip(now) {
   if (s.shield) {   // the force field
     const r = SHIP_R + 8 + Math.sin(now * 10) * 1.3;
     ctx.save();
-    ctx.strokeStyle = "rgba(105,240,174,.85)";
-    ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 14;
+    ctx.strokeStyle = shade(PAL().SAFE, .85);
+    ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 14;
     ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.stroke();
     ctx.globalAlpha = 0.14;
-    ctx.fillStyle = "#69f0ae";
+    ctx.fillStyle = PAL().SAFE;
     ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fill();
     ctx.restore();
   }
   if (s.landed) {
-    ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10;
-    ctx.strokeStyle = "rgba(105,240,174,.7)";
+    ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 10;
+    ctx.strokeStyle = shade(PAL().SAFE, .7);
     ctx.beginPath(); ctx.moveTo(s.x - 14, s.y + SHIP_R + 2); ctx.lineTo(s.x + 14, s.y + SHIP_R + 2); ctx.stroke();
     ctx.shadowBlur = 0;
   }
@@ -731,7 +733,7 @@ function drawShip(now) {
   // Hollows where no signal reaches you and THRUST arms the scuttle charge
   if (s.landed && s.fuel <= 0 && !s.dead && !resupplyDrone) {
     ctx.textAlign = "center";
-    ctx.font = "700 10px Menlo, monospace";
+    ctx.font = mono(10);
     if (level.isCave) {
       // owner steer: the copy was unreadable against the dark rock — lay a dark
       // plate behind it and brighten the text so it reads at a glance
@@ -742,25 +744,25 @@ function drawShip(now) {
       ctx.restore();
       ctx.fillStyle = "#ff6b8f"; ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
       ctx.fillText("SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT", s.x, s.y - 52);
-      ctx.fillStyle = "#ffd54f";
+      ctx.fillStyle = TOK.GOLD;
       ctx.fillText("HOLD THRUST TO SCUTTLE", s.x, s.y - 40);
       ctx.shadowBlur = 0;
       if (s.scuttleT > 0) {
         const p = clamp(s.scuttleT / SCUTTLE_HOLD_T, 0, 1);
         ctx.beginPath();
         ctx.arc(s.x, s.y - 68, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
-        glowStroke("#ff4081", 2.4);
+        glowStroke(PAL().DANGER, 2.4);
       }
     } else {
-      ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 8;
+      ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 8;
       ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
       ctx.shadowBlur = 0;
       if (s.signalT > 0) {
         const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
-        ctx.strokeStyle = "#ffc400"; ctx.lineWidth = 2.4;
+        ctx.strokeStyle = PAL().WARN; ctx.lineWidth = 2.4;
         ctx.beginPath();
         ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
-        glowStroke("#ffc400", 2.4);
+        glowStroke(PAL().WARN, 2.4);
       }
     }
   }
@@ -772,7 +774,7 @@ function drawShip(now) {
     ctx.translate(s.x, s.y);
     ctx.rotate(a);
     ctx.strokeStyle = "rgba(179,136,255," + (0.4 + 0.4 * Math.abs(Math.sin(now * 3))).toFixed(2) + ")";
-    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 8;
+    ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 8;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(24, 0); ctx.lineTo(34, 0);
@@ -802,8 +804,8 @@ function drawDroneMarker(now) {
   ctx.save();
   ctx.translate(ex, ey);
   ctx.rotate(ang);
-  ctx.fillStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
-  ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+  ctx.fillStyle = shade(PAL().WARN, pulse.toFixed(2));
+  ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 10;
   ctx.beginPath();
   ctx.moveTo(12, 0); ctx.lineTo(-6, 7); ctx.lineTo(-6, -7); ctx.closePath(); ctx.fill();
   ctx.restore();
@@ -811,8 +813,8 @@ function drawDroneMarker(now) {
   // HUD band with a dark halo — so it's readable in a panic instead of sliding
   // around the edge with the arrow.
   ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 3;
-  ctx.fillStyle = "rgba(255,196,0,.95)";
-  ctx.font = "700 " + bodyFontPx(10) + "px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.fillStyle = shade(PAL().WARN, .95);
+  ctx.font = body(10); ctx.textAlign = "center";
   const leg = rd.phase === "in" ? "⛽ INBOUND" : rd.phase === "out" ? "⛽ RETURNING" : "⛽ FUEL LINE";
   ctx.fillText(leg, vw / 2, 78);
   ctx.shadowBlur = 0;
@@ -824,18 +826,18 @@ function drawResupplyDrone(now) {
   ctx.save();
   ctx.translate(rd.x, bobY);
   ctx.rotate(Math.sin(now * 6) * 0.15);
-  ctx.fillStyle = "rgba(255,196,0,.18)";
+  ctx.fillStyle = shade(PAL().WARN, .18);
   ctx.beginPath();
   ctx.moveTo(0, -8); ctx.lineTo(10, 4); ctx.lineTo(0, 10); ctx.lineTo(-10, 4);
   ctx.closePath(); ctx.fill();
-  glowStroke("#ffc400", 1.8);
+  glowStroke(PAL().WARN, 1.8);
   ctx.restore();
   if (rd.phase === "in") {
     ctx.save();
     ctx.globalAlpha = 0.3 + 0.15 * Math.sin(now * 8);
     ctx.beginPath();
     ctx.moveTo(rd.x, bobY + 9); ctx.lineTo(rd.x, bobY + 70);
-    glowStroke("#ffc400", 1.6);
+    glowStroke(PAL().WARN, 1.6);
     ctx.restore();
   }
   if (rd.phase !== "line") return;
@@ -848,7 +850,7 @@ function drawResupplyDrone(now) {
   const connected = rd.everAttached && !s.dead && d < XFUSE_SNAP_R;
   const nearSnap = connected && d >= XFUSE_SNAP_R * 0.72;
   const lineCol = rd.attachedNow ? P.SAFE : nearSnap ? P.DANGER
-    : connected ? P.WARN : "rgba(255,196,0,.55)";
+    : connected ? P.WARN : shade(PAL().WARN, .55);
 
   // the line itself — to the ship once caught, to the capture point until then
   const ex = connected ? s.x : cp.x, ey = connected ? s.y - 4 : cp.y;
@@ -867,8 +869,8 @@ function drawResupplyDrone(now) {
       const q = 1 - p;
       const qx = q * q * rd.x + 2 * q * p * midX + p * p * ex;
       const qy = q * q * (bobY + 9) + 2 * q * p * midY + p * p * ey;
-      drawGlow(qx, qy, 5, "#ffc400", 0.8);
-      ctx.fillStyle = "#ffd54f";
+      drawGlow(qx, qy, 5, PAL().WARN, 0.8);
+      ctx.fillStyle = TOK.GOLD;
       ctx.fillRect(qx - 1.2, qy - 1.2, 2.4, 2.4);
     }
   }
@@ -880,12 +882,12 @@ function drawResupplyDrone(now) {
   ctx.setLineDash([5, 7]);
   ctx.globalAlpha = rd.attachedNow ? 0.9 : 0.55 + 0.25 * Math.abs(Math.sin(now * 2));
   ctx.beginPath(); ctx.arc(cp.x, cp.y, wr, 0, 7);
-  glowStroke(rd.attachedNow ? P.SAFE : connected ? lineCol : "rgba(255,196,0,.7)", 1.4);
+  glowStroke(rd.attachedNow ? P.SAFE : connected ? lineCol : shade(PAL().WARN, .7), 1.4);
   ctx.setLineDash([]);
   ctx.restore();
 
   // status line sits above the drone, clear of the ship's landing guide
-  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.font = mono(10); ctx.textAlign = "center";
   const ly = bobY - 18;
   if (rd.attachedNow) {
     ctx.fillStyle = P.SAFE;
@@ -897,7 +899,7 @@ function drawResupplyDrone(now) {
     ctx.fillStyle = P.WARN;
     ctx.fillText("! LINE OCCLUDED — HOLD STATION", rd.x, ly);
   } else {
-    ctx.fillStyle = "rgba(255,196,0,.85)";
+    ctx.fillStyle = shade(PAL().WARN, .85);
     ctx.fillText("TRANSFUSION LINE — HOVER INSIDE THE RING", rd.x, ly);
   }
 }
@@ -924,13 +926,13 @@ function drawLandingGuide() {
   ctx.moveTo(s.x - 14, groundAt(s.x - 14));
   ctx.lineTo(s.x + 14, groundAt(s.x + 14));
   ctx.stroke();
-  ctx.font = "700 " + bodyFontPx(11) + "px Menlo, monospace";
+  ctx.font = body(11);
   ctx.textAlign = "left";
   ctx.fillStyle = color;
   const vArrow = s.vy >= 0 ? "↓" : "↑";
   ctx.fillText(glyph + " " + vArrow + Math.abs(Math.round(s.vy)) + "  ↔" + Math.abs(Math.round(s.vx)), s.x + 20, s.y - 2);
   if (!ev.soft && ev.reason) {
-    ctx.font = "600 " + bodyFontPx(8) + "px Menlo, monospace";
+    ctx.font = body(8, 600);
     ctx.fillText(ev.reason, s.x + 20, s.y + 11);
   }
   ctx.restore();
@@ -1037,8 +1039,8 @@ function drawOid(o, now) {
   // S5 (owner steer, July 2026): a Vector is NEVER given away by colour — the
   // reward for rescuing Semmelweis is the diagnostic SCAN, not a passive tint.
   // Identification is the "?" mark below, earned by cataloguing the unit.
-  let tint = "#69f0ae";
-  if (dying && o.deathType === "torched") tint = "#ff9e40";
+  let tint = PAL().SAFE;
+  if (dying && o.deathType === "torched") tint = TOK.EMBER_LIT;
   doidFigure({
     col: tint,
     fill: "rgba(10,30,24,.85)",
@@ -1061,14 +1063,14 @@ function drawOid(o, now) {
   // a permanent "?" over a counterfeit you have CATALOGUED with the S5 scan —
   // the only identification cue, and only after you've earned and used the scan
   if (o.flagged && !dying) {
-    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.font = mono(10); ctx.textAlign = "center";
     ctx.fillStyle = PAL().REVEAL;
     ctx.fillText("?", o.x, o.y - hop - 36);
   }
   // S5 — the landed-scan progress ring while you read a unit's vitals
   if (o.oidScanT > 0 && !dying) {
     const p = clamp(o.oidScanT / 4, 0, 1);
-    ctx.strokeStyle = "#00e5ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.strokeStyle = TOK.CYAN; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(o.x, o.y - hop - 30, 12, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
@@ -1100,14 +1102,14 @@ function drawScenery(now) {
     if (sc.scanT > 0) {
       const topY = sc.type === "tree" ? sc.y - 60 * sc.s : sc.y - 34;
       ctx.save();
-      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK; ctx.shadowBlur = 10;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sc.x, topY, 16, -Math.PI / 2, -Math.PI / 2 + (sc.scanT / SCAN_T) * Math.PI * 2);
       ctx.stroke();
       ctx.shadowBlur = 0;
-      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#aef4ff";
+      ctx.font = mono(10); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.CYAN_INK;
       ctx.fillText("SCANNING… hold position", sc.x, topY - 26);
       ctx.restore();
     }
@@ -1258,7 +1260,7 @@ function drawTree(sc, now) {
   puff(sway * 2.4 + 8, -h, 6.5);
   ctx.restore();
   if (sc.fake && upgrades.canon) {
-    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.font = mono(10); ctx.textAlign = "center";
     ctx.fillStyle = PAL().REVEAL;
     ctx.fillText("?", sc.x, sc.y - 52 * sc.s);
   }
@@ -1334,15 +1336,15 @@ function drawBuilding(sc, now, ruined) {
     if (staticSurge > 0) a *= reducedFlash ? (0.6 + 0.2 * Math.random()) : (0.15 + 0.3 * Math.random());
     const wx = -w / 2 + cw * (c + 0.7), wy = -h + ch * (r + 0.7);
     if (ruined && wy < -h * 0.75) continue;
-    ctx.fillStyle = "rgba(255,196,0," + a.toFixed(2) + ")";
+    ctx.fillStyle = shade(PAL().WARN, a.toFixed(2));
     ctx.fillRect(wx, wy, 3.4, 4.6);
   }
   if (!ruined) { // antenna with a slow red blink
     ctx.strokeStyle = "rgba(0,229,255,.4)"; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(0, -h - 12); ctx.stroke();
     if (Math.sin(now * 1.8 + sc.ph) > 0.85) {
-      drawGlow(0, -h - 13, 6, "#ff1744");
-      ctx.fillStyle = "#ff1744";
+      drawGlow(0, -h - 13, 6, TOK.ALERT);
+      ctx.fillStyle = TOK.ALERT;
       ctx.beginPath(); ctx.arc(0, -h - 13, 1.8, 0, 7); ctx.fill();
     }
   } else { // rubble at the foot
@@ -1541,11 +1543,11 @@ function drawWreckM(sc, now) {
   const flick = Math.sin(now * 0.7 + sc.ph) > 0.965 ? 0.55 : 0.12;
   ctx.save();
   ctx.translate(0, -15);
-  if (flick > 0.3) { ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 10; }
+  if (flick > 0.3) { ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 10; }
   drawAsclepius(36, "rgba(255,23,68," + flick + ")");
   ctx.restore();
   ctx.shadowBlur = 0;
-  ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.font = mono(10); ctx.textAlign = "center";
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
   // broken underside along the hull base — drawn in the hull frame so it tracks
@@ -1574,7 +1576,7 @@ function drawWreckM(sc, now) {
   }
   if (Math.random() < 0.006) particles.push({
     x: sc.x + 20 * sc.s, y: sc.y - 8, vx: (Math.random() - 0.5) * 20, vy: -30,
-    t: 0.4, max: 0.5, color: "#ffc400", size: 1.6 });
+    t: 0.4, max: 0.5, color: TOK.EMBER_CORE, size: 1.6 });
   ctx.restore();   // pop the ground clip (spanned tornHullEdge + scar)
 }
 
@@ -1625,7 +1627,7 @@ function drawWreckS(sc, now) {
   ctx.stroke();
   if (Math.random() < 0.005) particles.push({
     x: sc.x, y: sc.y - 10, vx: (Math.random() - 0.5) * 14, vy: -24,
-    t: 0.5, max: 0.6, color: "#ff6d00", size: 1.6 });
+    t: 0.5, max: 0.6, color: TOK.EMBER, size: 1.6 });
   ctx.restore();   // pop the ground clip
 }
 
@@ -1672,7 +1674,7 @@ function drawSurfacePad(now, x, y) {
   if (Math.random() < 0.009) particles.push({
     x: x + (Math.random() - 0.5) * 74, y: y + 1,
     vx: (Math.random() - 0.5) * 3, vy: -7 - Math.random() * 5,
-    t: 0.9, max: 1.7, color: "#b388ff", size: 0.8 + Math.random() * 0.6 });
+    t: 0.9, max: 1.7, color: TOK.VIOLET, size: 0.8 + Math.random() * 0.6 });
   ctx.restore();
 }
 
@@ -1691,7 +1693,7 @@ function drawLift(now) {
   if (level.isCave) {
     const a = 0.5 + 0.3 * Math.sin(now * 2.2);
     ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
-    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 10;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-46, 2); ctx.lineTo(46, 2); ctx.stroke();
     for (let k = 0; k < 3; k++) {   // chevrons pointing up
@@ -1701,12 +1703,12 @@ function drawLift(now) {
       ctx.beginPath(); ctx.moveTo(-9, yy); ctx.lineTo(0, yy - 7); ctx.lineTo(9, yy); ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.font = mono(9, 600); ctx.textAlign = "center";
     ctx.fillStyle = "rgba(179,136,255,.75)";
     ctx.fillText("RETURN LIFT — land and hold", 0, -52);
   }
   if (L.holdT > 0) {   // the hold ring, once you've noticed
-    ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = TOK.VIOLET; ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 10;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, -26, 15, -Math.PI / 2, -Math.PI / 2 + (L.holdT / 2.4) * Math.PI * 2);
@@ -1750,7 +1752,7 @@ function drawShrine(now) {
   const sh = level.shrine;
   ctx.save();
   ctx.translate(sh.x, sh.y);
-  const col = sh.found ? "#69f0ae" : PAL().REVEAL;
+  const col = sh.found ? PAL().SAFE : PAL().REVEAL;
   ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
   ctx.lineWidth = 2;
   // plinth
@@ -1774,26 +1776,26 @@ function drawShrine(now) {
     }
     ctx.globalAlpha = 1;
     if (sh.scanT > 0) {
-      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
+      ctx.strokeStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK;
       ctx.beginPath();
       ctx.arc(0, -34, 20, -Math.PI / 2, -Math.PI / 2 + (sh.scanT / 2) * Math.PI * 2);
       ctx.stroke();
-      ctx.font = "700 13px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#aef4ff";
+      ctx.font = mono(13); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.CYAN_INK;
       ctx.fillText("READING THE MARKS…", 0, -86);
     } else {
       // no clue text — just an inviting marked patch of ground beside it,
       // within the same 80px landing radius updateShrine actually checks
       const padX = 42, pulse = 0.4 + 0.4 * Math.abs(Math.sin(now * 2));
-      ctx.strokeStyle = "rgba(255,196,0," + pulse.toFixed(2) + ")";
-      ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = shade(PAL().WARN, pulse.toFixed(2));
+      ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 10;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(padX - 14, -6); ctx.lineTo(padX - 14, 0); ctx.lineTo(padX - 6, 0);
       ctx.moveTo(padX + 14, -6); ctx.lineTo(padX + 14, 0); ctx.lineTo(padX + 6, 0);
       ctx.stroke();
       ctx.globalAlpha = pulse * 0.6;
-      ctx.fillStyle = "#ffc400";
+      ctx.fillStyle = PAL().WARN;
       ctx.fillRect(padX - 14, -1.5, 28, 2);
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
@@ -1899,19 +1901,19 @@ function drawMothership(now) {
   ctx.save();
   ctx.globalAlpha *= twinA;
   ctx.translate(mx + jit.dx, my + jit.dy);
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
-  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 18;
+  ctx.strokeStyle = TOK.CYAN; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
   mercyHullPath();
   ctx.fill(); ctx.stroke();
   ctx.shadowBlur = 0;
   mercyGreebles("rgba(0,229,255,.3)");
-  drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
-  drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
+  drawGlow(-145, 0, 13, TOK.CYAN, 0.45 + 0.25 * Math.sin(now * 4));
+  drawGlow(145, 0, 13, TOK.CYAN, 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
   const pulse = 0.55 + 0.45 * Math.sin(now * 3);
   ctx.save();
   ctx.translate(0, -15);
-  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
+  ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 16 * pulse + 6;
   drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // her signature mast
@@ -1920,9 +1922,9 @@ function drawMothership(now) {
   // always fade in lockstep with globalAlpha (canvas engines vary here), so
   // the nameplate now bakes twinA into its own fill alpha AND shrinks its
   // shadow with it, instead of trusting globalAlpha alone.
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * twinA;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8 * twinA;
   ctx.fillStyle = "rgba(155,234,249," + twinA.toFixed(2) + ")";
-  ctx.font = "700 10px Menlo, monospace";
+  ctx.font = mono(10);
   ctx.textAlign = "center";
   ctx.fillText("A M S · M E R C Y", 0, 34);
   ctx.restore();
@@ -1933,7 +1935,7 @@ function drawMothership(now) {
     ctx.save();
     ctx.globalAlpha *= twinA;
     ctx.strokeStyle = "rgba(179,136,255," + ((1 - p) * 0.7).toFixed(2) + ")";
-    ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
+    ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 12;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(mx, my, 40 + p * 560, 0, 7); ctx.stroke();
     ctx.restore();
@@ -1960,7 +1962,7 @@ function drawMothership(now) {
   // more luminous red — pure #ff1744 was near-invisible against the dark ground.
   // V13 — alpha baked directly into the label colour + shadow (see the
   // nameplate above for why globalAlpha alone wasn't enough).
-  ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.font = body(9); ctx.textAlign = "center";
   ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4 * twinA;
   ctx.fillStyle = mercyBreach ? "rgba(255,90,120," + (0.98 * twinA).toFixed(2) + ")"
     : "rgba(120,240,255," + (0.98 * twinA).toFixed(2) + ")";
@@ -2037,7 +2039,7 @@ function drawHangar(now, active) {
   }
   if (fade > 0.5) {
     ctx.globalAlpha = fade;
-    ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.font = mono(9, 600); ctx.textAlign = "center";
     ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
     // sit clear of the "A M S · M E R C Y" hull nameplate (hull-frame y≈34, i.e.
     // my+34): bot is my+20, so bot+34 clears it instead of overlapping at bot+20
@@ -2059,7 +2061,7 @@ function drawBayDoors(now) {
   ctx.save();
   ctx.globalAlpha = fade;
   ctx.fillStyle = "rgba(6,18,26,1)";           // hull-dark door panels
-  ctx.strokeStyle = "rgba(0,229,255,.9)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.strokeStyle = "rgba(0,229,255,.9)"; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
   ctx.lineWidth = 2;
   // left door slides right, right door slides left
   ctx.fillRect(h.x0, top, dw, bot - top);
@@ -2087,7 +2089,7 @@ function drawJumpStreak(now) {
     ctx.fillStyle = g; ctx.fillRect(mx - 260, my - 260, 520, 520);
   }
   ctx.strokeStyle = "rgba(180,240,255,.85)";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18; ctx.lineWidth = 2;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 18; ctx.lineWidth = 2;
   for (let i = 0; i < 7; i++) {
     const dx = (i - 3) * 28;
     ctx.globalAlpha = 0.45 + 0.55 * Math.random();
@@ -2155,7 +2157,7 @@ function drawTwinPulse(x, y, tSincePulse) {
   ctx.save();
   ctx.translate(x, y);
   ctx.globalAlpha = (1 - p) * (reducedFlash ? 0.5 : 0.85);
-  ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 4 : 14;
+  ctx.strokeStyle = TOK.VIOLET; ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = reducedFlash ? 4 : 14;
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(0, 0, 20 + p * 130, 0, 7); ctx.stroke();
   ctx.restore();
@@ -2175,19 +2177,19 @@ function drawMercySplit(now) {
     ctx.save();
     ctx.globalAlpha = illusionAlpha;
     ctx.translate(midX + jit.dx, midY + jit.dy);
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
-    ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.55)";
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 18;
+    ctx.strokeStyle = TOK.CYAN; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.55)";
     mercyHullPath(); ctx.fill(); ctx.stroke();
     ctx.shadowBlur = 0;
     mercyGreebles("rgba(0,229,255,.3)");
-    drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
-    drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
+    drawGlow(-145, 0, 13, TOK.CYAN, 0.45 + 0.25 * Math.sin(now * 4));
+    drawGlow(145, 0, 13, TOK.CYAN, 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
     // the same organic emblem pulse as the real ship — it's meant to read as
     // completely ordinary, which is exactly the point
     ctx.save();
     ctx.translate(0, -15);
     const pulse = 0.55 + 0.45 * Math.sin(now * 3);
-    ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
+    ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 16 * pulse + 6;
     drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
     ctx.restore();
     mercyAntenna(now, "0,229,255", true);
@@ -2195,9 +2197,9 @@ function drawMercySplit(now) {
     // globalAlpha alone (canvas shadowBlur can visually outlast a fading
     // globalAlpha, which is what was reported: text reading solid before the
     // hull did)
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * illusionAlpha;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8 * illusionAlpha;
     ctx.fillStyle = "rgba(155,234,249," + illusionAlpha.toFixed(2) + ")";
-    ctx.font = "700 10px Menlo, monospace";
+    ctx.font = mono(10);
     ctx.textAlign = "center";
     ctx.fillText("A M S · M E R C Y", 0, 34);
     ctx.restore();
@@ -2210,7 +2212,7 @@ function drawMercySplit(now) {
     const ibMed = { x0: midX - 100, x1: midX + 100, y0: midY + 24, y1: midY + 130 };
     const ibRed = { x0: midX + 172, x1: midX + 260, y0: midY - 34, y1: midY + 30 };
     drawTractorBeam(ibMed, "0,229,255", now, true, false);
-    ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.font = body(9); ctx.textAlign = "center";
     ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4 * illusionAlpha;
     ctx.fillStyle = "rgba(120,240,255," + (0.98 * illusionAlpha).toFixed(2) + ")";
     ctx.fillText("RECOVERY BAY", (ibMed.x0 + ibMed.x1) / 2, ibMed.y1 + 15);
@@ -2247,7 +2249,7 @@ function drawDecoyMercy(now) {
     mercyHullPath(); ctx.fill(); ctx.stroke();
     mercyGreebles("rgba(120,130,160,.15)");
     const flick = Math.sin(now * 2.3) > 0.9 ? 0.55 : 0.14;
-    ctx.strokeStyle = "rgba(198,255,0," + flick.toFixed(2) + ")"; ctx.lineWidth = 2;
+    ctx.strokeStyle = shade(TOK.COUNTERFEIT_NEON, flick.toFixed(2)); ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(-8, 12);
@@ -2255,41 +2257,41 @@ function drawDecoyMercy(now) {
     ctx.bezierCurveTo(-4, -20, 12, -22, 6, -32);
     ctx.stroke();
     ctx.beginPath(); ctx.arc(6, -38, 6, 0, 7); ctx.stroke();
-    ctx.fillStyle = "rgba(198,255,0," + flick.toFixed(2) + ")";
+    ctx.fillStyle = shade(TOK.COUNTERFEIT_NEON, flick.toFixed(2));
     ctx.fillRect(3, -40, 2.2, 1.4); ctx.fillRect(7.6, -40, 2.2, 1.4);
-    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.font = mono(10); ctx.textAlign = "center";
     ctx.fillStyle = "rgba(155,234,249,.22)";
     ctx.fillText("A M S · M E R C Y", 0, 34);
     ctx.restore();
     return;
   }
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
-  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 18;
+  ctx.strokeStyle = TOK.CYAN; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
   mercyHullPath();
   ctx.fill(); ctx.stroke();
   ctx.shadowBlur = 0;
   mercyGreebles("rgba(0,229,255,.3)");
-  drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
-  drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
+  drawGlow(-145, 0, 13, TOK.CYAN, 0.45 + 0.25 * Math.sin(now * 4));
+  drawGlow(145, 0, 13, TOK.CYAN, 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
   const alpha = Math.sin(now * Math.PI * 2) > 0 ? 1 : 0.38;   // machine time
   ctx.save();
   ctx.translate(0, -15);
-  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * alpha + 6;
+  ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 16 * alpha + 6;
   drawAsclepius(36, "rgba(255,23,68," + alpha.toFixed(2) + ")");
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // the same signature mast — the lie is total
   // V13 — alpha baked directly into the label + its shadow, not left to
   // globalAlpha alone (see drawMothership's nameplate for why)
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * twinA;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8 * twinA;
   ctx.fillStyle = "rgba(155,234,249," + twinA.toFixed(2) + ")";
-  ctx.font = "700 10px Menlo, monospace";
+  ctx.font = mono(10);
   ctx.textAlign = "center";
   ctx.fillText("A M S · M E R C Y", 0, 34);
   ctx.shadowBlur = 0;
   // Avicenna's Canon of Truth unmasks this counterfeit like every other
   if (upgrades.canon) {
-    ctx.font = "700 14px Menlo, monospace";
+    ctx.font = mono(14);
     ctx.fillStyle = PAL().REVEAL;
     ctx.fillText("?", 0, -60);
   }
@@ -2299,21 +2301,21 @@ function drawDecoyMercy(now) {
   ctx.globalAlpha *= twinA;
   const b = decoyBayRect();
   drawTractorBeam(b, "0,229,255", now, true, false);
-  ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+  ctx.font = mono(9, 600); ctx.textAlign = "center";
   ctx.fillStyle = "rgba(0,229,255," + (0.6 * twinA).toFixed(2) + ")";
   ctx.fillText("RECOVERY BAY", (b.x0 + b.x1) / 2, b.y1 + 14);
   ctx.restore();
   // the observed win in progress: counting the beats from the ground
   if (f.scanT > 0) {
     ctx.save();
-    ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK; ctx.shadowBlur = 10;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(ship.x, ship.y - 44, 16, -Math.PI / 2, -Math.PI / 2 + (f.scanT / SCAN_T) * Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
-    ctx.fillStyle = "#aef4ff";
+    ctx.font = mono(10); ctx.textAlign = "center";
+    ctx.fillStyle = TOK.CYAN_INK;
     ctx.fillText("COUNTING THE BEATS…", ship.x, ship.y - 70);
     ctx.restore();
   }
@@ -2373,7 +2375,7 @@ function drawSolaceDeath(b, now) {
     ctx.save();
     ctx.beginPath(); ctx.rect(-600, -3200, 1200, front + 3200); ctx.clip();
     // an ambient heat bloom filling the hull so she glows hot, not dark-maroon
-    if (!reducedFlash) { drawGlow(0, HY, 150, "#ff6d00", 0.5); drawGlow(0, HY - 6, 90, "#ffae40", 0.45); }
+    if (!reducedFlash) { drawGlow(0, HY, 150, TOK.EMBER, 0.5); drawGlow(0, HY - 6, 90, "#ffae40", 0.45); }
     ctx.save();
     ctx.translate(0, HY); ctx.scale(MS, MS);
     solaceMercyPath();
@@ -2411,7 +2413,7 @@ function drawSolaceDeath(b, now) {
     ctx.globalCompositeOperation = "source-over";
     mercyAntenna(now, "255,236,196", true);
     ctx.restore();
-    if (!reducedFlash) drawGlow(0, -54, 24 + 22 * ign, "#fff3d6", 0.4 + 0.4 * ign);
+    if (!reducedFlash) drawGlow(0, -54, 24 + 22 * ign, TOK.EMBER_WHITE, 0.4 + 0.4 * ign);
   } else {
     // ---- detonation → smoking crater ----
     const cf = clamp(boomT / 0.45, 0, 1);
@@ -2427,7 +2429,7 @@ function drawSolaceDeath(b, now) {
         const rp = clamp((boomT - k * 0.12) / 0.9, 0, 1);
         if (rp <= 0 || rp >= 1) continue;
         ctx.globalAlpha = (1 - rp) * 0.6;
-        ctx.strokeStyle = "#ffd27f"; ctx.shadowColor = "#ff9e40"; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+        ctx.strokeStyle = "#ffd27f"; ctx.shadowColor = TOK.EMBER_LIT; ctx.shadowBlur = 12; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(0, 0, 30 + rp * 460, 0, 7); ctx.stroke();
       }
       ctx.globalAlpha = 1; ctx.shadowBlur = 0;
@@ -2441,7 +2443,7 @@ function drawSolaceDeath(b, now) {
       const gy = (b.groundY != null ? b.groundY : b.y) - b.y;   // surface in beacon frame (≈0)
       const floor = gy + 78;
       const cool = clamp(1 - boomT / 2.4, 0.15, 1);             // embers fade as she cools
-      drawGlow(0, floor, 130, "#ff6d00", 0.28 * cool);          // heat wash down in the hole
+      drawGlow(0, floor, 130, TOK.EMBER, 0.28 * cool);          // heat wash down in the hole
       for (const ex of [-118, -64, -14, 40, 96, 138]) {
         const fl = 0.4 + 0.4 * Math.sin(now * 4 + ex);
         drawGlow(ex, floor - 6 + (ex & 8 ? 6 : 0), 5.5, "#ff8a2c", fl * cool);
@@ -2473,13 +2475,13 @@ function drawBeacon(now) {
     g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
     g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
     ctx.strokeStyle = g; ctx.lineWidth = 2;
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
     ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
     ctx.stroke();
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = puls * 0.55;
-    ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
+    ctx.strokeStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.stroke();
     ctx.restore();
     ctx.shadowBlur = 0;
@@ -2506,7 +2508,7 @@ function drawBeacon(now) {
   if (answered) {
     ctx.save();
     ctx.translate(0, -32);
-    ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 12;
+    ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 12;
     drawAsclepius(22, "rgba(255,23,68,.9)");
     ctx.restore();
   }
@@ -2524,8 +2526,8 @@ function drawBeacon(now) {
     ctx.shadowBlur = 0;
   }
   if (answered) {
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-    ctx.fillStyle = "#9beaf9"; ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
+    ctx.fillStyle = TOK.CYAN_TEXT; ctx.font = mono(10); ctx.textAlign = "center";
     ctx.fillText("A M S · S O L A C E", 0, 26);
     ctx.shadowBlur = 0;
   }
@@ -2533,20 +2535,20 @@ function drawBeacon(now) {
     if (b.revealed) {
       // owner steer — once examined, just her name, quietly. The clue card and
       // her own pulse do the teaching; no on-screen "parry" instruction.
-      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
-      if (!reducedFlash) { ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6; }
+      ctx.font = mono(10); ctx.textAlign = "center";
+      if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
       ctx.fillStyle = "rgba(155,234,249,.6)";
       ctx.fillText("A M S · S O L A C E", 0, -128);
       ctx.shadowBlur = 0;
     } else {
       // V4 — the legible pre-scan signal-source label on its dark plate
       const lp = bodyFontPx(10);
-      ctx.font = "700 " + lp + "px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.font = mono(lp); ctx.textAlign = "center";
       const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
       const tw = ctx.measureText(txt).width, ly = -128;
       ctx.fillStyle = "rgba(6,4,16,.72)";
       ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
-      if (!reducedFlash) { ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 6; }
+      if (!reducedFlash) { ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 6; }
       ctx.fillStyle = "#d9ccff";
       ctx.fillText(txt, 0, ly);
       ctx.shadowBlur = 0;
@@ -2568,7 +2570,7 @@ function drawHUD(now) {
   scrim.addColorStop(1, "rgba(3,4,12,0)");
   ctx.fillStyle = scrim;
   ctx.fillRect(0, 0, vw, 62);
-  ctx.font = "700 12px Menlo, monospace";
+  ctx.font = mono(12);
 
   // S7 — sabotage vignette: a red pulse at the screen edges so a fuel-line cut
   // or a cabin kill is never something you discover from the score readout.
@@ -2585,7 +2587,7 @@ function drawHUD(now) {
   const bw = Math.min(150, vw * 0.3);
   // the fuel bar flashes red on sabotage — the cut is felt at the gauge, too
   const fuelFlash = sabotageFlash > 0 && Math.sin(now * 34) > 0;
-  drawBar(hx, topPad, bw, 10, s.fuel / maxFuel(), fuelFlash ? "#ff4081" : "#ffc400", "FUEL");
+  drawBar(hx, topPad, bw, 10, s.fuel / maxFuel(), fuelFlash ? PAL().DANGER : PAL().WARN, "FUEL");
   drawECG(vw - bw - 14 - saRight, topPad, bw, 26, s.vitals / maxVitals(), now);
 
   if (state === "play") {
@@ -2596,7 +2598,7 @@ function drawHUD(now) {
     // bump — a rounded fill + bright stroke reads as a real button.
     const pr = pauseRect(), rr = 7;
     ctx.save();
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.moveTo(pr.x + rr, pr.y);
     ctx.arcTo(pr.x + pr.w, pr.y, pr.x + pr.w, pr.y + pr.h, rr);
@@ -2608,17 +2610,17 @@ function drawHUD(now) {
     ctx.strokeStyle = "rgba(130,242,255,.95)"; ctx.lineWidth = 2;
     ctx.fill(); ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#eaffff";
-    ctx.font = "700 15px Menlo, monospace";
+    ctx.fillStyle = TOK.CYAN_BRIGHT;
+    ctx.font = mono(15);
     ctx.textAlign = "center";
     ctx.fillText("❚❚", pr.x + pr.w / 2, pr.y + pr.h / 2 + 6);
     ctx.restore();
   }
 
   ctx.textAlign = "center";
-  ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+  ctx.fillStyle = TOK.CYAN_TEXT; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6;
   ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
-  ctx.font = "600 9px Menlo, monospace";
+  ctx.font = mono(9, 600);
   ctx.fillStyle = "rgba(155,234,249,.7)";
   let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
     "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
@@ -2643,8 +2645,8 @@ function drawHUD(now) {
     if (o.role === "saboteur" && o.state === "wait" && o.flagged) vectorsKnown++;
   const savable = Math.max(tl.delivered, tl.total - vectorsKnown);
   ctx.textAlign = "left";
-  ctx.font = "700 11px Menlo, monospace";
-  ctx.fillStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 6;
+  ctx.font = mono(11);
+  ctx.fillStyle = PAL().SAFE; ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 6;
   // "SECTOR", not "SAVED" — this is the current sector's tally (tl.delivered
   // resets every sector, including on RESUME); the run's career total uses the
   // word "saved" at game over/win (drawGameOver, rankLine) and must stay
@@ -2653,7 +2655,7 @@ function drawHUD(now) {
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
   if (tl.lost > 0) {
-    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081";
+    ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER;
     const lostStr = "  ·  ✝ LOST " + tl.lost;
     ctx.fillText(lostStr, hx + tallyOff, topPad + 34);
     tallyOff += ctx.measureText(lostStr).width;
@@ -2666,8 +2668,8 @@ function drawHUD(now) {
 
   if (mercyBreach) {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
-    ctx.font = "800 14px Menlo, monospace";
+    ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER; ctx.shadowBlur = 10;
+    ctx.font = mono(14, 800);
     // E1 — two-step: retrieve at the recovery bay (timed), then ferry it to
     // isolation. Once retrieved the timer stops; the struggle is the pressure.
     const msg = !mercyBreach.retrieved
@@ -2679,28 +2681,28 @@ function drawHUD(now) {
     ctx.shadowBlur = 0;
   } else if (level.extraction && !level.extraction.done && state === "play" && Math.sin(now * 5) > -0.3) {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400"; ctx.shadowBlur = 10;
-    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 10;
+    ctx.font = mono(13, 800);
     ctx.fillText("⚠ EXTRACTION — FLY INTO MERCY'S HANGAR", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if (level.contamKnown && contaminantAboard() && Math.sin(now * 6) > 0) {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
-    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER; ctx.shadowBlur = 10;
+    ctx.font = mono(13, 800);
     ctx.fillText("⚠ CONTAMINANT ABOARD — SEAL IT IN THE RED BAY", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   } else if ((s.fuel < 20 || s.vitals < 30) && Math.sin(now * 8) > 0 && state === "play") {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
-    ctx.font = "800 13px Menlo, monospace";
+    ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER; ctx.shadowBlur = 10;
+    ctx.font = mono(13, 800);
     ctx.fillText(s.vitals < 30 ? "⚠ VITALS CRITICAL" : "⚠ LOW FUEL", vw / 2, topPad + 44);
     ctx.shadowBlur = 0;
   }
 
   if (PERF) {
     ctx.textAlign = "right";
-    ctx.font = "700 11px Menlo, monospace";
-    ctx.fillStyle = perfFrameMs > 20 ? "#ff4081" : "#69f0ae";
+    ctx.font = mono(11);
+    ctx.fillStyle = perfFrameMs > 20 ? PAL().DANGER : PAL().SAFE;
     ctx.fillText(perfFrameMs.toFixed(1) + "ms · " + Math.round(perfFps) + " FPS",
       vw - 14 - saRight, topPad + 40);
   }
@@ -2713,7 +2715,7 @@ function drawBar(x, y, w, h, frac, color, label) {
   ctx.fillRect(x + 1, y + 1, (w - 2) * clamp(frac, 0, 1), h - 2);
   ctx.shadowBlur = 0;
   ctx.fillStyle = "rgba(255,255,255,.6)";
-  ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "left";
+  ctx.font = mono(8, 600); ctx.textAlign = "left";
   ctx.fillText(label, x, y + h + 9);
 }
 
@@ -2757,7 +2759,7 @@ function drawECG(x, y, w, h, frac, now) {
   ctx.restore();
   ctx.shadowBlur = 0;
   ctx.fillStyle = "rgba(255,255,255,.6)";
-  ctx.font = "600 8px Menlo, monospace"; ctx.textAlign = "right";
+  ctx.font = mono(8, 600); ctx.textAlign = "right";
   ctx.fillText("VITALS " + Math.max(0, Math.round(frac * 100)) + "%", x + w, y + h + 9);
 }
 
@@ -2769,11 +2771,11 @@ function drawHudGuide(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(5,6,15,.96)";
   ctx.fillRect(0, 0, vw, vh);
-  const L = saLeft, R = saRight, cyan = "#00e5ff";
+  const L = saLeft, R = saRight, cyan = TOK.CYAN;
   const head = "#bfefff", dim = "rgba(199,232,255,.62)";
   const bw = Math.min(150, vw * 0.3);
-  const F = b => "700 " + bodyFontPx(b) + "px Menlo, monospace";
-  const Fd = b => "600 " + bodyFontPx(b) + "px Menlo, monospace";
+  const F = b => body(b);
+  const Fd = b => body(b, 600);
   // a widget-adjacent label: bright title, dimmer wrapped description
   function lab(x, y, align, title, desc, descW) {
     ctx.textAlign = align;
@@ -2791,13 +2793,13 @@ function drawHudGuide(now) {
 
   // ---- the real top band, drawn where it sits in flight ----
   const topY = 32;
-  drawBar(14 + L, topY, bw, 10, 0.62, "#ffc400", "");
+  drawBar(14 + L, topY, bw, 10, 0.62, PAL().WARN, "");
   drawECG(vw - bw - 14 - R, topY, bw, 26, 0.86, now);
   const pX = vw - bw - 14 - R - 40;   // pause pill, just left of the ECG
   ctx.fillStyle = "rgba(0,120,150,.6)"; ctx.strokeStyle = "rgba(130,242,255,.95)"; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.rect(pX, topY - 2, 30, 20); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#eaffff"; ctx.font = F(9); ctx.textAlign = "center"; ctx.fillText("❚❚", pX + 15, topY + 12);
-  ctx.fillStyle = "#9beaf9"; ctx.shadowColor = cyan; ctx.shadowBlur = 6; ctx.font = F(11); ctx.textAlign = "center";
+  ctx.fillStyle = TOK.CYAN_BRIGHT; ctx.font = F(9); ctx.textAlign = "center"; ctx.fillText("❚❚", pX + 15, topY + 12);
+  ctx.fillStyle = TOK.CYAN_TEXT; ctx.shadowColor = cyan; ctx.shadowBlur = 6; ctx.font = F(11); ctx.textAlign = "center";
   ctx.fillText("004200", vw / 2, topY + 8); ctx.shadowBlur = 0;
   ctx.font = Fd(8); ctx.fillStyle = "rgba(155,234,249,.7)";
   ctx.fillText("VESALIUS RIDGE · ♥3 · ASSIST · ◈2/7", vw / 2, topY + 20);
@@ -2819,9 +2821,9 @@ function drawHudGuide(now) {
   ctx.strokeStyle = cyan; ctx.shadowColor = cyan; ctx.shadowBlur = 10; ctx.lineWidth = 2; ctx.fillStyle = "rgba(0,229,255,.12)";
   ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(9, 9); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.lineTo(-9, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
-  ctx.strokeStyle = "#69f0ae"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+  ctx.strokeStyle = PAL().SAFE; ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 8; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(sx - 12, sy + 22); ctx.lineTo(sx + 12, sy + 22); ctx.stroke(); ctx.shadowBlur = 0;
-  ctx.fillStyle = "#69f0ae"; ctx.font = F(9); ctx.textAlign = "left"; ctx.fillText("✓ ↓2  ↔1", sx + 20, sy + 2);
+  ctx.fillStyle = PAL().SAFE; ctx.font = F(9); ctx.textAlign = "left"; ctx.fillText("✓ ↓2  ↔1", sx + 20, sy + 2);
   lab(sx, sy + 42, "center", "LANDING GUIDE",
     "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down.", 240);
 
@@ -2838,9 +2840,9 @@ function drawHudGuide(now) {
   lab(24 + L, by - 44, "left", "ROTATE", "Turn the ship left / right.", 170);
   // right cluster as a row, THRUST kept rightmost as in flight
   const sX2 = vw - 132 - R, fX = vw - 86 - R, tX = vw - 40 - R;
-  circ(sX2, by, 15, "rgba(105,240,174,.85)", "⛨", 9);
-  circ(fX, by, 15, "rgba(255,64,129,.85)", "◉", 9);
-  circ(tX, by, 15, "rgba(255,196,0,.85)", "▲", 10);
+  circ(sX2, by, 15, shade(PAL().SAFE, .85), "⛨", 9);
+  circ(fX, by, 15, shade(PAL().DANGER, .85), "◉", 9);
+  circ(tX, by, 15, shade(PAL().WARN, .85), "▲", 10);
   lab(vw - 14 - R, by - 44, "right", "SHIELD · FIRE · THRUST",
     "Hold SHIELD (force field) · FIRE costs points · THRUST to fly.", 250);
 
@@ -2857,8 +2859,8 @@ function drawHelpMenu(now) {
   ctx.fillStyle = "rgba(5,6,15,.9)";
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
-  ctx.fillStyle = "#aef4ff";
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 20;
+  ctx.fillStyle = TOK.CYAN_INK;
   ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("HELP", vw / 2, helpMenuRowRect(0).y - 28);
   ctx.shadowBlur = 0;
@@ -2867,16 +2869,16 @@ function drawHelpMenu(now) {
                 ["▸ REPLAY STORY", "watch the opening again"]];
   for (let i = 0; i < 3; i++) {
     const r = helpMenuRowRect(i);
-    ctx.strokeStyle = "rgba(0,229,255,.7)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.strokeStyle = "rgba(0,229,255,.7)"; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#7fe9ff"; ctx.font = "700 15px Menlo, monospace";
+    ctx.fillStyle = TOK.CYAN_SOFT; ctx.font = mono(15);
     ctx.fillText(rows[i][0], r.x + r.w / 2, r.y + r.h / 2 - 2);
-    ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = "600 10px Menlo, monospace";
+    ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = mono(10, 600);
     ctx.fillText(rows[i][1], r.x + r.w / 2, r.y + r.h / 2 + 14);
   }
-  ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.font = "600 11px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.font = mono(11, 600);
   ctx.fillText("tap outside to go back", vw / 2, helpMenuRowRect(2).y + helpMenuRowRect(2).h + 26);
 }
 
@@ -2886,20 +2888,20 @@ function drawTitle(now) {
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
   const pulse = 0.7 + 0.3 * Math.sin(now * 2);
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 30 * pulse;
-  ctx.fillStyle = "#aef4ff";
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 30 * pulse;
+  ctx.fillStyle = TOK.CYAN_INK;
   // narrow screens shrink the wordmark so it clears the corner pills
   ctx.font = "900 " + Math.min(60, vw * (vw < 640 ? 0.085 : 0.12)) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("Hollow Oath", vw / 2, vh * 0.32);
   ctx.shadowBlur = 10;
-  ctx.font = "600 13px Menlo, monospace";
-  ctx.fillStyle = "#9beaf9";
+  ctx.font = mono(13, 600);
+  ctx.fillStyle = TOK.CYAN_TEXT;
   ctx.fillText("a gravity rescue — a love letter to the 16-bit lander classics", vw / 2, vh * 0.4);
-  ctx.fillStyle = unresolvedHaunt ? "#b388ff" : "#69f0ae";
-  ctx.shadowColor = unresolvedHaunt ? "#b388ff" : "#69f0ae";
+  ctx.fillStyle = unresolvedHaunt ? TOK.VIOLET : PAL().SAFE;
+  ctx.shadowColor = unresolvedHaunt ? TOK.VIOLET : PAL().SAFE;
   ctx.fillText(unresolvedHaunt ? "the Static answers still — every 41 seconds"
                                : "seven sectors · something is repeating every 41 seconds", vw / 2, vh * 0.47);
-  ctx.fillStyle = "#ffc400"; ctx.shadowColor = "#ffc400";
+  ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN;
   ctx.fillText("not every Scion you rescue is what it seems", vw / 2, vh * 0.54);
   // R5 — the primary call to action is an explicit pill now (tap-anywhere no
   // longer launches). Drawn as the pulsing focus of the screen.
@@ -2913,9 +2915,9 @@ function drawTitle(now) {
   // never overruns on a phone.
   const startLabel = veteran ? "▼ SOMETHING'S STILL DOWN THERE" : "▶ START NEW FLIGHT";
   let startFs = 16;
-  ctx.font = "800 " + startFs + "px Menlo, monospace";
+  ctx.font = mono(startFs, 800);
   while (startFs > 10 && ctx.measureText(startLabel).width > sr.w - 22) {
-    startFs -= 1; ctx.font = "800 " + startFs + "px Menlo, monospace";
+    startFs -= 1; ctx.font = mono(startFs, 800);
   }
   ctx.fillStyle = "#eaf6ff";
   ctx.fillText(startLabel, sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
@@ -2923,11 +2925,11 @@ function drawTitle(now) {
 
   // build stamp + hi score along the bottom edge, out of the CTA's way
   ctx.textAlign = "right";
-  ctx.font = "600 9px Menlo, monospace";
+  ctx.font = mono(9, 600);
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText(BUILD_TAG, vw - 12 - saRight, vh - 10);
   ctx.textAlign = "left";
-  ctx.font = "600 11px Menlo, monospace";
+  ctx.font = mono(11, 600);
   ctx.fillStyle = "rgba(155,234,249,.55)";
   ctx.fillText("hi score " + hiscore, 12 + saLeft, vh - 10);
   ctx.textAlign = "center";
@@ -2935,11 +2937,11 @@ function drawTitle(now) {
   // settings pill (sound, music, assist, tilt, ...)
   const r = settingsRect();
   ctx.strokeStyle = "rgba(0,229,255,.7)";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 10;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(r.x, r.y, r.w, r.h);
-  ctx.font = "700 12px Menlo, monospace";
-  ctx.fillStyle = "#7fe9ff";
+  ctx.font = mono(12);
+  ctx.fillStyle = TOK.CYAN_SOFT;
   ctx.fillText("⚙ SETTINGS", r.x + r.w / 2, r.y + 22);
   ctx.shadowBlur = 0;
 
@@ -2947,9 +2949,9 @@ function drawTitle(now) {
   // under here now, so the title stays uncluttered (owner steer)
   const hr = helpRect();
   ctx.strokeStyle = "rgba(0,229,255,.7)";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 10;
   ctx.strokeRect(hr.x, hr.y, hr.w, hr.h);
-  ctx.fillStyle = "#7fe9ff";
+  ctx.fillStyle = TOK.CYAN_SOFT;
   ctx.fillText("❓ HELP", hr.x + hr.w / 2, hr.y + 22);
   ctx.shadowBlur = 0;
 
@@ -2957,16 +2959,16 @@ function drawTitle(now) {
   const cr = codexRect();
   const any = codex.size > 0 || logsSeen.size > 0;
   ctx.strokeStyle = any ? "rgba(255,213,79,.75)" : "rgba(255,255,255,.3)";
-  ctx.shadowColor = any ? "#ffd54f" : "transparent"; ctx.shadowBlur = any ? 10 : 0;
+  ctx.shadowColor = any ? TOK.GOLD : "transparent"; ctx.shadowBlur = any ? 10 : 0;
   ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
-  ctx.fillStyle = any ? "#ffd54f" : "rgba(255,255,255,.45)";
+  ctx.fillStyle = any ? TOK.GOLD : "rgba(255,255,255,.45)";
   ctx.fillText("⚕ " + codex.size + "/" + FAMOUS.length + " · ◈ " + logsSeen.size + "/" + FRAGMENTS.length,
     cr.x + cr.w / 2, cr.y + 22);
   ctx.shadowBlur = 0;
 
   if (pad.connected) {
-    ctx.font = "600 11px Menlo, monospace";
-    ctx.fillStyle = "rgba(105,240,174,.75)";
+    ctx.font = mono(11, 600);
+    ctx.fillStyle = shade(PAL().SAFE, .75);
     ctx.fillText("🎮 controller connected — stick steers · A thrust · X fire · LB/B shield",
       vw / 2, vh * 0.575);
   }
@@ -2974,34 +2976,34 @@ function drawTitle(now) {
   // resume pill — a run was checkpointed at a sector boundary
   if (savedRun) {
     const rr = resumeRect();
-    ctx.strokeStyle = "rgba(255,213,79,.85)"; ctx.shadowColor = "#ffd54f"; ctx.shadowBlur = 12;
+    ctx.strokeStyle = "rgba(255,213,79,.85)"; ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 12;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(rr.x, rr.y, rr.w, rr.h);
-    ctx.font = "700 13px Menlo, monospace";
-    ctx.fillStyle = "#ffd54f";
+    ctx.font = mono(13);
+    ctx.fillStyle = TOK.GOLD;
     ctx.fillText("▶ RESUME — " + SECTOR_NAMES[savedRun.levelIdx], rr.x + rr.w / 2, rr.y + 22);
     ctx.shadowBlur = 0;
   }
 
   // remix + daily pills (Bundle M): new rotations for pilots who finished one
-  ctx.font = "700 12px Menlo, monospace";
+  ctx.font = mono(12);
   if (veteran) {
     const xr = remixRect();
-    ctx.strokeStyle = "rgba(105,240,174,.7)"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 8;
+    ctx.strokeStyle = shade(PAL().SAFE, .7); ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(xr.x, xr.y, xr.w, xr.h);
-    ctx.fillStyle = "#69f0ae";
+    ctx.fillStyle = PAL().SAFE;
     ctx.fillText("⟳ REMIX ROTATION", xr.x + xr.w / 2, xr.y + 20);
     ctx.shadowBlur = 0;
   }
   if (veteran) {
     const dr2 = dailyRect();
     const doneToday = dailyDoneToday();
-    ctx.strokeStyle = doneToday ? "rgba(255,255,255,.3)" : "rgba(255,196,0,.7)";
-    ctx.shadowColor = doneToday ? "transparent" : "#ffc400"; ctx.shadowBlur = doneToday ? 0 : 8;
+    ctx.strokeStyle = doneToday ? "rgba(255,255,255,.3)" : shade(PAL().WARN, .7);
+    ctx.shadowColor = doneToday ? "transparent" : PAL().WARN; ctx.shadowBlur = doneToday ? 0 : 8;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(dr2.x, dr2.y, dr2.w, dr2.h);
-    ctx.fillStyle = doneToday ? "rgba(255,255,255,.45)" : "#ffc400";
+    ctx.fillStyle = doneToday ? "rgba(255,255,255,.45)" : PAL().WARN;
     ctx.fillText(doneToday ? "☀ DAILY ✓ " + ((loadDaily() || {}).score || 0)
                            : "☀ DAILY FLIGHT", dr2.x + dr2.w / 2, dr2.y + 20);
     ctx.shadowBlur = 0;
@@ -3012,7 +3014,7 @@ function drawTitle(now) {
   if (pad.connected || kbTitleNav) {
     const items = titleNavItems();
     const r = items[Math.min(titleSel, items.length - 1)];
-    ctx.strokeStyle = "#eaff6b"; ctx.shadowColor = "#eaff6b"; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+    ctx.strokeStyle = TOK.FOCUS; ctx.shadowColor = TOK.FOCUS; ctx.shadowBlur = 12; ctx.lineWidth = 2;
     ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
     ctx.shadowBlur = 0;
   }
@@ -3062,8 +3064,8 @@ function drawCodexArrows() {
     const r = codexArrowRect(d);
     ctx.strokeStyle = "rgba(255,213,79,.6)"; ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = "#ffd54f"; ctx.textAlign = "center";
-    ctx.font = "700 16px Menlo, monospace";
+    ctx.fillStyle = TOK.GOLD; ctx.textAlign = "center";
+    ctx.font = mono(16);
     ctx.fillText(d < 0 ? "‹" : "›", r.x + r.w / 2, r.y + r.h / 2 + 6);
   });
 }
@@ -3075,7 +3077,7 @@ function archiveCardFor(idx) {
       // sentence (a space + a capital or quote follows), so "matches... us."
       // and other ellipses stay intact. wrapText still wraps long sentences.
       body: FRAGMENTS[idx].replace(/^LOG \d+ \/\/ /, "")
-        .replace(/([.!?]) (?=[A-Z"“'])/g, "$1\n"), color: "#b388ff", page: 0 };
+        .replace(/([.!?]) (?=[A-Z"“'])/g, "$1\n"), color: TOK.VIOLET, page: 0 };
   }
   const c = SHRINES[idx - FRAGMENTS.length];
   return { kicker: c.kicker, title: c.title, subtitle: "", body: c.body, color: c.color, page: 0 };
@@ -3146,7 +3148,7 @@ function updateCodex() {
             const f = FAMOUS[i];
             codexCard = { kicker: "FROM THE CODEX", title: f.name, subtitle: f.era,
               body: f.story + "\n\n★ " + f.upgradeName + " — " + f.upgradeDesc,
-              color: "#ffd54f", page: 0 };
+              color: TOK.GOLD, page: 0 };
             blip(550, 825, 0.08, "sine", 0.07); handled = true; break;
           }
         }
@@ -3172,13 +3174,13 @@ function drawCodex(now) {
   ctx.fillRect(0, 0, vw, vh);
   const p = codexPanelRect();
   ctx.fillStyle = "rgba(8,10,26,.94)";
-  ctx.strokeStyle = "#ffd54f"; ctx.shadowColor = "#ffd54f"; ctx.shadowBlur = 16;
+  ctx.strokeStyle = TOK.GOLD; ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 16;
   ctx.lineWidth = 2;
   ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeRect(p.x, p.y, p.w, p.h);
   ctx.shadowBlur = 4;
   ctx.textAlign = "center";
-  ctx.font = "800 15px Menlo, monospace";
-  ctx.fillStyle = "#ffd54f";
+  ctx.font = mono(15, 800);
+  ctx.fillStyle = TOK.GOLD;
   ctx.fillText("MEDICAL CODEX", vw / 2, p.y + 22);
   ctx.shadowBlur = 0;
   const tabs = ["⚕ MINDS", "◈ ARCHIVE"];
@@ -3187,13 +3189,13 @@ function drawCodex(now) {
     ctx.strokeStyle = on ? "rgba(255,213,79,.9)" : "rgba(255,255,255,.25)";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.font = "700 11px Menlo, monospace";
-    ctx.fillStyle = on ? "#ffd54f" : "rgba(255,255,255,.45)";
+    ctx.font = mono(11);
+    ctx.fillStyle = on ? TOK.GOLD : "rgba(255,255,255,.45)";
     ctx.fillText(tabs[i], r.x + r.w / 2, r.y + 17);
   }
   if (codexTab === 0) drawCodexMinds(p); else drawCodexArchive(p);
   ctx.textAlign = "center";
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = mono(11);
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
   const entryCount = codexTab === 0 ? codex.size : (logsSeen.size + shrinesSeen.size);
   ctx.fillText(entryCount > 0 ? "tap an entry to read · tap outside to close"
@@ -3204,7 +3206,7 @@ function drawCodex(now) {
 function drawCodexMinds(p) {
   const pages = Math.ceil(FAMOUS.length / MINDS_PER_PAGE);
   mindsPage = clamp(mindsPage, 0, pages - 1);
-  ctx.font = "600 10px Menlo, monospace";
+  ctx.font = mono(10, 600);
   ctx.fillStyle = "rgba(255,255,255,.55)";
   ctx.fillText("the minds recovered · " + codex.size + "/" + FAMOUS.length +
     (pages > 1 ? " · page " + (mindsPage + 1) + "/" + pages : "") + " · all runs", vw / 2, p.y + 74);
@@ -3221,18 +3223,18 @@ function drawCodexMinds(p) {
     }
     iDoid(p.x + 34, ry + rowH * 0.66, Math.min(1.7, rowH / 28), i * 1.3, found, found);
     ctx.textAlign = "left";
-    ctx.font = "700 12px Menlo, monospace";
-    ctx.fillStyle = found ? "#ffe9a8" : "rgba(255,255,255,.3)";
-    ctx.shadowColor = found ? "#ffd54f" : "transparent"; ctx.shadowBlur = found ? 6 : 0;
+    ctx.font = mono(12);
+    ctx.fillStyle = found ? TOK.GOLD_WARM : "rgba(255,255,255,.3)";
+    ctx.shadowColor = found ? TOK.GOLD : "transparent"; ctx.shadowBlur = found ? 6 : 0;
     // name and era on fixed baselines ≥14px apart, independent of row height
     ctx.fillText(found ? FAMOUS[i].name : "UNIDENTIFIED", p.x + 60, ry + 16);
     ctx.shadowBlur = 0;
-    ctx.font = "600 10px Menlo, monospace";
+    ctx.font = mono(10, 600);
     ctx.fillStyle = found ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
     ctx.fillText(found ? FAMOUS[i].era : "somewhere out there", p.x + 60, ry + 31);
     ctx.textAlign = "right";
-    ctx.font = "700 11px Menlo, monospace";
-    ctx.fillStyle = found ? "#69f0ae" : "rgba(255,255,255,.25)";
+    ctx.font = mono(11);
+    ctx.fillStyle = found ? PAL().SAFE : "rgba(255,255,255,.25)";
     ctx.fillText(found ? "★ " + FAMOUS[i].upgradeName : "not yet rescued", p.x + p.w - 18, ry + 22);
   }
   if (pages > 1) drawCodexArrows();
@@ -3242,7 +3244,7 @@ function drawCodexArchive(p) {
   const entries = archiveEntries();
   const pages = Math.ceil(entries.length / ARCHIVE_PER_PAGE);
   archivePage = clamp(archivePage, 0, pages - 1);
-  ctx.font = "600 10px Menlo, monospace";
+  ctx.font = mono(10, 600);
   ctx.fillStyle = "rgba(255,255,255,.55)";
   ctx.fillText("the signal record · " + logsSeen.size + "/" + FRAGMENTS.length + " logs · " +
     shrinesSeen.size + "/" + SHRINES.length + " shrines · page " + (archivePage + 1) + "/" + pages,
@@ -3254,10 +3256,10 @@ function drawCodexArchive(p) {
   items.forEach((en, k) => {
     const ey = p.y + 94 + k * slotH;
     ctx.textAlign = "left";
-    ctx.font = "700 11px Menlo, monospace";
-    ctx.fillStyle = en.on ? (en.shrine ? "#c9a6ff" : "#ffe9a8") : "rgba(255,255,255,.3)";
+    ctx.font = mono(11);
+    ctx.fillStyle = en.on ? (en.shrine ? TOK.VIOLET_SOFT : TOK.GOLD_WARM) : "rgba(255,255,255,.3)";
     ctx.fillText(en.title, p.x + 22, ey);
-    ctx.font = "600 11px Menlo, monospace";
+    ctx.font = mono(11, 600);
     ctx.fillStyle = en.on ? "rgba(255,255,255,.75)" : "rgba(255,255,255,.28)";
     wrapText(en.body, p.w - 44).slice(0, maxLines)
       .forEach((l, li) => ctx.fillText(l, p.x + 22, ey + 15 + li * 14));
@@ -3272,15 +3274,15 @@ function iShip(cx, cy, s, tilt, flicker) {
   ctx.rotate(tilt || 0);
   ctx.scale(s, s);
   ctx.globalAlpha *= flicker === undefined ? 1 : flicker;
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
-  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 18;
+  ctx.strokeStyle = TOK.CYAN; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
   mercyHullPath();
   ctx.fill(); ctx.stroke();
   ctx.shadowBlur = 0;
   mercyGreebles("rgba(0,229,255,.35)");
   ctx.translate(0, -15);
-  ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 14;
+  ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 14;
   drawAsclepius(36, "#ff2d55");
   ctx.restore();
 }
@@ -3291,7 +3293,7 @@ function iDoid(cx, cy, s, phase, gold, armsUp) {
   const t = performance.now() / 1000 * 5 + phase;
   const w = Math.sin(t) * 3;
   doidFigure({
-    col: gold ? "#ffd54f" : "#69f0ae",
+    col: gold ? TOK.GOLD : PAL().SAFE,
     fill: "rgba(10,30,24,.85)",
     emblemCol: "#ff5d7d",
     legPh: 0, sitting: false,
@@ -3323,8 +3325,8 @@ function iRidge(px, py, pw, ph, seed) {
   ctx.lineTo(px + pw, py + ph);
   ctx.closePath();
   ctx.fillStyle = "#151040"; ctx.fill();
-  ctx.shadowColor = "#7c4dff"; ctx.shadowBlur = 10;
-  ctx.strokeStyle = "#b388ff"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowColor = TOK.VIOLET_DEEP; ctx.shadowBlur = 10;
+  ctx.strokeStyle = TOK.VIOLET; ctx.lineWidth = 2; ctx.stroke();
   ctx.shadowBlur = 0;
 }
 
@@ -3335,8 +3337,8 @@ const INTRO = [
       iStars(px, py, pw, ph, 11);
       iShip(px + pw / 2, py + ph * 0.45, Math.min(1.4, pw / 320), 0,
         1);
-      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6;
+      ctx.font = mono(10); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.CYAN_TEXT; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6;
       ctx.fillText("A M S · M E R C Y", px + pw / 2, py + ph * 0.45 + 58);
       ctx.shadowBlur = 0;
     } },
@@ -3352,7 +3354,7 @@ const INTRO = [
         iDoid(px + pw * (0.18 + 0.64 * i / (n - 1)), py + ph * 0.72,
           Math.min(2.2, ph / 110), i * 1.3, gold, gold);
       }
-      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
+      ctx.font = mono(9, 600); ctx.textAlign = "center";
       ctx.fillStyle = "rgba(0,229,255,.6)";
       ctx.fillText("WARD 7 · CRYOSTASIS", px + pw / 2, py + ph * 0.2);
     } },
@@ -3364,8 +3366,8 @@ const INTRO = [
       const tx = [0.25, 0.62, 0.85];
       for (const f of tx) {
         const gx = px + pw * f, gy = py + ph * 0.74;
-        ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
-        ctx.strokeStyle = "#ff4081"; ctx.lineWidth = 2;
+        ctx.shadowColor = PAL().DANGER; ctx.shadowBlur = 10;
+        ctx.strokeStyle = PAL().DANGER; ctx.lineWidth = 2;
         ctx.fillStyle = "#3a0d24";
         ctx.beginPath(); ctx.arc(gx, gy, 10, Math.PI, 0); ctx.closePath();
         ctx.fill(); ctx.stroke();
@@ -3374,7 +3376,7 @@ const INTRO = [
       // drone
       ctx.save();
       ctx.translate(px + pw * 0.45, py + ph * 0.3);
-      ctx.strokeStyle = "#ff4081"; ctx.shadowColor = "#ff4081"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER; ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.moveTo(0, -9); ctx.lineTo(8, 0); ctx.lineTo(0, 9); ctx.lineTo(-8, 0);
       ctx.closePath(); ctx.stroke();
@@ -3389,7 +3391,7 @@ const INTRO = [
       iShip(px + pw * 0.38, py + ph * 0.5, Math.min(1.1, pw / 380), -0.1, flick);
       // the Static
       const sx = px + pw * 0.82, sy = py + ph * 0.4;
-      ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = TOK.VIOLET; ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 10;
       const phase = (now % 1.4) / 1.4;
       for (let k = 0; k < 3; k++) {
         const p = (phase + k / 3) % 1;
@@ -3397,8 +3399,8 @@ const INTRO = [
         ctx.beginPath(); ctx.arc(sx, sy, 8 + p * ph * 0.42, 0, 7); ctx.stroke();
       }
       ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-      ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#b388ff";
+      ctx.font = mono(11); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.VIOLET;
       ctx.fillText("· 41s ·", sx, sy + ph * 0.5);
     } },
   { title: "THE SCATTERING",
@@ -3408,7 +3410,7 @@ const INTRO = [
       iRidge(px, py, pw, ph, 9);
       iShip(px + pw * 0.18, py + ph * 0.22, Math.min(0.7, pw / 520), 0, 1);
       ctx.setLineDash([3, 6]);
-      ctx.strokeStyle = "rgba(255,196,0,.5)"; ctx.lineWidth = 1.5;
+      ctx.strokeStyle = shade(PAL().WARN, .5); ctx.lineWidth = 1.5;
       const drops = [[0.34, 0.62], [0.52, 0.7], [0.7, 0.6], [0.86, 0.68]];
       for (const [fx, fy] of drops) {
         ctx.beginPath();
@@ -3484,7 +3486,7 @@ const VET_INTRO = [
       // the lift pad — visible enough to notice, still no label/arrow
       const pcx = toX(smp.padX), pcy = toY(padGY);
       const a = 0.34 + 0.08 * Math.sin(now * 1.3);
-      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 8; ctx.lineWidth = 1.4;
+      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")"; ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 8; ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(pcx - 26, pcy + 2); ctx.lineTo(pcx + 26, pcy + 2);
       ctx.moveTo(pcx - 26, pcy - 1); ctx.lineTo(pcx - 26, pcy + 5);
@@ -3517,7 +3519,7 @@ function drawIntroScreen(now) {
   const px = (vw - pw) / 2, py = vh * 0.09;
 
   ctx.save();
-  ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
+  ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 14;
   ctx.lineWidth = 2;
   ctx.strokeRect(px, py, pw, ph);
   ctx.shadowBlur = 0;
@@ -3526,8 +3528,8 @@ function drawIntroScreen(now) {
   ctx.restore();
 
   ctx.textAlign = "center";
-  ctx.font = "800 16px Menlo, monospace";
-  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.font = mono(16, 800);
+  ctx.fillStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
   ctx.fillText(panel.title, vw / 2, py + ph + 30);
   ctx.shadowBlur = 2;
   ctx.fillStyle = "#c9e6f7";
@@ -3539,7 +3541,7 @@ function drawIntroScreen(now) {
   const avail = vh - capTop - 34;
   let capPx = bodyFontPx(13), lines, capLH;
   for (;;) {
-    ctx.font = "600 " + capPx + "px Menlo, monospace";
+    ctx.font = mono(capPx, 600);
     lines = wrapText(caption, wrapW);
     capLH = capPx + 6;
     if (lines.length * capLH <= avail || capPx <= 8) {
@@ -3554,12 +3556,12 @@ function drawIntroScreen(now) {
 
   // page dots
   for (let i = 0; i < activeIntro.length; i++) {
-    ctx.fillStyle = i === introIdx ? "#00e5ff" : "rgba(255,255,255,.25)";
+    ctx.fillStyle = i === introIdx ? TOK.CYAN : "rgba(255,255,255,.25)";
     ctx.beginPath();
     ctx.arc(vw / 2 + (i - (activeIntro.length - 1) / 2) * 18, capBottom + 8, 3, 0, 7);
     ctx.fill();
   }
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = mono(11);
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
   ctx.fillText("tap ▸", vw / 2, capBottom + 24);
 
@@ -3583,7 +3585,7 @@ function drawPortraitWarning(now) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(-ang);
-  ctx.strokeStyle = "#00e5ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 16;
+  ctx.strokeStyle = TOK.CYAN; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 16;
   ctx.lineWidth = 3;
   const w = 54, h = 96, r = 10;
   ctx.beginPath();
@@ -3597,10 +3599,10 @@ function drawPortraitWarning(now) {
   ctx.restore();
   ctx.shadowBlur = 8;
   ctx.textAlign = "center";
-  ctx.font = "800 18px Menlo, monospace";
-  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff";
+  ctx.font = mono(18, 800);
+  ctx.fillStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN;
   ctx.fillText("ROTATE TO LANDSCAPE", cx, vh * 0.62);
-  ctx.font = "600 12px Menlo, monospace";
+  ctx.font = mono(12, 600);
   ctx.fillStyle = "rgba(155,234,249,.7)";
   ctx.fillText("Hollow Oath flies wide — turn your phone on its side", cx, vh * 0.68);
   ctx.shadowBlur = 0;
@@ -3608,9 +3610,9 @@ function drawPortraitWarning(now) {
 
 function drawBrief(now) {
   ctx.textAlign = "center";
-  ctx.font = "600 11px Menlo, monospace";
+  ctx.font = mono(11, 600);
   ctx.fillStyle = "rgba(0,229,255," + (0.5 + 0.4 * Math.sin(now * 3)).toFixed(2) + ")";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
   const kickerY = vh * 0.16;
   ctx.fillText("— INCOMING TRANSMISSION · AMS MERCY —", vw / 2, kickerY);
   // the mode-line only exists on REMIX/DAILY, never plain campaign — so a
@@ -3621,16 +3623,16 @@ function drawBrief(now) {
   // that happened to sit far enough apart only when the mode-line was absent.
   let afterHeaderY = kickerY;
   if (runMode !== "campaign") {   // Bundle M: mark the rotation, name the bar
-    ctx.font = "700 11px Menlo, monospace";
-    ctx.fillStyle = runMode === "remix" ? "#69f0ae" : "#ffc400";
+    ctx.font = mono(11);
+    ctx.fillStyle = runMode === "remix" ? PAL().SAFE : PAL().WARN;
     const prev = runMode === "daily" ? dailyPrevScore() : 0;
     afterHeaderY = kickerY + 24;
     ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed
       : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : ""),
       vw / 2, afterHeaderY);
   }
-  ctx.font = "800 24px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillStyle = "#aef4ff";
+  ctx.font = display(24);
+  ctx.fillStyle = TOK.CYAN_INK;
   const titleY = Math.max(vh * 0.25, afterHeaderY + 30);
   ctx.fillText(SECTOR_NAMES[levelIdx], vw / 2, titleY);
   ctx.shadowBlur = 4;
@@ -3647,7 +3649,7 @@ function drawBrief(now) {
   // font down and re-wrap until it fits. Short briefs stay at full size.
   let briefPx = bodyFontPx(14), nAll, briefLH;
   for (;;) {
-    ctx.font = "600 " + briefPx + "px Menlo, monospace";
+    ctx.font = mono(briefPx, 600);
     nAll = wrapText(full, wrapW).length;
     briefLH = Math.min(briefPx + 8, avail / nAll);
     if (briefLH >= briefPx + 1 || briefPx <= 9) break;   // fits, or hit the floor
@@ -3656,7 +3658,7 @@ function drawBrief(now) {
   const shown = full.slice(0, Math.floor(briefChars));
   wrapText(shown, wrapW).forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * briefLH));
   if (briefChars >= full.length) {
-    ctx.font = "800 15px Menlo, monospace";
+    ctx.font = mono(15, 800);
     ctx.fillStyle = "rgba(255,255,255," + (0.6 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
     ctx.fillText("TAP TO LAUNCH", vw / 2, Math.min(botY - 4, topY + nAll * briefLH + 30));
   }
@@ -3701,8 +3703,8 @@ function guideShip(cx, cy, ang, thrust, now) {
     ctx.closePath(); ctx.fill();
     ctx.restore();
   }
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 12;
-  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 12;
+  ctx.strokeStyle = TOK.CYAN; ctx.lineWidth = 2;
   ctx.fillStyle = "rgba(0,229,255,.12)";
   ctx.beginPath();
   ctx.moveTo(0, -13);
@@ -3715,7 +3717,7 @@ function guideShip(cx, cy, ang, thrust, now) {
 // one of the real on-screen control buttons, drawn as the rounded square the
 // player sees, with its glyph/label. `active` gives it the pressed glow.
 function guideButton(cx, cy, label, active, tint) {
-  const s = 26, col = tint || "#7fe9ff";
+  const s = 26, col = tint || TOK.CYAN_SOFT;
   ctx.save();
   ctx.strokeStyle = active ? col : "rgba(127,233,255,.55)";
   ctx.fillStyle = active ? "rgba(0,229,255,.18)" : "rgba(0,229,255,.06)";
@@ -3744,7 +3746,7 @@ function drawGuideArt(art, cx, cy, now) {
   if (art === "rotate") {
     guideShip(cx, cy - 2, -0.35, false, now);
     // curved turn arrows either side of the ship
-    ctx.strokeStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6; ctx.lineWidth = 2;
+    ctx.strokeStyle = TOK.CYAN_TEXT; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy - 2, 34, Math.PI * 0.75, Math.PI * 1.15); ctx.stroke();
     ctx.beginPath(); ctx.arc(cx, cy - 2, 34, -Math.PI * 0.15, Math.PI * 0.25); ctx.stroke();
     ctx.shadowBlur = 0;
@@ -3753,7 +3755,7 @@ function drawGuideArt(art, cx, cy, now) {
   } else if (art === "thrust") {
     guideShip(cx - 30, cy, 0, true, now);
     // motion arrow up the nose
-    ctx.strokeStyle = "#9beaf9"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6; ctx.lineWidth = 2;
+    ctx.strokeStyle = TOK.CYAN_TEXT; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; ctx.lineWidth = 2;
     arrow(cx - 30, cy - 22, cx - 30, cy - 46);
     ctx.shadowBlur = 0;
     guideButton(cx + 46, cy, "THRUST", true);
@@ -3762,7 +3764,7 @@ function drawGuideArt(art, cx, cy, now) {
     ctx.strokeStyle = "rgba(155,234,249,.5)"; ctx.lineWidth = 2;
     arrow(cx - 4, cy - 30, cx + 44, cy - 30);
     guideShip(cx, cy, -Math.PI / 2, true, now);   // nose points left, flame pushes right
-    ctx.fillStyle = "rgba(155,234,249,.7)"; ctx.font = "600 9px Menlo, monospace";
+    ctx.fillStyle = "rgba(155,234,249,.7)"; ctx.font = mono(9, 600);
     ctx.fillText("moving →", cx + 20, cy - 38);
   } else if (art === "shield") {
     guideShip(cx - 30, cy, 0, false);
@@ -3776,12 +3778,12 @@ function drawGuideArt(art, cx, cy, now) {
   } else if (art === "fuel") {
     // the real top-left fuel bar, in miniature
     const bw = 120, bh = 14, bx = cx - bw / 2, by = cy - 8;
-    ctx.strokeStyle = "rgba(255,196,0,.7)"; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = shade(PAL().WARN, .7); ctx.lineWidth = 1.5;
     ctx.strokeRect(bx, by, bw, bh);
     ctx.fillStyle = PAL_.WARN; ctx.shadowColor = PAL_.WARN; ctx.shadowBlur = 8;
     ctx.fillRect(bx + 2, by + 2, (bw - 4) * 0.62, bh - 4);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(255,196,0,.85)"; ctx.font = "700 9px Menlo, monospace";
+    ctx.fillStyle = shade(PAL().WARN, .85); ctx.font = mono(9);
     ctx.fillText("FUEL", bx + 16, by - 6);
   } else if (art === "fire") {
     guideShip(cx - 30, cy, 0, false);
@@ -3803,7 +3805,7 @@ function drawGuideArt(art, cx, cy, now) {
     guideButton(cx - 44, cy, "A", false);
     guideButton(cx + 4, cy, "X", false);
     guideButton(cx + 52, cy, "⇧", false);
-    ctx.fillStyle = "rgba(155,234,249,.6)"; ctx.font = "600 9px Menlo, monospace";
+    ctx.fillStyle = "rgba(155,234,249,.6)"; ctx.font = mono(9, 600);
     ctx.fillText("thrust", cx - 44, cy + 40);
     ctx.fillText("fire", cx + 4, cy + 40);
     ctx.fillText("shield", cx + 52, cy + 40);
@@ -3832,7 +3834,7 @@ function drawGuide(now) {
 
   const w = Math.min(560, vw - 40);
   const capPx = bodyFontPx(13), capLH = capPx + 6;
-  ctx.font = "600 " + capPx + "px Menlo, monospace";
+  ctx.font = mono(capPx, 600);
   const capLines = wrapText(pg.caption, w - 60);
   // fit the panel to a short landscape phone: art band shrinks if space is tight
   const chrome = 30 + 34;                        // kicker+title block
@@ -3848,10 +3850,10 @@ function drawGuide(now) {
   ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
   ctx.shadowBlur = 6;
   ctx.textAlign = "center";
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = mono(11);
   ctx.fillStyle = GUIDE.color;
   ctx.fillText("FLIGHT MANUAL · HOW TO FLY", vw / 2, y + 22);
-  ctx.font = "900 20px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(20, 900);
   ctx.fillStyle = "#f4f8ff";
   ctx.fillText(pg.title, vw / 2, y + 48);
   ctx.shadowBlur = 0;
@@ -3860,13 +3862,13 @@ function drawGuide(now) {
   drawGuideArt(pg.art, vw / 2, y + chrome + artH / 2, now);
 
   // the caption
-  ctx.font = "600 " + capPx + "px Menlo, monospace";
+  ctx.font = mono(capPx, 600);
   ctx.fillStyle = "#d9e8ff";
   const capY = y + chrome + artH + capPx + 2;
   capLines.forEach((l, i) => ctx.fillText(l, vw / 2, capY + i * capLH));
 
   // footer — page count + tap affordance (steady when reduced-flash is on)
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = mono(11);
   const fa = reducedFlash ? 0.8 : (0.5 + 0.4 * Math.sin(now * 4));
   ctx.fillStyle = "rgba(255,255,255," + fa.toFixed(2) + ")";
   GUIDE._footY = y + h - 12;
@@ -3880,27 +3882,27 @@ function drawFork(now) {
   ctx.fillStyle = "rgba(5,6,15,.9)";
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = reducedFlash ? 8 : 18;
-  ctx.fillStyle = "#aef4ff";
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = reducedFlash ? 8 : 18;
+  ctx.fillStyle = TOK.CYAN_INK;
   ctx.font = "900 " + Math.min(26, vw * 0.055) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("BEFORE YOU FLY", vw / 2, forkRowRect(0).y - 66);
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "#d9e8ff"; ctx.font = "600 " + bodyFontPx(13) + "px Menlo, monospace";
+  ctx.fillStyle = "#d9e8ff"; ctx.font = body(13, 600);
   ctx.fillText("Played a thrust / gravity flying game before?", vw / 2, forkRowRect(0).y - 34);
   const rows = [["✓ YES — I know how to fly", "straight into the mission"],
                 ["✦ NO — show me how", "a quick illustrated guide first"]];
   for (let i = 0; i < 2; i++) {
     const r = forkRowRect(i);
-    ctx.strokeStyle = "rgba(0,229,255,.75)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.strokeStyle = "rgba(0,229,255,.75)"; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.6;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#7fe9ff"; ctx.font = "700 15px Menlo, monospace";
+    ctx.fillStyle = TOK.CYAN_SOFT; ctx.font = mono(15);
     ctx.fillText(rows[i][0], vw / 2, r.y + r.h / 2 - 2);
-    ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = "600 10px Menlo, monospace";
+    ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = mono(10, 600);
     ctx.fillText(rows[i][1], vw / 2, r.y + r.h / 2 + 15);
   }
-  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.font = "600 10px Menlo, monospace";
+  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.font = mono(10, 600);
   ctx.fillText("you can reopen HOW TO FLY any time from HELP", vw / 2,
     forkRowRect(1).y + forkRowRect(1).h + 24);
 }
@@ -3911,7 +3913,7 @@ function drawCardPanel(card, now) {
   ctx.fillRect(0, 0, vw, vh);
   const w = Math.min(600, vw - 40);
   const bodyPx = bodyFontPx(14), bodyLH = bodyPx + 7;
-  ctx.font = "600 " + bodyPx + "px Menlo, monospace";
+  ctx.font = mono(bodyPx, 600);
   const bodyLines = wrapText(card.body, w - 60);
   const titleH = (card.title ? 34 : 0) + (card.subtitle ? 18 : 0);
   // R1 — a long body (the HOW TO FLY card) used to run off the bottom of a
@@ -3936,27 +3938,27 @@ function drawCardPanel(card, now) {
   ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
   ctx.shadowBlur = 6;
   ctx.textAlign = "center";
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = mono(11);
   ctx.fillStyle = card.color;
   ctx.fillText(card.kicker, vw / 2, y + 26);
   let cy = y + 26;
   if (card.title) {
     cy += 32;
-    ctx.font = "900 22px 'Helvetica Neue', Arial, sans-serif";
+    ctx.font = display(22, 900);
     ctx.fillStyle = "#f4f8ff";
     ctx.fillText(card.title, vw / 2, cy);
   }
   if (card.subtitle) {
     cy += 18;
-    ctx.font = "600 11px Menlo, monospace";
+    ctx.font = mono(11, 600);
     ctx.fillStyle = "rgba(255,255,255,.6)";
     ctx.fillText(card.subtitle, vw / 2, cy);
   }
   cy += 28;
-  ctx.font = "600 " + bodyPx + "px Menlo, monospace";
+  ctx.font = mono(bodyPx, 600);
   ctx.fillStyle = "#d9e8ff";
   pageLines.forEach((l, i) => ctx.fillText(l, vw / 2, cy + i * bodyLH));
-  ctx.font = "700 11px Menlo, monospace";
+  ctx.font = mono(11);
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
   const foot = pageCount > 1
     ? (page + 1) + "/" + pageCount + (page < pageCount - 1 ? " · tap for more" : " · tap to continue")
@@ -3978,7 +3980,7 @@ function drawClear(now) {
   drawCenter(SECTOR_NAMES[levelIdx] + " CLEAR",
     hip + "saved " + level.delivered + "/" + level.total +
     (level.lost > 0 ? "  ·  ✝ lost " + level.lost : "") + boxNote +
-    "\ntap to continue", "#69f0ae");
+    "\ntap to continue", PAL().SAFE);
 }
 
 function drawPause(now) {
@@ -3986,8 +3988,8 @@ function drawPause(now) {
   ctx.fillStyle = "rgba(5,6,15,.75)";
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
-  ctx.fillStyle = "#aef4ff";
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 20;
+  ctx.fillStyle = TOK.CYAN_INK;
   // R2 — derive the heading position (and size) from the first row so PAUSED
   // can never land inside the RESUME button on a short landscape viewport
   const topRow = pauseRowRect(0);
@@ -4004,20 +4006,20 @@ function drawPause(now) {
   for (let i = 0; i < 4; i++) {
     const r = pauseRowRect(i);
     const sel = i === padSel;
-    ctx.strokeStyle = sel ? "#eaff6b" : "rgba(0,229,255,.6)";
-    ctx.shadowColor = sel ? "#eaff6b" : "#00e5ff"; ctx.shadowBlur = sel ? 14 : 8;
+    ctx.strokeStyle = sel ? TOK.FOCUS : "rgba(0,229,255,.6)";
+    ctx.shadowColor = sel ? TOK.FOCUS : TOK.CYAN; ctx.shadowBlur = sel ? 14 : 8;
     ctx.lineWidth = sel ? 2 : 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = sel ? "#eaff6b" : "#7fe9ff";
-    ctx.font = "700 14px Menlo, monospace";
+    ctx.fillStyle = sel ? TOK.FOCUS : TOK.CYAN_SOFT;
+    ctx.font = mono(14);
     ctx.fillText((sel ? "▸ " : "") + labels[i], vw / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
   }
   // U3 — a compact link into the HUD legend
   const lg = pauseLegendRect();
   const legendSel = padSel === 4;
-  ctx.fillStyle = legendSel ? "#eaff6b" : "rgba(155,234,249,.7)";
-  ctx.font = "600 12px Menlo, monospace";
+  ctx.fillStyle = legendSel ? TOK.FOCUS : "rgba(155,234,249,.7)";
+  ctx.font = mono(12, 600);
   ctx.fillText((legendSel ? "▸ " : "") + "◎ WHAT YOU'RE LOOKING AT", vw / 2, lg.y + lg.h / 2 + 4);
 }
 
@@ -4035,14 +4037,14 @@ function drawConfirm(now) {
   ctx.globalAlpha = cEase;
   ctx.translate(0, (1 - cEase) * 18);
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,196,0,.75)"; ctx.font = "700 11px Menlo, monospace";
+  ctx.fillStyle = shade(PAL().WARN, .75); ctx.font = mono(11);
   ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.20);
   ctx.shadowColor = confirmCard.color; ctx.shadowBlur = 16;
   ctx.fillStyle = confirmCard.color;
   ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText(confirmCard.title, vw / 2, vh * 0.27);
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "#dff8ff"; ctx.font = "600 12px Menlo, monospace";
+  ctx.fillStyle = "#dff8ff"; ctx.font = mono(12, 600);
   // the body already breaks at logical clause boundaries; wrap only guards a
   // stray over-long line on a narrow phone
   const wrapped = wrapText(confirmCard.body, Math.min(600, vw * 0.86));
@@ -4054,11 +4056,11 @@ function drawConfirm(now) {
     ctx.strokeStyle = "rgba(" + cols[i] + ",.7)"; ctx.shadowColor = "rgba(" + cols[i] + ",1)"; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.font = "700 13px Menlo, monospace";
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.font = mono(13);
     ctx.fillText(labels[i], r.x + r.w / 2, r.y + r.h / 2 + 5);
     ctx.shadowBlur = 0;
     if (i === confirmSel && (pad.connected || kbConfirmNav)) {
-      ctx.strokeStyle = "#eaff6b"; ctx.shadowColor = "#eaff6b"; ctx.shadowBlur = 10; ctx.lineWidth = 2;
+      ctx.strokeStyle = TOK.FOCUS; ctx.shadowColor = TOK.FOCUS; ctx.shadowBlur = 10; ctx.lineWidth = 2;
       ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
       ctx.shadowBlur = 0;
     }
@@ -4074,8 +4076,8 @@ function drawSettings(now) {
   ctx.fillStyle = "rgba(5,6,15,.85)";
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 20;
-  ctx.fillStyle = "#aef4ff";
+  ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 20;
+  ctx.fillStyle = TOK.CYAN_INK;
   ctx.font = "900 " + Math.min(34, vw * 0.07) + "px 'Helvetica Neue', Arial, sans-serif";
   const topY = settingsRowRect(0).y - 30;
   ctx.fillText("SETTINGS", vw / 2, topY);
@@ -4098,18 +4100,18 @@ function drawSettings(now) {
     const isPadRow = i === 8;
     const padDisabled = isPadRow && !pad.present;
     const stroke = padDisabled ? "rgba(255,255,255,.15)"
-      : isReset ? (resetArmed ? "rgba(255,64,129,.9)" : "rgba(255,64,129,.45)")
-      : on ? "rgba(105,240,174,.8)" : "rgba(255,255,255,.3)";
+      : isReset ? (resetArmed ? shade(PAL().DANGER, .9) : shade(PAL().DANGER, .45))
+      : on ? shade(PAL().SAFE, .8) : "rgba(255,255,255,.3)";
     ctx.strokeStyle = stroke;
     ctx.shadowColor = padDisabled ? "transparent"
-      : isReset ? (resetArmed ? "#ff4081" : "transparent") : (on ? "#69f0ae" : "transparent");
+      : isReset ? (resetArmed ? PAL().DANGER : "transparent") : (on ? PAL().SAFE : "transparent");
     ctx.shadowBlur = padDisabled ? 0 : (isReset ? resetArmed : on) ? 8 : 0;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = padDisabled ? "rgba(255,255,255,.25)"
-      : isReset ? (resetArmed ? "#ff4081" : "rgba(255,120,150,.7)")
-      : on ? "#69f0ae" : "rgba(255,255,255,.5)";
-    ctx.font = "700 12px Menlo, monospace";
+      : isReset ? (resetArmed ? PAL().DANGER : "rgba(255,120,150,.7)")
+      : on ? PAL().SAFE : "rgba(255,255,255,.5)";
+    ctx.font = mono(12);
     const txt = padDisabled ? "CONTROLLER · NONE"
       : isReset ? (resetArmed ? "TAP AGAIN TO WIPE" : "RESET PROGRESS")
       : label + " · " + (on ? "ON" : "OFF");
@@ -4117,13 +4119,13 @@ function drawSettings(now) {
     ctx.shadowBlur = 0;
     // keyboard/controller cursor — same overlay idea as the title screen
     if (i === settingsSel && (pad.connected || kbSettingsNav)) {
-      ctx.strokeStyle = "#eaff6b"; ctx.shadowColor = "#eaff6b"; ctx.shadowBlur = 10; ctx.lineWidth = 2;
+      ctx.strokeStyle = TOK.FOCUS; ctx.shadowColor = TOK.FOCUS; ctx.shadowBlur = 10; ctx.lineWidth = 2;
       ctx.strokeRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
       ctx.shadowBlur = 0;
     }
   }
   const footY = settingsRowRect(9).y + settingsRowRect(9).h + 14;
-  ctx.font = "600 10px Menlo, monospace";
+  ctx.font = mono(10, 600);
   ctx.fillStyle = "rgba(255,255,255,.4)";
   ctx.fillText("field medic: gentler, 5 lives, next run · reset wipes scores & codex, keeps settings",
     vw / 2, footY);
@@ -4133,32 +4135,32 @@ function drawSettings(now) {
 }
 
 function drawGameOver(now) {
-  drawCenter("FLATLINE", "GAME OVER — " + tallyLine(), "#ff4081");
+  drawCenter("FLATLINE", "GAME OVER — " + tallyLine(), PAL().DANGER);
   ctx.textAlign = "center";
   if (checkpoint) {
     const cr = continueRect(), nr = { x: cr.x, y: cr.y + cr.h + 14, w: cr.w, h: 40 };
-    ctx.strokeStyle = "rgba(105,240,174,.8)"; ctx.shadowColor = "#69f0ae"; ctx.shadowBlur = 10; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = shade(PAL().SAFE, .8); ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 10; ctx.lineWidth = 1.5;
     ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
-    ctx.fillStyle = "#69f0ae";
+    ctx.fillStyle = PAL().SAFE;
     const contLine = "CONTINUE — " + SECTOR_NAMES[checkpoint.levelIdx];
     const contMaxW = cr.w - 16;
     let contSize = 13;
-    ctx.font = "700 " + contSize + "px Menlo, monospace";
+    ctx.font = mono(contSize);
     while (ctx.measureText(contLine).width > contMaxW && contSize > 9) {
       contSize--;
-      ctx.font = "700 " + contSize + "px Menlo, monospace";
+      ctx.font = mono(contSize);
     }
     ctx.fillText(contLine, cr.x + cr.w / 2, cr.y + cr.h / 2 - 6);
-    ctx.font = "600 11px Menlo, monospace";
+    ctx.font = mono(11, 600);
     ctx.fillText(startLives() + " LIVES · -25% SCORE", cr.x + cr.w / 2, cr.y + cr.h / 2 + 13);
     ctx.shadowBlur = 0;
     ctx.strokeStyle = "rgba(255,255,255,.4)";
     ctx.strokeRect(nr.x, nr.y, nr.w, nr.h);
     ctx.fillStyle = "rgba(255,255,255,.65)";
-    ctx.font = "700 13px Menlo, monospace";
+    ctx.font = mono(13);
     ctx.fillText("MAIN MENU", nr.x + nr.w / 2, nr.y + nr.h / 2 + 5);
   } else {
-    ctx.font = "600 13px Menlo, monospace"; ctx.fillStyle = "rgba(255,255,255,.6)";
+    ctx.font = mono(13, 600); ctx.fillStyle = "rgba(255,255,255,.6)";
     ctx.fillText("tap to return to the menu", vw / 2, vh * 0.6);
   }
 }
@@ -4183,19 +4185,19 @@ function drawEnding(now) {
   let title, body, color;
   if (endingType === "answered") {
     title = "THE ANSWERED CALL";
-    color = "#aef4ff";
+    color = TOK.CYAN_INK;
     body = "You landed beside it and listened.\n\nThe source was the top of a ship — AMS SOLACE, MERCY's sister, lost with all hands, her distress call looping on their shared frequency for years. Every Scion that answered it honestly was rewritten by the echo.\n\nSo you answered it properly: you matched her own rhythm and sent it back — the one acknowledgement her signal had spent years repeating to hear. Told that she was heard, she could finally stop.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
     else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
-    color = "#ffc400";
+    color = PAL().WARN;
     // (owner steer) — you took the destroy-on-sight order. It works. The cost is
     // in what the blast revealed: no outpost, no enemy — one of the first wave.
     body = "The signal stops. The Static is gone, and MERCY can continue.\n\nBut the CMO is very quiet.\n\nThat was no surprise outpost. No enemy relay. That was one of ours.\n\nAMS SOLACE — crew of 214 — silenced, not answered.\n\nThe SOLACE deserved better.\n\n+3000";
   } else {
     title = "ROTATION COMPLETE";
-    color = "#b388ff";
+    color = TOK.VIOLET;
     body = "The tour is over and the rescued are home.\n\nBut on the long ride back, under everything, the Static is still there. Repeating.\n\nLeft hollow. The Static answers still.\n\n◈ Black boxes recovered: " + blackboxCount + "/" + NBOX + " — recover " + TRIANGULATE_N + " to triangulate its source.";
   }
   if (endingType !== "unresolved" && shrines.size >= SHRINES.length) {
@@ -4233,7 +4235,7 @@ function drawWin() {
     "score " + score + "  ·  hi " + hiscore + "\n" + tallyLine() +
     "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
     spotless + serpent +
-    "\nrank: " + rank + "\ntap to play again", "#69f0ae");
+    "\nrank: " + rank + "\ntap to play again", PAL().SAFE);
 }
 
 /* V13 (owner steer) — the bad ending's own end panel: a dark, cooled
@@ -4250,17 +4252,17 @@ function drawFireEnding() {
   ctx.scale(Math.min(1, vw / 380), Math.min(1, vw / 380));
   solaceMercyPath();
   ctx.fillStyle = "rgba(18,12,20,.92)"; ctx.fill();
-  ctx.strokeStyle = "rgba(255,109,0,.5)"; ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(255,109,0,.5)"; ctx.shadowColor = TOK.EMBER; ctx.shadowBlur = 12; ctx.lineWidth = 2;
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
   ctx.textAlign = "center";
-  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = 16;
+  ctx.shadowColor = TOK.EMBER; ctx.shadowBlur = 16;
   ctx.fillStyle = "#ffab73";
   ctx.font = "900 " + Math.min(28, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("THERE HAS TO BE A BETTER WAY", vw / 2, vh * 0.47);
   ctx.shadowBlur = 4;
-  ctx.font = "600 14px Menlo, monospace";
+  ctx.font = mono(14, 600);
   ctx.fillStyle = "#dff8ff";
   ["score " + score + "  ·  hi " + hiscore, tallyLine(), "rank: SECTOR WARDEN", "tap to play again"]
     .forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.56 + i * 22));
@@ -4277,7 +4279,7 @@ function drawCenter(big, small, color) {
   ctx.font = "900 " + Math.min(46, vw * 0.09) + "px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText(big, vw / 2, vh * 0.34);
   ctx.shadowBlur = 8;
-  ctx.font = "600 14px Menlo, monospace";
+  ctx.font = mono(14, 600);
   ctx.fillStyle = "#dff8ff";
   small.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.44 + i * 22));
   ctx.shadowBlur = 0;
@@ -4327,7 +4329,7 @@ window.__doids = {
   // without ANTISEPSIS a saboteur (mech) renders exactly like a true Scion.
   // Identification is the earned SCAN (the "?" over a catalogued unit), not a
   // tint. Exposed so a test can assert the colour parity always holds.
-  oidTint: () => "#69f0ae",
+  oidTint: () => PAL().SAFE,
   setStaticClock: v => { staticClock = v; },
   // Y4 — counterfeit-pod opacity, exposed so a guard test can assert the gate:
   // loud strobe only with Avicenna (`canon`), a faint Static-beat dip without.

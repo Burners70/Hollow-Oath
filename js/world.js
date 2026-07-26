@@ -285,6 +285,15 @@ let haptics = true;
 try { haptics = localStorage.getItem("doids_hapt") !== "0"; } catch (e) {}
 let colorblind = false;
 try { colorblind = localStorage.getItem("doids_cb") === "1"; } catch (e) {}
+/* Bundle DS2 — mirror the setting onto <body> so css/game.css can swap the
+   on-screen flight controls too. CSS can't read PALETTES, so this class is the
+   only bridge; without it the buttons were the one surface the colourblind
+   toggle could never reach. Safe to call at parse time — the scripts load at
+   the end of <body>, so document.body already exists. */
+function applyColorblindClass() {
+  if (document.body) document.body.classList.toggle("cb", colorblind);
+}
+applyColorblindClass();
 /* Bundle H1 — the four SEMANTIC colours (safe / warning / danger / the
    counterfeit-reveal mark). Colorblind mode swaps only these four meanings
    to a blue/orange/white/magenta set — the rest of the game keeps its skin.
@@ -295,6 +304,64 @@ const PALETTES = {
   cb:     { SAFE: "#40c4ff", WARN: "#ffab40", DANGER: "#ffffff", REVEAL: "#ff6bff" }
 };
 function PAL() { return colorblind ? PALETTES.cb : PALETTES.normal; }
+/* Bundle DS4 — the token layer. Every colour the UI draws with comes from
+   here or from PAL() above; a hex literal at the call site is the bug the
+   July 2026 audit found. The split is the point: PALETTES holds the four
+   *meanings* (safe / warn / danger / reveal) and swaps for colourblind mode,
+   TOK holds the game's fixed skin and never swaps. If a new element encodes
+   state, it belongs in PAL(); if it's chrome or flavour, it belongs here.
+   Values are the ones docs/DESIGN_SYSTEM_STARTER.md documents — change them
+   there and here together. */
+const TOK = {
+  // base / void (§2.1)
+  VOID: "#05060f", VOID_MID: "#0a0d22", VOID_HIGH: "#101433",
+  // the cyan ramp — the default accent (§2.2)
+  CYAN: "#00e5ff", CYAN_INK: "#aef4ff", CYAN_TEXT: "#9beaf9",
+  CYAN_SOFT: "#7fe9ff", CYAN_BRIGHT: "#eaffff", CYAN_PALE: "#bfeefb",
+  // narrative / rare accents (§2.4)
+  VIOLET: "#b388ff", VIOLET_DEEP: "#7c4dff", VIOLET_SOFT: "#c9a6ff",
+  GOLD: "#ffd54f", GOLD_WARM: "#ffe9a8",
+  /* the ember family — fire, torching, MERCY's detonation. EMBER_CORE shares
+     its value with the WARN *meaning* by coincidence of art, not by intent:
+     a flame's hot core is amber and a fuel warning is amber. They are split so
+     colourblind mode swaps the warning and leaves the fire looking like fire. */
+  EMBER: "#ff6d00", EMBER_LIT: "#ff9e40", EMBER_MID: "#ffae40",
+  EMBER_CORE: "#ffc400", EMBER_WHITE: "#fff3d6",
+  ALERT: "#ff1744",
+  /* DS3 — the selection cursor, promoted from an undocumented literal. It sits
+     outside the cyan/violet/amber family deliberately, so it reads *over* cyan
+     chrome. It does NOT swap in colourblind mode and doesn't need to: the
+     cursor is already a stroked box around the selected row, so the state
+     reads by shape without colour at all (the H2 redundancy rule). */
+  FOCUS: "#eaff6b", FOCUS_INK: "#f7ffd0",
+  /* E3 — a parried round, now flying home as yours. Same values as FOCUS, but
+     a *different meaning*, so the two can diverge without one breaking the
+     other (the audit found the single literal doing both jobs). It stays put
+     under colourblind mode on purpose: hostile fire swaps to the cb DANGER
+     white, so parried-vs-hostile reads by hue AND luminance for every CVD
+     type — which the old yellow-green-vs-pink pairing did not. */
+  PARRIED: "#eaff6b", PARRIED_INK: "#f7ffd0",
+  /* Bundle N — the counterfeit MERCY's sickly serpent sign. Narrative flavour,
+     not a state colour: it must NOT swap, because the whole point is that the
+     fake looks wrong in a way you learn to recognise. */
+  COUNTERFEIT_NEON: "#c6ff00"
+};
+/* DS1 — a token at partial alpha. Hand-written `rgba(105,240,174,.7)` literals
+   were the other half of the palette-swap leak the audit found: the stroke
+   stayed green while the fill beside it swapped, so colourblind mode produced
+   two-tone controls nobody designed. Always build a translucent semantic
+   colour with this, never by typing the channel numbers.
+   Named `shade` because `alpha` is already a local in drawFakePods(). */
+const _shadeMemo = {};
+function shade(hex, a) {
+  const k = hex + a;
+  let v = _shadeMemo[k];
+  if (v === undefined) {
+    const n = parseInt(hex.slice(1), 16);
+    v = _shadeMemo[k] = "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+  }
+  return v;
+}
 /* Bundle H3 — FIELD MEDIC mode: gentler tolerances, more lives, longer
    breach timer. "For pilots who want the story." */
 let easyMode = false;
@@ -306,6 +373,16 @@ try { bigText = localStorage.getItem("doids_bigtext") === "1"; } catch (e) {}
 /* R8 — card/brief body copy gets a +1 base bump for arm's-length phone
    reading; the BIG TEXT accessibility toggle still stacks its +2 on top. */
 function bodyFontPx(base) { return base + 1 + (bigText ? 2 : 0); }
+/* Bundle DS4/DS5 — the two type roles from the design system §3, as helpers,
+   so new UI can't quietly introduce a third family or a size off the scale.
+   MONO is the instrument-panel voice, DISPLAY the wordmark/headline face.
+   `mono()` takes a fixed pixel size (HUD chrome that must not reflow);
+   `body()` routes through bodyFontPx so BIG TEXT reaches it. Prefer body(). */
+const MONO_STACK = "Menlo, monospace";
+const DISPLAY_STACK = "'Helvetica Neue', Arial, sans-serif";
+function mono(px, weight) { return (weight || 700) + " " + px + "px " + MONO_STACK; }
+function body(base, weight) { return (weight || 700) + " " + bodyFontPx(base) + "px " + MONO_STACK; }
+function display(px, weight) { return (weight || 800) + " " + px + "px " + DISPLAY_STACK; }
 /* Accessibility: a REDUCED FLASH toggle softens the Static's high-frequency
    strobing — window flicker, the ECG jitter and the HUD label glitch — for
    photosensitive players. Diagnostic meaning stays; only the amplitude drops. */

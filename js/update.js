@@ -67,7 +67,7 @@ function updateStaticClock(dt) {
   if (tethered() && !ship.landed) {
     ship.vx += (Math.random() < 0.5 ? -1 : 1) * 55;
     camera.shake += 6;
-    addText(ship.x, ship.y - 40, "THE SURGE ROCKS THE LINE", "#b388ff");
+    addText(ship.x, ship.y - 40, "THE SURGE ROCKS THE LINE", TOK.VIOLET);
   }
   if (level.isFinale && level.beacon && !level.beacon.resolved) {
     // the beacon surges on the same phase, but strong — the closer you fly
@@ -131,7 +131,7 @@ function goldBurst(x, y) {
   for (let i = 0; i < 24; i++) {
     const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 120;
     particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
-      t: 0.6 + Math.random() * 0.8, max: 1.4, color: "#ffd54f", size: 1.5 + Math.random() * 2.5 });
+      t: 0.6 + Math.random() * 0.8, max: 1.4, color: TOK.GOLD, size: 1.5 + Math.random() * 2.5 });
   }
 }
 
@@ -162,22 +162,22 @@ function shipDie() {
   if (ship.dead) return;
   ship.dead = true;
   haptic.heavy();
-  explode(ship.x, ship.y, "#ff4081", 60);
-  explode(ship.x, ship.y, "#ffc400", 40);
+  explode(ship.x, ship.y, PAL().DANGER, 60);
+  explode(ship.x, ship.y, PAL().WARN, 40);
   if (ship.passengers.length > 0) {
     const n = ship.passengers.length;
     for (const p of ship.passengers) {
       p.state = "lost";
       if (p.role === "famous") {
-        addText(ship.x, ship.y - 66, "YOU LOST " + FAMOUS[p.famousId].name, "#ffd54f");
+        addText(ship.x, ship.y - 66, "YOU LOST " + FAMOUS[p.famousId].name, TOK.GOLD);
       }
     }
     acctLevel().lost += n; runLost += n;
     const penalty = 250 * n;
     score = Math.max(0, score - penalty);
     addText(ship.x, ship.y - 50,
-      n + (n === 1 ? " SCION LOST" : " SCIONS LOST") + "  -" + penalty, "#ff4081");
-    explode(ship.x, ship.y - 12, "#69f0ae", 24);
+      n + (n === 1 ? " SCION LOST" : " SCIONS LOST") + "  -" + penalty, PAL().DANGER);
+    explode(ship.x, ship.y - 12, PAL().SAFE, 24);
     ship.passengers = [];
   }
   lives--;
@@ -219,7 +219,7 @@ function beginExtraction(early) {
   level.extraction = { t: 0, pulseT: 0, hold: 0, done: false, beatT: 0, early: !!early };
   // V13 — lowered (yFrac) so it clears MERCY and your own ship, both up near
   // the top of the screen during the hangar approach this banner announces.
-  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", "#ffc400", 0.58);
+  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", PAL().WARN, 0.58);
   blip(660, 220, 0.6, "sawtooth", 0.15);
 }
 
@@ -232,7 +232,7 @@ function sectorClearNow() {
   if (dailyMod("stopwatch") && sectorT < 90) { score += 500; level.stopwatchBeat = true; }
   bannerMsg = null;
   clearCards = level.fragmentsHere.map(f => ({
-    kicker: "LOG FRAGMENT RECOVERED", title: "", body: f, color: "#00e5ff" }));
+    kicker: "LOG FRAGMENT RECOVERED", title: "", body: f, color: TOK.CYAN }));
   state = "clear"; stateT = 0;
   blip(440, 1760, 0.5, "sine", 0.15);
 }
@@ -295,7 +295,7 @@ function updateExtraction(dt) {
       const kick = 60 * (1 - d / 600);   // a nudge, not a fling
       ship.vx += dx / d * kick; ship.vy += dy / d * kick;
       camera.shake += 6;
-      addText(ship.x, ship.y - 30, "THE STATIC SURGES", "#b388ff");
+      addText(ship.x, ship.y - 30, "THE STATIC SURGES", TOK.VIOLET);
     }
   }
   if (level.pulse && (level.pulse.t += dt) > 1.2) level.pulse = null;
@@ -307,7 +307,7 @@ function updateExtraction(dt) {
     e.hold += dt;
     if (e.hold >= HANGAR_HOLD) {
       e.done = true; e.beatT = 0;
-      banner("ABOARD — SECTOR " + SECTOR_NAMES[levelIdx] + " CLOSED", "#69f0ae");
+      banner("ABOARD — SECTOR " + SECTOR_NAMES[levelIdx] + " CLOSED", PAL().SAFE);
       blip(440, 1760, 0.4, "sine", 0.14);
       // B2 — MERCY spools up and jumps out: a rising engine surge/whoosh that
       // builds into the jump streak. A heavy haptic marks the departure (B4).
@@ -347,7 +347,7 @@ function askEarlyExtraction() {
   body += "\nNo sector-clear bonus. No oath.";
   body += "\nThe manifest will remember.";
   confirmCard = { kicker: "TRIAGE — FLEE AT A COST", title: "SIGNAL EARLY EXTRACTION?",
-    body, color: "#ffc400", waiting };
+    body, color: PAL().WARN, waiting };
   state = "confirm"; stateT = 0;
 }
 function confirmEarlyExtraction() {
@@ -361,7 +361,7 @@ function confirmEarlyExtraction() {
     score = Math.max(0, score - (fam ? 500 : 250));
     // a famous mind left behind costs more, but you leave before you ever learn
     // who — no name, only the weight of it
-    if (fam) addText(level.mx, level.my + 40, "SOMEONE EXTRAORDINARY, LEFT BEHIND  −500", "#ffd54f");
+    if (fam) addText(level.mx, level.my + 40, "SOMEONE EXTRAORDINARY, LEFT BEHIND  −500", TOK.GOLD);
   }
   leftBehindNote = { n, sector: SECTOR_NAMES[levelIdx] };
   confirmCard = null;
@@ -387,7 +387,7 @@ function triggerBreach(infected) {
                   ph: 0, fightT: STRUGGLE_GAP, struggle: false, calmT: 0 };
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 250, style: "heavy" }]);   // klaxon ×2 (F2)
   level.contamKnown = true;
-  banner("UNSCREENED UNIT LOOSE ON MERCY\nDOCK THE RECOVERY BAY TO RETRIEVE IT, THEN THE RED BAY", "#ff4081");
+  banner("UNSCREENED UNIT LOOSE ON MERCY\nDOCK THE RECOVERY BAY TO RETRIEVE IT, THEN THE RED BAY", PAL().DANGER);
   blip(880, 220, 0.6, "sawtooth", 0.2);
 }
 
@@ -395,12 +395,12 @@ function resolveBreach(success) {
   mercyBreach = null;
   if (success) {
     score += 750;
-    banner("CONTAMINANT SEALED IN ISOLATION  +750\nLOCKDOWN LIFTED", "#69f0ae");
+    banner("CONTAMINANT SEALED IN ISOLATION  +750\nLOCKDOWN LIFTED", PAL().SAFE);
     blip(520, 1040, 0.3, "sine", 0.15);
   } else {
     score = Math.max(0, score - 1000);
     mercyDamaged = true;
-    banner("RECOVERY BAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", "#ff4081");
+    banner("RECOVERY BAY SABOTAGED  -1000\nHEALING OFFLINE THIS SECTOR", PAL().DANGER);
     blip(300, 60, 0.6, "sawtooth", 0.2);
   }
 }
@@ -431,7 +431,7 @@ function updateVectorStruggle(dt) {
       if (b.calmT >= RESTRAIN_HOLD) {
         b.struggle = false;
         b.fightT = STRUGGLE_GAP + Math.random() * 3;
-        addText(s.x, s.y - 34, "RESTRAINED", "#69f0ae");
+        addText(s.x, s.y - 34, "RESTRAINED", PAL().SAFE);
         haptic.light();
       }
     }
@@ -780,7 +780,7 @@ function updateBrief(dt) {
   briefChars = Math.min(full, briefChars + dt * 55);
   if (input.tap && stateT > 0.5) {
     if (briefChars < full) briefChars = full;
-    else { state = "play"; stateT = 0; leftBehindNote = null; banner(SECTOR_NAMES[levelIdx], "#00e5ff"); }
+    else { state = "play"; stateT = 0; leftBehindNote = null; banner(SECTOR_NAMES[levelIdx], TOK.CYAN); }
   }
   input.tap = false;
 }
@@ -876,6 +876,7 @@ function updateSettings() {
         } else if (i === 4) {
           colorblind = !colorblind;
           try { localStorage.setItem("doids_cb", colorblind ? "1" : "0"); } catch (e) {}
+          applyColorblindClass();   // DS2 — carry the swap into the CSS controls
           blip(440, 660, 0.1, "sine", 0.08);
         } else if (i === 5) {
           // FIELD MEDIC applies to the NEXT run — a live run keeps the
@@ -986,7 +987,7 @@ function updatePlay(dt) {
         x: s.x - Math.sin(s.ang) * 12, y: s.y + Math.cos(s.ang) * 12,
         vx: s.vx - Math.sin(s.ang + spread) * 160, vy: s.vy + Math.cos(s.ang + spread) * 160,
         t: 0.25 + Math.random() * 0.2, max: 0.45,
-        color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2 + Math.random() * 2
+        color: Math.random() < 0.5 ? TOK.EMBER_CORE : TOK.EMBER, size: 2 + Math.random() * 2
       });
     }
     // friendly fire: hovering your exhaust over someone is malpractice
@@ -1061,14 +1062,14 @@ function updatePlay(dt) {
       s.fuel = Math.max(0, s.fuel - 4);
       camera.shake += 6;
       haptic.medium();
-      addText(s.x, s.y - 30, "SHIELD BOUNCE", "#69f0ae");
+      addText(s.x, s.y - 30, "SHIELD BOUNCE", PAL().SAFE);
       blip(200, 380, 0.15, "sine", 0.12);
     } else if (survivable) {
       s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
       const dmg = upgrades.gentle ? 12 : 35;
       s.vitals -= dmg; camera.shake += 10;
       haptic.heavy();
-      addText(s.x, s.y - 30, "HARD LANDING -" + dmg, "#ff4081");
+      addText(s.x, s.y - 30, "HARD LANDING -" + dmg, PAL().DANGER);
       blip(160, 40, 0.3, "sawtooth", 0.2);
       if (s.vitals <= 0) { shipDie(); return; }
     } else { shipDie(); return; }
@@ -1164,7 +1165,7 @@ function updateOids(dt, now) {
           Math.hypot(o.x - s.x, o.y - s.y) < SHIP_R + 18) {
         o.state = "aboard"; s.passengers.push(o);
         heartbeat(); haptic.medium();
-        addText(s.x, s.y - 40, "CAUGHT — SCION SAFE", "#69f0ae");
+        addText(s.x, s.y - 40, "CAUGHT — SCION SAFE", PAL().SAFE);
         continue;
       }
       const g = groundAt(o.x);
@@ -1172,7 +1173,7 @@ function updateOids(dt, now) {
         o.y = g; o.vx = 0; o.vy = 0;
         if (easyMode) {   // Field Medic: they survive the drop, back on the ground
           o.state = "wait"; o.panicT = 1.4;
-          addText(o.x, o.y - 40, "SURVIVED THE FALL", "#69f0ae");
+          addText(o.x, o.y - 40, "SURVIVED THE FALL", PAL().SAFE);
           heartbeat(0.5, true);
         } else {
           o.state = "lost"; acctLevel().lost++; runLost++;
@@ -1180,8 +1181,8 @@ function updateOids(dt, now) {
           score = Math.max(0, score - (fam ? 500 : 250));
           addText(o.x, o.y - 40,
             (fam ? FAMOUS[o.famousId].name + " LOST" : "SCION LOST") + " — HIT THE GROUND",
-            fam ? "#ffd54f" : "#ff4081");
-          explode(o.x, o.y - 8, "#ff4081", 14);
+            fam ? TOK.GOLD : PAL().DANGER);
+          explode(o.x, o.y - 8, PAL().DANGER, 14);
           checkSectorClear();
         }
       }
@@ -1197,7 +1198,7 @@ function updateOids(dt, now) {
           x: o.x + (Math.random() - 0.5) * 8, y: o.y - 12 - Math.random() * 12,
           vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 40,
           t: 0.4, max: 0.5,
-          color: Math.random() < 0.5 ? "#ffc400" : "#ff6d00", size: 2.5 });
+          color: Math.random() < 0.5 ? TOK.EMBER_CORE : TOK.EMBER, size: 2.5 });
       }
       if (o.deathT >= 1.3) {
         // a PROVEN counterfeit (catalogued via the S5 scan) is a hollow chassis
@@ -1220,8 +1221,8 @@ function updateOids(dt, now) {
           score = Math.max(0, score - pen);
           addText(o.x, o.y - 40,
             (fam ? "YOU KILLED " + FAMOUS[o.famousId].name : "MALPRACTICE") + "  -" + pen,
-            fam ? "#ffd54f" : "#ff4081");
-          explode(o.x, o.y - 8, o.deathType === "torched" ? "#ff6d00" : "#69f0ae", 18);
+            fam ? TOK.GOLD : PAL().DANGER);
+          explode(o.x, o.y - 8, o.deathType === "torched" ? TOK.EMBER : PAL().SAFE, 18);
         }
       }
       continue;
@@ -1263,7 +1264,7 @@ function updateOids(dt, now) {
       o.y = groundAt(o.x);
       if (Math.abs(s.x - o.x) < 14) {
         if (s.passengers.length >= CAPACITY) {
-          addText(s.x, s.y - 34, "SHIP FULL", "#ffc400");
+          addText(s.x, s.y - 34, "SHIP FULL", PAL().WARN);
           o.state = "wait"; o.x = s.x + 20 * Math.sign(o.x - s.x || 1);
           continue;
         }
@@ -1274,18 +1275,18 @@ function updateOids(dt, now) {
         if (o.role === "saboteur") {
           dullThud(); // no heartbeat. Listen closely.
           o.sabT = 6 + Math.random() * 3;
-          addText(s.x, s.y - 34, "SCION ABOARD +500", "#69f0ae");
+          addText(s.x, s.y - 34, "SCION ABOARD +500", PAL().SAFE);
         } else {
           heartbeat();
-          addText(s.x, s.y - 34, "SCION ABOARD +500", "#69f0ae");
-          if (o.carrier) addText(s.x, s.y - 48, "◇ CARRYING DATA", "#00e5ff");
+          addText(s.x, s.y - 34, "SCION ABOARD +500", PAL().SAFE);
+          if (o.carrier) addText(s.x, s.y - 48, "◇ CARRYING DATA", TOK.CYAN);
           // warn the moment the cabin fills, so a full ship is known before you
           // fly to the next Scion and bump them off the hull (owner steer)
           if (s.passengers.length >= CAPACITY)
-            banner("CABIN FULL — RETURN TO MERCY TO DELIVER", "#ffc400");
+            banner("CABIN FULL — RETURN TO MERCY TO DELIVER", PAL().WARN);
           if (o.role === "famous") {
             goldBurst(s.x, s.y - 10);
-            banner("SOMEONE EXTRAORDINARY IS ABOARD…", "#ffd54f");
+            banner("SOMEONE EXTRAORDINARY IS ABOARD…", TOK.GOLD);
             blip(660, 1320, 0.3, "sine", 0.12);
           }
         }
@@ -1326,14 +1327,14 @@ function updateEnemies(dt) {
       if (s.shield) {
         // B1 — the field SOAKS the hit: a green spark + an absorption whumpf,
         // not the explosion boom. Haptic so it reads with sound off (B4).
-        explode(dr.x, dr.y, "#69f0ae", 18, true);
+        explode(dr.x, dr.y, PAL().SAFE, 18, true);
         shieldAbsorb(); haptic.medium();
-        addText(s.x, s.y - 30, "SHIELD HELD", "#69f0ae");
+        addText(s.x, s.y - 30, "SHIELD HELD", PAL().SAFE);
       } else {
-        explode(dr.x, dr.y, "#ff4081", 24);
+        explode(dr.x, dr.y, PAL().DANGER, 24);
         s.vitals -= 40;
         haptic.heavy();
-        addText(s.x, s.y - 30, "-40", "#ff4081");
+        addText(s.x, s.y - 30, "-40", PAL().DANGER);
         if (s.vitals <= 0) { shipDie(); return; }
       }
     }
@@ -1351,13 +1352,13 @@ function updateEnemies(dt) {
       for (const t of level.turrets) {
         if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
           t.alive = false; gone = true; score += 250;
-          explode(t.x, t.y - 8, "#ffc400", 30); addText(t.x, t.y - 40, "REFLECTED +250", "#eaff6b");
+          explode(t.x, t.y - 8, PAL().WARN, 30); addText(t.x, t.y - 40, "REFLECTED +250", TOK.PARRIED);
         }
       }
       for (const dr of level.drones) {
         if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
           dr.alive = false; gone = true; score += 150;
-          explode(dr.x, dr.y, "#ff4081", 22); addText(dr.x, dr.y - 30, "REFLECTED +150", "#eaff6b");
+          explode(dr.x, dr.y, PAL().DANGER, 22); addText(dr.x, dr.y - 30, "REFLECTED +150", TOK.PARRIED);
         }
       }
       if (gone) level.bullets.splice(i, 1);
@@ -1370,24 +1371,24 @@ function updateEnemies(dt) {
         b.reflected = true;
         b.vx = -b.vx * 1.3; b.vy = -b.vy * 1.3;
         b.t = Math.max(b.t, 1.3);
-        explode(b.x, b.y, "#eaff6b", 6, true);
+        explode(b.x, b.y, TOK.FOCUS, 6, true);
         shieldParry(); haptic.heavy();
         camera.shake += 4;
-        addText(s.x, s.y - 30, "PARRY!", "#eaff6b");
+        addText(s.x, s.y - 30, "PARRY!", TOK.FOCUS);
         continue;
       }
       level.bullets.splice(i, 1);
       if (s.shield) {
         // B1 — bullet soaked by the field: green spark + absorption whumpf
         // (no explosion boom), and a light haptic for sound-off play (B4).
-        explode(b.x, b.y, "#69f0ae", 8, true);
+        explode(b.x, b.y, PAL().SAFE, 8, true);
         shieldAbsorb(); haptic.light();
         continue;
       }
       s.vitals -= 26; camera.shake += 8;
-      explode(b.x, b.y, "#ff4081", 10);
+      explode(b.x, b.y, PAL().DANGER, 10);
       haptic.medium();
-      addText(s.x, s.y - 30, "-26", "#ff4081");
+      addText(s.x, s.y - 30, "-26", PAL().DANGER);
       if (s.vitals <= 0) { shipDie(); return; }
     }
   }
@@ -1409,16 +1410,16 @@ function updateEnemies(dt) {
       if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
         t.alive = false; gone = true; firedAtCombat = true;
         score += 250;
-        explode(t.x, t.y - 8, "#ffc400", 30);
-        addText(t.x, t.y - 40, "+250", "#ffc400");
+        explode(t.x, t.y - 8, PAL().WARN, 30);
+        addText(t.x, t.y - 40, "+250", PAL().WARN);
       }
     }
     for (const dr of level.drones) {
       if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
         dr.alive = false; gone = true; firedAtCombat = true;
         score += 150;
-        explode(dr.x, dr.y, "#ff4081", 22);
-        addText(dr.x, dr.y - 30, "+150", "#ff4081");
+        explode(dr.x, dr.y, PAL().DANGER, 22);
+        addText(dr.x, dr.y - 30, "+150", PAL().DANGER);
       }
     }
     // friendly fire: a stray shot can hit the very Scion you came for
@@ -1444,7 +1445,7 @@ function updateEnemies(dt) {
         Math.hypot(b.x - level.beacon.x, b.y - (level.beacon.y - 40)) < 42) {
       gone = true;
       level.beacon.hp--;
-      explode(level.beacon.x, level.beacon.y - 40, "#b388ff", 20);
+      explode(level.beacon.x, level.beacon.y - 40, TOK.VIOLET, 20);
       if (level.beacon.hp <= 0) resolveBeacon("fire");
     }
     // V13 (owner steer) — three rounds into the counterfeit MERCY's hull power
@@ -1457,7 +1458,7 @@ function updateEnemies(dt) {
       gone = true; firedAtSecret = true;
       fm.hp--;
       if (fm.hp <= 0) decoyDown(fm);
-      else { explode(fm.x, fm.y - 10, "#00e5ff", 16); staticTick(); }
+      else { explode(fm.x, fm.y - 10, TOK.CYAN, 16); staticTick(); }
     }
     if (gone) level.shots.splice(i, 1);
   }
@@ -1481,7 +1482,7 @@ function updateSabotage(dt) {
     // stored and where a throw is worth a warning because you may be far away.
     // Aboard your ship it bites the fuel line instead.
     s.fuel = Math.max(0, s.fuel - (easyMode ? 4.5 : 9));
-    addText(s.x, s.y - 34, "FUEL LINE CUT", "#ff4081");
+    addText(s.x, s.y - 34, "FUEL LINE CUT", PAL().DANGER);
     blip(140, 60, 0.25, "sawtooth", 0.12);
   }
 }
@@ -1533,9 +1534,9 @@ function revealSecret(sc, viaFire) {
       " — COUNTERFEIT TRANSMITTER +500", PAL().REVEAL);
   } else {
     score += 400;
-    explode(sc.x, sc.y - 8, "#ffc400", 20);
+    explode(sc.x, sc.y - 8, PAL().WARN, 20);
     level.pods.push({ x: sc.x, y: sc.y, taken: false, ph: Math.random() * 7 });
-    addText(sc.x, sc.y - 44, "HIDDEN CACHE +400 — someone didn't want this found", "#ffc400");
+    addText(sc.x, sc.y - 44, "HIDDEN CACHE +400 — someone didn't want this found", PAL().WARN);
     blip(400, 1200, 0.3, "sine", 0.12);
   }
 }
@@ -1611,7 +1612,7 @@ function updateScionScan(dt) {
     } else {
       target.verified = true;
       heartbeat(0.5, true);
-      addText(target.x, target.y - 44, "VITALS VERIFIED — A HEARTBEAT", "#69f0ae");
+      addText(target.x, target.y - 44, "VITALS VERIFIED — A HEARTBEAT", PAL().SAFE);
     }
   }
 }
@@ -1664,7 +1665,7 @@ function updateWaves(dt) {
         staticSurge = Math.max(staticSurge, w.finale ? 0.6 : 0.35);
         sabotageFlash = w.finale ? 0.5 : 0.3;
         camera.shake += w.finale ? 5 : 3;
-        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, "#b388ff");
+        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
       }
     }
   }
@@ -1861,7 +1862,7 @@ function updateDocking(dt) {
         s.dockT = 0;
         mercyBreach.retrieved = true;
         mercyBreach.fightT = STRUGGLE_GAP;
-        banner("VECTOR RETRIEVED — CARRY IT TO THE RED ISOLATION BAY\nIT WILL FIGHT YOU — LET GO OF THE CONTROLS TO RESTRAIN IT", "#ffc400");
+        banner("VECTOR RETRIEVED — CARRY IT TO THE RED ISOLATION BAY\nIT WILL FIGHT YOU — LET GO OF THE CONTROLS TO RESTRAIN IT", PAL().WARN);
         blip(520, 300, 0.25, "square", 0.12); haptic.medium();
       }
       return;
@@ -1884,12 +1885,12 @@ function updateDocking(dt) {
       p.state = "delivered";
       level.delivered++; runSaved++;
       score += 300;
-      addText(level.mx, level.my + 40, "DELIVERED +300", "#69f0ae");
+      addText(level.mx, level.my + 40, "DELIVERED +300", PAL().SAFE);
       blip(520, 1040, 0.2, "sine", 0.12);
       haptic.medium();   // B4 — confirm a successful drop-off with sound off
       if (p.carrier) {
         const frag = grantFragment(true);
-        if (frag) addText(level.mx, level.my + 56, "LOG FRAGMENT RECOVERED", "#00e5ff");
+        if (frag) addText(level.mx, level.my + 56, "LOG FRAGMENT RECOVERED", TOK.CYAN);
       }
       if (p.role === "famous") {
         const f = FAMOUS[p.famousId];
@@ -1902,7 +1903,7 @@ function updateDocking(dt) {
         showCard({
           kicker: "RESCUED · +1500", title: f.name, subtitle: f.era,
           body: f.story + "\n\n★ " + f.upgradeName + " — " + f.upgradeDesc,
-          color: "#ffd54f"
+          color: TOK.GOLD
         });
         return;
       }
@@ -1936,16 +1937,16 @@ function updateDocking(dt) {
         // E4 — an infected Scion, not a born Vector: isolation TREATS and cures
         // it, so it counts as a rescue rather than a sealed contaminant.
         sab.state = "delivered"; level.delivered++; runSaved++;
-        addText(level.mx, level.my + 40, "INFECTED SCION CURED +750", "#69f0ae");
-        explode(level.mx + 65, level.my + 60, "#69f0ae", 16, true);
+        addText(level.mx, level.my + 40, "INFECTED SCION CURED +750", PAL().SAFE);
+        explode(level.mx + 65, level.my + 60, PAL().SAFE, 16, true);
         gateSlam(); heartbeat(); haptic.medium();
       } else {
         sab.state = "contained";
         level.contained++; // accounted for, but not a casualty
-        addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", "#ff4081");
+        addText(level.mx, level.my + 40, "CONTAMINANT SEALED +750", PAL().DANGER);
         // B3 — the isolation airlock: heavy metal gates slam shut. Silent spark
         // (gateSlam carries the impact) + a heavy haptic for sound-off play (B4).
-        explode(level.mx + 65, level.my + 60, "#ff4081", 14, true);
+        explode(level.mx + 65, level.my + 60, PAL().DANGER, 14, true);
         gateSlam(); haptic.heavy();
       }
       checkSectorClear();
@@ -1959,7 +1960,7 @@ function updateDocking(dt) {
           // from contained (counted at the breach) to a genuine save.
           level.contained = Math.max(0, level.contained - 1); level.delivered++; runSaved++;
           score += 750; mercyBreach = null;
-          banner("INFECTED SCION CURED IN ISOLATION  +750\nRETURNED TO THE MANIFEST", "#69f0ae");
+          banner("INFECTED SCION CURED IN ISOLATION  +750\nRETURNED TO THE MANIFEST", PAL().SAFE);
           blip(520, 1040, 0.3, "sine", 0.15); heartbeat(); haptic.medium();
         } else {
           resolveBreach(true); gateSlam(); haptic.heavy();
@@ -1996,9 +1997,9 @@ function updateBlackbox(dt) {
         body: (justTriangulated
           ? "The recorders agree. Every echo bends toward one dead patch of sky — the silence the old charts call THE NULLWAVE. Whatever answers on our own frequency is down there.\n\n"
           : (frag || "The recorder is blank — wiped clean. Someone got here first.") + "\n\n") + tail,
-        color: "#b388ff"
+        color: TOK.VIOLET
       });
-      if (justTriangulated) { banner("TRIANGULATION COMPLETE — THE SOURCE IS THE NULLWAVE", "#b388ff"); staticTick(); }
+      if (justTriangulated) { banner("TRIANGULATION COMPLETE — THE SOURCE IS THE NULLWAVE", TOK.VIOLET); staticTick(); }
     }
   } else bb.scanT = 0;
 }
@@ -2010,13 +2011,13 @@ function updatePods() {
     if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
       // don't waste a pod on a full tank — warn instead, and leave it for later
       if (s.fuel >= maxFuel() - 0.5) {
-        if (!p.fullWarn) { p.fullWarn = true; addText(p.x, p.y - 30, "TANK FULL", "#ffc400"); }
+        if (!p.fullWarn) { p.fullWarn = true; addText(p.x, p.y - 30, "TANK FULL", PAL().WARN); }
         continue;
       }
       p.fullWarn = false;
       p.taken = true;
       s.fuel = Math.min(maxFuel(), s.fuel + 35);
-      addText(p.x, p.y - 30, "FUEL +35", "#ffc400");
+      addText(p.x, p.y - 30, "FUEL +35", PAL().WARN);
       blip(520, 780, 0.15, "sine", 0.1);
       goldBurst(p.x, p.y - 8);
     }
@@ -2029,7 +2030,7 @@ function updatePods() {
       s.fuel = Math.max(0, s.fuel - 18);
       score = Math.max(0, score - 100);
       addText(p.x, p.y - 30, "COUNTERFEIT — SOMEBODY'S LURE  -100", PAL().REVEAL);
-      addText(p.x, p.y - 46, "FUEL DRAINED -18", "#ff4081");
+      addText(p.x, p.y - 46, "FUEL DRAINED -18", PAL().DANGER);
       staticTick();
       explode(p.x, p.y - 8, PAL().REVEAL, 14);
     }
@@ -2063,8 +2064,8 @@ const SIGNAL_HOLD_T = 1.8;
    (which spits the wreck back to the surface) breaks the soft-lock. */
 const SCUTTLE_HOLD_T = 2.4;
 function scuttleShip() {
-  addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", "#ff4081");
-  banner("SCUTTLED IN THE HOLLOWS", "#ff4081");
+  addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", PAL().DANGER);
+  banner("SCUTTLED IN THE HOLLOWS", PAL().DANGER);
   blip(220, 40, 0.8, "sawtooth", 0.2);
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 180, style: "heavy" }]);
   shipDie();   // the wreck is spat back to the surface on respawn (see updateDead)
@@ -2140,7 +2141,7 @@ function updateResupplySignal(dt) {
     if (Math.random() < dt * 8) particles.push({
       x: s.x + (Math.random() - 0.5) * 16, y: s.y - 6,
       vx: (Math.random() - 0.5) * 20, vy: -26, t: 0.3, max: 0.4,
-      color: "#ffc400", size: 1.6 });
+      color: PAL().WARN, size: 1.6 });
   } else if (!resupplyDrone) {
     s.signalT = Math.max(0, s.signalT - dt * 2.5);
   }
@@ -2167,7 +2168,7 @@ function updateResupplySignal(dt) {
       rd.charged = 0;
       if (s.fuel < XFUSE_PRIMER) {   // just enough to reach the line, not to leave
         s.fuel = XFUSE_PRIMER;
-        addText(s.x, s.y - 46, "PRIMER MIST — FLY TO THE LINE", "#ffc400");
+        addText(s.x, s.y - 46, "PRIMER MIST — FLY TO THE LINE", PAL().WARN);
         goldBurst(s.x, s.y - 20);
       }
       blip(520, 780, 0.2, "sine", 0.1);
@@ -2231,13 +2232,13 @@ function updateTransfusion(dt, rd) {
       // covers the drone, its fuel line or the transfusion status line.
       if (rd.charged >= 1) {
         const side = rd.x >= s.x ? -1 : 1;
-        addText(s.x + side * 66, s.y - 6, "-" + Math.round(rd.charged), "#ff4081");
+        addText(s.x + side * 66, s.y - 6, "-" + Math.round(rd.charged), PAL().DANGER);
       }
     }
   } else if (rd.everAttached) {
     if (d >= XFUSE_SNAP_R) {   // wandered too far — the line parts
       score = Math.max(0, score - 50);
-      banner("LINE SEVERED — REMAINDER LOST  -50\nSIGNAL AGAIN IF YOU NEED IT", "#ff4081");
+      banner("LINE SEVERED — REMAINDER LOST  -50\nSIGNAL AGAIN IF YOU NEED IT", PAL().DANGER);
       blip(500, 90, 0.3, "sawtooth", 0.14);
       haptic.medium();
       s.fireCd = Math.max(s.fireCd, 0.5);   // a held FIRE shouldn't snap into a shot
@@ -2247,7 +2248,7 @@ function updateTransfusion(dt, rd) {
     if (d >= xfuseWindowR()) rd.occluded = true;   // stuttering, no flow
   }
   if (rd.t >= XFUSE_PATIENCE) {
-    banner("TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED", "#ffc400");
+    banner("TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED", PAL().WARN);
     rd.phase = "out"; rd.t = 0;
   }
 }
@@ -2256,11 +2257,11 @@ function finishTransfusion(rd, full) {
   // XFUSE_COST per unit during the fill; releasing just reports the toll.
   const toll = Math.round(rd.charged || 0);
   if (full && !rd.occluded) {
-    addText(ship.x, ship.y - 40, "TANK TOPPED — RESUPPLY COST -" + toll, "#ffc400");
+    addText(ship.x, ship.y - 40, "TANK TOPPED — RESUPPLY COST -" + toll, PAL().WARN);
     blip(520, 1040, 0.3, "sine", 0.12);
   } else {
     addText(ship.x, ship.y - 40, "LINE RELEASED — FUEL +" + Math.round(rd.given) +
-      "  ·  -" + toll, "#ffc400");
+      "  ·  -" + toll, PAL().WARN);
     blip(420, 300, 0.15, "sine", 0.1);
   }
   haptic.light();
@@ -2283,14 +2284,14 @@ function updateLift(dt) {
   if (!L.rung) {
     L.rung = true;
     ringHollow();
-    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", "#b388ff");
+    addText(L.x, L.y - 44, "THE PAD RINGS HOLLOW…", TOK.VIOLET);
     blip(180, 120, 0.3, "sine", 0.1);
   }
   if (!L.armed) return;   // must lift off the pad once before it cycles again
   L.holdT += dt;
   if (L.holdT > 0.6 && !L.hinted) {
     L.hinted = true;
-    addText(L.x, L.y - 60, "HOLD TO DESCEND", "#b388ff");
+    addText(L.x, L.y - 60, "HOLD TO DESCEND", TOK.VIOLET);
   }
   if (L.holdT >= 2.4 && !liftTransit) {
     startLiftTransit(level.isCave ? "up" : "down", L);
@@ -2313,7 +2314,7 @@ function liftDust(x, padY) {
     particles.push({ x: x + dx + (Math.random() - 0.5) * 10, y: padY,
       vx: (Math.random() - 0.5) * 26 + dx * 0.25, vy: -14 - Math.random() * 30,
       t: 0.4 + Math.random() * 0.3, max: 0.7,
-      color: Math.random() < 0.6 ? "#b388ff" : "#8a86a8", size: 1.5 + Math.random() });
+      color: Math.random() < 0.6 ? TOK.VIOLET : "#8a86a8", size: 1.5 + Math.random() });
   }
 }
 function startLiftTransit(dir, L) {
@@ -2363,7 +2364,7 @@ function updateLiftTransit(dt) {
         particles.push({ x: ship.x + (Math.random() - 0.5) * 56, y: ship.y + SHIP_R,
           vx: (Math.random() - 0.5) * 70, vy: -18 - Math.random() * 45,
           t: 0.5 + Math.random() * 0.4, max: 0.9,
-          color: Math.random() < 0.6 ? "#b388ff" : "#8a86a8", size: 1.6 });
+          color: Math.random() < 0.6 ? TOK.VIOLET : "#8a86a8", size: 1.6 });
       }
     }
   }
@@ -2444,7 +2445,7 @@ function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure f
   staticTick();
   showCard({ kicker: "COUNTERFEIT IDENTIFIED · +800", title: "MACHINE TIME", subtitle: "",
     body: "Her emblem pulses like a pulse. Its emblem keeps perfect time.\n\nYou counted the beats. He never learned a heartbeat.",
-    color: "#aef4ff" });
+    color: TOK.CYAN_INK });
 }
 
 function updateBeacon(dt) {
@@ -2463,7 +2464,7 @@ function updateBeacon(dt) {
     // parrying her pulse; no cross-screen "raise shield" giveaway.
     showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
       body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
-      color: "#aef4ff" });
+      color: TOK.CYAN_INK });
   }
   // V6-finale (owner: replace the old land-and-hold) — the answer is the
   // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
@@ -2509,7 +2510,7 @@ function resolveBeacon(how) {
     for (let i = 0; i < 60; i++) {
       const a = Math.random() * Math.PI * 2;
       particles.push({ x: b.x, y: b.y - 40, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90 - 30,
-        t: 1 + Math.random(), max: 2, color: "#aef4ff", size: 2 });
+        t: 1 + Math.random(), max: 2, color: TOK.CYAN_INK, size: 2 });
     }
     blip(220, 880, 1.2, "sine", 0.15);
     // Bundle L2 — the answered call earns a held breath before the card:
@@ -2555,7 +2556,7 @@ function updateDestruct(dt) {
       x: b.x + (Math.random() - 0.5) * 34, y: b.y - 70 - Math.random() * 44,
       vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 46,
       t: 0.35 + Math.random() * 0.5, max: 0.9,
-      color: Math.random() < 0.5 ? "#fff3d6" : "#ffc400", size: 1 + Math.random() * 1.6 });
+      color: Math.random() < 0.5 ? TOK.EMBER_WHITE : TOK.EMBER_CORE, size: 1 + Math.random() * 1.6 });
   }
   // DETONATION — once: a huge shower of sparks + debris off the whole hull, and
   // the ridge COLLAPSES into a real crater (her mass is gone) — deform the
@@ -2570,7 +2571,7 @@ function updateDestruct(dt) {
       particles.push({ x: b.x + (Math.random() - 0.5) * 60, y: b.y - 20 + (Math.random() - 0.5) * 60,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80,
         t: 0.6 + Math.random() * 1.9, max: 2.5,
-        color: Math.random() < 0.4 ? "#fff3d6" : (Math.random() < 0.6 ? "#ffc400" : "#ff6d00"),
+        color: Math.random() < 0.4 ? TOK.EMBER_WHITE : (Math.random() < 0.6 ? TOK.EMBER_CORE : TOK.EMBER),
         size: 1 + Math.random() * 2.6 });
     }
     // …plus a scatter of heavier, slower burning chunks thrown up and out
@@ -2579,12 +2580,12 @@ function updateDestruct(dt) {
       particles.push({ x: b.x + (Math.random() - 0.5) * 40, y: b.y - 20,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
         t: 1.2 + Math.random() * 1.6, max: 2.8,
-        color: Math.random() < 0.5 ? "#ff6d00" : "#ffae40", size: 3 + Math.random() * 3.5 });
+        color: Math.random() < 0.5 ? TOK.EMBER : TOK.EMBER_MID, size: 3 + Math.random() * 3.5 });
     }
   }
   // a couple of delayed secondary pops as she settles
   for (const s of [0.25, 0.55]) if (t >= SOL_BOOM + s && prev < SOL_BOOM + s) {
-    explode(b.x + (s === 0.25 ? -70 : 80), b.y - 6, s === 0.25 ? "#ffc400" : "#ff6d00", 40);
+    explode(b.x + (s === 0.25 ? -70 : 80), b.y - 6, s === 0.25 ? TOK.EMBER_CORE : TOK.EMBER, 40);
     camera.shake = Math.max(camera.shake, 12);
   }
   // after the blast: smoke rising from the crater for a good while
@@ -2603,8 +2604,8 @@ function drawEpilogue(now) {
   ctx.fillRect(0, 0, vw, vh);
   const line = EPILOGUE_LINE.slice(0, Math.floor(epilogueChars));
   ctx.textAlign = "center";
-  ctx.font = "700 15px Menlo, monospace";
-  ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = 12;
+  ctx.font = mono(15);
+  ctx.fillStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK; ctx.shadowBlur = 12;
   const caret = epilogueChars > 0 && epilogueChars < EPILOGUE_LINE.length && Math.sin(now * 8) > 0 ? "▌" : "";
   ctx.fillText(line + caret, vw / 2, vh * 0.72);
   ctx.shadowBlur = 0;
