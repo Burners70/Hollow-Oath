@@ -2413,13 +2413,14 @@ function updateDecoy(dt) {
     s.fuel = Math.max(0, s.fuel - 6 * dt);
     if (f.dockT >= 2) {
       f.dead = true; decoyOutcome = "trapped";
-      score = Math.max(0, score - 200);
-      banner("COUNTERFEIT — THE BAY IS A MOUTH  -200", PAL().REVEAL);
+      // V13 (owner steer) — the trap costs a full life, not a score ding: this
+      // is the third act's real cost. shipDie() itself accounts for anyone
+      // still aboard (its own "-250 each" text), so the banner carries only
+      // the reveal — no stacked score penalty on top of the life.
+      banner("COUNTERFEIT — THE BAY IS A MOUTH\nNO HEALING. NO FUEL. A HULL WITH NOTHING INSIDE BUT APPETITE.", PAL().REVEAL);
       staticTick(); dullThud();
       explode(f.x, f.y + 40, PAL().REVEAL, 30);
-      showCard({ kicker: "THE THIRD ACT · -200", title: "THE BAY IS A MOUTH", subtitle: "",
-        body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
-        color: PAL().REVEAL });
+      shipDie();
     }
   } else {
     f.dockT = 0;

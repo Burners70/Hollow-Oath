@@ -289,12 +289,12 @@ test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page })
   expect(s.state).toBe("title");
 });
 
-test("the counterfeit MERCY: docking springs the trap; the real bays still work (Bundle N)", async ({ page }) => {
+test("the counterfeit MERCY: docking springs the trap — a full life lost; the real bays still work (Bundle N)", async ({ page }) => {
   await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
   let s = await page.evaluate(() => __doids.get());
   expect(s.fakeMercy).toBeTruthy();
   expect(s.fakeMercy.dead).toBe(false);
-  const before = await page.evaluate(() => __doids.get().score);
+  const livesBefore = s.lives;
   // hold the ship inside the decoy's bay — after 2s the bay shows its teeth
   await page.evaluate(() => {
     ship.x = level.fakeMercy.x; ship.y = level.fakeMercy.y + 70;
@@ -303,8 +303,9 @@ test("the counterfeit MERCY: docking springs the trap; the real bays still work 
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
   s = await page.evaluate(() => __doids.get());
   expect(s.decoyOutcome).toBe("trapped");
-  expect(s.state).toBe("reveal");   // the log-style card
-  expect(s.score).toBeLessThanOrEqual(Math.max(0, before - 200) + 5);
+  // V13 (owner steer) — the trap costs a full life, not a score ding
+  expect(s.state).toBe("dead");
+  expect(s.lives).toBe(livesBefore - 1);
   // the real MERCY's bay is untouched by the decoy machinery
   const realBayOk = await page.evaluate(() => {
     const b = bayRects().med;
@@ -314,8 +315,13 @@ test("the counterfeit MERCY: docking springs the trap; the real bays still work 
 });
 
 test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
+  // V13 — the twin's position (and so the ship's midpoint spawn) now varies
+  // run to run; go/launch and parking the stranded Scions must land in the
+  // SAME evaluate() call, with no round trip between them, or an oid placed
+  // near this run's particular spawn point can walk over and board (+500)
+  // before the reset below ever takes effect, flaking the score assertion.
   await page.evaluate(() => {
+    __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0;
     level.turrets.forEach(t => { t.alive = false; });
     level.drones.forEach(d => { d.alive = false; });
     // park the stranded Scions far away so none boards (+500) mid-scan
@@ -1792,6 +1798,21 @@ test("V12: the finale spawns two identical MERCYs at randomised, separated posit
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
   await page.evaluate(() => clearInterval(window.__pin));
   expect(await page.evaluate(() => __doids.get().decoyOutcome)).toBe("trapped");
+});
+
+test("V13: the finale twin's roll isn't tied to the deterministic campaign seed — it varies run to run", async ({ page }) => {
+  // bug report: "fake mercy has always been on the left" — campaign mode
+  // always regenerates sector 7 at the same seed (runSeed 0), so rolling the
+  // twin with the level's seeded rng (rather than Math.random) made which
+  // side is real perfectly reproducible: identical on every single campaign
+  // veteran run. Regenerating the same seed-0 finale twice must NOT produce
+  // the same roll (continuous positions — an exact repeat is a real bug, not
+  // luck; see rollMercyTwin's call in js/world.js).
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  const first = await page.evaluate(() => ({ mx: level.mx, fx: level.fakeMercy.x }));
+  await page.evaluate(() => { __doids.reset(); __doids.go(7); __doids.launch(); });
+  const second = await page.evaluate(() => ({ mx: level.mx, fx: level.fakeMercy.x }));
+  expect(first.mx === second.mx && first.fx === second.fx).toBe(false);
 });
 
 test("V13: the finale twin's arrival is staged — hold, flicker out, a gap, then flicker in", async ({ page }) => {

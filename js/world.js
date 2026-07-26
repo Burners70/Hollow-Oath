@@ -1014,7 +1014,15 @@ function genLevel(n) {
     // reachable positions (well separated), and which side is real varies. The
     // only honest read is the beat. Everything downstream (bays, delivery,
     // epilogue) reads level.mx live, so moving her is safe.
-    if (veteran) rollMercyTwin(lvl, rng);
+    // V13 (owner steer) — deliberately Math.random, NOT the level's seeded
+    // rng: campaign mode always regenerates the finale at the same seed
+    // (runSeed 0), so rolling this with `rng` made which side is real
+    // perfectly deterministic — always the same result on every campaign
+    // veteran run (bug report: "fake mercy has always been on the left").
+    // This roll isn't part of the terrain-generation contract (unlike
+    // everything else `rng` drives here) and isn't checksummed by M1, so it
+    // can safely vary run to run the same way the life-loss re-roll already does.
+    if (veteran) rollMercyTwin(lvl, Math.random);
   }
 
   // V2 — scan-jeopardy fairness invariant: every scannable Scion must have a
