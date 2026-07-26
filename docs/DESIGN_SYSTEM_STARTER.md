@@ -223,16 +223,33 @@ and when you do:
   corrupt? And why did she go down at all?"* and *"Fly it again. Look closer this
   time."* on their own lines. Width-wrapping (`wrapText`) then only wraps within
   each authored line. Keep final lines from stranding a single orphan word.
-- **Two-part lines: split at a real thought boundary, never into an orphan.** A
+- **Isolate the line that has to land.** Owner ruling (July 2026): the strongest
+  sentence in a block is often the shortest, and it gets buried when it sits at
+  the tail of a long paragraph. If a line is doing the emotional or narrative
+  work, give it its own `\n\n` block so it stands alone. *"Fly it again. Look
+  closer this time."* lands because nothing shares its air; the same words at the
+  end of a five-line paragraph read as an afterthought. This is a **deliberate
+  authoring choice, not a wrapping concern** — `wrapText` only wraps *within* an
+  authored line, so isolation has to be written into the string. Applies to
+  briefings, story cards, log fragments and epilogue text. Use it sparingly: if
+  every paragraph is one line, nothing is emphasised.
   situation → qualifier pair (a hook line, a HUD banner) reads well split across
   two lines *when each half is a complete thought* — `about.html`'s hook keeps
   `"Something calls every 41 seconds."` and `"Not everything that answers should
   be trusted."` on separate lines because both are full sentences. If splitting
   would strand one bare word alone on the second line (an in-canvas banner like
   `NIGHT COMES DOWN ON THE BASIN` breaking as `…DOWN` / `ON THE BASIN`), keep it
-  on one line instead — that's why that exact banner ships as a single string
-  (`docs/COPY_DECK.md`). One line beats an orphaned word; two lines beat a
-  run-on; never trade one problem for the other.
+  on one line instead. That's why that exact banner ships as a single string
+  (`docs/COPY_DECK.md`). One line beats an orphaned word, two lines beat a
+  run-on, and you should never trade one problem for the other.
+- **A dangling dash is the tell that a line break has gone wrong.** `wrapText`
+  treats an em-dash as an ordinary word boundary, so a dash can end up stranded
+  at the end of a line or orphaned at the start of the next (`Dust occlusion
+  across the basin` / `— and night coming down fast.`). If a rendered break looks
+  wrong, check for a dash before reaching for the wrapper: removing the dash per
+  the rule below usually fixes the break as a side effect. Balanced
+  minimum-raggedness wrapping was prototyped against the real copy and is **not**
+  an improvement, so the greedy wrap in `wrapText` stays.
 - **Casing is per medium.** In-canvas flavour/subcopy runs lowercase (diegetic,
   canvas-only); in-canvas *labels* stay UPPERCASE (`FUEL`, `SETTINGS`). **Every
   other medium** — marketing pages, store copy, docs, decks — uses sentence case.

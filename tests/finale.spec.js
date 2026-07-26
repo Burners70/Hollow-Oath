@@ -66,6 +66,14 @@ test("the counterfeit MERCY yields to observation: landed scan powers it down fo
     level.drones.forEach(d => { d.alive = false; });
     // park the stranded Scions far away so none boards (+500) mid-scan
     level.oids.forEach(o => { o.x = 150; o.home = 150; });
+    // …and the scannable scenery too. updateScan() sweeps ANY unrevealed
+    // fake/hollow prop within 60px x / 110px y of the landed ship, and a
+    // lure-tree pays its own +500 (revealSecret, js/update.js) on top of the
+    // twin's +800. Because the twin's spawn is randomised per run, one landed
+    // near a lure-tree ~9% of the time and the score assertion saw 1300 —
+    // measured over 400 generations while diagnosing it. Moving them is enough;
+    // don't mark them dead, since that changes what the scan can find.
+    level.scenery.forEach(sc => { if (sc.fake || sc.hollow) sc.x = 150; });
     const f = level.fakeMercy;
     ship.x = f.x; ship.y = __doids.ground(f.x) - 11;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;

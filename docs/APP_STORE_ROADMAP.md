@@ -795,6 +795,18 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   `__doids` handle in `js/render.js`), the pad-widening in `genLevel`, and V2 in
   [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) for what the invariant was meant to
   guarantee.
+  **A sibling flake in `finale.spec.js:57` is already fixed** (July 2026) and is
+  worth reading as the pattern: the counterfeit-MERCY scan test parked the oids
+  away so none could board mid-scan, but `updateScan()` also sweeps any
+  unrevealed fake/hollow prop within 60px, and a lure-tree pays its own +500 on
+  top of the twin's +800. Since V13 randomised the twin's spawn, one landed
+  inside scan range **~9% of runs** (31/400 and 39/400 generations measured), so
+  the score assertion intermittently saw 1300. Fixed in the test by parking the
+  scannable scenery too. **The lesson for V2: when a test depends on a
+  randomised position, pin or clear everything in range, or give the test a
+  seed.** Both flakes were misattributed to unrelated changes before being
+  measured — check the failure rate on a clean worktree before believing a diff
+  caused it.
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).

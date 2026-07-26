@@ -69,11 +69,11 @@ const TRIANGULATE_N = Math.ceil(NBOX * 0.8);  // 6 of 7
 // splits a single sentence. drawBrief wraps each paragraph to the panel width.
 const BRIEFS = [
   "MERCY to rescue flight.\n\nRoutine tasking: the convoy scatter left medical units stranded across Asclepion. Land near them, bring them home to the recovery bay.\n\nThe approach guide turns green when it's safe to set down — watch your ↓ descent and ↔ drift.\n\nEnd transmission.",
-  "Captain — some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors. Carriers, not survivors.\n\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts.\n\nThe red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
-  "Dust occlusion across the basin — and night coming down fast. Your lamp is your lifeline, and theirs.\n\nAnd captain… the dark out here listens back.",
+  "Captain… some stranded units on the ridge have stopped answering triage pings. Comms has a name for them now: Vectors.\n\nCarriers, not survivors.\n\nIf a rescue feels wrong — the wave wrong, the heartbeat missing — trust your instincts.\n\nThe red isolation airlock is open: if one gets loose aboard, seal it in there. Do NOT bring contaminated units into the recovery bay.",
+  "Dust occlusion across the basin, and night coming down fast. Your lamp is your lifeline, and theirs.\n\nAnd captain… the dark out here listens back.",
   "Supply lines to the deep are cut — no fresh fuel from the fleet. Our resupply drone runs on scavenged reserves now: it comes slower, and it can spare far less. Scavenge surface fuel pods where you find them.\n\nAnd it's worse than rationing. Leave an unscreened unit standing among the survivors and the sickness jumps between them — the ward breeds its own carriers. Screen your rescues, or lift the bad ones out before they spread it.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds, and every black box you recover tightens the bearing. The projection keeps landing on the same dead patch of sky — a silence the old charts marked THE NULLWAVE, where no signal has ever come back.\n\nRecover the recorders and we'll know for certain what's down there.",
-  "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
+  "Captain… the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time.\n\nTrust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
   "Last leg before the nullwave. Ground crews are matching patterns across every lure and every tampered unit out here — too many to be coincidence.\n\nWhoever's behind this has been at it a long time, and hasn't finished. Bring our people home anyway.",
   "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
 ];
@@ -83,16 +83,16 @@ const FRAGMENTS = [
   "LOG 02 // The burst wasn't natural. It repeats. Forty-one seconds. Always forty-one seconds.",
   "LOG 03 // Some stranded units stopped answering triage pings. They still walk. They still wave. But the rhythm is wrong.",
   "LOG 04 // Comms calls it the Static. It doesn't jam a signal. It rewrites the one who answers.",
-  "LOG 05 // Quarantine protocol drafted: any unit with an irregular heartbeat goes to the red bay. No exceptions. Not even friends.",
+  "LOG 05 // Quarantine protocol drafted: any unit with an irregular heartbeat goes to the red bay. No exceptions.\n\nNot even friends.",
   "LOG 06 // First black box decoded. The Static's waveform matches... us. An old MERCY-class distress call, degraded, looping.",
   "LOG 07 // It's a voice like ours. Every repeat is a copy of a copy. The rescued units corrupt because they answer honestly.",
   "LOG 08 // Triangulation at 60%. The echo has a source, somewhere dark beyond the last ridge, transmitting on our own frequency.",
   "LOG 09 // Fleet drafted destroy-on-sight orders. The CMO refused to sign. She wrote one line: primum non nocere.",
   "LOG 10 // If it can be silenced without being destroyed, we owe it that. It has only ever been repeating a call for help.",
-  "LOG 11 // The lures aren't scavenger traps. They're placed. Someone wants rescues to fail — and wants it to look like bad luck.",
+  "LOG 11 // The lures aren't scavenger traps. They're placed. Someone wants rescues to fail, and wants it to look like bad luck.",
   "LOG 12 // Every counterfeit carries the same maker's mark: a coiled serpent wearing a human mask. The archive is afraid of the match it found.",
   "LOG 13 // Match confirmed. GLYCON — the puppet god of Alexander of Abonoteichus, Old Earth, second century. He wrapped a snake in linen and sold false plague cures while the plague spread. His amulets hung over doors where precautions should have been.",
-  "LOG 14 // The Static is a wound. Glycon is the hand keeping it open — amplifying the echo, farming the fear, selling the cure that kills. Unmask him. Then answer the wound."
+  "LOG 14 // The Static is a wound. Glycon is the hand keeping it open: amplifying the echo, farming the fear, selling the cure that kills.\n\nUnmask him. Then answer the wound."
 ];
 
 /* the caves under the lifts — three shrines, three revelations */
@@ -107,7 +107,7 @@ const SHRINES = [
     color: "#b388ff" },
   { kicker: "THE HOLLOWS · SHRINE",
     title: "GLYCON",
-    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait. Graves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\n\"An oath you never test is easy to keep.\"",
+    body: "A shrine to a serpent with a human face.\n\nOld Earth archive match: GLYCON — the puppet god of Alexander of Abonoteichus, a second-century charlatan who sold fake plague cures while the plague spread. Hope as bait.\n\nGraves as yield.\n\nSomeone out here found his playbook. The Static is a wound; Glycon is the infection that keeps it open — counterfeit rescuers, counterfeit fuel, counterfeit hope.\n\nScratched beneath the idol, in the maker's own hand:\n\n\"An oath you never test is easy to keep.\"",
     color: "#ff5ce1" }
 ];
 
@@ -125,7 +125,7 @@ const FAMOUS = [
     upgrade: "lamp", upgradeName: "THE LAMP",
     upgradeDesc: "Your light reaches much further in the dark." },
   { name: "IGNAZ SEMMELWEIS", era: "1818–1865",
-    story: "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades.",
+    story: "He begged surgeons to wash their hands and saved countless mothers. He was ignored for decades.",
     upgrade: "antisepsis", upgradeName: "ANTISEPSIS",
     upgradeDesc: "Land on a grounded unit and hold to read its vitals — catalogue a Vector, or confirm a heartbeat. A proven Vector can be left behind." },
   { name: "MARIE CURIE", era: "1867–1934",
@@ -137,13 +137,13 @@ const FAMOUS = [
     upgrade: "canon", upgradeName: "CANON OF TRUTH",
     upgradeDesc: "Counterfeits are unmasked — the counterfeiter's lures and lure-trees are marked for what they are." },
   { name: "EDWARD JENNER", era: "1749–1823",
-    story: "He noticed milkmaids who'd had cowpox never caught smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
+    story: "He noticed milkmaids who'd had cowpox never caught smallpox, and turned one careful observation into vaccination, the greatest life-saver medicine has known.",
     upgrade: "inoculation", upgradeName: "INOCULATION",
     upgradeDesc: "Your passengers are immunised — Vectors aboard can no longer kill them." },
   /* the wider pool (Bundle M4) — the campaign carries the canonical seven;
      REMIX and DAILY rotations draw 7 of everyone below as well */
   { name: "ELIZABETH BLACKWELL", era: "1821–1910",
-    story: "Rejected by ten medical schools for being a woman, she graduated first in her class anyway — the first woman M.D. in America — and then opened the door for every one who followed.",
+    story: "Rejected by ten medical schools for being a woman, she graduated first in her class anyway: the first woman M.D. in America. Then she opened the door for every one who followed.",
     upgrade: "doors", upgradeName: "OPEN DOORS",
     upgradeDesc: "MERCY's bay doors open wider — dock at approach speeds that would once have waved you off." },
   { name: "RUDOLF VIRCHOW", era: "1821–1902",
@@ -155,7 +155,7 @@ const FAMOUS = [
     upgrade: "penicillin", upgradeName: "PENICILLIN",
     upgradeDesc: "Your hull cultures its own repair — vitals slowly self-heal while below half." },
   { name: "RITA LEVI-MONTALCINI", era: "1909–2012",
-    story: "Barred from her university by fascist race laws, she built a laboratory in her bedroom and kept working — and discovered nerve growth factor, how living tissue is told to grow.",
+    story: "Barred from her university by fascist race laws, she built a laboratory in her bedroom and kept working, and discovered nerve growth factor, how living tissue is told to grow.",
     upgrade: "growth", upgradeName: "GROWTH FACTOR",
     upgradeDesc: "Fuel cells grow denser — tank capacity raised to 120." }
 ];
@@ -716,15 +716,15 @@ const GUIDE_PAGES = [
   { art: "rotate", title: "TURN",
     caption: "The two left buttons turn the ship. ↺ spins it left, ↻ spins it right. Thrust always pushes the way the nose points — so aim first, then burn." },
   { art: "thrust", title: "THRUST",
-    caption: "Hold THRUST to fire the engine. It's momentum, not a throttle: the longer you hold, the faster and further you drift. For a small nudge, tap — don't hold." },
+    caption: "Hold THRUST to fire the engine. It's momentum, not a throttle: the longer you hold, the faster and further you drift. For a small nudge, tap, don't hold." },
   { art: "counter", title: "SLOW DOWN",
     caption: "There are no brakes. To slow, turn to face the way you're moving and thrust against it. A long fall needs a long burn to arrest — start slowing early." },
   { art: "shield", title: "SHIELD",
-    caption: "Hold SHIELD the instant before you hit rock, a drone or a shot. It saves the ship — but it drinks fuel. Raise it late, drop it the moment you're clear." },
+    caption: "Hold SHIELD the instant before you hit rock, a drone or a shot. It saves the ship, but it drinks fuel. Raise it late, drop it the moment you're clear." },
   { art: "fuel", title: "FUEL",
     caption: "THRUST and SHIELD both burn FUEL — the yellow bar, top-left. Run dry and you're stranded. Land by a Scion or reach MERCY's bay to top up." },
   { art: "fire", title: "FIRE",
-    caption: "FIRE shoots — but firing is malpractice and costs your rank. Every Scion can come home without a shot; keep FIRE for when there's truly no other way." },
+    caption: "FIRE shoots, but firing is malpractice and costs your rank. Every Scion can come home without a shot; keep FIRE for when there's truly no other way." },
   { art: "land", title: "LAND & RESCUE",
     caption: "Set down slow and upright on flat ground beside a stranded Scion and it climbs aboard. The approach guide turns GREEN when it's safe — watch ↓ descent and ↔ drift — then ferry them to MERCY's cyan bay." },
   { art: "controls", title: "OTHER CONTROLS",

@@ -748,9 +748,9 @@ function updateIntro(dt) {
 // distinct lines; all stay in the "something is below" register without
 // over-promising what the pad's hollow ring can deliver.
 const SOUND_HOOKS = [
-  "And captain — listen when you touch down. Something below the rock is keeping time.",
-  "And captain — is that a sound coming from under the ground?",
-  "And captain — the ground hums where you land here. Tell me you hear it too.",
+  "And captain… listen when you touch down. Something below the rock is keeping time.",
+  "And captain… is that a sound coming from under the ground?",
+  "And captain… the ground hums where you land here. Tell me you hear it too.",
 ];
 function briefText() {
   let t = BRIEFS[levelIdx];

@@ -67,7 +67,7 @@ Landed (July 2026, Bundle S):
 2. **THE CARGO** — "Most are standard units. A few carry something rarer — the
    complete minds of medicine's giants, preserved and still practising. All of
    them are needed where MERCY is headed." *(panel label: `WARD 7 · CRYOSTASIS`)*
-3. **THE ZONE** — "The route crosses an interdicted zone — automated defences,
+3. **THE ZONE** — "The route crosses an interdicted zone: automated defences,
    dead relays, no traffic in living memory. The first wave came this way once
    — the SOLACE among them — and none ever called home." *(V5 seeds the Solace
    & the lost first wave)*
@@ -103,9 +103,9 @@ U1), the briefing gains one line. Three sectors carry a lift, so the hook is
 **varied per sector** (`SOUND_HOOKS[levelIdx % 3]`) rather than repeating the
 same line each time — all in the "something is below" register, none promising
 what the pad's hollow ring can't deliver:
-- *"And captain — listen when you touch down. Something below the rock is keeping time."*
-- *"And captain — is that a sound coming from under the ground?"*
-- *"And captain — the ground hums where you land here. Tell me you hear it too."*
+- *"And captain… listen when you touch down. Something below the rock is keeping time."*
+- *"And captain… is that a sound coming from under the ground?"*
+- *"And captain… the ground hums where you land here. Tell me you hear it too."*
 
 ## 3. HOW TO FLY guide (`GUIDE` / `GUIDE_PAGES`) — X1
 
@@ -119,21 +119,21 @@ Header on every page: kicker `FLIGHT MANUAL · HOW TO FLY`, per-page title below
 > right. Thrust always pushes the way the nose points — so aim first, then burn.
 >
 > **THRUST** — Hold THRUST to fire the engine. It's momentum, not a throttle:
-> the longer you hold, the faster and further you drift. For a small nudge, tap
-> — don't hold.
+> the longer you hold, the faster and further you drift. For a small nudge, tap,
+> don't hold.
 >
 > **SLOW DOWN** — There are no brakes. To slow, turn to face the way you're
 > moving and thrust against it. A long fall needs a long burn to arrest — start
 > slowing early.
 >
 > **SHIELD** — Hold SHIELD the instant before you hit rock, a drone or a shot.
-> It saves the ship — but it drinks fuel. Raise it late, drop it the moment
+> It saves the ship, but it drinks fuel. Raise it late, drop it the moment
 > you're clear.
 >
 > **FUEL** — THRUST and SHIELD both burn FUEL — the yellow bar, top-left. Run
 > dry and you're stranded. Land by a Scion or reach MERCY's bay to top up.
 >
-> **FIRE** — FIRE shoots — but firing is malpractice and costs your rank. Every
+> **FIRE** — FIRE shoots, but firing is malpractice and costs your rank. Every
 > Scion can come home without a shot; keep FIRE for when there's truly no other
 > way.
 >
@@ -204,18 +204,18 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
    them, bring them home to the recovery bay. / The approach guide turns green
    when it's safe to set down — watch your ↓ descent and ↔ drift. / End
    transmission."
-1. **VESALIUS RIDGE** — "Captain — some stranded units on the ridge have
-   stopped answering triage pings. Comms has a name for them now: Vectors.
+1. **VESALIUS RIDGE** — "Captain… some stranded units on the ridge have
+   stopped answering triage pings. Comms has a name for them now: Vectors. /
    Carriers, not survivors. / If a rescue feels wrong — the wave wrong, the
    heartbeat missing — trust your instincts. The red isolation airlock is
    open. Do NOT bring contaminated units into the recovery bay."
-2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin — and night coming
+2. **NIGHTINGALE BASIN** — "Dust occlusion across the basin, and night coming
    down fast. Your lamp is your lifeline, and theirs. / And captain… the
    dark out here listens back." [T6 — shipped; "Listen for them in the
    dark" cut, found on-device — no audio location tell exists (see
    APP_STORE_ROADMAP.md's parked stereo-beacon idea)]
 3. **SEMMELWEIS DEEP** — "Supply lines are cut; the deep is rationed. Scavenge
-   surface fuel pods where you find them. / And captain — we found tampering
+   surface fuel pods where you find them. / And captain… we found tampering
    in the recovery bay overnight. Watch your passengers. Watch all of them."
    [S5 adds: *"Prove a unit false — the salvage teams will take it from
    there. But prove it."*]
@@ -223,10 +223,10 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
    wide of the purple rings. / One more thing. The Static repeats every 41
    seconds. We are close to a bearing — recover the black boxes where you find
    them."
-5. **AVICENNA SHOALS** — "Captain — the surface scans are lying to us. Refuel
+5. **AVICENNA SHOALS** — "Captain… the surface scans are lying to us. Refuel
    points that drain tanks dry. Growths that aren't growths. / Somebody is
    seeding counterfeit salvation across the shoals. Real pods flicker like
-   fire; the fakes keep perfect time. Trust nothing that looks too convenient.
+   fire; the fakes keep perfect time. / Trust nothing that looks too convenient.
    / And if you won't fire on a lie — land beside it and look at it long
    enough."
 6. **JENNER TERRACES** — "Last leg before the nullwave. Ground crews are
@@ -257,7 +257,7 @@ Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 4. "Comms calls it the Static. It doesn't jam a signal. It rewrites the one
    who answers."
 5. "Quarantine protocol drafted: any unit with an irregular heartbeat goes to
-   the red bay. No exceptions. Not even friends."
+   the red bay. No exceptions. / Not even friends."
 6. "First black box decoded. The Static's waveform matches... us. An old
    MERCY-class distress call, degraded, looping."
 7. "It's a voice like ours. Every repeat is a copy of a copy. The rescued
@@ -269,15 +269,15 @@ Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 10. "If it can be silenced without being destroyed, we owe it that. It has
     only ever been repeating a call for help."
 11. "The lures aren't scavenger traps. They're placed. Someone wants rescues
-    to fail — and wants it to look like bad luck."
+    to fail, and wants it to look like bad luck."
 12. "Every counterfeit carries the same maker's mark: a coiled serpent wearing
     a human mask. The archive is afraid of the match it found."
 13. "Match confirmed. GLYCON — the puppet god of Alexander of Abonoteichus,
     Old Earth, second century. He wrapped a snake in linen and sold false
     plague cures while the plague spread. His amulets hung over doors where
     precautions should have been."
-14. "The Static is a wound. Glycon is the hand keeping it open — amplifying
-    the echo, farming the fear, selling the cure that kills. Unmask him. Then
+14. "The Static is a wound. Glycon is the hand keeping it open: amplifying
+    the echo, farming the fear, selling the cure that kills. / Unmask him. Then
     answer the wound."
 
 ## 6. Shrine cards (`SHRINES`, one per Hollow)
@@ -294,7 +294,7 @@ Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 3. **THE HOLLOWS · SHRINE — GLYCON** — "A shrine to a serpent with a human
    face. / Old Earth archive match: GLYCON — the puppet god of Alexander of
    Abonoteichus, a second-century charlatan who sold fake plague cures while
-   the plague spread. Hope as bait. Graves as yield. / Someone out here found
+   the plague spread. Hope as bait. / Graves as yield. / Someone out here found
    his playbook. The Static is a wound; Glycon is the infection that keeps it
    open — counterfeit rescuers, counterfeit fuel, counterfeit hope. /
    Scratched beneath the idol, in the maker's own hand: *'An oath you never
@@ -312,14 +312,14 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | HIPPOCRATES OF KOS | c. 460–370 BC | "The physician of Kos, whose oath still binds medicine twenty-four centuries on: first, do no harm." | **GENTLE TOUCH** — "Hard landings now do far less damage to your hull." |
 | ANDREAS VESALIUS | 1514–1564 | "He looked inside the body for himself and rewrote anatomy — his Fabrica corrected a thousand years of guesswork." | **FABRICA HULL** — "Maximum vitals raised to 125." |
 | FLORENCE NIGHTINGALE | 1820–1910 | "The Lady with the Lamp — she proved with statistics that sanitation saves more soldiers than surgery." | **THE LAMP** — "Your light reaches much further in the dark." |
-| IGNAZ SEMMELWEIS | 1818–1865 | "He begged surgeons to wash their hands and saved countless mothers — and was ignored for decades." | **ANTISEPSIS** — "Vectors are now revealed by a sickly tint. You can see the contamination." |
+| IGNAZ SEMMELWEIS | 1818–1865 | "He begged surgeons to wash their hands and saved countless mothers. He was ignored for decades." | **ANTISEPSIS** — "Vectors are now revealed by a sickly tint. You can see the contamination." |
 | MARIE CURIE | 1867–1934 | "Twice a Nobel laureate; she drove X-ray units to the front lines herself in the First World War." | **RADIOSENSE** — "A compass now points toward unrecovered black boxes." |
 | IBN SINA · AVICENNA | 980–1037 | "The Persian polymath whose Canon of Medicine taught physicians on three continents for six hundred years — observation, evidence, and honest doubt." | **CANON OF TRUTH** — "Counterfeits are unmasked — the counterfeiter's lures and lure-trees are marked for what they are." |
-| EDWARD JENNER | 1749–1823 | "He noticed milkmaids who'd had cowpox never caught smallpox — and turned one careful observation into vaccination, the greatest life-saver medicine has known." | **INOCULATION** — "Your passengers are immunised — Vectors aboard can no longer kill them." |
-| ELIZABETH BLACKWELL | 1821–1910 | "Rejected by ten medical schools for being a woman, she graduated first in her class anyway — the first woman M.D. in America — and then opened the door for every one who followed." | **OPEN DOORS** — "MERCY's bay doors open wider — dock at approach speeds that would once have waved you off." |
+| EDWARD JENNER | 1749–1823 | "He noticed milkmaids who'd had cowpox never caught smallpox, and turned one careful observation into vaccination, the greatest life-saver medicine has known." | **INOCULATION** — "Your passengers are immunised — Vectors aboard can no longer kill them." |
+| ELIZABETH BLACKWELL | 1821–1910 | "Rejected by ten medical schools for being a woman, she graduated first in her class anyway: the first woman M.D. in America. Then she opened the door for every one who followed." | **OPEN DOORS** — "MERCY's bay doors open wider — dock at approach speeds that would once have waved you off." |
 | RUDOLF VIRCHOW | 1821–1902 | "The father of cellular pathology — omnis cellula e cellula — who insisted every disease begins somewhere specific, and that medicine's job is to look until it finds where." | **CELL DOCTRINE** — "Diagnosis comes faster — black boxes, shrines and counterfeit scans complete in two-thirds the time." |
 | ALEXANDER FLEMING | 1881–1955 | "He came back from holiday to a spoiled culture plate and, instead of binning it, looked closer: the mould was killing the bacteria. Penicillin began as a noticed accident." | **PENICILLIN** — "Your hull cultures its own repair — vitals slowly self-heal while below half." |
-| RITA LEVI-MONTALCINI | 1909–2012 | "Barred from her university by fascist race laws, she built a laboratory in her bedroom and kept working — and discovered nerve growth factor, how living tissue is told to grow." | **GROWTH FACTOR** — "Fuel cells grow denser — tank capacity raised to 120." |
+| RITA LEVI-MONTALCINI | 1909–2012 | "Barred from her university by fascist race laws, she built a laboratory in her bedroom and kept working, and discovered nerve growth factor, how living tissue is told to grow." | **GROWTH FACTOR** — "Fuel cells grow denser — tank capacity raised to 120." |
 
 ## 8. In-flight banners (`banner()` call sites)
 
