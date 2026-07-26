@@ -1915,8 +1915,13 @@ function drawMothership(now) {
   drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // her signature mast
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-  ctx.fillStyle = "#9beaf9";
+  // V13 (round 3, owner steer) — text was reported reading as fully solid
+  // well before the hull did during the flicker: shadowBlur glow doesn't
+  // always fade in lockstep with globalAlpha (canvas engines vary here), so
+  // the nameplate now bakes twinA into its own fill alpha AND shrinks its
+  // shadow with it, instead of trusting globalAlpha alone.
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * twinA;
+  ctx.fillStyle = "rgba(155,234,249," + twinA.toFixed(2) + ")";
   ctx.font = "700 10px Menlo, monospace";
   ctx.textAlign = "center";
   ctx.fillText("A M S · M E R C Y", 0, 34);
@@ -1953,14 +1958,17 @@ function drawMothership(now) {
   // Bay labels: bigger (BIG-TEXT aware) and higher-contrast for mobile. A dark
   // halo lifts them off the hull and terrain; the isolation label uses a lighter,
   // more luminous red — pure #ff1744 was near-invisible against the dark ground.
+  // V13 — alpha baked directly into the label colour + shadow (see the
+  // nameplate above for why globalAlpha alone wasn't enough).
   ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4;
-  ctx.fillStyle = mercyBreach ? "rgba(255,90,120,.98)" : "rgba(120,240,255,.98)";
+  ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4 * twinA;
+  ctx.fillStyle = mercyBreach ? "rgba(255,90,120," + (0.98 * twinA).toFixed(2) + ")"
+    : "rgba(120,240,255," + (0.98 * twinA).toFixed(2) + ")";
   ctx.fillText(mercyBreach ? "LOCKDOWN" : "RECOVERY BAY",
     (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 15);
   // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
   drawTractorBeam(bays.red, "255,23,68", now, false, true);
-  ctx.fillStyle = "rgba(255,110,132,.98)";
+  ctx.fillStyle = "rgba(255,110,132," + (0.98 * twinA).toFixed(2) + ")";
   ctx.fillText("RED BAY · ISOLATION AIRLOCK", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 15);
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -2183,8 +2191,12 @@ function drawMercySplit(now) {
     drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
     ctx.restore();
     mercyAntenna(now, "0,229,255", true);
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-    ctx.fillStyle = "#9beaf9";
+    // V13 — alpha baked directly into the label + its shadow, not left to
+    // globalAlpha alone (canvas shadowBlur can visually outlast a fading
+    // globalAlpha, which is what was reported: text reading solid before the
+    // hull did)
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * illusionAlpha;
+    ctx.fillStyle = "rgba(155,234,249," + illusionAlpha.toFixed(2) + ")";
     ctx.font = "700 10px Menlo, monospace";
     ctx.textAlign = "center";
     ctx.fillText("A M S · M E R C Y", 0, 34);
@@ -2199,11 +2211,11 @@ function drawMercySplit(now) {
     const ibRed = { x0: midX + 172, x1: midX + 260, y0: midY - 34, y1: midY + 30 };
     drawTractorBeam(ibMed, "0,229,255", now, true, false);
     ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
-    ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4;
-    ctx.fillStyle = "rgba(120,240,255,.98)";
+    ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4 * illusionAlpha;
+    ctx.fillStyle = "rgba(120,240,255," + (0.98 * illusionAlpha).toFixed(2) + ")";
     ctx.fillText("RECOVERY BAY", (ibMed.x0 + ibMed.x1) / 2, ibMed.y1 + 15);
     drawTractorBeam(ibRed, "255,23,68", now, false, true);
-    ctx.fillStyle = "rgba(255,110,132,.98)";
+    ctx.fillStyle = "rgba(255,110,132," + (0.98 * illusionAlpha).toFixed(2) + ")";
     ctx.fillText("RED BAY · ISOLATION AIRLOCK", (ibRed.x0 + ibRed.x1) / 2, ibRed.y1 + 15);
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -2267,8 +2279,10 @@ function drawDecoyMercy(now) {
   drawAsclepius(36, "rgba(255,23,68," + alpha.toFixed(2) + ")");
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // the same signature mast — the lie is total
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-  ctx.fillStyle = "#9beaf9";
+  // V13 — alpha baked directly into the label + its shadow, not left to
+  // globalAlpha alone (see drawMothership's nameplate for why)
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * twinA;
+  ctx.fillStyle = "rgba(155,234,249," + twinA.toFixed(2) + ")";
   ctx.font = "700 10px Menlo, monospace";
   ctx.textAlign = "center";
   ctx.fillText("A M S · M E R C Y", 0, 34);
@@ -2286,7 +2300,7 @@ function drawDecoyMercy(now) {
   const b = decoyBayRect();
   drawTractorBeam(b, "0,229,255", now, true, false);
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(0,229,255,.6)";
+  ctx.fillStyle = "rgba(0,229,255," + (0.6 * twinA).toFixed(2) + ")";
   ctx.fillText("RECOVERY BAY", (b.x0 + b.x1) / 2, b.y1 + 14);
   ctx.restore();
   // the observed win in progress: counting the beats from the ground
