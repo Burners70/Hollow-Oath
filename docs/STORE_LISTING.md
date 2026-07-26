@@ -1,8 +1,9 @@
 # Hollow Oath — App Store Listing Draft (Bundle O)
 
-*Working draft for O1 (pricing), O2 (metadata/copy), O5 (privacy & support).
-O3/O4/O6 need a device/App Store Connect and are summarized at the bottom
-as a prep checklist, not drafted here.*
+*Working draft for O1 (pricing), O2 (metadata/copy), O5 (privacy & support)
+and the O6 **App Review Information** notes. The rest of O3/O4/O6 needs a
+device/App Store Connect and is summarized at the bottom as a prep checklist,
+not drafted here.*
 
 **Primary Language: English (UK)** (owner decision, default for everything).
 Set this when creating the app in App Store Connect. All copy below already
@@ -183,6 +184,81 @@ there's no free version once O7 lands, so no tension to manage.)*
 
 ---
 
+## O6 — App Review Information (paste-ready)
+
+*The last screen before **Submit for Review**. Apple collects no test evidence
+here — no QA reports, no TestFlight results, no device matrix, no crash logs.
+The reviewer installs the build and plays it. This section exists only because
+the free-text **Notes** box is worth filling in deliberately rather than
+leaving blank.*
+
+**Sign-in required: No.** There is no account, no login and no server, so leave
+the demo-account fields empty and untick "Sign-in required".
+
+**Contact information** — owner's own name, phone and email (Apple uses these
+to reach a human, so the personal address is correct here; the public-facing
+address stays `hollowoath.support@gmail.com`, per O5).
+
+**Attachment: none needed.** The field exists for builds that can't be
+exercised without extra material (hardware, a config file). Nothing here
+applies.
+
+### Notes — paste-ready plain text
+
+> Written to pre-empt **4.2 Minimum Functionality** rather than answer it after
+> a rejection. The roadmap budgets one rejection cycle for 4.2 (O6) and holds
+> the native-features list as the *response* — putting it in front of the
+> reviewer costs nothing and can only remove a round trip.
+
+```
+Hollow Oath is a complete single-player arcade game. No account, no sign-in,
+no server, no in-app purchases, no ads, and no data collection of any kind.
+Saves are held on the device, with optional iCloud sync.
+
+Native iOS features, in case they are relevant to a minimum-functionality
+assessment:
+
+- Haptics. The ship's damage state and the rescue heartbeat play through the
+  system impact haptics — the phone is used as an ECG. This is the game's
+  signature feedback channel rather than incidental polish.
+- Game Center. Two leaderboards (all-time and daily seed) and nine
+  achievements, reported live during play. Observing these needs a
+  Game Center account signed in on the device.
+- iCloud key-value storage. Mid-run saves and progress follow the player
+  across their devices.
+- Landscape-only, full-screen, 60 fps target, iOS 16 and later.
+
+Seeing the game quickly: the opening sector is paced as a tutorial, and
+HELP -> HOW TO FLY on the title screen covers the controls. For a more
+forgiving run, Settings -> FIELD MEDIC gives five lives instead of three and
+widens the landing, fuel and parry tolerances. It is excluded from the
+leaderboards by design.
+
+Content note for the age rating: the ship can fire on the characters it is
+sent to rescue. This is a deliberate consequence mechanic — the best ending is
+earned by completing the game without firing a shot — and it is reflected in
+the 9+ rating (infrequent cartoon or fantasy violence, infrequent weapons).
+
+Support: hollowoath.support@gmail.com
+```
+
+### Before you paste this
+
+The notes claim three native features by name, and a reviewer who reads them
+will go looking. Anything claimed here that doesn't fire on their device is
+worse than never having mentioned it — so the **E8 device matrix**
+(`app/MAC_SETUP.md` §7) needs its remaining cells ticked first: 60 fps in
+sector 5, the iCloud round-trip, and Game Center auth + report are all still
+blank. The matrix is not evidence Apple wants; it is what makes this note safe
+to write.
+
+### What stays internal
+
+`docs/TESTER_LOG.md`, the E8 matrix and the Playwright suite are ours. Their
+job is to make sure the build survives review, not to be shown to it.
+
+---
+
 ## O3/O4/O6 — Prep checklist (not drafted here; needs device/App Store Connect)
 
 - **O3 Age rating questionnaire.** Expect **9+** (infrequent mild fantasy
@@ -260,4 +336,6 @@ there's no free version once O7 lands, so no tension to manage.)*
   matrix (Bundle E8) → external TestFlight round (5–10 players, watch where
   they die/quit) → submit. Budget one rejection cycle — 4.2 ("Minimum
   Functionality") is the likeliest challenge; the response is the
-  native-features list (haptics, Game Center, iCloud sync).
+  native-features list (haptics, Game Center, iCloud sync). **That list is now
+  drafted into the App Review notes** (see *O6 — App Review Information*
+  above), so it reaches the reviewer *before* a 4.2 call rather than after one.
