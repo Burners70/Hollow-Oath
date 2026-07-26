@@ -805,7 +805,10 @@ function rollMercyTwin(lvl, rngFn) {
   const b = W * (0.60 + rngFn() * 0.16);   // ~0.60–0.76  (≥ ~0.26·W apart)
   const realLeft = rngFn() < 0.5;
   lvl.mx = realLeft ? a : b; lvl.my = 170;
-  lvl.fakeMercy = { x: realLeft ? b : a, y: 170, dead: false, dockT: 0, scanT: 0 };
+  // V13 (owner steer) — three rounds to bring her down (not one), so a stray
+  // shot meant for a turret/drone can't accidentally reveal her, and the
+  // heftier hull reads as a real target, not a lure that pops on contact.
+  lvl.fakeMercy = { x: realLeft ? b : a, y: 170, dead: false, dockT: 0, scanT: 0, hp: 3 };
   lvl.mercySplitT = MERCY_SPLIT_DUR;   // the split-into-two reveal, replayed on every roll
 }
 

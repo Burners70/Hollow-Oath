@@ -341,6 +341,36 @@ test("the counterfeit MERCY yields to observation: landed scan powers it down fo
   expect(s.level.beacon.resolved).toBe(false);
 });
 
+test("V13: three rounds bring the counterfeit MERCY down, not one — a stray shot can't accidentally reveal her", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
+  const before = await page.evaluate(() => __doids.get().score);
+  // first two rounds: she absorbs the hit but doesn't go down, and there's
+  // no reward/reveal yet — a stray shot meant for something else can't trip it
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate(() => {
+      const f = level.fakeMercy;
+      level.shots.push({ x: f.x, y: f.y - 10, vx: 0, vy: 0, t: 1 });
+    });
+    await page.waitForTimeout(80);
+  }
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.fakeMercy.dead, "two rounds aren't enough").toBe(false);
+  expect(s.fakeMercy.hp, "one hp left").toBe(1);
+  expect(s.decoyOutcome).toBeNull();
+  expect(s.score, "no reward yet, just absorbed hits").toBe(before);
+  // the third round finishes her — that's when the reveal card and reward land
+  await page.evaluate(() => {
+    const f = level.fakeMercy;
+    level.shots.push({ x: f.x, y: f.y - 10, vx: 0, vy: 0, t: 1 });
+  });
+  await page.waitForTimeout(80);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.fakeMercy.dead).toBe(true);
+  expect(s.decoyOutcome).toBe("observed");
+  expect(s.score).toBe(before + 800);
+  expect(s.firedAtSecret).toBe(true);
+});
+
 test("every sector briefing renders", async ({ page }) => {
   // the story tables (SECTOR_NAMES, BRIEFS, …) are module-scoped, so verify
   // them behaviourally: go(n) throws on a missing entry, the briefing screen

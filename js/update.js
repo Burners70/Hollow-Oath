@@ -1447,12 +1447,17 @@ function updateEnemies(dt) {
       explode(level.beacon.x, level.beacon.y - 40, "#b388ff", 20);
       if (level.beacon.hp <= 0) resolveBeacon("fire");
     }
-    // one shot into the counterfeit MERCY's hull powers it down (N3) —
-    // it costs the oath the same way any secret opened by fire does
+    // V13 (owner steer) — three rounds into the counterfeit MERCY's hull power
+    // it down (N3), not one: a single stray shot meant for a turret/drone
+    // can't accidentally trigger the reveal, and the heftier hull reads as a
+    // real target. Firing at all still costs the oath the same way any secret
+    // opened by fire does; the reveal card itself only lands on the killing round.
     const fm = level.fakeMercy;
     if (fm && !fm.dead && Math.abs(b.x - fm.x) < 148 && b.y - fm.y > -55 && b.y - fm.y < 25) {
       gone = true; firedAtSecret = true;
-      decoyDown(fm);
+      fm.hp--;
+      if (fm.hp <= 0) decoyDown(fm);
+      else { explode(fm.x, fm.y - 10, "#00e5ff", 16); staticTick(); }
     }
     if (gone) level.shots.splice(i, 1);
   }
