@@ -1,6 +1,6 @@
 # Hollow Oath — shipped roadmap bundles (archive)
 
-> **The record of work that is done.** These 19 bundles were completed on the
+> **The record of work that is done.** These 20 bundles were completed on the
 > way to the paid iOS release; every item in every section below is checked off.
 > Sections are moved here verbatim from
 > [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) — which holds only *open* work —
@@ -19,7 +19,8 @@ those as "somewhere in `js/`" and grep for the named function (see
 
 Order below is the original roadmap order: **A–N** (the launch build),
 then **R, S, U, QA** (the July 2026 owner-playtest rounds), then **Y**
-(the 1.01 release-fix defects, pulled forward into 1.0).
+(the 1.01 release-fix defects, pulled forward into 1.0), then **DS**
+(design-system conformance, also pulled forward into 1.0).
 
 ---
 
@@ -1296,3 +1297,95 @@ background) — fix them together.**
   including pre-veteran. Y3 occlusion and Y7 panel-fit are visual/behavioural and
   covered by the shared no-page-error harness rather than pixel screenshots — all
   73 smoke tests green.)*
+
+---
+
+## Bundle DS — Design-system conformance (audit + fix, July 2026)
+
+**Why:** [DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) was extracted *from*
+the shipped build, so it described the game accurately — but nothing in the code
+enforced it. An audit of the live assets against it found the semantic colour
+layer was mostly bypassed, and the headline was not cosmetic: **colourblind mode
+barely worked.** `PAL()` was called 9× in `js/render.js` and 13× in
+`js/update.js`, while the four semantic hexes were hardcoded ~93× across the same
+files — so the palette swap reached the landing guide, ECG and transfusion line
+(the gameplay-critical reads) but not the fuel bar, the shield bubble, the
+settings toggles, the codex markers or any on-screen button. **Shipped in the 1.0
+launch binary** (owner decision, July 2026: pulled forward from 1.01 — a shipped
+accessibility toggle that doesn't do what its label implies is a launch problem,
+not a maintenance one). **Dependencies: none** (Bundle H shipped the toggles this
+fixed).
+
+- [x] **DS1. Route the hardcoded semantic colours through `PAL()`.** 130 literals
+  and 27 hand-written `rgba()` variants now resolve through the palette. Fire
+  flavour was split out *first* so it wouldn't swap — a flame's hot core is amber
+  for an unrelated reason to a fuel warning being amber (`TOK.EMBER_CORE` /
+  `_WHITE` / `_MID`). Worst offender fixed: the **FUEL bar**
+  (`drawBar(..., fuelFlash ? PAL().DANGER : PAL().WARN, "FUEL")`,
+  `js/render.js`), the most-read element in the game, which never swapped. Then
+  the **shield bubble + landed skid** (shield state was signalled by green glow
+  *alone*), the settings ON/OFF dots, codex found-markers, the REMIX/DAILY badge
+  and the controller-connect banners (`js/input.js`). Also fixed a counterfeit
+  fuel pod whose fill had drifted off its own glow colour, against §7.
+  **Acceptance:** the rgba half mattered as much as the hex half — a stroke at
+  `rgba(105,240,174,.7)` stayed green while the fill beside it swapped, producing
+  two-tone controls nobody designed. `shade(hex, a)` (`js/world.js`) is now the
+  only way to build a translucent semantic colour.
+- [x] **DS2. Give the on-screen flight buttons a colourblind path.** They could
+  not swap *at all*: their colours live in `css/game.css`, which cannot read
+  `PALETTES`. The four semantic colours are now channel-triple custom properties
+  (`--ho-safe-rgb` etc.), each button declares its accent in a local `--c`, and an
+  `applyColorblindClass()` in `js/world.js` toggles `body.cb` to apply the
+  colourblind set. **Acceptance:** in colourblind mode the world's danger/warn
+  cues used to change hue while FIRE and THRUST kept normal-vision hues — §5.1's
+  "colour encodes function" desyncing exactly where it matters. Collapsing the
+  per-button state rules onto one `--c` also removed four duplicated `.down`
+  blocks; `css/game.css` grew by tokens but shrank in rules.
+- [x] **DS3. Document or retire the ninth accent, `#eaff6b`.** It was one
+  undocumented literal doing two unrelated jobs — the selection cursor *and* the
+  parried-projectile tell — with no colourblind variant. Split into `TOK.FOCUS`
+  and `TOK.PARRIED` (same values, separate meanings, so one can move without
+  dragging the other). **Acceptance:** neither swaps, and both are now *correct*
+  not to. The cursor is a stroked box, so it reads by shape (H2 redundancy). The
+  parry reads because *hostile* fire now swaps to the cb white — the old
+  yellow-green-against-pink pairing was the worst possible one for red-green
+  deficiency. The counterfeit MERCY's sign became `TOK.COUNTERFEIT_NEON`, fixed
+  by design: a tell you learn stops being a tell if it moves.
+- [x] **DS4. A token layer, so the system directs new work instead of describing
+  it.** `TOK` sits beside `PALETTES` in `js/world.js` — void, cyan ramp, violet,
+  gold, ember, focus — with the split as the point: `PALETTES` holds the four
+  *meanings* and swaps, `TOK` holds the fixed skin and doesn't. Type helpers
+  `mono()` / `body()` / `display()` carry the two documented families, and
+  `body()` routes through `bodyFontPx()` so BIG TEXT reaches anything built with
+  it. **Acceptance:** the rule that makes it load-bearing is in
+  [../CLAUDE.md](../CLAUDE.md) § Conventions, not just here — a future session
+  reads that file first. No new source file: the constraint held.
+- [x] **DS5. Typography drift.** 111 font strings migrated to the helpers. The
+  four sizes outside the documented ranges (mono 16/18px, display 20px) turned
+  out to be **headings** — an intro-panel title, ROTATE TO LANDSCAPE, a codex
+  arrow glyph, a flight-manual page title. **Decision: widen the scale to admit a
+  16–18px mono heading step rather than flatten the hierarchy.** No visual change.
+- [x] **DS6. Reconcile the marketing pages with the game's palette.**
+  `about.html` / `support.html` / `privacy.html` tokenised fonts but not colour,
+  duplicating the palette as raw hex across three files. All 68 hex uses now
+  resolve through `--ho-*` tokens mirroring `TOK`/`PALETTES`. **The JetBrains Mono
+  Google Fonts `@import` was dropped**, on three counts: §3 allows two families;
+  it never won the cascade on Apple hardware where Menlo is present; and on
+  `privacy.html` it made a third-party request to Google from the page that
+  promises *"No data is sent to us, sold, or shared with third parties."*
+  **Acceptance:** verified all three pages render identically (computed
+  backgrounds byte-identical before/after) and now issue **zero external
+  requests**.
+- [x] **DS·guard. Regression gate.** The pre-existing colourblind test asserted
+  only that the *flag* persisted — never that a pixel changed, which is how this
+  drifted so far unnoticed. Two new tests in `tests/settings.spec.js` instrument a
+  live frame (shimming `fillStyle`/`strokeStyle`/`shadowColor` to record every
+  colour actually painted) and read the computed border colour of the flight
+  controls. A newly hardcoded semantic hex fails CI. **Acceptance:** 92 tests
+  green, no M1 checksum movement — the bundle touched no worldgen.
+
+**Left deliberately, flagged for on-device review rather than changed blind:**
+`PALETTES.cb.DANGER` is `#ffffff`. Pure white is the conventional maximally-
+distinguishable third channel next to the cb blue and orange, but §7 says don't
+use saturated white for large fills — and after DS1 it reaches enemies and
+hostile fire, which it previously did not. Worth a look on real hardware.

@@ -2861,7 +2861,7 @@ function drawHelpMenu(now) {
   ctx.textAlign = "center";
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 20;
   ctx.fillStyle = TOK.CYAN_INK;
-  ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(30, vw * 0.06), 900);
   ctx.fillText("HELP", vw / 2, helpMenuRowRect(0).y - 28);
   ctx.shadowBlur = 0;
   const rows = [["✦ HOW TO FLY", "controls & the basics"],
@@ -2891,7 +2891,7 @@ function drawTitle(now) {
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 30 * pulse;
   ctx.fillStyle = TOK.CYAN_INK;
   // narrow screens shrink the wordmark so it clears the corner pills
-  ctx.font = "900 " + Math.min(60, vw * (vw < 640 ? 0.085 : 0.12)) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(60, vw * (vw < 640 ? 0.085 : 0.12)), 900);
   ctx.fillText("Hollow Oath", vw / 2, vh * 0.32);
   ctx.shadowBlur = 10;
   ctx.font = mono(13, 600);
@@ -3884,7 +3884,7 @@ function drawFork(now) {
   ctx.textAlign = "center";
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = reducedFlash ? 8 : 18;
   ctx.fillStyle = TOK.CYAN_INK;
-  ctx.font = "900 " + Math.min(26, vw * 0.055) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(26, vw * 0.055), 900);
   ctx.fillText("BEFORE YOU FLY", vw / 2, forkRowRect(0).y - 66);
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#d9e8ff"; ctx.font = body(13, 600);
@@ -3994,8 +3994,7 @@ function drawPause(now) {
   // can never land inside the RESUME button on a short landscape viewport
   const topRow = pauseRowRect(0);
   const headY = topRow.y - 26;
-  ctx.font = "900 " + Math.min(38, vw * 0.08, (topRow.y - 10) * 0.9) +
-    "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(38, vw * 0.08, (topRow.y - 10) * 0.9), 900);
   ctx.fillText("PAUSED", vw / 2, headY);
   ctx.shadowBlur = 0;
   const labels = ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
@@ -4041,7 +4040,7 @@ function drawConfirm(now) {
   ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.20);
   ctx.shadowColor = confirmCard.color; ctx.shadowBlur = 16;
   ctx.fillStyle = confirmCard.color;
-  ctx.font = "900 " + Math.min(30, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(30, vw * 0.06), 900);
   ctx.fillText(confirmCard.title, vw / 2, vh * 0.27);
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#dff8ff"; ctx.font = mono(12, 600);
@@ -4078,7 +4077,7 @@ function drawSettings(now) {
   ctx.textAlign = "center";
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 20;
   ctx.fillStyle = TOK.CYAN_INK;
-  ctx.font = "900 " + Math.min(34, vw * 0.07) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(34, vw * 0.07), 900);
   const topY = settingsRowRect(0).y - 30;
   ctx.fillText("SETTINGS", vw / 2, topY);
   ctx.shadowBlur = 0;
@@ -4259,7 +4258,7 @@ function drawFireEnding() {
   ctx.textAlign = "center";
   ctx.shadowColor = TOK.EMBER; ctx.shadowBlur = 16;
   ctx.fillStyle = "#ffab73";
-  ctx.font = "900 " + Math.min(28, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(28, vw * 0.06), 900);
   ctx.fillText("THERE HAS TO BE A BETTER WAY", vw / 2, vh * 0.47);
   ctx.shadowBlur = 4;
   ctx.font = mono(14, 600);
@@ -4276,7 +4275,7 @@ function drawCenter(big, small, color) {
   ctx.textAlign = "center";
   ctx.shadowColor = color; ctx.shadowBlur = 24;
   ctx.fillStyle = color;
-  ctx.font = "900 " + Math.min(46, vw * 0.09) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = display(Math.min(46, vw * 0.09), 900);
   ctx.fillText(big, vw / 2, vh * 0.34);
   ctx.shadowBlur = 8;
   ctx.font = mono(14, 600);

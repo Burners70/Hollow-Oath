@@ -57,13 +57,13 @@ Load order is the order below; it is significant (see "no build step").
 
 | File | Lines | Covers |
 |------|-------|--------|
-| `js/input.js`    | ~300  | Header notes, Capacitor/`NATIVE` detection, canvas + `resize()`; touch multi-touch tracker + on-screen buttons + `canvasTap`; keyboard (`keyMap`) + gamepad (`pollPad`); tilt/gyro steering |
-| `js/audio.js`    | ~436  | WebAudio graph, `blip`/`boom`/`heartbeat`/`staticTick`/`hydraulic`/`ringHollow`, generative ambient music drone |
+| `js/input.js`    | ~485  | Header notes, Capacitor/`NATIVE` detection, canvas + `resize()`; touch multi-touch tracker + on-screen buttons + `canvasTap`; keyboard (`keyMap`) + gamepad (`pollPad`); tilt/gyro steering |
+| `js/audio.js`    | ~605  | WebAudio graph, `blip`/`boom`/`heartbeat`/`staticTick`/`hydraulic`/`ringHollow`, generative ambient music drone |
 | `js/platform.js` | ~110  | Haptics facade (F1), iCloud `cloud` save-sync (E4), Game Center `gc` (G4); runs `gc.auth()` at load |
-| `js/world.js`    | ~1016 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; `resetRun`/`toBriefing` state flow |
-| `js/update.js`   | ~1884 | The 41-second Static clock; landing rules + extraction/MERCY; `update(dt)` dispatch; rank system; per-screen + gameplay updates (`updatePlay`, oids, enemies, sabotage, scan/reveal, docking, blackbox, transfusion, lifts, counterfeit MERCY, epilogue) |
-| `js/render.js`   | ~2883 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
-| `js/main.js`     | ~25   | Bootstrap (`genLevel(0)`, `spawnShip`, …) + the `frame()`/`requestAnimationFrame` loop — must load last |
+| `js/world.js`    | ~1470 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); the design-system token layer (`TOK`, `PALETTES`/`PAL()`, `shade()`, `mono()`/`body()`/`display()` — Bundle DS); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; `resetRun`/`toBriefing` state flow |
+| `js/update.js`   | ~2610 | The 41-second Static clock; landing rules + extraction/MERCY; `update(dt)` dispatch; rank system; per-screen + gameplay updates (`updatePlay`, oids, enemies, sabotage, scan/reveal, docking, blackbox, transfusion, lifts, counterfeit MERCY, epilogue) |
+| `js/render.js`   | ~4400 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
+| `js/main.js`     | ~40   | Bootstrap (`genLevel(0)`, `spawnShip`, …) + the `frame()`/`requestAnimationFrame` loop — must load last |
 
 ## localStorage keys (all prefixed `doids_`)
 
@@ -81,7 +81,7 @@ bundles toward the paid iOS release, holding **open work only**. To "follow the
 roadmap," read its *Open work at a glance* table (top of file) to pick the
 bundle, then read only that bundle's section — never the whole file. It is the
 *only* forward plan; anything else that reads like a plan is history. Shipped
-bundles (A–N, R, S, U, QA, Y) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
+bundles (A–N, R, S, U, QA, Y, DS) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
 an item ID (R10, M1, Y5, …) the plan no longer mentions, and move a bundle there
 yourself once its last `[ ]` is checked.
 
@@ -90,7 +90,7 @@ doc only when the task touches it:
 
 - `docs/GAME_DESIGN.md` — canonical design & narrative (the Static, Glycon, mechanics, scoring). Read when changing game rules or story.
 - `docs/COPY_DECK.md` — user-facing text. Read when editing wording (and update it in the same PR).
-- `docs/DESIGN_SYSTEM_STARTER.md` — shipped UI tokens (colour/type/spacing/glow). Read when adding or restyling a HUD/panel element.
+- `docs/DESIGN_SYSTEM_STARTER.md` — shipped UI tokens (colour/type/spacing/glow) and, in §8, which layer to reach for. Read when adding or restyling a HUD/panel element.
 - `docs/PENDULUM_SPEC.md`, `docs/HOLLOWS_EXPANSION_SPEC.md` — feature specs (Bundle P, Bundle Q).
 - `docs/GAMECENTER_ACHIEVEMENTS.md` — achievement/rank list.
 - `docs/STORE_LISTING.md` — App Store Connect metadata (pricing, description, URLs).
@@ -101,7 +101,7 @@ doc only when the task touches it:
 ## Workflow
 
 - **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. `main` is not auto-published anywhere (see Bundle O7 above) — a merge is the source for the *next* TestFlight/App Store build, not an instant live release; it only reaches players once someone runs the manual archive/upload step (`app/MAC_SETUP.md`). Still treat a merge as consequential — it's what ships next.
-- **Tests:** Playwright smoke suite in `tests/` — 90 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
+- **Tests:** Playwright smoke suite in `tests/` — 92 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
 - **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it.
 - **Assets:** icons/manifest at root (`icon-*.png`, `manifest.webmanifest`, `apple-touch-icon.png`); art in `assets/`.
@@ -109,6 +109,7 @@ doc only when the task touches it:
 ## Conventions
 
 - Match the surrounding style: terse vanilla JS, single global scope, comment banners like `/* ===== render ===== */` and `/* Bundle X — ... */` tying code to roadmap bundles.
+- **Colour and type come from the token layer, never a literal** (Bundle DS). In JS: `PAL().SAFE|WARN|DANGER|REVEAL` for anything encoding state (it swaps for colourblind mode), `shade(PAL().WARN, .55)` for a translucent variant, `TOK.*` for fixed chrome/flavour, and `body()`/`mono()`/`display()` for type — all in `js/world.js`. In `css/game.css`: `rgba(var(--ho-safe-rgb), a)`. On the marketing pages: `var(--ho-safe)`. A hardcoded `#69f0ae` or `rgba(105,240,174,.7)` fails the guards in `tests/settings.spec.js`. See `docs/DESIGN_SYSTEM_STARTER.md` §8 for which layer to reach for.
 - Keep new code inside the existing `js/*.js` concern boundaries (and `css/game.css`); don't add source files or restructure the split unless asked. `index.html` stays a thin shell.
 - Keep the docs honest: `docs/README.md` lists every file in `docs/`, and there is one forward plan (`docs/APP_STORE_ROADMAP.md`). Don't add a second plan doc or a per-branch handover — record the decision in the roadmap bundle it belongs to.
 - The game targets iPhone Safari first; test touch/gyro/safe-area behavior, not just desktop.

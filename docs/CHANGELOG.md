@@ -15,6 +15,9 @@ file; the *plan* they came from is
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
+**Design system & accessibility**
+- [Bundle DS — the design system made enforceable, and colourblind mode made real](#bundle-ds--the-design-system-made-enforceable-and-colourblind-mode-made-real) — token layer, 130 hardcoded semantic colours routed through `PAL()`, the flight controls made swappable
+
 **Copy & content passes**
 - [Copy pass: cut "MERCY ACTUAL", fix name/term leaks and a location ambiguity](#copy-pass-cut-mercy-actual-fix-nameterm-leaks-and-a-location-ambiguity) — comprehension/continuity sweep over every player-facing string; three name-gating bugs found
 - [Audio + legibility fixes](#audio--legibility-fixes-july-2026) · [CONTINUE box overflow fix + SFX variety pass](#continue-box-overflow-fix--sfx-variety-pass-july-2026) · [Emblem centring + shrine cue](#emblem-centring--shrine-cue-july-2026)
@@ -42,6 +45,59 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## Bundle DS — the design system made enforceable, and colourblind mode made real
+
+An audit of the live game assets against
+[DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) found the doc described
+the build accurately but nothing enforced it — and one consequence was not
+cosmetic. **Colourblind mode barely worked.** `PAL()` was called 22× across
+`js/render.js` and `js/update.js` while the four semantic hexes were hardcoded
+~93× in the same files, so the palette swap reached the landing guide, the ECG
+and the transfusion line but not the fuel bar, the shield bubble, the settings
+toggles, the codex markers or any on-screen button. The flight controls could
+not swap at all: their colours live in `css/game.css`, which cannot read
+`PALETTES`.
+
+Pulled into the **1.0 launch build** (owner decision) rather than 1.01 — a
+shipped accessibility toggle that doesn't do what its label implies is a launch
+problem.
+
+- **A token layer** in `js/world.js` beside `PALETTES`: `TOK` for the fixed skin
+  (void, cyan ramp, violet, gold, ember, focus), `PALETTES` for the four
+  *meanings* that swap. `shade(hex, a)` builds translucent semantic colours —
+  hand-written `rgba()` literals were the other half of the leak, with a stroke
+  staying green while the fill beside it swapped.
+- **130 semantic literals and 27 rgba variants** now resolve through `PAL()`.
+  Fire flavour was split out first so it *doesn't* swap: a flame's hot core is
+  amber for a different reason than a fuel warning is amber.
+- **The flight controls swap**, via channel-triple CSS custom properties and a
+  `body.cb` class. Also collapsed four duplicated `.down` rules into one.
+- **`#eaff6b` was one undocumented literal doing two jobs** — the selection
+  cursor and the parried-round tell. Split into `TOK.FOCUS` and `TOK.PARRIED`.
+  Hostile fire now swaps to the colourblind white, so parried-vs-hostile reads
+  by hue *and* luminance for every CVD type; yellow-green against pink did not.
+- **111 font strings** migrated to `mono()` / `body()` / `display()`. The four
+  sizes outside the documented scale were all headings, so the scale was widened
+  to admit a 16–18px mono heading step rather than the hierarchy flattened.
+- **The marketing pages** (`about.html`, `support.html`, `privacy.html`) now use
+  `--ho-*` colour tokens instead of raw hex duplicated three ways, and the
+  JetBrains Mono Google Fonts import is gone — a third typeface the system
+  doesn't allow, which never won the cascade on Apple hardware, and which made a
+  third-party request to Google from the page promising *"No data is sent to us,
+  sold, or shared with third parties."* All three now issue zero external
+  requests.
+- **Two guards** in `tests/settings.spec.js` instrument a live frame and assert
+  on every colour actually painted, plus the computed border colour of the
+  buttons. The old test checked only that the *flag* persisted — which is how
+  this drifted unnoticed. Suite green at 92.
+
+Left alone deliberately, flagged for on-device review: `PALETTES.cb.DANGER` is
+`#ffffff`, and after this change it reaches enemies and hostile fire. Pure white
+is the conventional third channel next to the cb blue and orange, but §7 says
+don't use saturated white for large fills.
+
+Full record: **Bundle DS** in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
 ## Copy pass: cut "MERCY ACTUAL", fix name/term leaks and a location ambiguity
 

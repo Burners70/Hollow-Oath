@@ -64,20 +64,34 @@ directly in a new component.
 | `void-purple` | `#151040` / `#1b1040` / `#0c0820` | Cave interior fills |
 | `gold` | `#ffd54f` | Fragments/collectibles, codex highlight |
 | `gold-warm` | `#ffe9a8` | Found/collected state |
-| `ember` | `#ff6d00` / `#ff9e40` | Fire/torched death-state accents |
+| `ember` | `#ff6d00` / `#ff9e40` / `#ffae40` | Fire/torched death-state accents (`EMBER` / `EMBER_LIT` / `EMBER_MID`) |
+| `ember-core` | `#ffc400` | A flame's hot core. **Shares its value with `warn` by coincidence of art, not intent** — split out in DS1 so colourblind mode swaps the fuel warning and leaves fire looking like fire |
+| `ember-white` | `#fff3d6` | The white-hot centre of an ignition or detonation |
 | `alert-red` | `#ff1744` / `#ff2d55` | Critical alarms, low-health pulse, Asclepius emblem |
 
-### 2.4b Focus / selection — undocumented until the July 2026 audit
+### 2.4b Focus, parry & the counterfeit sign
 
 | Token | Hex | Usage |
 |---|---|---|
-| `focus` | `#eaff6b` (yellow-green) | Keyboard/gamepad selection highlight on codex legend rows and settings rows; also reused as the "reflected projectile" tell |
+| `FOCUS` / `FOCUS_INK` | `#eaff6b` / `#f7ffd0` | Keyboard/gamepad selection cursor — title pills, codex legend rows, settings rows |
+| `PARRIED` / `PARRIED_INK` | `#eaff6b` / `#f7ffd0` | A shield-parried round, now flying home as yours (E3) |
+| `COUNTERFEIT_NEON` | `#c6ff00` | The counterfeit MERCY's flickering serpent sign (Bundle N) |
 
-This is the one hue in the shipped build that sits **outside** the cyan / violet /
-amber / pink / mint family, it has **no colourblind variant**, and it carries two
-unrelated meanings. It is recorded here because it *is* in the build — not because
-it is endorsed. Bundle DS3 in [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) is the
-decision to either promote it to a real `focus` token or fold it into existing ones.
+These sit **outside** the cyan / violet / amber / pink / mint family on purpose:
+the cursor has to read *over* cyan chrome, and the counterfeit's sign has to look
+wrong. **None of them swaps in colourblind mode**, and that is deliberate:
+
+- `FOCUS` doesn't need to — the cursor is already a stroked box around the
+  selected row, so the state reads by shape without colour at all (§H2 redundancy).
+- `PARRIED` doesn't need to *because* hostile fire does. Hostile rounds are
+  `PAL().DANGER`, which swaps to the colourblind white, so parried-vs-hostile
+  reads by hue **and** luminance for every CVD type. The pre-DS build had one
+  literal doing both the cursor and the parry job, against a pink hostile round
+  — the worst possible pairing for red-green deficiency.
+- `COUNTERFEIT_NEON` must stay constant or the tell you learn stops being a tell.
+
+`FOCUS` and `PARRIED` share values today but are separate tokens, so one can
+change without silently dragging the other with it.
 
 ### 2.5 Contrast rule of thumb
 
@@ -100,7 +114,19 @@ Two families only, doing distinct jobs — do not introduce a third.
 - Monospace is the "instrument panel" voice — it should feel like a printed readout,
   not prose. Keep line lengths short.
 - Sizes cluster tightly: **8, 9, 10, 11, 12, 13, 14, 15px** for mono UI text; the
-  display face only appears at **22–60px** (scales with viewport width, capped).
+  display face appears at **20–60px** (scales with viewport width, capped).
+- **Mono headings are a third step, 16–18px at weight 800.** The audit found four
+  sizes outside the old documented ranges and they turned out to be headings, not
+  drift — an intro-panel title, the ROTATE TO LANDSCAPE prompt, a codex arrow
+  glyph, a flight-manual page title. That is hierarchy doing its job, so the scale
+  was widened to admit it rather than the emphasis flattened (DS5). Keep it to
+  those two steps; body/label text stays 8–15px.
+- **Build type through the helpers, not by hand** (`js/world.js`): `body(base)`
+  for anything a player reads as prose — it routes through `bodyFontPx()`, so the
+  BIG TEXT accessibility toggle reaches it — and `mono(px)` for fixed HUD chrome
+  that must not reflow. `display(px)` is the wordmark/headline face. A literal
+  `ctx.font = "700 11px Menlo, monospace"` is how the third-family and off-scale
+  drift got in; the helpers make it hard to repeat.
 
 ## 4. Glow — the core visual signature
 
@@ -190,8 +216,13 @@ the hillside's own outline shows straight through an object (an "X-ray glitch").
 ## 7. Do / Don't
 
 - **Do** reuse the semantic 4-color state system (safe/warn/danger/reveal) for any
-  new status indicator, and route it through a palette-swap layer for
-  accessibility, the way `PAL()` does in `js/world.js`.
+  new status indicator, and route it through `PAL()` (`js/world.js`) — never a
+  hex literal. For a translucent variant use `shade(PAL().SAFE, .7)`; typing
+  `rgba(105,240,174,.7)` by hand is the same bug wearing a different hat, and it
+  produced two-tone controls nobody designed.
+- **Do** ask whether a new colour is a *meaning* or a *skin*. Meanings go in
+  `PALETTES` and swap; skins go in `TOK` and don't. Amber fuel warnings and amber
+  flame cores look identical and are not the same thing (see `EMBER_CORE`).
 - **Do** keep glow color = fill/stroke color; a mismatched glow reads as a bug, not
   a style choice.
 - **Don't** introduce flat/matte UI elements with no glow — it will look out of
@@ -203,29 +234,48 @@ the hillside's own outline shows straight through an object (an "X-ray glitch").
 
 ---
 
-## 8. Conformance status (audit, July 2026)
+## 8. How the system is enforced (Bundle DS, July 2026 — shipped)
 
-**This document describes the intended system; the build only partly enforces
-it.** Read this before assuming a rule below is live in the code:
+**The audit that opened this section is closed: the rules above are now
+mechanism, not convention.** Where to reach for what:
 
-- **The semantic colour layer is mostly bypassed.** §2.3 says never hardcode
-  `safe`/`warn`/`danger`/`reveal` — but `PAL()` is called 9× in `js/render.js`
-  and 13× in `js/update.js`, against ~93 hardcoded literals of those same four
-  hexes. The swap reaches the landing guide, ECG and transfusion line; it does
-  **not** reach the fuel bar, shield bubble, settings toggles or codex markers.
-- **The on-screen buttons (§5.1) cannot swap at all** — their colours live in
-  `css/game.css`, which has no access to `PALETTES` and no colourblind hook.
-- **There is no token layer.** ~126 literal `ctx.font` strings and 250+ raw hex
-  literals in `js/render.js`; conformance is convention, not mechanism.
-- **Typography drifts past §3's ranges**: mono at 16px and 18px, display at 20px.
-- **The marketing pages** (`about.html`, `support.html`, `privacy.html`) tokenise
-  fonts but not colour, and add JetBrains Mono via Google Fonts — a third family
-  §3 does not allow and the game cannot match.
+| You need… | Use | Swaps for colourblind? |
+|---|---|---|
+| A state colour — safe / caution / danger / unknown | `PAL().SAFE` `.WARN` `.DANGER` `.REVEAL` | **Yes** |
+| That state colour at partial alpha | `shade(PAL().WARN, .55)` | **Yes** |
+| Chrome or flavour — void, cyan, violet, gold, ember, focus | `TOK.*` (`js/world.js`) | No, by design |
+| Player-facing prose | `body(base)` — picks up BIG TEXT | — |
+| Fixed HUD chrome / the display face | `mono(px)` / `display(px)` | — |
+| Anything in `css/game.css` | `rgba(var(--ho-safe-rgb), a)` | **Yes**, via `body.cb` |
+| Anything on the marketing pages | `var(--ho-safe)` (plain hex tokens) | n/a |
 
-All five are tracked as **Bundle DS** in
-[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). Keep this section updated as they
-land; when DS is fully checked off, this section should say so rather than be
-deleted.
+A hex literal at a call site is the bug this bundle removed — 130 semantic
+literals and 27 hand-written `rgba()` variants were resolving past `PAL()`, which
+is why colourblind mode reached the landing guide and ECG but not the fuel bar,
+the shield bubble, the settings toggles or any on-screen button. `css/game.css`
+could not swap at all, since CSS cannot read `PALETTES`; the `body.cb` class is
+that bridge.
+
+**Two guards in `tests/settings.spec.js` keep it honest** — they instrument a live
+frame and assert on every colour actually painted, plus the computed border colour
+of the flight controls. A new hardcoded semantic hex fails CI. The old test only
+checked that the *flag* persisted, which is how this drifted so far unnoticed.
+
+Two things deliberately left alone, both flagged for on-device review rather than
+changed blind:
+
+- **`PALETTES.cb.DANGER` is `#ffffff`.** Pure white is the conventional maximally-
+  distinguishable third channel next to the cb blue and orange, but §7 says don't
+  use saturated white for large fills — worth a look on real hardware now that it
+  reaches enemies and hostile fire, which it previously did not.
+- **One `#fff` remains** on a hover state in `about.html` — a genuine neutral, not
+  a palette colour.
+- **The two `SHRINES` accent colours in `js/world.js` stay literal.** They're
+  narrative *content* in a data table, not UI chrome, and the tables are defined
+  above the token layer in load order, so they can't reference `TOK` without
+  moving code in a load-order-sensitive file for no behavioural gain. If the
+  shrine palette ever needs to move with the system, move `TOK` above the story
+  tables in the same change — it has no dependencies.
 
 ---
 
