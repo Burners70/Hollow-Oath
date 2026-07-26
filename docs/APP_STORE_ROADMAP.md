@@ -87,7 +87,7 @@ bundle's section — grep the bundle heading to jump there.
 
 | # | Bundle | Open | Release | What's left |
 |---|--------|------|---------|-------------|
-| O | Store listing & submission | 1 | 1.0 | O8 — the custom-domain move (`hollow-oath.com`); everything else in O has landed |
+| O | Store listing & submission | 2 | 1.0 | O8 — the custom-domain move (`hollow-oath.com`); O9 — swap the "coming soon" CTA for a real App Store link |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 5 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, V·ship |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
@@ -395,6 +395,16 @@ merged; G/H strongly recommended.**
   link has already been removed from `support.html` (email-only) so the handle
   isn't exposed even for click-through. (A paid custom domain, ~£10/yr, was the
   owner's explicit choice over a free neutral-org rename.)
+- [ ] **O9. Turn the marketing shell's CTA into a real App Store link.**
+  `about.html` currently ships `<span class="cta">▶ Coming soon to the App
+  Store</span>` — a non-clickable placeholder. Once the app is live, swap the
+  `<span>` for an `<a href="…">` pointing at the App Store product page (same
+  URL as the two App Store URL fields in O8) and keep the `▶` glyph and `.cta`
+  class so the styling and the design-system glow treatment carry over
+  unchanged. **Launch-day task, easy to forget** — it's the only place on the
+  public site that would still read "coming soon" after release. Surfaced by the
+  Claude Design handoff review (July 2026); the shell deploys from `gh-pages`,
+  so this lands there, not on `main` (see the Bundle O7/O8 notes above).
 
 ---
 
@@ -785,6 +795,18 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   `__doids` handle in `js/render.js`), the pad-widening in `genLevel`, and V2 in
   [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) for what the invariant was meant to
   guarantee.
+  **A sibling flake in `finale.spec.js:57` is already fixed** (July 2026) and is
+  worth reading as the pattern: the counterfeit-MERCY scan test parked the oids
+  away so none could board mid-scan, but `updateScan()` also sweeps any
+  unrevealed fake/hollow prop within 60px, and a lure-tree pays its own +500 on
+  top of the twin's +800. Since V13 randomised the twin's spawn, one landed
+  inside scan range **~9% of runs** (31/400 and 39/400 generations measured), so
+  the score assertion intermittently saw 1300. Fixed in the test by parking the
+  scannable scenery too. **The lesson for V2: when a test depends on a
+  randomised position, pin or clear everything in range, or give the test a
+  seed.** Both flakes were misattributed to unrelated changes before being
+  measured — check the failure rate on a clean worktree before believing a diff
+  caused it.
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).
@@ -1104,6 +1126,35 @@ sling~~ → **Bundle P (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
   future hook. See ROADMAP.md § Future ideas for the design writeup.
 
 **Parked — not scheduled, logged so they aren't lost:**
+- **Panel & card restyle — bring the canvas panels up to design system §5.2
+  (owner likes the Claude Design mockup, July 2026).** §5.2 has specified
+  **8–12px radius** on panels since the doc was written, and the canvas has
+  never honoured it: `js/render.js` draws panels with `fillRect`/`strokeRect`
+  (72 call sites) because **no rounded-rect helper exists**. So this is mostly
+  *conformance*, not new design — the mockup is largely §5.2 as already written.
+  Scope, smallest-first:
+  1. **A `roundRect(x, y, w, h, r)` path helper.** Hand-roll it with `arcTo`
+     (there's already one hand-rolled instance for the pause button in
+     `drawHUD`). **Do not use the native `ctx.roundRect()`** — that's Safari
+     16.4+, and the app's deployment target is **iOS 16.0**
+     (`app/configure-ios.sh`), so it would silently break panels on 16.0–16.3.
+  2. Apply it to `drawCardPanel` and the overlay panels, then to `banner()`'s
+     renderer. Today a banner is *floating glowing text* with no box at all
+     (`js/render.js`, the `bannerMsg` block) — the mockup makes it a bordered
+     panel. That is a real visual change, not conformance, and wants an
+     owner look on device: a bordered box mid-flight occludes more of the world
+     than glowing text does.
+  3. The mockup also **left-aligns** card content where `drawCardPanel` centres
+     everything, and tints the title with the card's accent where the code uses
+     a fixed cold `#f4f8ff`. Both are genuine design decisions for the owner,
+     not conformance — the accent tint is the more clearly right of the two
+     (§7: "glow colour = fill colour" already pushes that way).
+  Constraints: route every colour through `PAL()`/`TOK` (§8) or the guards in
+  `tests/settings.spec.js` will fail; keep the R1 pagination fit in
+  `drawCardPanel` (the smoke suite asserts the footer stays on screen at
+  320-high). **Don't land this in the middle of a TestFlight round** — restyling
+  the story cards while testers are reporting on the colourblind swap muddies
+  both signals.
 - **A Mac desktop build (keyboard/gamepad-first).** Input is already there
   (`keyMap`, `pollPad()`); this is a packaging question with an owner decision
   in front of it — Mac Catalyst on Bundle E's Xcode project (its own store

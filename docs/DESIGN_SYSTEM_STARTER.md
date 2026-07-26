@@ -174,6 +174,38 @@ giving controls a faint internal light rather than a hard fill.
   smooth sine pulse — reserve flicker for danger/organic light sources, pulse for
   calm/system elements
 
+### 5.6 Further component patterns (documented for future use, not yet built)
+
+A 2026-07 design-system export (Claude Design) proposed named vanilla-CSS classes
+for patterns that today exist only as canvas-drawn HUD or ad hoc markup: `Pill`
+(title/menu action pill with a leading glyph), `Badge` (semantic status chip —
+`CONTAINED`, `COUNTERFEIT`), `StatReadout` (mono micro-readout: glyph + label +
+value, e.g. `◈ 2/7`), `Card` (a story-reveal card: kicker → title → body →
+footer, accent recolouring the whole card per beat), and `Wordmark` (the
+breathing-glow title face). None of these are implemented as reusable classes
+anywhere in the repo yet — build them only when a concrete screen needs one,
+and when you do:
+
+- **Reuse the existing tokens; don't add a second set.** The export's CSS used
+  its own `--ho-a` accent variable plus a full parallel `--ho-*` scale
+  (`--ho-cyan`, `--ho-ink`, `--ho-font-mono`, …) that collides in *name* — but
+  not in *value* — with the tokens already live in `css/game.css`
+  (`--ho-cyan-rgb`, `--ho-safe-rgb`, …) and inline in `about.html` /
+  `support.html` / `privacy.html` (`--ho-cyan`, `--ho-ink`, …, see §8). That file
+  was deliberately **not** merged, for exactly this reason — two definitions of
+  `--ho-cyan` under one prefix is the ambiguity a token layer exists to prevent.
+  Any new component should read the tokens that already exist on whichever
+  surface it lands on, and never introduce another `--ho-*` name.
+- **The "accent encodes function" idea is already shipped** — it's `.btn` + `--c`
+  in `css/game.css` (§5.1). Don't rebuild it.
+- **Anything that encodes state must go through the swap layer** (§8): `PAL()` in
+  canvas, `rgba(var(--ho-*-rgb), a)` in `css/game.css`. A `Badge` reading
+  `CONTAINED` vs `COUNTERFEIT` is a semantic colour, not decoration — if it's
+  built from `TOK` or a literal it will be invisible to colourblind players and
+  will fail the guards in `tests/settings.spec.js`.
+- Match §4's glow law and §7's Do/Don't for any new pattern: outer + inset glow,
+  glow colour = stroke colour, no flat fills, no third typeface.
+
 ## 6. Voice & tone (for any copy in the system)
 
 - Labels: **ALL CAPS**, terse, 1–3 words (`FUEL`, `HOW TO FLY`, `HUD GUIDE`)
@@ -191,6 +223,79 @@ giving controls a faint internal light rather than a hard fill.
   corrupt? And why did she go down at all?"* and *"Fly it again. Look closer this
   time."* on their own lines. Width-wrapping (`wrapText`) then only wraps within
   each authored line. Keep final lines from stranding a single orphan word.
+- **Isolate the line that has to land.** Owner ruling (July 2026): the strongest
+  sentence in a block is often the shortest, and it gets buried when it sits at
+  the tail of a long paragraph. If a line is doing the emotional or narrative
+  work, give it its own `\n\n` block so it stands alone. *"Fly it again. Look
+  closer this time."* lands because nothing shares its air; the same words at the
+  end of a five-line paragraph read as an afterthought. This is a **deliberate
+  authoring choice, not a wrapping concern** — `wrapText` only wraps *within* an
+  authored line, so isolation has to be written into the string. Applies to
+  briefings, story cards, log fragments and epilogue text. Use it sparingly: if
+  every paragraph is one line, nothing is emphasised.
+  situation → qualifier pair (a hook line, a HUD banner) reads well split across
+  two lines *when each half is a complete thought* — `about.html`'s hook keeps
+  `"Something calls every 41 seconds."` and `"Not everything that answers should
+  be trusted."` on separate lines because both are full sentences. If splitting
+  would strand one bare word alone on the second line (an in-canvas banner like
+  `NIGHT COMES DOWN ON THE BASIN` breaking as `…DOWN` / `ON THE BASIN`), keep it
+  on one line instead. That's why that exact banner ships as a single string
+  (`docs/COPY_DECK.md`). One line beats an orphaned word, two lines beat a
+  run-on, and you should never trade one problem for the other.
+- **A dangling dash is the tell that a line break has gone wrong.** `wrapText`
+  treats an em-dash as an ordinary word boundary, so a dash can end up stranded
+  at the end of a line or orphaned at the start of the next (`Dust occlusion
+  across the basin` / `— and night coming down fast.`). If a rendered break looks
+  wrong, check for a dash before reaching for the wrapper: removing the dash per
+  the rule below usually fixes the break as a side effect. Balanced
+  minimum-raggedness wrapping was prototyped against the real copy and is **not**
+  an improvement, so the greedy wrap in `wrapText` stays.
+- **Casing is per medium.** In-canvas flavour/subcopy runs lowercase (diegetic,
+  canvas-only); in-canvas *labels* stay UPPERCASE (`FUEL`, `SETTINGS`). **Every
+  other medium** — marketing pages, store copy, docs, decks — uses sentence case.
+  Proper nouns stay capitalised everywhere (Scion, MERCY, the Static, sector
+  names) regardless of casing mode. `about.html` ships the tagline as
+  `A gravity rescue. A love letter to the 16-bit lander classics.`; the canvas
+  form is the same line lowercased, not a different line.
+- **Spelling:** UK English throughout (`colour`, `catalogued`, `immunised`) —
+  matches the copy already in `docs/COPY_DECK.md` and `js/world.js`. Don't
+  Americanise new strings. *(Note: this doc's own older headings use US
+  spellings like "Color" and "Flavor" — the rule is about **player-facing
+  copy**, not these headings.)*
+
+### Avoiding AI tells
+
+Keep new copy clear of the patterns that read as machine-written:
+
+- **The em-dash splice is the loudest tell in this codebase, and it is not the
+  house voice.** Owner ruling (July 2026): the em-dash habit in the shipped
+  strings is Claude's, not the author's, and it is to be **minimised
+  everywhere** — canvas copy included, not just prose. Do not defend an existing
+  em-dash on the grounds that it shipped; a lot of them shipped because an AI
+  wrote them. What to reach for instead:
+  - **`— and` / `— but` joining two clauses → a comma, or two sentences.** This
+    is the clearest offender: *"saved countless mothers — and was ignored for
+    decades"* wants *"saved countless mothers. He was ignored for decades."*
+  - **A vocative → a comma.** *"Captain — the surface scans are lying"* wants
+    *"Captain, the surface scans are lying."*
+  - **An appositive gloss → a colon.** *"an interdicted zone — automated
+    defences, dead relays"* wants *"an interdicted zone: automated defences,
+    dead relays."*
+  - **Two separate facts in one readout → `·`**, the separator the HUD already
+    uses (`SCIONS ABOARD 0 · SECTOR 0/7`, `saved 3 · ✝ lost 1`).
+  **Two uses stay legitimate**, and they are different things from the splice:
+  (a) a *paired* parenthetical where both dashes are present — *"if all of it —
+  the Vectors, the counterfeits, the Static itself — grew from…"*; and (b) the
+  ALL-CAPS `STATUS — DETAIL` separator in HUD banners (`CAUGHT — SCION SAFE`),
+  which is instrument-panel punctuation rather than prose. Neither is a tell.
+- Cut hedges and filler adverbs (*quietly, simply, truly, seamlessly*) — if a
+  sentence needs one to land softer, split it into two instead.
+- Vary rhythm; not every list needs exactly three parallel clauses.
+- No generic app-UI phrasing (*"Click here," "Settings saved!," "Get started
+  today"*) — it breaks the diegesis on any surface, not just in-canvas.
+- No emoji as UI or decoration (see §5.4 Iconography — the game's glyphs are
+  Unicode symbols with the same glow treatment as text, which is not the same
+  thing).
 
 ## 6.5 Layering & occlusion (the "one is always in front" rule)
 

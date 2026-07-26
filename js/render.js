@@ -3359,7 +3359,7 @@ const INTRO = [
       ctx.fillText("WARD 7 · CRYOSTASIS", px + pw / 2, py + ph * 0.2);
     } },
   { title: "THE ZONE",
-    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. The first wave came this way once — the SOLACE among them — and none ever called home.",
+    caption: "The route crosses an interdicted zone: automated defences, dead relays, no traffic in living memory. The first wave came this way once — the SOLACE among them — and none ever called home.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 33);
       iRidge(px, py, pw, ph, 7);
@@ -4207,7 +4207,7 @@ function drawEnding(now) {
   // Owner steer: the first run tells only the wound/echo story — end it with a
   // clear tease so the player comes back for the sealed Glycon layer.
   if (endingFirstRun && endingType !== "unresolved") {
-    body += "\n\n— but someone PLACED those lures. Stamped the same coiled serpent on every one. This run, the hollows under the sectors stayed sealed to you.\n\nFly again. They open now.";
+    body += "\n\nBut someone PLACED those lures. Stamped the same coiled serpent on every one. This run, the hollows under the sectors stayed sealed to you.\n\nFly again. They open now.";
   }
   // S8 — once the WORKSHOP is seen (the counterfeits were BUILT, not corrupted),
   // the missing originals become an open question — the itch 1.2 will scratch
