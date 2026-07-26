@@ -363,7 +363,7 @@ function pausePadRect(i) { return i < 4 ? pauseRowRect(i) : pauseLegendRect(); }
 // you have to opt into each time.
 let padUse = true;
 window.addEventListener("gamepadconnected", () => {
-  banner("CONTROLLER CONNECTED", "#69f0ae");
+  banner("CONTROLLER CONNECTED", PAL().SAFE);
   padUse = true;
   // hide the on-screen controls the instant the browser recognises the pad —
   // waiting for the first button press (the old behaviour, via the activity
@@ -372,7 +372,7 @@ window.addEventListener("gamepadconnected", () => {
   // (found on-device).
   lastInputWasTouch = false;
 });
-window.addEventListener("gamepaddisconnected", () => banner("CONTROLLER DISCONNECTED", "#ff4081"));
+window.addEventListener("gamepaddisconnected", () => banner("CONTROLLER DISCONNECTED", PAL().DANGER));
 function pollPad() {
   pad.left = pad.right = pad.thrust = pad.fire = pad.shield = false;
   const gps = navigator.getGamepads ? navigator.getGamepads() : [];

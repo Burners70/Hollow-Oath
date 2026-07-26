@@ -70,6 +70,73 @@ test("FIELD MEDIC / colorblind / big text persist and take effect (Bundle H)", a
   expect(s.state).toBe("play");
 });
 
+// Bundle DS·guard — the old colourblind test asserted only that the FLAG
+// persisted, never that a pixel changed. That is exactly how the palette-swap
+// leak the July 2026 audit found survived: ~93 semantic colours were hardcoded
+// past PAL(), and the CSS flight controls could not swap at all. These two
+// tests watch the real output — every colour painted in a live frame, and the
+// computed style of the buttons — so a future hardcoded hex fails CI.
+async function paintedColours(page) {
+  return page.evaluate(() => {
+    __doids.reset(); __doids.go(0); __doids.launch();
+    const c = document.getElementById("game").getContext("2d");
+    const props = ["fillStyle", "strokeStyle", "shadowColor"];
+    const base = props.map(p => Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, p));
+    const seen = new Set();
+    props.forEach((p, i) => Object.defineProperty(c, p, {
+      configurable: true,
+      get() { return base[i].get.call(this); },
+      set(v) { seen.add(String(v).toLowerCase()); base[i].set.call(this, v); }
+    }));
+    for (let i = 0; i < 3; i++) { update(1 / 60); render(); }
+    props.forEach(p => delete c[p]);   // drop the shims, restore the prototype accessors
+    return [...seen];
+  });
+}
+
+test("DS1: colourblind mode swaps the colours actually painted, not just the flag", async ({ page }) => {
+  const normal = await paintedColours(page);
+  // the run HUD really is in frame — the fuel bar (WARN) and safe-state green
+  expect(normal).toContain("#ffc400");
+  expect(normal).toContain("#69f0ae");
+  // …and none of the colourblind set has leaked into normal vision
+  expect(normal).not.toContain("#ffab40");
+  expect(normal).not.toContain("#40c4ff");
+
+  await page.evaluate(() => localStorage.setItem("doids_cb", "1"));
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  const cb = await paintedColours(page);
+  expect(await page.evaluate(() => __doids.get().colorblind)).toBe(true);
+  // the swap reaches the paint: PALETTES.cb WARN + SAFE are on screen…
+  expect(cb).toContain("#ffab40");
+  expect(cb).toContain("#40c4ff");
+  // …and the normal-vision green is gone entirely (the shield bubble, the
+  // landed skid and the settings dots used to keep it — DS1)
+  expect(cb).not.toContain("#69f0ae");
+});
+
+test("DS2: the on-screen flight controls swap with colourblind mode too", async ({ page }) => {
+  const btnColours = () => page.evaluate(() => {
+    const g = id => getComputedStyle(document.getElementById(id)).borderColor;
+    return { thrust: g("btnThrust"), fire: g("btnFire"), shield: g("btnShield"), left: g("btnL") };
+  });
+  expect(await page.evaluate(() => document.body.classList.contains("cb"))).toBe(false);
+  const normal = await btnColours();
+  expect(normal.thrust).toContain("255, 196, 0");     // WARN amber
+  expect(normal.shield).toContain("105, 240, 174");   // SAFE mint
+
+  await page.evaluate(() => localStorage.setItem("doids_cb", "1"));
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  expect(await page.evaluate(() => document.body.classList.contains("cb"))).toBe(true);
+  const cb = await btnColours();
+  expect(cb.thrust).toContain("255, 171, 64");        // cb WARN orange
+  expect(cb.shield).toContain("64, 196, 255");        // cb SAFE blue
+  expect(cb.fire).toContain("255, 255, 255");         // cb DANGER white
+  expect(cb.left).toBe(normal.left);                  // cyan is not semantic — unchanged
+});
+
 test("REDUCED FLASH persists and RESET PROGRESS double-tap wipes progress but keeps settings", async ({ page }) => {
   // seed some progress + a distinctive setting
   await page.evaluate(() => {
