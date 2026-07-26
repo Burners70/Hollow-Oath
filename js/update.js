@@ -547,6 +547,12 @@ function update(dt) {
           state = "gameover"; stateT = 0; saveHi(); recordDaily();
         } else {
           if (level.isCave) exitCave();   // the Hollows spit you back out
+          // V13 (owner steer) — a life lost inside the finale twin, while the
+          // mystery is still open, must not hand the answer back: re-roll which
+          // side is real and replay the split reveal, exactly as a fresh arrival
+          // would. Untouched once the decoy's already been resolved (dead) —
+          // nothing left to protect at that point.
+          if (level.fakeMercy && !level.fakeMercy.dead) rollMercyTwin(level, Math.random);
           spawnShip(); state = "play"; stateT = 0; checkSectorClear();
         }
       }

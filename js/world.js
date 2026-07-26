@@ -776,6 +776,25 @@ const RECIPE = [
 ];
 const LIFT_CAVE = { 1: 0, 3: 1, 5: 2 };  // which sector's lift opens which cave
 
+/* V12/V13 (owner steer) — roll which side of the finale twin is real, where
+   both ships sit, and (re)arm the split-reveal. Pulled out of genLevel so a
+   life lost inside the Nullwave can call it again (see shipDie's respawn path
+   in js/update.js): otherwise dying leaves the assignment — and the fact
+   you've already watched the split resolve — exactly as it was, so respawning
+   would hand the answer back for free. `rngFn` is the level's seeded rng at
+   initial generation (keeps genLevel deterministic/reproducible); a later
+   in-play re-roll after death uses Math.random, since it isn't world
+   generation and has no reproducibility contract. */
+function rollMercyTwin(lvl, rngFn) {
+  const W = lvl.W;
+  const a = W * (0.20 + rngFn() * 0.14);   // ~0.20–0.34
+  const b = W * (0.60 + rngFn() * 0.16);   // ~0.60–0.76  (≥ ~0.26·W apart)
+  const realLeft = rngFn() < 0.5;
+  lvl.mx = realLeft ? a : b; lvl.my = 170;
+  lvl.fakeMercy = { x: realLeft ? b : a, y: 170, dead: false, dockT: 0, scanT: 0 };
+  lvl.mercySplitT = MERCY_SPLIT_DUR;   // the split-into-two reveal, replayed on every roll
+}
+
 function genLevel(n) {
   const r = RECIPE[n];
   // T1 — progressive widths: sectors grow with n so the maps feel like places.
@@ -981,14 +1000,7 @@ function genLevel(n) {
     // reachable positions (well separated), and which side is real varies. The
     // only honest read is the beat. Everything downstream (bays, delivery,
     // epilogue) reads level.mx live, so moving her is safe.
-    if (veteran) {
-      const a = W * (0.20 + rng() * 0.14);   // ~0.20–0.34
-      const b = W * (0.60 + rng() * 0.16);   // ~0.60–0.76  (≥ ~0.26·W apart)
-      const realLeft = rng() < 0.5;
-      lvl.mx = realLeft ? a : b; lvl.my = 170;
-      lvl.fakeMercy = { x: realLeft ? b : a, y: 170, dead: false, dockT: 0, scanT: 0 };
-      lvl.mercySplitT = MERCY_SPLIT_DUR;   // V12 — the split-into-two reveal on arrival
-    }
+    if (veteran) rollMercyTwin(lvl, rng);
   }
 
   // V2 — scan-jeopardy fairness invariant: every scannable Scion must have a
@@ -1301,8 +1313,13 @@ function lampRadius() {
 }
 
 function spawnShip() {
+  // V13 (owner steer) — with the finale twin, arriving right next to the real
+  // MERCY would give the answer away by proximity alone before the split
+  // reveal even means anything. Spawn exactly midway between the two ships
+  // instead, so position carries no tell either way (see rollMercyTwin).
+  const sx = level.fakeMercy ? (level.mx + level.fakeMercy.x) / 2 : level.mx;
   ship = {
-    x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
+    x: sx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
     shield: false, parryT: 0, signalT: 0, scuttleT: 0,

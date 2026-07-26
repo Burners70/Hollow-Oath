@@ -1766,13 +1766,18 @@ test("V6-finale: the Solace is answered by parrying her pulse, not by holding", 
 test("V12: the finale spawns two identical MERCYs at randomised, separated positions; the beat is the only tell", async ({ page }) => {
   await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
   const s = await page.evaluate(() => ({
-    mx: level.mx, fx: level.fakeMercy.x, split: level.mercySplitT, W: level.W
+    mx: level.mx, fx: level.fakeMercy.x, split: level.mercySplitT, W: level.W, shipX: ship.x
   }));
   // both well inside the field and well separated (no fixed home / no fixed decoy spot)
   expect(Math.abs(s.mx - s.fx), "the two MERCYs are well separated").toBeGreaterThan(s.W * 0.2);
   expect(s.mx).toBeGreaterThan(s.W * 0.1);
   expect(s.fx).toBeGreaterThan(s.W * 0.1);
   expect(s.split, "arrives with the split-reveal running").toBeGreaterThan(0);
+  // V13 (owner steer) — arriving right next to the real one would give the
+  // answer away before the split even means anything; spawn is the midpoint
+  // between both ships, not glued to level.mx
+  expect(s.shipX, "spawn sits at the midpoint, not on the real MERCY").toBeCloseTo((s.mx + s.fx) / 2, 0);
+  expect(Math.abs(s.shipX - s.mx)).toBeGreaterThan(s.W * 0.08);
   // the decoy is inert while the split reveal plays
   await page.evaluate(() => {
     const f = level.fakeMercy; ship.x = f.x; ship.y = f.y + 70; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
@@ -1787,6 +1792,27 @@ test("V12: the finale spawns two identical MERCYs at randomised, separated posit
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
   await page.evaluate(() => clearInterval(window.__pin));
   expect(await page.evaluate(() => __doids.get().decoyOutcome)).toBe("trapped");
+});
+
+test("V13: losing a life inside the unresolved finale twin re-rolls it and replays the split reveal", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  const before = await page.evaluate(() => {
+    level.mercySplitT = 0;   // the reveal has already settled — still unresolved, just no longer playing
+    return { mx: level.mx, fx: level.fakeMercy.x };
+  });
+  // die with lives remaining, inside the still-unresolved twin
+  await page.evaluate(() => { lives = 2; ship.dead = false; ship.passengers = []; shipDie(); });
+  expect(await page.evaluate(() => __doids.get().state)).toBe("dead");
+  await page.waitForTimeout(1700);   // clear the "dead" state's stateT > 1.6 guard
+  await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 3000 });
+  const after = await page.evaluate(() => ({
+    mx: level.mx, fx: level.fakeMercy.x, split: level.mercySplitT, shipX: ship.x, W: level.W
+  }));
+  expect(after.split, "the split reveal plays again on respawn").toBeGreaterThan(0);
+  expect(after.mx !== before.mx || after.fx !== before.fx,
+    "which side is real is re-rolled, not carried over from before the death").toBe(true);
+  // and the respawn still lands at the (new) midpoint, not next to either ship
+  expect(after.shipX).toBeCloseTo((after.mx + after.fx) / 2, 0);
 });
 
 test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then SILENCE BY FIRE", async ({ page }) => {
