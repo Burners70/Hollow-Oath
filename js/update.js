@@ -1095,13 +1095,15 @@ function updatePlay(dt) {
   updateStaticClock(dt);
   // V13 — the twin's staged reveal: decrement the countdown, then fire the two
   // one-shot signal-pulse cues at the instants drawMercySplit's rings mark
-  // (elapsed crossing TWIN_PULSE1 / TWIN_PULSE2), each exactly once.
+  // (elapsed crossing TWIN_PULSE1 / TWIN_PULSE2), each exactly once. This is
+  // the biggest structural reveal in the game, so each pulse gets its own
+  // cue (twinDissolve/twinEmerge, js/audio.js) rather than a generic tick.
   if (level.mercySplitT > 0) {
     const prevE = MERCY_SPLIT_DUR - level.mercySplitT;
     level.mercySplitT = Math.max(0, level.mercySplitT - dt);
     const e = MERCY_SPLIT_DUR - level.mercySplitT;
-    if (prevE < TWIN_PULSE1 && e >= TWIN_PULSE1) { staticTick(0.4); haptic.light(); }
-    if (prevE < TWIN_PULSE2 && e >= TWIN_PULSE2) { staticTick(0.5); haptic.medium(); }
+    if (prevE < TWIN_PULSE1 && e >= TWIN_PULSE1) { twinDissolve(); haptic.medium(); }
+    if (prevE < TWIN_PULSE2 && e >= TWIN_PULSE2) { twinEmerge(); haptic.heavy(); }
   }
   if (level.isFinale) updateBeacon(dt);
   if (level.fakeMercy) updateDecoy(dt);

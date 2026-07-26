@@ -1888,13 +1888,17 @@ function drawMothership(now) {
   // V13 — computed once and applied to every block below (hull, the pulse-ring
   // wash, AND the bay labels/beams), not just the hull's own save/restore pair —
   // those bay labels used to leak through at full alpha during the reveal since
-  // they live in their own later save block that never inherited it.
-  const twinA = level.mercySplitT > 0 ? twinInAlpha(now) : 1;
+  // they live in their own later save block that never inherited it. A small
+  // jitter rides along on the hull itself while she's actively resolving — a
+  // real distortion, not just an alpha wobble.
+  const twinEnv = level.mercySplitT > 0 ? twinInEnvelope() : 1;
+  const twinA = level.mercySplitT > 0 ? twinFlicker(now, twinEnv) : 1;
+  const jit = level.mercySplitT > 0 ? twinJitter(now, twinEnv) : { dx: 0, dy: 0 };
   // no idle bob: the hull, the bays and the ventral hangar all sit on the exact
   // same mercyPos, so the hangar can never drift out of sync with the hull
   ctx.save();
   ctx.globalAlpha *= twinA;
-  ctx.translate(mx, my);
+  ctx.translate(mx + jit.dx, my + jit.dy);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
@@ -2103,21 +2107,39 @@ function drawJumpStreak(now) {
    but for the emblem tell. Location and the opening beat both tell you
    nothing; only the beat (and now the two pulses) are honest. */
 function twinElapsed() { return MERCY_SPLIT_DUR - level.mercySplitT; }
-// envelope 0..1 (rising for an entrance, falling for an exit) rendered as a
-// glitchy strobe rather than a smooth dimmer; reduced-flash dampens the
-// flicker's amplitude instead of removing it, so the beat still reads.
+// V13 (owner steer, round 2) — "this is not a subtle moment, it's big": the
+// first pass's flicker only dimmed between 0.4 and 1.0, which read as a
+// gentle shimmer. This strobes down to real blackouts (occasionally near-zero)
+// with hard on/off cuts layered on top of the wobble, so it reads as a signal
+// fighting to hold together. reduced-flash dampens the amplitude, not removes
+// it, so the beat still lands for players who need it toned down.
 function twinFlicker(now, envelope) {
-  const flick = reducedFlash ? 0.85 : (0.4 + 0.6 * Math.abs(Math.sin(now * 30) * Math.sin(now * 11)));
-  return envelope * flick;
+  if (envelope <= 0) return 0;
+  if (envelope >= 1) return 1;
+  if (reducedFlash) return envelope * 0.8;
+  const wobble = Math.abs(Math.sin(now * 34) * Math.sin(now * 13) * Math.sin(now * 5.3));
+  const cut = Math.sin(now * 61) > 0.82 ? 0.08 : 1;   // occasional hard dropout
+  return envelope * Math.max(0.05, wobble) * cut;
 }
-// the alpha the two REAL ships (mothership + decoy) share while resolving:
-// invisible until the second pulse, then flickers up to fully solid
-function twinInAlpha(now) {
+// a small on-screen positional jitter — real distortion, not just an alpha
+// wobble — active only mid-transition (never during the hold or once solid).
+function twinJitter(now, envelope) {
+  if (envelope <= 0 || envelope >= 1 || reducedFlash) return { dx: 0, dy: 0 };
+  const amp = 5;
+  return {
+    dx: (Math.sin(now * 53) + Math.sin(now * 97 + 1.3)) * amp * 0.5,
+    dy: (Math.sin(now * 61 + 0.7) + Math.sin(now * 83 + 2.1)) * amp * 0.5
+  };
+}
+// the envelope (0..1, NOT yet flickered) the two REAL ships (mothership +
+// decoy) share while resolving: 0 until the second pulse, 1 once solid
+function twinInEnvelope() {
   const e = twinElapsed();
   if (e < TWIN_PULSE2) return 0;
   if (e >= TWIN_IN) return 1;
-  return twinFlicker(now, (e - TWIN_PULSE2) / (TWIN_IN - TWIN_PULSE2));
+  return (e - TWIN_PULSE2) / (TWIN_IN - TWIN_PULSE2);
 }
+function twinInAlpha(now) { return twinFlicker(now, twinInEnvelope()); }
 function drawTwinPulse(x, y, tSincePulse) {
   const DUR = 0.6;
   if (tSincePulse < 0 || tSincePulse > DUR) return;
@@ -2135,16 +2157,16 @@ function drawMercySplit(now) {
   const e = twinElapsed();
   const midX = (level.mx + level.fakeMercy.x) / 2, midY = 170;
 
-  // the illusion: solid through the hold ("looks identical to normal"), then
+  // the illusion: solid through the hold ("looks identical to normal" — bay
+  // signage included, so it reads as a completely ordinary arrival), then
   // flickers out once the first pulse fires — never below here, never a ghost
-  let illusionAlpha = 1;
-  if (e >= TWIN_HOLD) {
-    illusionAlpha = e >= TWIN_OUT ? 0 : twinFlicker(now, 1 - (e - TWIN_HOLD) / (TWIN_OUT - TWIN_HOLD));
-  }
+  const illusionEnv = e < TWIN_HOLD ? 1 : Math.max(0, 1 - (e - TWIN_HOLD) / (TWIN_OUT - TWIN_HOLD));
+  const illusionAlpha = twinFlicker(now, illusionEnv);
+  const jit = twinJitter(now, illusionEnv);
   if (illusionAlpha > 0) {
     ctx.save();
     ctx.globalAlpha = illusionAlpha;
-    ctx.translate(midX, midY);
+    ctx.translate(midX + jit.dx, midY + jit.dy);
     ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
     ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.55)";
     mercyHullPath(); ctx.fill(); ctx.stroke();
@@ -2167,6 +2189,24 @@ function drawMercySplit(now) {
     ctx.textAlign = "center";
     ctx.fillText("A M S · M E R C Y", 0, 34);
     ctx.restore();
+    // bay signage — same alpha, drawn in absolute (untranslated) coords exactly
+    // like drawMothership's own bay block, so it fades WITH the hull rather
+    // than being a separate, ungated render (the original leak)
+    ctx.save();
+    ctx.globalAlpha = illusionAlpha;
+    ctx.lineWidth = 1.5;
+    const ibMed = { x0: midX - 100, x1: midX + 100, y0: midY + 24, y1: midY + 130 };
+    const ibRed = { x0: midX + 172, x1: midX + 260, y0: midY - 34, y1: midY + 30 };
+    drawTractorBeam(ibMed, "0,229,255", now, true, false);
+    ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4;
+    ctx.fillStyle = "rgba(120,240,255,.98)";
+    ctx.fillText("RECOVERY BAY", (ibMed.x0 + ibMed.x1) / 2, ibMed.y1 + 15);
+    drawTractorBeam(ibRed, "255,23,68", now, false, true);
+    ctx.fillStyle = "rgba(255,110,132,.98)";
+    ctx.fillText("RED BAY · ISOLATION AIRLOCK", (ibRed.x0 + ibRed.x1) / 2, ibRed.y1 + 15);
+    ctx.shadowBlur = 0;
+    ctx.restore();
   }
 
   // the two signal pulses — purple rings marking each turn
@@ -2179,11 +2219,14 @@ function drawDecoyMercy(now) {
   const bob = Math.sin(now * 1.2 + 2.1) * 4;
   // V13 — computed once, applied to the hull AND the bay label/beam below (that
   // label used to leak through at full alpha — it lives past this function's
-  // first save/restore pair, which never covered it).
-  const twinA = level.mercySplitT > 0 ? twinInAlpha(now) : 1;
+  // first save/restore pair, which never covered it). Jitter rides the hull
+  // itself while she's actively resolving.
+  const twinEnv = level.mercySplitT > 0 ? twinInEnvelope() : 1;
+  const twinA = level.mercySplitT > 0 ? twinFlicker(now, twinEnv) : 1;
+  const jit = level.mercySplitT > 0 ? twinJitter(now, twinEnv) : { dx: 0, dy: 0 };
   ctx.save();
   ctx.globalAlpha *= twinA;
-  ctx.translate(f.x, f.y + bob);
+  ctx.translate(f.x + jit.dx, f.y + bob + jit.dy);
   if (f.dead) {
     // powered down for good: dark hull, Glycon's masked serpent flickering
     // where the emblem hung
