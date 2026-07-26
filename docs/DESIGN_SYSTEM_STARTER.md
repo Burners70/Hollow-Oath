@@ -67,6 +67,18 @@ directly in a new component.
 | `ember` | `#ff6d00` / `#ff9e40` | Fire/torched death-state accents |
 | `alert-red` | `#ff1744` / `#ff2d55` | Critical alarms, low-health pulse, Asclepius emblem |
 
+### 2.4b Focus / selection — undocumented until the July 2026 audit
+
+| Token | Hex | Usage |
+|---|---|---|
+| `focus` | `#eaff6b` (yellow-green) | Keyboard/gamepad selection highlight on codex legend rows and settings rows; also reused as the "reflected projectile" tell |
+
+This is the one hue in the shipped build that sits **outside** the cyan / violet /
+amber / pink / mint family, it has **no colourblind variant**, and it carries two
+unrelated meanings. It is recorded here because it *is* in the build — not because
+it is endorsed. Bundle DS3 in [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) is the
+decision to either promote it to a real `focus` token or fold it into existing ones.
+
 ### 2.5 Contrast rule of thumb
 
 Every accent color is paired with a matching `shadowColor` glow of the *same* hue at
@@ -188,6 +200,32 @@ the hillside's own outline shows straight through an object (an "X-ray glitch").
   monospace-as-instrument-panel read is load-bearing for the sci-fi/medical tone.
 - **Don't** use pure saturated white for large fills — the palette stays in cyan/
   violet/amber/pink family even for "neutral" chrome.
+
+---
+
+## 8. Conformance status (audit, July 2026)
+
+**This document describes the intended system; the build only partly enforces
+it.** Read this before assuming a rule below is live in the code:
+
+- **The semantic colour layer is mostly bypassed.** §2.3 says never hardcode
+  `safe`/`warn`/`danger`/`reveal` — but `PAL()` is called 9× in `js/render.js`
+  and 13× in `js/update.js`, against ~93 hardcoded literals of those same four
+  hexes. The swap reaches the landing guide, ECG and transfusion line; it does
+  **not** reach the fuel bar, shield bubble, settings toggles or codex markers.
+- **The on-screen buttons (§5.1) cannot swap at all** — their colours live in
+  `css/game.css`, which has no access to `PALETTES` and no colourblind hook.
+- **There is no token layer.** ~126 literal `ctx.font` strings and 250+ raw hex
+  literals in `js/render.js`; conformance is convention, not mechanism.
+- **Typography drifts past §3's ranges**: mono at 16px and 18px, display at 20px.
+- **The marketing pages** (`about.html`, `support.html`, `privacy.html`) tokenise
+  fonts but not colour, and add JetBrains Mono via Google Fonts — a third family
+  §3 does not allow and the game cannot match.
+
+All five are tracked as **Bundle DS** in
+[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). Keep this section updated as they
+land; when DS is fully checked off, this section should say so rather than be
+deleted.
 
 ---
 
