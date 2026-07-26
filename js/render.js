@@ -1544,7 +1544,7 @@ function drawWreckM(sc, now) {
   ctx.save();
   ctx.translate(0, -15);
   if (flick > 0.3) { ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 10; }
-  drawAsclepius(36, "rgba(255,23,68," + flick + ")");
+  drawAsclepius(36, shade(TOK.ALERT, flick));
   ctx.restore();
   ctx.shadowBlur = 0;
   ctx.font = mono(10); ctx.textAlign = "center";
@@ -1914,7 +1914,7 @@ function drawMothership(now) {
   ctx.save();
   ctx.translate(0, -15);
   ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 16 * pulse + 6;
-  drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+  drawAsclepius(36, shade(TOK.ALERT, (0.5 + 0.5 * pulse).toFixed(2)));
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // her signature mast
   // V13 (round 3, owner steer) — text was reported reading as fully solid
@@ -2190,7 +2190,7 @@ function drawMercySplit(now) {
     ctx.translate(0, -15);
     const pulse = 0.55 + 0.45 * Math.sin(now * 3);
     ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 16 * pulse + 6;
-    drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+    drawAsclepius(36, shade(TOK.ALERT, (0.5 + 0.5 * pulse).toFixed(2)));
     ctx.restore();
     mercyAntenna(now, "0,229,255", true);
     // V13 — alpha baked directly into the label + its shadow, not left to
@@ -2278,7 +2278,7 @@ function drawDecoyMercy(now) {
   ctx.save();
   ctx.translate(0, -15);
   ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 16 * alpha + 6;
-  drawAsclepius(36, "rgba(255,23,68," + alpha.toFixed(2) + ")");
+  drawAsclepius(36, shade(TOK.ALERT, alpha.toFixed(2)));
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // the same signature mast — the lie is total
   // V13 — alpha baked directly into the label + its shadow, not left to
@@ -2509,7 +2509,7 @@ function drawBeacon(now) {
     ctx.save();
     ctx.translate(0, -32);
     ctx.shadowColor = TOK.ALERT; ctx.shadowBlur = 12;
-    drawAsclepius(22, "rgba(255,23,68,.9)");
+    drawAsclepius(22, shade(TOK.ALERT, .9));
     ctx.restore();
   }
   const ringA = b.resolved ? (b.fade || 0) : 1;   // rings fade out through the epilogue (L2)
@@ -2579,8 +2579,8 @@ function drawHUD(now) {
     const a = (sabotageFlash / 0.5) * (reducedFlash ? 0.18 : 0.36);
     const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.32,
                                         vw / 2, vh / 2, Math.max(vw, vh) * 0.72);
-    vg.addColorStop(0, "rgba(255,23,68,0)");
-    vg.addColorStop(1, "rgba(255,23,68," + a.toFixed(3) + ")");
+    vg.addColorStop(0, shade(TOK.ALERT, 0));
+    vg.addColorStop(1, shade(TOK.ALERT, a.toFixed(3)));
     ctx.fillStyle = vg; ctx.fillRect(0, 0, vw, vh);
   }
 
@@ -2958,7 +2958,7 @@ function drawTitle(now) {
   // codex pill — minds recovered + the signal archive, across all runs (K3)
   const cr = codexRect();
   const any = codex.size > 0 || logsSeen.size > 0;
-  ctx.strokeStyle = any ? "rgba(255,213,79,.75)" : "rgba(255,255,255,.3)";
+  ctx.strokeStyle = any ? shade(TOK.GOLD, .75) : "rgba(255,255,255,.3)";
   ctx.shadowColor = any ? TOK.GOLD : "transparent"; ctx.shadowBlur = any ? 10 : 0;
   ctx.strokeRect(cr.x, cr.y, cr.w, cr.h);
   ctx.fillStyle = any ? TOK.GOLD : "rgba(255,255,255,.45)";
@@ -2976,7 +2976,7 @@ function drawTitle(now) {
   // resume pill — a run was checkpointed at a sector boundary
   if (savedRun) {
     const rr = resumeRect();
-    ctx.strokeStyle = "rgba(255,213,79,.85)"; ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 12;
+    ctx.strokeStyle = shade(TOK.GOLD, .85); ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 12;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(rr.x, rr.y, rr.w, rr.h);
     ctx.font = mono(13);
@@ -3062,7 +3062,7 @@ function codexArrowRect(dir) {   // dir: -1 previous, +1 next
 function drawCodexArrows() {
   [-1, 1].forEach(d => {
     const r = codexArrowRect(d);
-    ctx.strokeStyle = "rgba(255,213,79,.6)"; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = shade(TOK.GOLD, .6); ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = TOK.GOLD; ctx.textAlign = "center";
     ctx.font = mono(16);
@@ -3186,7 +3186,7 @@ function drawCodex(now) {
   const tabs = ["⚕ MINDS", "◈ ARCHIVE"];
   for (let i = 0; i < 2; i++) {
     const r = codexTabRect(i), on = codexTab === i;
-    ctx.strokeStyle = on ? "rgba(255,213,79,.9)" : "rgba(255,255,255,.25)";
+    ctx.strokeStyle = on ? shade(TOK.GOLD, .9) : "rgba(255,255,255,.25)";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.font = mono(11);
@@ -4108,7 +4108,7 @@ function drawSettings(now) {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = padDisabled ? "rgba(255,255,255,.25)"
-      : isReset ? (resetArmed ? PAL().DANGER : "rgba(255,120,150,.7)")
+      : isReset ? (resetArmed ? PAL().DANGER : shade(PAL().DANGER, .7))
       : on ? PAL().SAFE : "rgba(255,255,255,.5)";
     ctx.font = mono(12);
     const txt = padDisabled ? "CONTROLLER · NONE"
@@ -4251,7 +4251,7 @@ function drawFireEnding() {
   ctx.scale(Math.min(1, vw / 380), Math.min(1, vw / 380));
   solaceMercyPath();
   ctx.fillStyle = "rgba(18,12,20,.92)"; ctx.fill();
-  ctx.strokeStyle = "rgba(255,109,0,.5)"; ctx.shadowColor = TOK.EMBER; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+  ctx.strokeStyle = shade(TOK.EMBER, .5); ctx.shadowColor = TOK.EMBER; ctx.shadowBlur = 12; ctx.lineWidth = 2;
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
