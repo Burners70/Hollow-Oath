@@ -174,6 +174,38 @@ giving controls a faint internal light rather than a hard fill.
   smooth sine pulse — reserve flicker for danger/organic light sources, pulse for
   calm/system elements
 
+### 5.6 Further component patterns (documented for future use, not yet built)
+
+A 2026-07 design-system export (Claude Design) proposed named vanilla-CSS classes
+for patterns that today exist only as canvas-drawn HUD or ad hoc markup: `Pill`
+(title/menu action pill with a leading glyph), `Badge` (semantic status chip —
+`CONTAINED`, `COUNTERFEIT`), `StatReadout` (mono micro-readout: glyph + label +
+value, e.g. `◈ 2/7`), `Card` (a story-reveal card: kicker → title → body →
+footer, accent recolouring the whole card per beat), and `Wordmark` (the
+breathing-glow title face). None of these are implemented as reusable classes
+anywhere in the repo yet — build them only when a concrete screen needs one,
+and when you do:
+
+- **Reuse the existing tokens; don't add a second set.** The export's CSS used
+  its own `--ho-a` accent variable plus a full parallel `--ho-*` scale
+  (`--ho-cyan`, `--ho-ink`, `--ho-font-mono`, …) that collides in *name* — but
+  not in *value* — with the tokens already live in `css/game.css`
+  (`--ho-cyan-rgb`, `--ho-safe-rgb`, …) and inline in `about.html` /
+  `support.html` / `privacy.html` (`--ho-cyan`, `--ho-ink`, …, see §8). That file
+  was deliberately **not** merged, for exactly this reason — two definitions of
+  `--ho-cyan` under one prefix is the ambiguity a token layer exists to prevent.
+  Any new component should read the tokens that already exist on whichever
+  surface it lands on, and never introduce another `--ho-*` name.
+- **The "accent encodes function" idea is already shipped** — it's `.btn` + `--c`
+  in `css/game.css` (§5.1). Don't rebuild it.
+- **Anything that encodes state must go through the swap layer** (§8): `PAL()` in
+  canvas, `rgba(var(--ho-*-rgb), a)` in `css/game.css`. A `Badge` reading
+  `CONTAINED` vs `COUNTERFEIT` is a semantic colour, not decoration — if it's
+  built from `TOK` or a literal it will be invisible to colourblind players and
+  will fail the guards in `tests/settings.spec.js`.
+- Match §4's glow law and §7's Do/Don't for any new pattern: outer + inset glow,
+  glow colour = stroke colour, no flat fills, no third typeface.
+
 ## 6. Voice & tone (for any copy in the system)
 
 - Labels: **ALL CAPS**, terse, 1–3 words (`FUEL`, `HOW TO FLY`, `HUD GUIDE`)
@@ -191,6 +223,54 @@ giving controls a faint internal light rather than a hard fill.
   corrupt? And why did she go down at all?"* and *"Fly it again. Look closer this
   time."* on their own lines. Width-wrapping (`wrapText`) then only wraps within
   each authored line. Keep final lines from stranding a single orphan word.
+- **Two-part lines: split at a real thought boundary, never into an orphan.** A
+  situation → qualifier pair (a hook line, a HUD banner) reads well split across
+  two lines *when each half is a complete thought* — `about.html`'s hook keeps
+  `"Something calls every 41 seconds."` and `"Not everything that answers should
+  be trusted."` on separate lines because both are full sentences. If splitting
+  would strand one bare word alone on the second line (an in-canvas banner like
+  `NIGHT COMES DOWN ON THE BASIN` breaking as `…DOWN` / `ON THE BASIN`), keep it
+  on one line instead — that's why that exact banner ships as a single string
+  (`docs/COPY_DECK.md`). One line beats an orphaned word; two lines beat a
+  run-on; never trade one problem for the other.
+- **Casing is per medium, and so is punctuation.** In-canvas flavour/subcopy runs
+  lowercase — diegetic, canvas-only — e.g. the title-screen hook in
+  `js/render.js`, `"the Static answers still — every 41 seconds"`. In-canvas
+  *labels* stay UPPERCASE (`FUEL`, `SETTINGS`). **Every other medium** —
+  marketing pages, store copy, docs, decks — uses sentence case. Proper nouns
+  stay capitalised everywhere (Scion, MERCY, the Static, sector names)
+  regardless of casing mode.
+  The tagline is the worked example, and **both forms are correct**: canvas ships
+  `a gravity rescue — a love letter to the 16-bit lander classics` (lowercase,
+  em-dash as a breath in a single diegetic readout), while `about.html` ships
+  `A gravity rescue. A love letter to the 16-bit lander classics.` (sentence
+  case, two sentences, because prose on a web page carries full stops). Don't
+  "fix" one into the other.
+- **Spelling:** UK English throughout (`colour`, `catalogued`, `immunised`) —
+  matches the copy already in `docs/COPY_DECK.md` and `js/world.js`. Don't
+  Americanise new strings. *(Note: this doc's own older headings use US
+  spellings like "Color" and "Flavor" — the rule is about **player-facing
+  copy**, not these headings.)*
+
+### Avoiding AI tells
+
+Keep new copy clear of the patterns that read as machine-written:
+
+- **Don't reach for an em-dash to join two clauses that want to be two
+  sentences.** In prose (marketing, store, docs) prefer the full stop:
+  *"A gravity rescue. A love letter to the 16-bit lander classics."* This is a
+  rule about *prose*, not a ban on the em-dash — in-canvas flavour uses it
+  deliberately as a breath inside a single lowercase readout (see the casing
+  rule above), and that is house style, not a slip. Reserve it in prose for a
+  genuine aside or a hard turn.
+- Cut hedges and filler adverbs (*quietly, simply, truly, seamlessly*) — if a
+  sentence needs one to land softer, split it into two instead.
+- Vary rhythm; not every list needs exactly three parallel clauses.
+- No generic app-UI phrasing (*"Click here," "Settings saved!," "Get started
+  today"*) — it breaks the diegesis on any surface, not just in-canvas.
+- No emoji as UI or decoration (see §5.4 Iconography — the game's glyphs are
+  Unicode symbols with the same glow treatment as text, which is not the same
+  thing).
 
 ## 6.5 Layering & occlusion (the "one is always in front" rule)
 
