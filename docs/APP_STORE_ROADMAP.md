@@ -92,6 +92,7 @@ bundle's section — grep the bundle heading to jump there.
 | V | 1.01 maintenance & narrative | 4 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, V·ship |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
 | Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
+| DS | Design-system conformance | 7 | 1.01 | DS1 semantic colours bypass `PAL()` *(colourblind mode barely works)*, DS2 buttons can't swap, DS3–DS6 tokens/type/marketing, DS·guard |
 | P | The pendulum sling | 3 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md) |
 | W | Landscape challenge escalation | 2 | 1.1 (with P) | W1 progressive terrain difficulty, W·guard |
 | Q | The deep Hollows | 3 | 1.1 core + 1.2 caves | Whole bundle — spec is [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) |
@@ -965,6 +966,96 @@ Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
 - [ ] **Z·guard. Regression gate.** M1 checksum + full smoke green (**seed 0
   unaffected**); add coverage for the gravity-scale bounds and the landing-safety
   re-tune.
+
+---
+
+## Bundle DS — Design-system conformance (audit, July 2026)
+
+**Why:** [DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) was extracted *from*
+the shipped build, so it describes the game accurately — but nothing in the code
+enforces it, and an audit of the live assets against it found the semantic colour
+layer is mostly bypassed. The headline: **colourblind mode barely works outside a
+handful of sites.** `PAL()` is called 9× in `js/render.js` and 13× in
+`js/update.js`, while the four semantic hexes are hardcoded ~93× across the same
+files — so the palette swap reaches the landing guide, ECG and transfusion line
+(the correct, gameplay-critical reads) but *not* the fuel bar, the shield bubble,
+the settings toggles or any on-screen button. This is a conformance/accessibility
+pass, not new art. **Priority: 1.01.** DS1 is the one item with a case for the
+launch binary — it is a shipped accessibility toggle not doing what its label
+implies. **Dependencies: none** (Bundle H shipped the toggles this fixes).
+
+- [ ] **DS1. Route the hardcoded semantic colours through `PAL()`.** Every
+  `#69f0ae` / `#ffc400` / `#ff4081` / `#ff5ce1` literal that encodes *state*
+  becomes `PAL().SAFE|WARN|DANGER|REVEAL`. Design system §7 already states the
+  rule ("never hardcode the hex directly … route it through a palette-swap
+  layer") — the code just predates it. Worst offender first: the **FUEL bar**
+  (`drawBar(hx, topPad, bw, 10, s.fuel / maxFuel(), fuelFlash ? "#ff4081" :
+  "#ffc400", "FUEL")`, `js/render.js:2588`) is the most-read HUD element in the
+  game and never swaps. Then the **shield bubble + landed skid**
+  (`js/render.js:716-726` — shield state is signalled by green glow *alone*, so
+  colourblind players get no swap on it), the **settings ON/OFF dots**
+  (`:4105-4111`), the **codex found/not-found markers** (`:3235`), the
+  **REMIX/DAILY badge** (`:3625`) and the controller-connect banners
+  (`js/input.js:366,375`). Leave genuinely decorative colour alone — this is
+  about anything that means safe/caution/danger/unknown. Cross-check the
+  colourblind `DANGER: "#ffffff"` while in there: pure white as a large fill
+  contradicts design system §7's own "don't" and is worth a second look on
+  device.
+- [ ] **DS2. Give the on-screen flight buttons a colourblind path.**
+  `css/game.css` hardcodes the same four semantic colours in CSS
+  (`rgba(105,240,174,…)` SHIELD, `rgba(255,196,0,…)` THRUST,
+  `rgba(255,64,129,…)` FIRE, cyan L/R) and CSS cannot read `PALETTES`, so the
+  buttons **cannot swap at all**. In colourblind mode the world's danger/warn
+  cues change hue while the buttons keep normal-vision hues — the "colour encodes
+  function" language of design system §5.1 desyncs exactly where it matters most.
+  Fix: lift the four semantic colours to CSS custom properties on `:root`, add a
+  `body.cb` class toggled alongside `colorblind` (`js/update.js:888` area, where
+  the other toggles persist), and override the properties under it. Keeps the
+  no-build constraint — plain CSS variables, no preprocessor.
+- [ ] **DS3. Document or retire the ninth accent, `#eaff6b`.** A yellow-green
+  appears 11× in `js/render.js` and is in **no** section of the design system. It
+  is doing two unrelated jobs: a **focus/selection** highlight (codex legend
+  `:4007-4019`, settings rows `:4061`, `:4120`) and a **reflected projectile**
+  tell (`:502`, `:3015`). It has no colourblind variant, and against the
+  documented palette it is the only hue outside the cyan / violet / amber / pink /
+  mint family. Decide: promote it to a documented `focus` token (and split the
+  reflected-bullet use onto something semantic), or fold both uses into existing
+  tokens. Either way the doc must end up matching the build.
+- [ ] **DS4. A token layer, so the system *directs* new work instead of
+  describing it.** Today `js/render.js` carries ~126 literal `ctx.font` strings
+  and 250+ raw hex literals; a new HUD element conforms only if its author
+  happened to read the doc. Add a token block **inside `js/world.js`** next to
+  the existing `PALETTES` const (§"no build step" — do not add a source file):
+  named colour constants for the base/void, cyan ramp and narrative accents, plus
+  a font helper pair (`bodyFontPx()` already exists — give the display face the
+  same treatment). Migrate opportunistically rather than in one sweep: DS1's
+  sites first, then any file a future bundle touches anyway. Then add a line to
+  `CLAUDE.md` § Conventions pointing new UI work at the tokens — that rule is
+  what actually makes the design system load-bearing for future sessions.
+- [ ] **DS5. Typography drift.** Mono text ships at **16px and 18px**
+  (`js/render.js`) and the display face at **20px**, all outside the ranges the
+  doc records (8–15px mono, 22–60px display). Small, but it is the kind of drift
+  that compounds. Either pull the outliers into the documented scale or widen the
+  scale in the doc — a decision, not a bug.
+- [ ] **DS6. Reconcile the marketing pages with the game's palette.**
+  `about.html` / `support.html` / `privacy.html` (the `gh-pages` shell on
+  hollow-oath.com) tokenise **fonts** (`--ho-font-display`, `--ho-font-mono`) but
+  not **colour** — the palette is duplicated as raw hex across all three, so a
+  palette change means three hand-edits and silent drift. Two things to settle:
+  (a) extend the `--ho-*` custom properties to cover the colour tokens, and (b)
+  the pages pull **JetBrains Mono from Google Fonts**, a third family that design
+  system §3's "two families only, do not introduce a third" rule does not allow
+  and that the game itself (Menlo, no network on `file://`) cannot match — so the
+  site and the app render in visibly different mono faces on non-Apple hardware.
+  Keep it and document it as a web-only substitute, or drop it for the game's
+  stack. Also an external font request on the privacy page, which is worth a
+  glance against what that page claims.
+- [ ] **DS·guard. Regression gate.** The existing colourblind test
+  (`tests/settings.spec.js:54`) only asserts the flag **persists** — it never
+  checks that a rendered colour changed, which is precisely why DS1 and DS2 could
+  drift this far unnoticed. Add an assertion that flipping `doids_cb` changes the
+  resolved colour of at least the fuel bar and the landing guide, plus full smoke
+  green and no M1 checksum movement (this bundle must not touch worldgen).
 
 ---
 
