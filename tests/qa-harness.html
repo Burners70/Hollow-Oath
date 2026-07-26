@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hollow Oath — QA Harness</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #05060f; font-family: -apple-system, Menlo, monospace; color: #dff8ff; }
+  #wrap { display: flex; flex-direction: column; height: 100%; }
+  #bar {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.3); flex-wrap: wrap;
+  }
+  #bar input[type=text] {
+    flex: 1; min-width: 120px; background: #111726; border: 1px solid rgba(0,229,255,.4);
+    color: #dff8ff; padding: 6px 8px; border-radius: 6px; font-size: 12px;
+  }
+  button {
+    background: #111726; border: 1px solid rgba(0,229,255,.5); color: #aef4ff;
+    padding: 6px 9px; border-radius: 6px; font-size: 12px; font-family: inherit;
+  }
+  button:active { background: #17324a; }
+  button.warn { border-color: rgba(255,109,0,.6); color: #ffab73; }
+  button.danger { border-color: rgba(255,64,129,.6); color: #ff8fab; }
+  #menuToggle { font-size: 16px; padding: 6px 12px; }
+  #menu {
+    display: none; padding: 8px; background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.2);
+    overflow-y: auto; max-height: 46vh;
+  }
+  #menu.open { display: block; }
+  .grp { margin-bottom: 10px; }
+  .grp h3 {
+    margin: 0 0 6px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(174,244,255,.6); font-weight: 700;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  select {
+    background: #111726; border: 1px solid rgba(0,229,255,.4); color: #dff8ff;
+    padding: 6px 8px; border-radius: 6px; font-size: 12px; font-family: inherit;
+  }
+  #status { font-size: 11px; color: rgba(255,255,255,.5); padding: 0 4px; white-space: nowrap; }
+  #stage { position: relative; flex: 1; min-height: 0; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+  #dump {
+    display: none; position: absolute; inset: 0; margin: 0; padding: 10px; overflow: auto;
+    background: rgba(5,6,15,.96); font-size: 11px; white-space: pre-wrap; z-index: 5;
+  }
+  #dump.open { display: block; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="bar">
+    <button id="menuToggle">☰ menu</button>
+    <input id="srcInput" type="text" placeholder="game index.html URL (raw.githack link)">
+    <button id="loadBtn">Load</button>
+    <span id="status">not loaded</span>
+  </div>
+
+  <div id="menu">
+    <div class="grp">
+      <h3>Jump to sector</h3>
+      <div class="row">
+        <select id="sectorSel">
+          <option value="0">0 · Asclepion (tutorial)</option>
+          <option value="1">1 · Vesalius Ridge</option>
+          <option value="2">2 · Nightingale Basin</option>
+          <option value="3">3 · Semmelweis Deep</option>
+          <option value="4">4 · Curie Fields</option>
+          <option value="5">5 · Avicenna Shoals</option>
+          <option value="6">6 · Jenner Terraces</option>
+          <option value="7">7 · The Nullwave (finale)</option>
+        </select>
+        <button data-run="go">Go + Launch</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h3>Story / testing flags</h3>
+      <div class="row">
+        <button data-run="setVeteran">Set veteran</button>
+        <button data-run="setHusksKnown">Set husks known</button>
+        <button data-run="checkHusksKnown">Check husks known</button>
+        <button data-run="markTrained">Mark trained</button>
+        <button data-run="markIntroSeen">Mark intro seen</button>
+        <button data-run="startFreshRun">Start fresh run (title flow)</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h3>Finale (sector 7 only)</h3>
+      <div class="row">
+        <button data-run="warpBeacon">Warp to beacon</button>
+        <button class="warn" data-run="fireSolace">Fire Solace (bad ending)</button>
+        <button data-run="answerBeacon">Answer beacon (good ending)</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h3>Warp / give</h3>
+      <div class="row">
+        <button data-run="warpLift">Warp to lift</button>
+        <button data-run="warpShrine">Warp to shrine</button>
+        <select id="upgradeSel">
+          <option value="gentle">gentle (Hippocrates)</option>
+          <option value="fabrica">fabrica (Vesalius)</option>
+          <option value="lamp">lamp (Nightingale)</option>
+          <option value="antisepsis">antisepsis (Semmelweis)</option>
+          <option value="radiosense">radiosense (Curie)</option>
+          <option value="canon">canon (Avicenna)</option>
+          <option value="inoculation">inoculation (Jenner)</option>
+          <option value="doors">doors (Blackwell)</option>
+          <option value="pathology">pathology (Virchow)</option>
+          <option value="penicillin">penicillin (Fleming)</option>
+          <option value="growth">growth (Levi-Montalcini)</option>
+        </select>
+        <button data-run="give">Give upgrade</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h3>Utilities</h3>
+      <div class="row">
+        <button data-run="dumpState">Show state</button>
+        <button data-run="reset">Reset run</button>
+        <button class="danger" data-run="clearSave">Clear save + reload</button>
+        <button id="consoleToggle">Toggle console</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <iframe id="gameFrame"></iframe>
+    <pre id="dump"></pre>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+/* Hollow Oath QA harness — a standalone, game-code-untouched test rig.
+   Loads any build's index.html in an iframe (same-origin when both this
+   page and the target are served from the same host, e.g. raw.githack —
+   that's what makes reaching into the iframe's window legal) and drives
+   its window.__doids debug handle from a tap menu instead of a console.
+   Point `src` at any branch's index.html — nothing here is branch-specific,
+   so this file is meant to be reused as-is for future branches. */
+(function () {
+  // the CDN script can fail to load (flaky network, ad blocker, offline) —
+  // that must never take the rest of the harness down with it
+  try { if (typeof eruda !== "undefined") eruda.init(); }
+  catch (e) { console.warn("eruda failed to init:", e); }
+  var frame = document.getElementById("gameFrame");
+  var status = document.getElementById("status");
+  var srcInput = document.getElementById("srcInput");
+  var dump = document.getElementById("dump");
+  var menu = document.getElementById("menu");
+
+  var qs = new URLSearchParams(location.search);
+  var DEFAULT_SRC = qs.get("src") ||
+    "https://raw.githack.com/Burners70/Hollow-Oath/claude/build-2-3-handover-8nr0q5/index.html";
+  srcInput.value = DEFAULT_SRC;
+
+  function doids() {
+    try { return frame.contentWindow && frame.contentWindow.__doids; } catch (e) { return null; }
+  }
+
+  var pollT = null;
+  function load(url) {
+    status.textContent = "loading…";
+    dump.classList.remove("open");
+    frame.src = url;
+    clearInterval(pollT);
+    pollT = setInterval(function () {
+      var d = doids();
+      if (d) { status.textContent = "ready ✓"; clearInterval(pollT); }
+    }, 200);
+  }
+  document.getElementById("loadBtn").onclick = function () { load(srcInput.value.trim()); };
+  load(DEFAULT_SRC);
+
+  document.getElementById("menuToggle").onclick = function () { menu.classList.toggle("open"); };
+  document.getElementById("consoleToggle").onclick = function () {
+    var el = document.getElementById("eruda");
+    if (el) el.style.display = (el.style.display === "none") ? "" : "none";
+  };
+
+  function need(d) {
+    if (!d) { status.textContent = "not ready — load the game first"; return false; }
+    return true;
+  }
+
+  var actions = {
+    go: function (d) {
+      var n = +document.getElementById("sectorSel").value;
+      d.go(n); d.launch();
+      status.textContent = "sector " + n + " launched";
+    },
+    setVeteran: function (d) { d.setVeteran(); status.textContent = "veteran set"; },
+    setHusksKnown: function (d) { d.setHusksKnown(); status.textContent = "husks known set"; },
+    checkHusksKnown: function (d) { status.textContent = "husksKnown = " + d.husksKnown(); },
+    markTrained: function (d) {
+      try { frame.contentWindow.markTrained(); status.textContent = "trained marked"; }
+      catch (e) { status.textContent = "markTrained() not exposed on this build"; }
+    },
+    markIntroSeen: function (d) {
+      try { frame.contentWindow.markIntroSeen(); status.textContent = "intro-seen marked"; }
+      catch (e) { status.textContent = "markIntroSeen() not exposed on this build"; }
+    },
+    startFreshRun: function (d) {
+      try { frame.contentWindow.startFreshRun(); status.textContent = "fresh run started (title flow)"; }
+      catch (e) { status.textContent = "startFreshRun() not exposed on this build"; }
+    },
+    warpBeacon: function (d) { d.warpBeacon(); status.textContent = "warped to beacon"; },
+    fireSolace: function (d) { d.fireSolace(); status.textContent = "fired on the Solace"; },
+    answerBeacon: function (d) { d.answerBeacon(); status.textContent = "beacon answered"; },
+    warpLift: function (d) { d.warpLift(); status.textContent = "warped to lift"; },
+    warpShrine: function (d) { d.warpShrine(); status.textContent = "warped to shrine"; },
+    give: function (d) {
+      var k = document.getElementById("upgradeSel").value;
+      d.give(k); status.textContent = "gave " + k;
+    },
+    dumpState: function (d) {
+      dump.textContent = JSON.stringify(d.get(), function (k, v) {
+        return (v && v.buffer instanceof ArrayBuffer) ? "[typed array]" : v;
+      }, 2);
+      dump.classList.add("open");
+      status.textContent = "tap the dump to dismiss";
+      dump.onclick = function () { dump.classList.remove("open"); };
+    },
+    reset: function (d) { d.reset(); status.textContent = "run reset"; },
+    clearSave: function (d) {
+      try { frame.contentWindow.localStorage.clear(); } catch (e) {}
+      load(srcInput.value.trim());
+      status.textContent = "save cleared, reloaded";
+    }
+  };
+
+  document.querySelectorAll("[data-run]").forEach(function (btn) {
+    btn.onclick = function () {
+      var d = doids();
+      if (!need(d)) return;
+      try { actions[btn.dataset.run](d); }
+      catch (e) { status.textContent = "error: " + e.message; }
+    };
+  });
+})();
+</script>
+</body>
+</html>
