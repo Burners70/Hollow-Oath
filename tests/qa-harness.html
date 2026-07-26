@@ -10,7 +10,10 @@
   html, body { margin: 0; padding: 0; height: 100%; background: #05060f; font-family: -apple-system, Menlo, monospace; color: #dff8ff; }
   #wrap { display: flex; flex-direction: column; height: 100%; }
   #bar {
-    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    display: flex; align-items: center; gap: 6px;
+    /* clear the notch/camera housing in landscape, whichever side it's on —
+       same env(safe-area-inset-*) pattern the game itself uses (css/game.css) */
+    padding: 6px calc(8px + env(safe-area-inset-right)) 6px calc(8px + env(safe-area-inset-left));
     background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.3); flex-wrap: wrap;
   }
   #bar input[type=text] {
@@ -26,7 +29,9 @@
   button.danger { border-color: rgba(255,64,129,.6); color: #ff8fab; }
   #menuToggle { font-size: 16px; padding: 6px 12px; }
   #menu {
-    display: none; padding: 8px; background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.2);
+    display: none;
+    padding: 8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left));
+    background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.2);
     overflow-y: auto; max-height: 46vh;
   }
   #menu.open { display: block; }
@@ -44,7 +49,8 @@
   #stage { position: relative; flex: 1; min-height: 0; }
   iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
   #dump {
-    display: none; position: absolute; inset: 0; margin: 0; padding: 10px; overflow: auto;
+    display: none; position: absolute; inset: 0; margin: 0; overflow: auto;
+    padding: 10px calc(10px + env(safe-area-inset-right)) 10px calc(10px + env(safe-area-inset-left));
     background: rgba(5,6,15,.96); font-size: 11px; white-space: pre-wrap; z-index: 5;
   }
   #dump.open { display: block; }
