@@ -43,7 +43,21 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
                       "SEMMELWEIS DEEP", "CURIE FIELDS", "AVICENNA SHOALS",
                       "JENNER TERRACES", "THE NULLWAVE"];
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
-const MERCY_SPLIT_DUR = 2.2;   // V12 — the finale twin's flicker-and-split reveal on arrival
+// V13 (owner steer) — the finale twin's arrival is a staged theatrical beat,
+// not a simple cross-fade: (1) hold on a single, perfectly ordinary-looking
+// MERCY at the spawn point, nothing else visible; (2) a purple signal pulse,
+// then it flickers OUT of existence; (3) a beat of nothing, a second pulse,
+// then the two real (randomised, separated) MERCYs flicker IN; (4) the
+// illusion is gone — only the two remain, stable but for the emblem tell.
+// All phase math in render.js reads level.mercySplitT as elapsed-time-
+// REMAINING (as before V13), so every existing "still resolving, stay inert"
+// gate elsewhere (bays, decoy) keeps working unchanged.
+const TWIN_HOLD = 1.3;               // 1 — sits as ordinary MERCY; first pulse fires exactly here
+const TWIN_PULSE1 = TWIN_HOLD;
+const TWIN_OUT = TWIN_HOLD + 1.0;    // 2 — the illusion finishes flickering out by here
+const TWIN_PULSE2 = TWIN_OUT + 0.3;  // a beat of nothing, then the second pulse
+const TWIN_IN = TWIN_PULSE2 + 1.2;   // 3 — the real two are fully resolved (solid) by here
+const MERCY_SPLIT_DUR = TWIN_IN;     // 4 — total sequence length
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 // Owner steer: three boxes was too easy a bar for the secret finale. Real
 // triangulation needs most of the recorders — ~80% of them (6 of 7). Missing

@@ -1093,7 +1093,16 @@ function updatePlay(dt) {
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
-  if (level.mercySplitT > 0) level.mercySplitT = Math.max(0, level.mercySplitT - dt);   // V12 reveal
+  // V13 — the twin's staged reveal: decrement the countdown, then fire the two
+  // one-shot signal-pulse cues at the instants drawMercySplit's rings mark
+  // (elapsed crossing TWIN_PULSE1 / TWIN_PULSE2), each exactly once.
+  if (level.mercySplitT > 0) {
+    const prevE = MERCY_SPLIT_DUR - level.mercySplitT;
+    level.mercySplitT = Math.max(0, level.mercySplitT - dt);
+    const e = MERCY_SPLIT_DUR - level.mercySplitT;
+    if (prevE < TWIN_PULSE1 && e >= TWIN_PULSE1) { staticTick(0.4); haptic.light(); }
+    if (prevE < TWIN_PULSE2 && e >= TWIN_PULSE2) { staticTick(0.5); haptic.medium(); }
+  }
   if (level.isFinale) updateBeacon(dt);
   if (level.fakeMercy) updateDecoy(dt);
 

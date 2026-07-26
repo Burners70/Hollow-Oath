@@ -1794,6 +1794,29 @@ test("V12: the finale spawns two identical MERCYs at randomised, separated posit
   expect(await page.evaluate(() => __doids.get().decoyOutcome)).toBe("trapped");
 });
 
+test("V13: the finale twin's arrival is staged — hold, flicker out, a gap, then flicker in", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  // phase 1 — the hold: a single ordinary MERCY, the real two fully invisible
+  expect(await page.evaluate(() => twinInAlpha(1))).toBe(0);
+  // phase 2 — partway through the illusion's flicker-out stretch
+  await page.evaluate(() => { level.mercySplitT = MERCY_SPLIT_DUR - (TWIN_HOLD + 0.5); });
+  expect(await page.evaluate(() => twinInAlpha(1)), "reals still invisible mid flicker-out").toBe(0);
+  expect(await page.evaluate(() => {
+    const e = MERCY_SPLIT_DUR - level.mercySplitT; return e > TWIN_HOLD && e < TWIN_OUT;
+  }), "landed inside the OUT stretch").toBe(true);
+  // the gap — illusion fully gone, reals not yet started: nothing visible at all
+  await page.evaluate(() => { level.mercySplitT = MERCY_SPLIT_DUR - (TWIN_OUT + 0.1); });
+  expect(await page.evaluate(() => twinInAlpha(1)), "the gap between OUT and the second pulse").toBe(0);
+  // phase 3 — partway through the real two's flicker-in stretch
+  await page.evaluate(() => { level.mercySplitT = MERCY_SPLIT_DUR - (TWIN_PULSE2 + 0.5); });
+  const midIn = await page.evaluate(() => twinInAlpha(1));
+  expect(midIn, "mid flicker-in: neither 0 nor fully solid").toBeGreaterThan(0);
+  expect(midIn).toBeLessThan(1);
+  // phase 4 — fully resolved, stable
+  await page.evaluate(() => { level.mercySplitT = 0; });
+  expect(await page.evaluate(() => twinInAlpha(1))).toBe(1);
+});
+
 test("V13: losing a life inside the unresolved finale twin re-rolls it and replays the split reveal", async ({ page }) => {
   await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
   const before = await page.evaluate(() => {

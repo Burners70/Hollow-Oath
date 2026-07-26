@@ -389,7 +389,7 @@ function drawWorld(now) {
 
   if (!level.isCave) drawMothership(now);
   if (level.fakeMercy) drawDecoyMercy(now);
-  drawMercySplit(now);   // V12 — the one-into-two reveal on finale arrival
+  drawMercySplit(now);   // V13 — the staged one-then-two reveal on finale arrival
   drawLift(now);
   if (level.shrine) drawShrine(now);
 
@@ -1885,10 +1885,15 @@ function drawTractorBeam(b, colorRGB, now, vertical, pull) {
 
 function drawMothership(now) {
   const { mx, my } = mercyPos();
+  // V13 — computed once and applied to every block below (hull, the pulse-ring
+  // wash, AND the bay labels/beams), not just the hull's own save/restore pair —
+  // those bay labels used to leak through at full alpha during the reveal since
+  // they live in their own later save block that never inherited it.
+  const twinA = level.mercySplitT > 0 ? twinInAlpha(now) : 1;
   // no idle bob: the hull, the bays and the ventral hangar all sit on the exact
   // same mercyPos, so the hangar can never drift out of sync with the hull
   ctx.save();
-  if (level.mercySplitT > 0) ctx.globalAlpha *= 1 - level.mercySplitT / MERCY_SPLIT_DUR;   // V12 fade-in
+  ctx.globalAlpha *= twinA;
   ctx.translate(mx, my);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
@@ -1917,6 +1922,7 @@ function drawMothership(now) {
   if (level.pulse) {
     const p = level.pulse.t / 1.2;
     ctx.save();
+    ctx.globalAlpha *= twinA;
     ctx.strokeStyle = "rgba(179,136,255," + ((1 - p) * 0.7).toFixed(2) + ")";
     ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
     ctx.lineWidth = 2;
@@ -1935,6 +1941,7 @@ function drawMothership(now) {
 
   const bays = bayRects();
   ctx.save();
+  ctx.globalAlpha *= twinA;
   ctx.lineWidth = 1.5;
   // recovery bay: a beam hanging under the hull, dispensing outward
   const medRGB = mercyBreach ? "255,64,129" : "0,229,255";
@@ -2087,40 +2094,95 @@ function drawJumpStreak(now) {
    emblem pulses organically (0.55 + 0.45·sin) — this one blinks in perfect
    mechanical unison with the fake fuel pods (sin(now·π·2) > 0), the exact
    tell the game has taught since Avicenna Shoals. */
-/* V12 — the finale twin's arrival: one MERCY flickers, then peels into two that
-   drift to their (randomised) positions, where the real drawMothership /
-   drawDecoyMercy fade in. Location tells you nothing; only the beat will. */
+/* V13 (owner steer) — the finale twin's arrival, staged: (1) hold on a single,
+   perfectly ordinary MERCY at the spawn point (this function); (2) a purple
+   signal pulse (drawTwinPulse), then that illusion flickers OUT; (3) a beat of
+   nothing, a second pulse, then the two real MERCYs flicker IN over their own
+   drawMothership/drawDecoyMercy (reading twinInAlpha) at their randomised,
+   separated positions; (4) the illusion is gone — only the two remain, stable
+   but for the emblem tell. Location and the opening beat both tell you
+   nothing; only the beat (and now the two pulses) are honest. */
+function twinElapsed() { return MERCY_SPLIT_DUR - level.mercySplitT; }
+// envelope 0..1 (rising for an entrance, falling for an exit) rendered as a
+// glitchy strobe rather than a smooth dimmer; reduced-flash dampens the
+// flicker's amplitude instead of removing it, so the beat still reads.
+function twinFlicker(now, envelope) {
+  const flick = reducedFlash ? 0.85 : (0.4 + 0.6 * Math.abs(Math.sin(now * 30) * Math.sin(now * 11)));
+  return envelope * flick;
+}
+// the alpha the two REAL ships (mothership + decoy) share while resolving:
+// invisible until the second pulse, then flickers up to fully solid
+function twinInAlpha(now) {
+  const e = twinElapsed();
+  if (e < TWIN_PULSE2) return 0;
+  if (e >= TWIN_IN) return 1;
+  return twinFlicker(now, (e - TWIN_PULSE2) / (TWIN_IN - TWIN_PULSE2));
+}
+function drawTwinPulse(x, y, tSincePulse) {
+  const DUR = 0.6;
+  if (tSincePulse < 0 || tSincePulse > DUR) return;
+  const p = tSincePulse / DUR;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = (1 - p) * (reducedFlash ? 0.5 : 0.85);
+  ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 4 : 14;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, 20 + p * 130, 0, 7); ctx.stroke();
+  ctx.restore();
+}
 function drawMercySplit(now) {
   if (!(level.mercySplitT > 0) || !level.fakeMercy) return;
-  const p = 1 - level.mercySplitT / MERCY_SPLIT_DUR;   // 0..1 through the reveal
+  const e = twinElapsed();
   const midX = (level.mx + level.fakeMercy.x) / 2, midY = 170;
-  const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-  const flick = reducedFlash ? 0.7 : (0.5 + 0.5 * Math.abs(Math.sin(now * 26)));
-  // the origin ghost, dissolving as the two resolve
-  ctx.save();
-  ctx.globalAlpha = (1 - p) * 0.7 * flick;
-  ctx.translate(midX, midY);
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = reducedFlash ? 4 : 16;
-  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.4)";
-  mercyHullPath(); ctx.fill(); ctx.stroke();
-  ctx.restore();
-  // two echoes peeling off toward the endpoints
-  for (const tx of [level.mx, level.fakeMercy.x]) {
+
+  // the illusion: solid through the hold ("looks identical to normal"), then
+  // flickers out once the first pulse fires — never below here, never a ghost
+  let illusionAlpha = 1;
+  if (e >= TWIN_HOLD) {
+    illusionAlpha = e >= TWIN_OUT ? 0 : twinFlicker(now, 1 - (e - TWIN_HOLD) / (TWIN_OUT - TWIN_HOLD));
+  }
+  if (illusionAlpha > 0) {
     ctx.save();
-    ctx.globalAlpha = (1 - p) * 0.5;
-    ctx.translate(midX + (tx - midX) * ease(p), midY);
-    ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.lineWidth = 2;
-    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = reducedFlash ? 3 : 10;
-    mercyHullPath(); ctx.stroke();
+    ctx.globalAlpha = illusionAlpha;
+    ctx.translate(midX, midY);
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+    ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.55)";
+    mercyHullPath(); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    mercyGreebles("rgba(0,229,255,.3)");
+    drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
+    drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
+    // the same organic emblem pulse as the real ship — it's meant to read as
+    // completely ordinary, which is exactly the point
+    ctx.save();
+    ctx.translate(0, -15);
+    const pulse = 0.55 + 0.45 * Math.sin(now * 3);
+    ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
+    drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+    ctx.restore();
+    mercyAntenna(now, "0,229,255", true);
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
+    ctx.fillStyle = "#9beaf9";
+    ctx.font = "700 10px Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("A M S · M E R C Y", 0, 34);
     ctx.restore();
   }
+
+  // the two signal pulses — purple rings marking each turn
+  drawTwinPulse(midX, midY, e - TWIN_PULSE1);
+  drawTwinPulse(midX, midY, e - TWIN_PULSE2);
 }
 
 function drawDecoyMercy(now) {
   const f = level.fakeMercy;
   const bob = Math.sin(now * 1.2 + 2.1) * 4;
+  // V13 — computed once, applied to the hull AND the bay label/beam below (that
+  // label used to leak through at full alpha — it lives past this function's
+  // first save/restore pair, which never covered it).
+  const twinA = level.mercySplitT > 0 ? twinInAlpha(now) : 1;
   ctx.save();
-  if (level.mercySplitT > 0) ctx.globalAlpha *= 1 - level.mercySplitT / MERCY_SPLIT_DUR;   // V12 fade-in
+  ctx.globalAlpha *= twinA;
   ctx.translate(f.x, f.y + bob);
   if (f.dead) {
     // powered down for good: dark hull, Glycon's masked serpent flickering
@@ -2176,11 +2238,14 @@ function drawDecoyMercy(now) {
   }
   ctx.restore();
   // identical bay furniture — the lie is complete down to the label
+  ctx.save();
+  ctx.globalAlpha *= twinA;
   const b = decoyBayRect();
   drawTractorBeam(b, "0,229,255", now, true, false);
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(0,229,255,.6)";
   ctx.fillText("RECOVERY BAY", (b.x0 + b.x1) / 2, b.y1 + 14);
+  ctx.restore();
   // the observed win in progress: counting the beats from the ground
   if (f.scanT > 0) {
     ctx.save();
