@@ -120,7 +120,7 @@ completion is heard, not scored: **EVERY HOLLOW HEARD**.
   richer content than boxes — and because the unaided tell must stay
   worth learning (the virtue the owner named).
 - Anchor: the lift renderer around the existing `glint` math
-  (`drawWorld`'s lift block, ~`index.html:3627`), gated on
+  (`drawSurfacePad` / `drawLift` in `js/render.js`), gated on
   `upgrades.auscult && !L.found`.
 
 ## 5. The ROTATION CHART (return travel)

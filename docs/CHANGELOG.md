@@ -1,5 +1,48 @@
 # Changelog
 
+**Newest first.** Each `##` entry is one landed change or decision. Every entry
+below ships in the **1.0 launch build** — 1.0 has not yet gone out to users, so
+there are no post-release versions to separate yet.
+
+**Convention going forward:** once 1.0 is live, start each new entry with a
+`**Release:** 1.01` (or 1.1, 1.2) line, so a reader can tell what an existing
+player already has from what's queued in the next update. Entries stay in this
+file; the *plan* they came from is
+[APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
+[ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
+
+## Index
+
+Grouped by phase, newest phase first. Don't read the whole file — jump.
+
+**Copy & content passes**
+- [Copy pass: cut "MERCY ACTUAL", fix name/term leaks and a location ambiguity](#copy-pass-cut-mercy-actual-fix-nameterm-leaks-and-a-location-ambiguity) — comprehension/continuity sweep over every player-facing string; three name-gating bugs found
+- [Audio + legibility fixes](#audio--legibility-fixes-july-2026) · [CONTINUE box overflow fix + SFX variety pass](#continue-box-overflow-fix--sfx-variety-pass-july-2026) · [Emblem centring + shrine cue](#emblem-centring--shrine-cue-july-2026)
+
+**Playtest feedback rounds**
+- [July 2026 owner-playtest feedback → Bundles R, S, T + the copy deck](#july-2026-owner-playtest-feedback--bundles-r-s-t--the-copy-deck) — the round that produced the R/S/T bundles and COPY_DECK.md
+- [Polish pass 2: remaining review items](#polish-pass-2-remaining-review-items-july-2026) · [Polish pass: six owner fixes](#polish-pass-six-owner-fixes-july-2026) · [Bug fixes & polish pass](#bug-fixes--polish-pass-july-2026)
+
+**Store, native wrapper & platform**
+- [Game Center achievement art & App Store Connect copy](#game-center-achievement-art--app-store-connect-copy-july-2026) — the nine launch achievements, art and metadata
+- [Bundles E + G: the native wrapper and Game Center](#bundles-e--g-the-native-wrapper-and-game-center-july-2026) — Capacitor scaffold, the two Swift plugins, `cloud`/`gc` facades
+
+**Design decisions & proposals** (specs, no code)
+- [Decision: Bundles P & Q locked as the 1.1 and 1.2 updates](#decision-bundles-p--q-locked-as-the-11-and-12-updates-july-2026)
+- [Proposal: the deep Hollows — Bundle Q specced, not built](#proposal-the-deep-hollows--bundle-q-specced-not-built-july-2026) · [Proposal: the pendulum sling — Bundle P specced, not built](#proposal-the-pendulum-sling--bundle-p-specced-not-built-july-2026)
+
+**Gameplay build-out**
+- [The transfusion line — field refuel as a hover minigame](#the-transfusion-line--field-refuel-as-a-hover-minigame-july-2026)
+- [Bundles I–N + haptics wiring](#bundles-in--haptics-wiring-july-2026) — the 41-second clock, scan, codex, epilogue, remix/daily, the counterfeit MERCY
+- [Bundle H — Accessibility & difficulty](#bundle-h--accessibility--difficulty-july-2026) · [Bundle D — performance pass](#bundle-d--performance-pass-july-2026) · [Bundle C — audio baseline & settings menu](#bundle-c--audio-baseline--settings-menu-july-2026) · [Bundle B — emblem replacement, red cross → rod of Asclepius](#bundle-b--emblem-replacement-red-cross--rod-of-asclepius-july-2026) · [Bundle A — pause, mid-run save & resume](#bundle-a--pause-mid-run-save--resume-july-2026)
+- [Lift-return bugfix](#lift-return-bugfix-july-2026)
+
+**Foundations**
+- [App Store roadmap added](#app-store-roadmap-added-july-2026) — where the bundle structure came from
+- [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
+
+---
+
 ## Copy pass: cut "MERCY ACTUAL", fix name/term leaks and a location ambiguity
 
 Owner-requested: "MERCY ACTUAL" read oddly as a message source and, on

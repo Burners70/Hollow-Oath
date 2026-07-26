@@ -4,9 +4,12 @@
 and line edits. Requested in the July 2026 feedback round (roadmap item R10).*
 
 **How to use this document:** edit the copy here (strike, rewrite, annotate),
-and the changes get applied back to `index.html` — the code stays the source of
-truth, this deck is the review surface. Each section names its code anchor
-(function or constant in `index.html`) so edits land in the right place.
+and the changes get applied back to the code — which stays the source of
+truth; this deck is the review surface. Each section names its code anchor (a
+function or constant) so edits land in the right place: story tables and
+constants live in `js/world.js`, on-screen text in `js/render.js`, run-time
+messages in `js/update.js`. Anchors written as `index.html` predate the July
+2026 source split — grep `js/` for the name.
 **Any PR that changes a player-facing string must update this deck in the same
 PR** (see APP_STORE_ROADMAP.md § How to work on this).
 
@@ -327,9 +330,9 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | Lift descent | `SECRET LIFT — DESCENDING INTO THE HOLLOWS` |
 | Cave exit | `SURFACE — <SECTOR NAME>` |
 | Nightfall on the Basin (T6) | `NIGHT COMES DOWN ON THE BASIN` |
-| Manifest closes | `MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP / DOCK IN THE RECOVERY BAY BEFORE THE STATIC REACHES HER` *(S4 changes to the ventral-hangar wording)* |
-| Breach | `SECURITY BREACH ABOARD MERCY / DOCK AT THE RED BAY TO CONTAIN IT` |
-| Breach contained | `CONTAMINANT CONTAINED  +750 / LOCKDOWN LIFTED` |
+| Manifest closes | `MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP` / `FLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER` *(S4 wording; the pre-S4 line was "DOCK IN THE RECOVERY BAY…")* |
+| Breach — retrieve | `VECTOR RETRIEVED — CARRY IT TO THE RED ISOLATION BAY` / `IT WILL FIGHT YOU — LET GO OF THE CONTROLS TO RESTRAIN IT` *(E1/E2 rewrote the old "SECURITY BREACH ABOARD MERCY / DOCK AT THE RED BAY TO CONTAIN IT" pair; the live HUD prompts are `⚠ BREACH — RETRIEVE AT THE RECOVERY BAY <n>s` and `⚠ CARRY IT TO THE RED ISOLATION BAY`)* |
+| Breach contained | `CONTAMINANT SEALED IN ISOLATION  +750` / `LOCKDOWN LIFTED` *(E4: an infected Scion instead reads `INFECTED SCION CURED IN ISOLATION  +750` / `RETURNED TO THE MANIFEST`)* |
 | Breach failed | `RECOVERY BAY SABOTAGED  -1000 / HEALING OFFLINE THIS SECTOR` |
 | Famous Scion boards | `SOMEONE EXTRAORDINARY IS ABOARD…` |
 | Transfusion line snaps | `LINE SEVERED — REMAINDER LOST  -50 / SIGNAL AGAIN IF YOU NEED IT` |
@@ -339,7 +342,7 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 ## 9. Floating texts (`addText()` call sites)
 
 `SHIP FULL` · `SCION ABOARD +500` · `◇ CARRYING DATA` · `DELIVERED +300` ·
-`LOG FRAGMENT RECOVERED` · `CONTAMINANT CONTAINED +750` · `FUEL +35` ·
+`LOG FRAGMENT RECOVERED` · `FUEL +35` ·
 `COUNTERFEIT — SOMEBODY'S LURE  -100` · `FUEL DRAINED -18` ·
 `LURE-TREE DESTROYED` / `LURE-TREE READ FOR WHAT IT IS — COUNTERFEIT
 TRANSMITTER +500` ·

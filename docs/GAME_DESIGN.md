@@ -17,8 +17,9 @@ marketing/support/privacy pages only
 
 Hollow Oath is an original 2D gravity-thrust rescue game — in the *mechanical*
 lineage of *Oids* (Atari ST, 1987), but with wholly original code, art, story,
-and names — built as a **single self-contained HTML file** (canvas + inline
-CSS/JS, zero dependencies) targeting iPhone Safari first, desktop second. You
+and names — built as **self-contained static files with no build step** (canvas
++ vanilla JS, zero dependencies; see §9) targeting iPhone Safari first, desktop
+second. You
 fly a small rescue dart over procedurally seeded terrain, land gently near
 stranded medical androids ("Scions"), and ferry them back to the hospital
 mothership **AMS MERCY** — while the game quietly teaches you to distrust
@@ -338,12 +339,22 @@ rank (§2.5), distinct from breaking it in combat.
 
 ## 9. Architecture (for developers)
 
-Everything lives in **`index.html`** (~4.8k lines). No build step: edit,
-reload. Deliberate order inside the `<script>`:
+**No build step**: edit, reload. `index.html` is a thin shell — a `<link>` to
+`css/game.css` and an ordered list of plain (non-module) `<script src="js/*.js">`
+tags that share one global scope, exactly as the old single inline script did.
+The load order below is deliberate and load-bearing (constants and utilities
+before their users; `js/main.js`, the bootstrap + `requestAnimationFrame` loop,
+last).
 
-1. **Input** — touch tracker, keyboard, `pollPad()` (Gamepad API); gyro
+> **The file map lives in [`../CLAUDE.md`](../CLAUDE.md)** — file names, line
+> counts, and what to open for a given task. That table is the one to update
+> after a refactor. The numbered list below describes what each **subsystem
+> does** (the design, the function names to grep for); it names the owning file
+> only as a convenience.
+
+1. **Input** (`js/input.js`) — touch tracker, keyboard, `pollPad()` (Gamepad API); gyro
    scaffolding present but dormant (see Controls above — pulled from the build).
-2. **Audio** — tiny WebAudio synth: thrust noise, blips, boom, heartbeat
+2. **Audio** (`js/audio.js`) — tiny WebAudio synth: thrust noise, blips, boom, heartbeat
    (lub-dub), `staticTick()` (the Static's dry burst), dull thud — all routed
    through `sfxGain`. A generative ambient score (`startMusic()`: two
    detuned drone oscillators + a filter LFO, plus a sparse pentatonic motif
@@ -352,9 +363,11 @@ reload. Deliberate order inside the `<script>`:
    and goes arrhythmic in its own timing while a contaminant is aboard —
    same diagnostic language as the ECG. `sfxGain`/`musicGain` are gated by
    the SOUND/MUSIC settings toggles (0 or 1, no sliders).
-3. **Story data** — `SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`,
+3. **Story data** (`js/world.js`) — `SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`,
    `FAMOUS`, `INTRO`. `FINALE_IDX` / `NBOX` derive from `SECTOR_NAMES`.
-4. **World gen** — `RECIPE[]` (per-sector counts incl. `scn` scenery and
+   (`js/platform.js`, loaded between audio and world, holds the haptics /
+   iCloud / Game Center facades.)
+4. **World gen** (`js/world.js`) — `RECIPE[]` (per-sector counts incl. `scn` scenery and
    `fakes`; `lift` flags; a `pal` biome palette — Bundle T2), `genLevel(n)`
    (progressive widths `W = 2200 + n*550`, finale 4400, with distance-scaled
    fuel pods — Bundle T1), `genCave(ci)` (`LIFT_CAVE` maps sector→cave),
@@ -362,12 +375,12 @@ reload. Deliberate order inside the `<script>`:
    (sector accounting always lands on the surface level). The Basin stages its
    own nightfall (`level.darkAlpha`/`nightFell`, driven by `updateNightfall` —
    Bundle T6).
-5. **Simulation** — `updatePlay` and friends (`updateOids`, `updateEnemies`,
+5. **Simulation** (`js/update.js`) — `updatePlay` and friends (`updateOids`, `updateEnemies`,
    `updateSabotage`, `updateDocking`, `updateBlackbox`, `updatePods`,
    `updateLift`, `updateShrine`, `updateBeacon`, `updateExtraction`).
-   Landing rules in `landingEval()`; tunables at top (`GRAV`, `THRUST`,
-   `ASSIST_*`).
-6. **Rendering** — `drawWorld` (terrain, cave roof, scenery, mothership,
+   Landing rules in `landingEval()`; tunables (`GRAV`, `THRUST`, `ASSIST_*`)
+   sit with the other constants at the top of `js/world.js`.
+6. **Rendering** (`js/render.js`) — `drawWorld` (terrain, cave roof, scenery, mothership,
    pods/fakes, lift, shrine, oids, enemies, ship+shield, darkness overlay
    `drawDarkness` with punched lights), HUD (`drawECG` is the health bar),
    screens (title/intro/brief/cards/codex).
@@ -380,8 +393,10 @@ reload. Deliberate order inside the `<script>`:
    offers RESUME / RESTART SECTOR / SETTINGS / QUIT TO TITLE. `settings` is
    reachable from the title's ⚙ pill or the pause menu and returns to
    whichever opened it (`settingsReturnState`); it holds the SOUND, MUSIC,
-   HAPTICS, ASSIST, TILT, and COLORBLIND toggles (the last two are no-ops
-   until Bundles F/H land).
+   HAPTICS, ASSIST, COLORBLIND, FIELD MEDIC, BIG TEXT, REDUCED FLASH and USE
+   CONTROLLER toggles. (No TILT row — gyro was dropped from the plan in July
+   2026 and its scaffolding is dormant in `js/input.js`; don't resurface it
+   without an owner reversal.)
 
 **Debug/test handle**: `window.__doids` exposes state plus `go(n)` (jump to
 sector), `launch()`, `warpLift()`, `warpShrine()`, `give(upgrade)`,
@@ -392,8 +407,8 @@ prefix deliberately after the Hollow Oath rename — renaming the keys would wip
 existing players' saved progress and codex (see CHANGELOG.md).
 
 **Testing**: the smoke suite now lives **in the repo** at `tests/`
-(Playwright; `cd tests && npm install && npm test` — see the config for the
-pre-installed-Chromium override). It covers: boot, all 8 sectors generate &
+(Playwright; `cd tests && npm ci && npm test` — the config auto-detects a
+pre-installed Chromium). It covers: boot, all 8 sectors generate &
 run, finale beacon / black boxes present, cave descent via the secret lift,
 landing evaluator + rank flags, and every briefing rendering without page
 errors. Pattern: `page.evaluate(() => __doids.go(5))` etc., assert on
@@ -408,12 +423,10 @@ session scratchpad and can be recreated the same way if needed.)
   launch (it was a dev/testing convenience, not an intended free release), so
   a push here reaches players only via the manual archive/upload step
   (`app/MAC_SETUP.md`), not instantly.
-- `claude/doids-iphone-game-r4fnon` — former Pages deploy branch, from back
-  when the game itself was briefly public on the web. No longer relevant now
-  that the web build is down; may lag behind. (Branch name keeps the old
-  "doids" slug — it's not user-facing, so it was left as-is; see CHANGELOG.md.)
-- `claude/game-dev-next-stage-trwmua` — a dev branch.
-- `claude/test-connection-79fx9k` — the Hollow Oath rename landed here first.
+- `gh-pages` — the publish branch for the marketing/support/privacy shell only.
+- `claude/*` — short-lived feature branches; branch from `main`, PR back into
+  it, delete after merge. Older ones keep the pre-rename "doids" slug in their
+  names (not user-facing, left as-is; see CHANGELOG.md).
 - **Repo renamed** `Doids` → `Hollow-Oath` (done). The custom domain
   `https://hollow-oath.com/` (July 2026; the `burners70.github.io/Hollow-Oath/`
   address and the old `.../Doids/` path still redirect) serves **only the
