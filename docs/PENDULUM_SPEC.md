@@ -251,8 +251,9 @@ slung under your hull, feeling every turn you make."*
 
 ## 7. Code anchors & task checklist
 
-Everything in `index.html`; anchors are functions/variables, not line
-numbers.
+Anchors are functions/variables, not line numbers — grep the `js/*.js` file
+that owns the concern (data/gen in `js/world.js`, simulation in `js/update.js`,
+drawing in `js/render.js`).
 
 - [ ] **P1. Relic data & spawn.** `RELICS[3]` const next to `SHRINES`
   (name, handling params, card copy, tell config). `genCave(ci)` places

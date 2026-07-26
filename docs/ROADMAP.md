@@ -1,8 +1,11 @@
-# Hollow Oath — build-out notes
+# Hollow Oath — build-out notes (archival)
 
-> **This file is the historical build-out log.** The forward plan — the
-> prioritised, checkbox-tracked path to a paid iOS App Store release — is
-> [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md).
+> **History, not a plan.** This is the v2/v3 build-out log plus the design
+> reasoning trails behind features that later shipped or were superseded —
+> kept because other docs cite it (PENDULUM_SPEC.md, CHANGELOG.md, the
+> roadmap's parked list). The forward plan, and the only one, is
+> [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md). Nothing here is scheduled;
+> where an item below is also a roadmap bundle, the roadmap wins.
 
 ## Rename pass (DOIDS → Hollow Oath)
 
@@ -105,12 +108,16 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
     cycle) or just surfacing the free web build for keyboard players? That
     answer decides whether this rides on Bundle E's Xcode project or is a
     same-day README/store-listing addition.
-- Persistent codex / rescue-log gallery across runs (who you've found).
-- More famous Scions per sector, randomised from a larger pool.
+- Persistent codex / rescue-log gallery across runs (who you've found) —
+  *now parked in APP_STORE_ROADMAP.md.*
+- ~~More famous Scions per sector, randomised from a larger pool.~~ *(shipped —
+  Bundle M4)*
 - Caves/overhangs (needs non-heightmap terrain), moving rescue targets.
 - Saboteur behavioural tells on the ground (wrong walk speed is in; could add
-  refusing to panic, standing too still).
-- Difficulty settings; second playthrough modifiers.
+  refusing to panic, standing too still) — *partly landed in Bundles S/T.*
+- ~~Difficulty settings; second playthrough modifiers.~~ *(shipped — Bundle H
+  for difficulty/accessibility, Bundle M for REMIX/DAILY; further
+  second-playthrough modifiers are Bundle Z.)*
 - ~~**The pendulum carry (the classic Oids/Thrust homage)**~~ —
   **superseded (July 2026)** by [PENDULUM_SPEC.md](PENDULUM_SPEC.md)
   (Bundle P: the pendulum sling — relic recovery from the Hollows, fully
@@ -214,12 +221,14 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
 
 ## Engineering notes
 
-- Landing rules in `landingEval()`; tunables at top of file
-  (`ASSIST_CAPTURE`, `ASSIST_RATE`, soft/survivable limits inside).
-- Sector recipes in `RECIPE[]`; story text in `BRIEFS`/`FRAGMENTS`/`FAMOUS`.
+- Landing rules in `landingEval()` (`js/update.js`); tunables with the other
+  constants at the top of `js/world.js` (`ASSIST_CAPTURE`, `ASSIST_RATE`,
+  soft/survivable limits inside `landingEval` itself).
+- Sector recipes in `RECIPE[]`; story text in `BRIEFS`/`FRAGMENTS`/`FAMOUS`
+  (all `js/world.js`).
 - Bays: `bayRects()` — med bay (left, heal/refuel/deliver) and red quarantine
   bay (right, contain saboteurs, resolve breaches).
 - Darkness overlay: offscreen canvas punched with radial lights
   (`drawDarkness`); lamp radius via `lampRadius()`.
-- `window.__doids` exposes state + `go(n)`/`launch()` for headless testing
-  (see scratchpad smoke tests).
+- `window.__doids` (bottom of `js/render.js`) exposes state + `go(n)`/`launch()`
+  for headless testing — the smoke suite in `tests/` drives it.

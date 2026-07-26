@@ -1,5 +1,12 @@
 # Hollow Oath — Release-Readiness Review (July 2026)
 
+> **Closed snapshot — archival.** Every bug it found (§3) is fixed and its
+> recommendations were folded into APP_STORE_ROADMAP.md bundles. It describes
+> the build as it stood *before* the `js/` source split and before Bundle O7
+> took the public web build down, so its file references (`index.html`, all
+> 4,929 lines) and its "the web build ships" framing are of their moment. Read
+> it for the audit record, not for current state.
+
 *A full stress-test of the current build and roadmap against the bar for a **paid
 iOS App Store release**: code audit of `index.html` (all 4,929 lines), the live
 docs (APP_STORE_ROADMAP / GAME_DESIGN / CHANGELOG / both 1.x specs), the smoke

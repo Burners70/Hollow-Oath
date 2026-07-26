@@ -12,10 +12,15 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 
 ## How to work on this
 
-- **The web game stays a single self-contained `index.html`** (inline CSS/JS, zero
-  dependencies, no build step). Do not introduce bundlers, frameworks, or split files
-  for the game itself. The native wrapper (Bundle E) lives in its own `app/` directory
-  and *copies* the web files in — the HTML file remains the source of truth.
+- **The game stays static files with no build step** — zero dependencies, no
+  bundler, no transpile; it must keep running by opening `index.html`. Since the
+  July 2026 split, `index.html` is a thin shell over `css/game.css` and ordered,
+  **non-module** `<script src="js/*.js">` tags sharing one global scope (see
+  `../CLAUDE.md` for the per-file map). Work inside those existing files; don't
+  add source files, and don't convert to `type="module"` (it changes scoping and
+  can fail over Capacitor's iOS `file://` origin). The native wrapper (Bundle E)
+  lives in its own `app/` directory and *copies* the web files in — the repo
+  root remains the source of truth.
 - **Keep the `doids_` localStorage prefix and the `__doids` debug handle.** They are
   deliberately unrenamed (renaming wipes existing players' saves — see CHANGELOG.md).
   New persistence keys should also use the `doids_` prefix for consistency.
@@ -23,17 +28,20 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
   be independently shippable. Dependencies are stated per bundle; anything not listed
   as a dependency can be done in parallel.
 - **Testing:** the smoke suite lives in **`tests/`** — run it with
-  `cd tests && npm install && npm test` (see `tests/playwright.config.js` for
-  the pre-installed-Chromium override). It drives the game headlessly through
+  `cd tests && npm ci && npm test` (`tests/playwright.config.js` auto-detects a
+  pre-installed Chromium, so no `playwright install` is needed in the dev
+  containers). It drives the game headlessly through
   `window.__doids` (`get()`, `go(n)`, `launch()`, `warpLift()`, `warpShrine()`,
   `give(upgrade)`, `reset()`), e.g. `page.evaluate(() => __doids.go(5))` then
   assert on `__doids.get()`. Copy the patterns in `tests/smoke.spec.js`. When
   you add a feature: extend `__doids.get()` to expose its state, add a test,
   and **run the suite before opening the PR** — it must stay green.
 - **Code anchors** in this document name functions/variables, not line numbers
-  (line numbers drift). Everything named lives in `index.html`.
+  (line numbers drift). Everything named lives in one of the `js/*.js` files —
+  grep for it. Anchors written before the July 2026 split say `index.html`;
+  read those as "somewhere in `js/`".
 - **Copy lives in two places.** Player-facing strings are authored in
-  `index.html` and mirrored, organised for review, in
+  `js/world.js` / `js/render.js` and mirrored, organised for review, in
   [COPY_DECK.md](COPY_DECK.md). Any PR that changes a player-facing string
   must update COPY_DECK.md in the same PR (see R10).
 
@@ -2320,8 +2328,21 @@ sling~~ → **Bundle P (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
   contaminant aboard. The counterfeit tanker (Glycon's fourth act) remains a
   future hook. See ROADMAP.md § Future ideas for the design writeup.
 
-**Parked from the on-device App Store testing round (July 2026) — not
-scheduled, logged so they aren't lost:**
+**Parked — not scheduled, logged so they aren't lost:**
+- **A Mac desktop build (keyboard/gamepad-first).** Input is already there
+  (`keyMap`, `pollPad()`); this is a packaging question with an owner decision
+  in front of it — Mac Catalyst on Bundle E's Xcode project (its own store
+  listing, price point and review cycle) versus simply promoting the existing
+  keyboard-playable build. Catalyst additionally needs the touch-button HUD
+  hidden entirely (not just de-emphasised as in H5) and a resizable-window
+  layout pass, since the game assumes one fixed landscape viewport sized off
+  `env(safe-area-inset-*)`. Full writeup: `ROADMAP.md` § Future ideas.
+- **A version stamp on the title screen** (build/date), to make a stale
+  Home-Screen install obvious at a glance.
+- **Persistent codex / rescue-log gallery across runs** — who you've found,
+  kept between runs rather than per-run.
+
+**From the on-device App Store testing round (July 2026):**
 - **BIG TEXT, expanded to the in-flight HUD.** Today `bigText`
   (`bodyFontPx()`) only enlarges story/help/legend/codex card body text — the
   in-flight HUD (score, fuel, ECG, the sector tally), banner pop-ups, and the

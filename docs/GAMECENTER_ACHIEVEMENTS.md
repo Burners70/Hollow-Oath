@@ -1,12 +1,12 @@
 # Hollow Oath — Game Center achievements (Bundle G3)
 
 App Store Connect metadata for the nine launch achievements. Images live in
-[`assets/gamecenter/achievements/`](assets/gamecenter/achievements/) — one
+[`assets/gamecenter/achievements/`](../assets/gamecenter/achievements/) — one
 1024×1024 PNG per achievement (Apple's recommended size; minimum is 512×512).
 Game Center crops achievement art to a **circle**, so every image keeps its
 meaning inside the centre circle; the outer ring is part of the composition
 and survives the crop. SVG sources are in
-[`assets/gamecenter/achievements/svg/`](assets/gamecenter/achievements/svg/),
+[`assets/gamecenter/achievements/svg/`](../assets/gamecenter/achievements/svg/),
 regenerable via `generate.py` in the same folder (render with headless
 Chromium at 1024×1024).
 

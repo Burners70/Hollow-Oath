@@ -6,8 +6,8 @@ difference between a cheap session and an expensive one.
 
 ## What this is
 
-Hollow Oath is an original 2D gravity-rescue game: a single self-contained HTML5
-canvas game (vanilla JS, no framework), shipped as a PWA and wrapped with
+Hollow Oath is an original 2D gravity-rescue game: a self-contained HTML5
+canvas game (vanilla JS, no framework, no build step), shipped as a PWA and wrapped with
 Capacitor for a native iOS build. Formerly "DOIDS" — that old name survives in
 code identifiers and `localStorage` keys (see below), which is expected, not a bug.
 
@@ -78,18 +78,21 @@ keys for consistency with the shipped save format.
 
 The **active forward plan** is `docs/APP_STORE_ROADMAP.md`: checkbox-tracked
 bundles toward the paid iOS release. To "follow the roadmap," grep it for the next
-unchecked `[ ]` bundle and read only that section — don't ingest all 1,284 lines.
+unchecked `[ ]` bundle and read only that section — don't ingest all 2,300+ lines.
+It is the *only* forward plan; anything else that reads like a plan is history.
 
 Everything else lives in `docs/` (see `docs/README.md` for the full index). Read a
 doc only when the task touches it:
 
 - `docs/GAME_DESIGN.md` — canonical design & narrative (the Static, Glycon, mechanics, scoring). Read when changing game rules or story.
-- `docs/COPY_DECK.md` — user-facing text. Read when editing wording.
+- `docs/COPY_DECK.md` — user-facing text. Read when editing wording (and update it in the same PR).
+- `docs/DESIGN_SYSTEM_STARTER.md` — shipped UI tokens (colour/type/spacing/glow). Read when adding or restyling a HUD/panel element.
 - `docs/PENDULUM_SPEC.md`, `docs/HOLLOWS_EXPANSION_SPEC.md` — feature specs (Bundle P, Bundle Q).
 - `docs/GAMECENTER_ACHIEVEMENTS.md` — achievement/rank list.
-- `docs/RELEASE_READINESS_REVIEW.md` — July 2026 QA snapshot.
-- `docs/CHANGELOG.md` — history incl. the DOIDS→Hollow Oath rename. Reference only.
-- `docs/ROADMAP.md`, `docs/HOLLOW_OATH_BRIEF.md` — older build-out notes and the rename brief. Archival; rarely needed.
+- `docs/STORE_LISTING.md` — App Store Connect metadata (pricing, description, URLs).
+- `docs/TESTER_KIT.md`, `docs/TESTER_LOG.md` — TestFlight round: invite/survey copy, and who's testing.
+- `docs/QA_HARNESS.md` — the on-device tap-driven test rig.
+- **Archival, rarely needed:** `docs/CHANGELOG.md` (history incl. the DOIDS→Hollow Oath rename), `docs/RELEASE_READINESS_REVIEW.md` (closed July 2026 QA snapshot), `docs/ROADMAP.md` (v2/v3 build-out log + design reasoning trails), `docs/HOLLOW_OATH_BRIEF.md` (the rename brief).
 
 ## Workflow
 
@@ -102,5 +105,6 @@ doc only when the task touches it:
 ## Conventions
 
 - Match the surrounding style: terse vanilla JS, single global scope, comment banners like `/* ===== render ===== */` and `/* Bundle X — ... */` tying code to roadmap bundles.
-- Keep everything inline in `index.html` unless a restructure is explicitly requested.
+- Keep new code inside the existing `js/*.js` concern boundaries (and `css/game.css`); don't add source files or restructure the split unless asked. `index.html` stays a thin shell.
+- Keep the docs honest: `docs/README.md` lists every file in `docs/`, and there is one forward plan (`docs/APP_STORE_ROADMAP.md`). Don't add a second plan doc or a per-branch handover — record the decision in the roadmap bundle it belongs to.
 - The game targets iPhone Safari first; test touch/gyro/safe-area behavior, not just desktop.

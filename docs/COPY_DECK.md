@@ -4,9 +4,12 @@
 and line edits. Requested in the July 2026 feedback round (roadmap item R10).*
 
 **How to use this document:** edit the copy here (strike, rewrite, annotate),
-and the changes get applied back to `index.html` — the code stays the source of
-truth, this deck is the review surface. Each section names its code anchor
-(function or constant in `index.html`) so edits land in the right place.
+and the changes get applied back to the code — which stays the source of
+truth; this deck is the review surface. Each section names its code anchor (a
+function or constant) so edits land in the right place: story tables and
+constants live in `js/world.js`, on-screen text in `js/render.js`, run-time
+messages in `js/update.js`. Anchors written as `index.html` predate the July
+2026 source split — grep `js/` for the name.
 **Any PR that changes a player-facing string must update this deck in the same
 PR** (see APP_STORE_ROADMAP.md § How to work on this).
 

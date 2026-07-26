@@ -119,7 +119,7 @@ FIELD MEDIC (easy mode) runs never post to either board — gated in
 Achievements (all 100-pt single-step, hidden until earned where noted).
 The 1024×1024 images and the earned/pre-earned description copy to paste
 into each record are in `assets/gamecenter/achievements/` and
-[../GAMECENTER_ACHIEVEMENTS.md](../GAMECENTER_ACHIEVEMENTS.md):
+[../docs/GAMECENTER_ACHIEVEMENTS.md](../docs/GAMECENTER_ACHIEVEMENTS.md):
 
 | ID | Name | Earned when |
 |---|---|---|

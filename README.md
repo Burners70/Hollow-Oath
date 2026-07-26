@@ -29,9 +29,9 @@ scoring, code architecture, branch/deployment layout, and future ideas.
 **The forward plan is [APP_STORE_ROADMAP.md](docs/APP_STORE_ROADMAP.md)** — the
 prioritised, checkbox-tracked bundles taking the game to a paid iOS App Store
 release; pick up the next unchecked bundle from there.
-Build-out history is in [ROADMAP.md](docs/ROADMAP.md); the rename & narrative brief that
-drove the current naming is in [HOLLOW_OATH_BRIEF.md](docs/HOLLOW_OATH_BRIEF.md).
-All reference docs now live in [`docs/`](docs/README.md).
+It is the only forward plan — [ROADMAP.md](docs/ROADMAP.md) and
+[CHANGELOG.md](docs/CHANGELOG.md) are history, not plans.
+All reference docs live in [`docs/`](docs/README.md), indexed there.
 
 ## Play (local/dev only)
 
@@ -75,16 +75,21 @@ Headless smoke tests live in [`tests/`](tests/) (Playwright driving the game's
 `window.__doids` debug handle):
 
 ```
-cd tests && npm install && npx playwright install chromium && npm test
+cd tests && npm ci && npm test
 ```
 
-In environments with a pre-installed Chromium (e.g. Claude Code remote
-containers), skip the browser download and point at it instead:
-`PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium npm test`.
+`playwright.config.js` auto-detects a pre-installed Chromium (e.g. in Claude
+Code remote containers, `/opt/pw-browsers/chromium`) — no `playwright install`
+needed there. On a machine without one, run `npx playwright install chromium`
+once first.
 
 ## Tech
 
-Zero dependencies: one HTML file with inline CSS/JS, canvas rendering with glow
-effects, seeded procedural terrain, multi-touch virtual buttons with safe-area
-insets, and a tiny Web Audio synth (thrust noise, laser blips, explosions, and a
-lub-dub heartbeat when a Scion comes aboard).
+Zero dependencies and **no build step**: static files you can run by opening
+`index.html`. It's a thin shell — `css/game.css` plus ordered, non-module
+`<script src="js/*.js">` tags sharing one global scope (input, audio, platform,
+world, update, render, main). Canvas rendering with glow effects, seeded
+procedural terrain, multi-touch virtual buttons with safe-area insets, and a
+tiny Web Audio synth (thrust noise, laser blips, explosions, and a lub-dub
+heartbeat when a Scion comes aboard). `app/` wraps the same files with Capacitor
+for the iOS build.
