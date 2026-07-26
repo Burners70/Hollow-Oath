@@ -12,7 +12,7 @@ shouldn't be in the folder.
 
 | Doc | Read it when |
 |-----|--------------|
-| [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) | **The forward plan, and the only one.** Checkbox-tracked bundles toward the paid iOS release, plus the parked/post-launch backlog. Grep for the next unchecked `[ ]` bundle — don't read all 2,300+ lines. |
+| [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) | **The forward plan, and the only one.** Holds *open* bundles only, with an "Open work at a glance" table at the top; read that, then the one bundle you're working on. Shipped bundles moved to ROADMAP_ARCHIVE.md. |
 | [GAME_DESIGN.md](GAME_DESIGN.md) | Changing game rules, mechanics, scoring, or narrative canon (the Static, Glycon). The canonical design doc. |
 | [COPY_DECK.md](COPY_DECK.md) | Editing any user-facing text/wording. Any PR that changes a player-facing string updates this deck too. |
 | [DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) | Adding UI/HUD: the colour, type, spacing and glow tokens as actually shipped in `css/game.css` / `js/render.js`. |
@@ -31,6 +31,7 @@ truth for what to build next — that's APP_STORE_ROADMAP.md.
 
 | Doc | What it is |
 |-----|------------|
+| [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) | The 19 shipped roadmap bundles (A–N, R, S, U, QA, Y), moved out of the plan with their acceptance notes and code anchors. Grep here for a bundle/item ID the plan no longer mentions. |
 | [CHANGELOG.md](CHANGELOG.md) | Change history, incl. the DOIDS → Hollow Oath rename log. |
 | [RELEASE_READINESS_REVIEW.md](RELEASE_READINESS_REVIEW.md) | July 2026 QA snapshot, closed — every bug it found is fixed and its recommendations were folded into the roadmap. |
 | [ROADMAP.md](ROADMAP.md) | The v2/v3 build-out log and the design reasoning trail behind shipped features. Superseded as a plan by APP_STORE_ROADMAP.md. |

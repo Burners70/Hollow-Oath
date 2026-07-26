@@ -77,9 +77,13 @@ keys for consistency with the shipped save format.
 ## Documentation guide — what to read for what
 
 The **active forward plan** is `docs/APP_STORE_ROADMAP.md`: checkbox-tracked
-bundles toward the paid iOS release. To "follow the roadmap," grep it for the next
-unchecked `[ ]` bundle and read only that section — don't ingest all 2,300+ lines.
-It is the *only* forward plan; anything else that reads like a plan is history.
+bundles toward the paid iOS release, holding **open work only**. To "follow the
+roadmap," read its *Open work at a glance* table (top of file) to pick the
+bundle, then read only that bundle's section — never the whole file. It is the
+*only* forward plan; anything else that reads like a plan is history. Shipped
+bundles (A–N, R, S, U, QA, Y) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
+an item ID (R10, M1, Y5, …) the plan no longer mentions, and move a bundle there
+yourself once its last `[ ]` is checked.
 
 Everything else lives in `docs/` (see `docs/README.md` for the full index). Read a
 doc only when the task touches it:
@@ -92,7 +96,7 @@ doc only when the task touches it:
 - `docs/STORE_LISTING.md` — App Store Connect metadata (pricing, description, URLs).
 - `docs/TESTER_KIT.md`, `docs/TESTER_LOG.md` — TestFlight round: invite/survey copy, and who's testing.
 - `docs/QA_HARNESS.md` — the on-device tap-driven test rig.
-- **Archival, rarely needed:** `docs/CHANGELOG.md` (history incl. the DOIDS→Hollow Oath rename), `docs/RELEASE_READINESS_REVIEW.md` (closed July 2026 QA snapshot), `docs/ROADMAP.md` (v2/v3 build-out log + design reasoning trails), `docs/HOLLOW_OATH_BRIEF.md` (the rename brief).
+- **Archival, rarely needed:** `docs/ROADMAP_ARCHIVE.md` (shipped roadmap bundles), `docs/CHANGELOG.md` (history incl. the DOIDS→Hollow Oath rename), `docs/RELEASE_READINESS_REVIEW.md` (closed July 2026 QA snapshot), `docs/ROADMAP.md` (v2/v3 build-out log + design reasoning trails), `docs/HOLLOW_OATH_BRIEF.md` (the rename brief).
 
 ## Workflow
 
