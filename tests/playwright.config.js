@@ -1,6 +1,6 @@
 // Playwright config for Hollow Oath smoke tests.
-// The game is a single self-contained index.html — tests load it via file://,
-// no web server needed.
+// The game is static files with no build step — tests load index.html via
+// file://, no web server needed. Specs are split by concern (tests/README.md).
 //
 // Browser resolution (so `npm test` just works everywhere, no version-hunting):
 //   1. PLAYWRIGHT_EXECUTABLE_PATH, if you set it explicitly

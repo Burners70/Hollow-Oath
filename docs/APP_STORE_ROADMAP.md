@@ -42,7 +42,8 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
   containers). It drives the game headlessly through
   `window.__doids` (`get()`, `go(n)`, `launch()`, `warpLift()`, `warpShrine()`,
   `give(upgrade)`, `reset()`), e.g. `page.evaluate(() => __doids.go(5))` then
-  assert on `__doids.get()`. Copy the patterns in `tests/smoke.spec.js`. When
+  assert on `__doids.get()`. Pick the spec file by concern (`tests/README.md`)
+  and copy the patterns in it. When
   you add a feature: extend `__doids.get()` to expose its state, add a test,
   and **run the suite before opening the PR** — it must stay green.
 - **Code anchors** in this document name functions/variables, not line numbers

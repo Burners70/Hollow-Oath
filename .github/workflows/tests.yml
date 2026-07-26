@@ -1,0 +1,43 @@
+name: tests
+
+# The smoke suite is the only automated gate this repo has, and `main` is the
+# source for the next TestFlight/App Store build — so run it on every PR and on
+# pushes to main. There is no build step: the tests load index.html over file://.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - run: npm ci
+
+      # GitHub runners have no pre-installed Chromium, unlike the dev
+      # containers (see playwright.config.js), so fetch the pinned revision.
+      - run: npx playwright install --with-deps chromium
+
+      - run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            tests/playwright-report
+            tests/test-results
+          retention-days: 7

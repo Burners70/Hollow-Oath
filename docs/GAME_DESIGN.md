@@ -344,7 +344,13 @@ rank (§2.5), distinct from breaking it in combat.
 tags that share one global scope, exactly as the old single inline script did.
 The load order below is deliberate and load-bearing (constants and utilities
 before their users; `js/main.js`, the bootstrap + `requestAnimationFrame` loop,
-last). `../CLAUDE.md` carries the per-file map with line counts.
+last).
+
+> **The file map lives in [`../CLAUDE.md`](../CLAUDE.md)** — file names, line
+> counts, and what to open for a given task. That table is the one to update
+> after a refactor. The numbered list below describes what each **subsystem
+> does** (the design, the function names to grep for); it names the owning file
+> only as a convenience.
 
 1. **Input** (`js/input.js`) — touch tracker, keyboard, `pollPad()` (Gamepad API); gyro
    scaffolding present but dormant (see Controls above — pulled from the build).
