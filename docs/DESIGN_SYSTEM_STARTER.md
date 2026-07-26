@@ -233,19 +233,13 @@ and when you do:
   on one line instead — that's why that exact banner ships as a single string
   (`docs/COPY_DECK.md`). One line beats an orphaned word; two lines beat a
   run-on; never trade one problem for the other.
-- **Casing is per medium, and so is punctuation.** In-canvas flavour/subcopy runs
-  lowercase — diegetic, canvas-only — e.g. the title-screen hook in
-  `js/render.js`, `"the Static answers still — every 41 seconds"`. In-canvas
-  *labels* stay UPPERCASE (`FUEL`, `SETTINGS`). **Every other medium** —
-  marketing pages, store copy, docs, decks — uses sentence case. Proper nouns
-  stay capitalised everywhere (Scion, MERCY, the Static, sector names)
-  regardless of casing mode.
-  The tagline is the worked example, and **both forms are correct**: canvas ships
-  `a gravity rescue — a love letter to the 16-bit lander classics` (lowercase,
-  em-dash as a breath in a single diegetic readout), while `about.html` ships
-  `A gravity rescue. A love letter to the 16-bit lander classics.` (sentence
-  case, two sentences, because prose on a web page carries full stops). Don't
-  "fix" one into the other.
+- **Casing is per medium.** In-canvas flavour/subcopy runs lowercase (diegetic,
+  canvas-only); in-canvas *labels* stay UPPERCASE (`FUEL`, `SETTINGS`). **Every
+  other medium** — marketing pages, store copy, docs, decks — uses sentence case.
+  Proper nouns stay capitalised everywhere (Scion, MERCY, the Static, sector
+  names) regardless of casing mode. `about.html` ships the tagline as
+  `A gravity rescue. A love letter to the 16-bit lander classics.`; the canvas
+  form is the same line lowercased, not a different line.
 - **Spelling:** UK English throughout (`colour`, `catalogued`, `immunised`) —
   matches the copy already in `docs/COPY_DECK.md` and `js/world.js`. Don't
   Americanise new strings. *(Note: this doc's own older headings use US
@@ -256,13 +250,27 @@ and when you do:
 
 Keep new copy clear of the patterns that read as machine-written:
 
-- **Don't reach for an em-dash to join two clauses that want to be two
-  sentences.** In prose (marketing, store, docs) prefer the full stop:
-  *"A gravity rescue. A love letter to the 16-bit lander classics."* This is a
-  rule about *prose*, not a ban on the em-dash — in-canvas flavour uses it
-  deliberately as a breath inside a single lowercase readout (see the casing
-  rule above), and that is house style, not a slip. Reserve it in prose for a
-  genuine aside or a hard turn.
+- **The em-dash splice is the loudest tell in this codebase, and it is not the
+  house voice.** Owner ruling (July 2026): the em-dash habit in the shipped
+  strings is Claude's, not the author's, and it is to be **minimised
+  everywhere** — canvas copy included, not just prose. Do not defend an existing
+  em-dash on the grounds that it shipped; a lot of them shipped because an AI
+  wrote them. What to reach for instead:
+  - **`— and` / `— but` joining two clauses → a comma, or two sentences.** This
+    is the clearest offender: *"saved countless mothers — and was ignored for
+    decades"* wants *"saved countless mothers. He was ignored for decades."*
+  - **A vocative → a comma.** *"Captain — the surface scans are lying"* wants
+    *"Captain, the surface scans are lying."*
+  - **An appositive gloss → a colon.** *"an interdicted zone — automated
+    defences, dead relays"* wants *"an interdicted zone: automated defences,
+    dead relays."*
+  - **Two separate facts in one readout → `·`**, the separator the HUD already
+    uses (`SCIONS ABOARD 0 · SECTOR 0/7`, `saved 3 · ✝ lost 1`).
+  **Two uses stay legitimate**, and they are different things from the splice:
+  (a) a *paired* parenthetical where both dashes are present — *"if all of it —
+  the Vectors, the counterfeits, the Static itself — grew from…"*; and (b) the
+  ALL-CAPS `STATUS — DETAIL` separator in HUD banners (`CAUGHT — SCION SAFE`),
+  which is instrument-panel punctuation rather than prose. Neither is a tell.
 - Cut hedges and filler adverbs (*quietly, simply, truly, seamlessly*) — if a
   sentence needs one to land softer, split it into two instead.
 - Vary rhythm; not every list needs exactly three parallel clauses.
