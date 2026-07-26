@@ -18,11 +18,18 @@ dependency install**. `index.html` is a thin shell: a `<link>` to `css/game.css`
 and an ordered list of plain `<script src="js/*.js">` tags. Those scripts are
 **not** ES modules — they load in order and share one global scope, exactly as the
 old single inline `<script>` did (that's why the split was safe and why order
-matters: constants/utils before their users, `js/main.js` last). GitHub Pages
-deploys straight from `main`, served on the custom domain https://hollow-oath.com/
-(the old `burners70.github.io/Hollow-Oath/` address still redirects), and
-Capacitor wraps the same files for iOS. Any change must keep the game runnable by
-just opening `index.html`. Don't introduce a build tool or convert to
+matters: constants/utils before their users, `js/main.js` last). **There is no
+public web build.** Bundle O7 (July 2026) took the playable game off the web
+before launch so it wouldn't compete with the paid iOS app — `main` is not
+published anywhere automatically; it's the source for local dev and for the
+Capacitor iOS wrapper, and only reaches players through the manual
+TestFlight/App Store release process (`app/MAC_SETUP.md`). The custom domain
+https://hollow-oath.com/ (the old `burners70.github.io/Hollow-Oath/` address
+still redirects) serves only the marketing/support/privacy shell
+(`about.html`/`support.html`/`privacy.html`), from a separate `gh-pages`
+branch — not `main`, and not the game. Capacitor wraps the same `main` files
+for iOS. Any change must keep the game runnable by just opening `index.html`.
+Don't introduce a build tool or convert to
 `type="module"` without asking (modules change scoping *and* can fail over
 Capacitor's iOS `file://` origin).
 
@@ -86,7 +93,7 @@ doc only when the task touches it:
 
 ## Workflow
 
-- **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. Pages deploys from `main`, so a merge to `main` is a live release.
+- **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. `main` is not auto-published anywhere (see Bundle O7 above) — a merge is the source for the *next* TestFlight/App Store build, not an instant live release; it only reaches players once someone runs the manual archive/upload step (`app/MAC_SETUP.md`). Still treat a merge as consequential — it's what ships next.
 - **Tests:** Playwright smoke tests in `tests/` (`tests/smoke.spec.js`) load `index.html`. Run with `cd tests && npm ci && npx playwright test`. Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
 - **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it.

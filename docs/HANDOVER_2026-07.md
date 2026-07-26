@@ -5,6 +5,16 @@ plan of record is [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md); this doc is the
 "where things stand right now and what to do next" summary that goes with the
 `claude/support-page-1-01-release-yp9h3n` branch.*
 
+> **Superseded, archival only.** Written before Bundle O7 (the public web
+> build takedown) and O8 (the `gh-pages` restructure) were decided and
+> implemented. §1's "merge to `main` publishes the support page" and §5's
+> "`main` = live release" no longer hold: `main` is not published anywhere
+> automatically. `hollow-oath.com` now serves the marketing/support/privacy
+> shell from a separate `gh-pages` branch, and there is no public web build
+> of the game at all — see `APP_STORE_ROADMAP.md` Bundle O7/O8 and
+> `README.md` for the current state. Kept for its historical record of the
+> domain migration and the 1.01/1.1 bundle decisions, not as a live guide.
+
 ---
 
 ## 1. This branch — merge it to publish the support-page fixes

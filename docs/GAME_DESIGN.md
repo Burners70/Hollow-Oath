@@ -2,7 +2,9 @@
 
 *Internal design doc — everything a developer or writer needs to pick this project up.*
 
-Last updated: July 2026 · Live build: https://hollow-oath.com/
+Last updated: July 2026 · No public web build (Bundle O7) — shipping as a paid
+iOS app via TestFlight/the App Store; https://hollow-oath.com/ serves the
+marketing/support/privacy pages only
 
 > **Renamed from "DOIDS" → "Hollow Oath"** (androids "Doids" → **Scions**).
 > Full rename log — scope, what was deliberately kept (localStorage keys,
@@ -400,19 +402,25 @@ visibility per state, intro-once, synthetic multi-touch — which lived in a
 session scratchpad and can be recreated the same way if needed.)
 
 **Branches / deployment**:
-- `main` — **GitHub Pages deploys from this branch**; pushing here is
-  deploying. Also the current stable branch (this document, game, assets).
-- `claude/doids-iphone-game-r4fnon` — former Pages deploy branch (July 2026
-  and earlier); Pages was repointed to `main`, so this branch is no longer
-  live and may lag behind. (Branch name keeps the old "doids" slug — it's not
-  user-facing, so it was left as-is; see CHANGELOG.md.)
+- `main` — the current stable branch (this document, game, assets) and the
+  source for the *next* TestFlight/App Store build. **Not auto-published
+  anywhere** — Bundle O7 (July 2026) took the playable web build down before
+  launch (it was a dev/testing convenience, not an intended free release), so
+  a push here reaches players only via the manual archive/upload step
+  (`app/MAC_SETUP.md`), not instantly.
+- `claude/doids-iphone-game-r4fnon` — former Pages deploy branch, from back
+  when the game itself was briefly public on the web. No longer relevant now
+  that the web build is down; may lag behind. (Branch name keeps the old
+  "doids" slug — it's not user-facing, so it was left as-is; see CHANGELOG.md.)
 - `claude/game-dev-next-stage-trwmua` — a dev branch.
 - `claude/test-connection-79fx9k` — the Hollow Oath rename landed here first.
-- **Repo renamed** `Doids` → `Hollow-Oath` (done). The site now serves on the
-  custom domain `https://hollow-oath.com/` (July 2026); the
-  `burners70.github.io/Hollow-Oath/` Pages address (and the old `.../Doids/`
-  path) still redirect. Live content updates as soon as a change reaches
-  `main`. See CHANGELOG.md § "Repository & URL".
+- **Repo renamed** `Doids` → `Hollow-Oath` (done). The custom domain
+  `https://hollow-oath.com/` (July 2026; the `burners70.github.io/Hollow-Oath/`
+  address and the old `.../Doids/` path still redirect) serves **only the
+  marketing/support/privacy shell**, from a separate `gh-pages` publish
+  branch — the game itself (`index.html`/`js`/`css`) is not reachable there.
+  See CHANGELOG.md § "Repository & URL" and `docs/APP_STORE_ROADMAP.md`
+  Bundle O7/O8.
 - PWA bits: `manifest.webmanifest`, apple-touch icons. **No service
   worker** — stale Home-Screen installs are plain browser cache (refresh in
   Safari or re-add the icon).

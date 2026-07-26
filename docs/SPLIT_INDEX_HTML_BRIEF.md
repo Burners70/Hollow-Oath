@@ -14,9 +14,10 @@ token-saver from the July 2026 efficiency pass (see PRs #10/#11).
 ## The one hard constraint (do not break it)
 
 **No build step.** The game must still run by opening `index.html` as a static
-file — GitHub Pages serves `main` straight to the live site, and Capacitor wraps
-the same file for iOS. No bundler, no transpile, no dependency install. See
-`../CLAUDE.md` → "The one hard constraint".
+file — Capacitor wraps it for the iOS build, and it's the source for the
+manual TestFlight/App Store release (there is no public web build; see
+Bundle O7 in `docs/APP_STORE_ROADMAP.md`). No bundler, no transpile, no
+dependency install. See `../CLAUDE.md` → "The one hard constraint".
 
 ## Recommended approach: plain `<script src>` split (lowest risk)
 
