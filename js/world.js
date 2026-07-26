@@ -43,6 +43,21 @@ const SECTOR_NAMES = ["ASCLEPION", "VESALIUS RIDGE", "NIGHTINGALE BASIN",
                       "SEMMELWEIS DEEP", "CURIE FIELDS", "AVICENNA SHOALS",
                       "JENNER TERRACES", "THE NULLWAVE"];
 const FINALE_IDX = SECTOR_NAMES.length - 1;   // 7 — the secret finale
+// V13 (owner steer) — the finale twin's arrival is a staged theatrical beat,
+// not a simple cross-fade: (1) hold on a single, perfectly ordinary-looking
+// MERCY at the spawn point, nothing else visible; (2) a purple signal pulse,
+// then it flickers OUT of existence; (3) a beat of nothing, a second pulse,
+// then the two real (randomised, separated) MERCYs flicker IN; (4) the
+// illusion is gone — only the two remain, stable but for the emblem tell.
+// All phase math in render.js reads level.mercySplitT as elapsed-time-
+// REMAINING (as before V13), so every existing "still resolving, stay inert"
+// gate elsewhere (bays, decoy) keeps working unchanged.
+const TWIN_HOLD = 1.3;               // 1 — sits as ordinary MERCY; first pulse fires exactly here
+const TWIN_PULSE1 = TWIN_HOLD;
+const TWIN_OUT = TWIN_HOLD + 1.0;    // 2 — the illusion finishes flickering out by here
+const TWIN_PULSE2 = TWIN_OUT + 0.3;  // a beat of nothing, then the second pulse
+const TWIN_IN = TWIN_PULSE2 + 1.2;   // 3 — the real two are fully resolved (solid) by here
+const MERCY_SPLIT_DUR = TWIN_IN;     // 4 — total sequence length
 const NBOX = FINALE_IDX;                      // one hidden black box per campaign sector
 // Owner steer: three boxes was too easy a bar for the secret finale. Real
 // triangulation needs most of the recorders — ~80% of them (6 of 7). Missing
@@ -59,7 +74,7 @@ const BRIEFS = [
   "Supply lines to the deep are cut — no fresh fuel from the fleet. Our resupply drone runs on scavenged reserves now: it comes slower, and it can spare far less. Scavenge surface fuel pods where you find them.\n\nAnd it's worse than rationing. Leave an unscreened unit standing among the survivors and the sickness jumps between them — the ward breeds its own carriers. Screen your rescues, or lift the bad ones out before they spread it.\n\nProve a unit false — the salvage teams will take it from there. But prove it.",
   "Radiation cells distort gravity across the fields. Fly wide of the purple rings.\n\nOne more thing. The Static repeats every 41 seconds, and every black box you recover tightens the bearing. The projection keeps landing on the same dead patch of sky — a silence the old charts marked THE NULLWAVE, where no signal has ever come back.\n\nRecover the recorders and we'll know for certain what's down there.",
   "Captain — the surface scans are lying to us. Refuel points that drain tanks dry. Growths that aren't growths.\n\nSomebody is seeding counterfeit salvation across the shoals. Real pods flicker like fire; the fakes keep perfect time. Trust nothing that looks too convenient.\n\nAnd if you won't fire on a lie — land beside it and look at it long enough.",
-  "Last leg before the nullwave. The counterfeiter has a mark now — ground crews found the same coiled serpent stamped on every lure and every tampered unit.\n\nArchive is still matching it. Whoever wears that mask has been rewriting rescue into ruin for a long time. Bring our people home anyway.",
+  "Last leg before the nullwave. Ground crews are matching patterns across every lure and every tampered unit out here — too many to be coincidence.\n\nWhoever's behind this has been at it a long time, and hasn't finished. Bring our people home anyway.",
   "Triangulation complete. The source of the Static is below the nullwave ridge.\n\nFleet orders: destroy on sight. The chief medical officer refused to sign. Her note is one line — primum non nocere.\n\nYour call, captain."
 ];
 
@@ -255,6 +270,13 @@ function saveShrinesSeen() {
   try { localStorage.setItem("doids_shrines_seen", JSON.stringify([...shrinesSeen])); } catch (e) {}
   cloud.set("doids_shrines_seen", JSON.stringify([...shrinesSeen]));   // E4 mirror
 }
+// V13 — the "husks" reveal: the WORKSHOP shrine (cave 1, under Semmelweis's
+// lift) shows the Vectors are hollow, never-rescued chassis. Until it's been
+// seen, even a veteran doesn't know that yet — every disguised unit reads as
+// a CORRUPTED person who might still be saved, not a proven fake, so killing
+// one is still malpractice and the only clean outcome is the isolation bay.
+const HUSK_SHRINE_IDX = 1;   // SHRINES[1] — "THEY WERE NEVER RESCUED"
+function husksKnown() { return shrinesSeen.has(HUSK_SHRINE_IDX); }
 let assist = true;
 try { assist = localStorage.getItem("doids_assist") !== "0"; } catch (e) {}
 // haptics is a web no-op (the facade below bridges to the native wrapper
@@ -315,6 +337,21 @@ function markVeteran() {
   veteran = true;
   try { localStorage.setItem("doids_veteran", "1"); } catch (e) {}
   cloud.set("doids_veteran", "1");   // E4 mirror
+}
+// V13 — the veteran-intro recap ("SOMETHING DOESN'T SIT RIGHT") needs to know
+// whether the finished campaign actually brought everyone home, so its line
+// isn't a blanket claim when it often wasn't. Snapshotted once, at the ending
+// that finishes a run (see resolveBeacon), before the next run resets the tally.
+let lastRunSaved = 0, lastRunLost = 0;
+try {
+  const lr = JSON.parse(localStorage.getItem("doids_lastrun_tally") || "null");
+  if (lr) { lastRunSaved = lr.saved || 0; lastRunLost = lr.lost || 0; }
+} catch (e) {}
+function saveLastRunTally() {
+  const rec = { saved: runSaved, lost: runLost };
+  try { localStorage.setItem("doids_lastrun_tally", JSON.stringify(rec)); } catch (e) {}
+  cloud.set("doids_lastrun_tally", JSON.stringify(rec));
+  lastRunSaved = runSaved; lastRunLost = runLost;
 }
 
 /* Bundle E4 — on a native launch, fold the iCloud copy into local state:
@@ -432,6 +469,13 @@ function startDaily() {
 }
 let introSeen = false;
 try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
+// V8 — the veteran (post-completion) opening intro, shown once
+let vetIntroSeen = false;
+try { vetIntroSeen = localStorage.getItem("doids_vetintro") === "1"; } catch (e) {}
+function markVetIntroSeen() {
+  vetIntroSeen = true;
+  try { localStorage.setItem("doids_vetintro", "1"); } catch (e) {}
+}
 function markIntroSeen() {
   introSeen = true;
   try { localStorage.setItem("doids_intro", "1"); } catch (e) {}
@@ -635,6 +679,63 @@ function flatten(heights, cx, halfW) {
   return y;
 }
 
+function groundOf(heights, x) {
+  const i = clamp(Math.floor(x / STEP), 0, heights.length - 2);
+  return lerp(heights[i], heights[i + 1], clamp(x / STEP - i, 0, 1));
+}
+
+// like flatten, but to a GIVEN height (a landing shelf level with a Scion,
+// rather than to whatever height sat at cx) — used by the V2 fairness pass.
+function flattenTo(heights, cx, halfW, y) {
+  const i0 = Math.max(1, Math.floor((cx - halfW) / STEP));
+  const i1 = Math.min(heights.length - 2, Math.ceil((cx + halfW) / STEP));
+  for (let i = i0; i <= i1; i++) heights[i] = y;
+  if (i0 > 1) heights[i0 - 1] = (heights[i0 - 2] + y) / 2;
+  if (i1 < heights.length - 2) heights[i1 + 1] = (heights[i1 + 2] + y) / 2;
+}
+
+/* (owner steer) — the Solace fire-death sinks a real CRATER into the heightmap:
+   the mass that made up her hull is gone, so the ridge collapses into a bowl.
+   Deepens the terrain across ±rad around cx (a cos² bowl, deepest at centre),
+   only ever pushing DOWN (max), leaving raised lips at the rim. The caller
+   invalidates the terrain tile cache so the sunken profile actually re-renders. */
+function crushCrater(heights, cx, rad, depth) {
+  const base = groundOf(heights, cx);
+  const i0 = Math.max(1, Math.floor((cx - rad) / STEP));
+  const i1 = Math.min(heights.length - 2, Math.ceil((cx + rad) / STEP));
+  for (let i = i0; i <= i1; i++) {
+    const dx = (i * STEP - cx) / rad;               // -1..1 across the crater
+    if (Math.abs(dx) >= 1) continue;
+    const bowl = Math.cos(dx * Math.PI / 2);        // 1 at centre → 0 at rim
+    const lip = Math.abs(dx) > 0.8 ? -8 * Math.sin((Math.abs(dx) - 0.8) / 0.2 * Math.PI) : 0;
+    heights[i] = base + depth * bowl * bowl + lip;  // down in the middle, a small raised rim
+  }
+  return base;
+}
+
+/* V2 — scan-jeopardy fairness. Is there a landable spot from which a landed scan
+   of the Scion at cx COMPLETES before the Scion creeps to the hatch and boards
+   unread? The band is derived from the scan/creep constants (updateScionScan):
+   the read takes SCION_SCAN_T seconds at the base rate, over which the Scion
+   closes SCAN_CREEP·that px toward the hatch (~15px), so the touchdown must be
+   beyond ~110px yet within the SCION_SCAN_RANGE read radius — on ground shallow
+   enough to land (slope < the 0.25 landing max) and within 70px vertically so
+   the read can even start. Only the touchdown must be shallow; the Scion's
+   approach may be up or down a slope it walks. */
+function scanSpotOK(heights, W, cx) {
+  const g = x => groundOf(heights, x);
+  const LO = 15 + SCAN_CREEP * SCION_SCAN_T + 7;   // ~110 — read finishes before the hatch
+  const HI = SCION_SCAN_RANGE - 5;                 // ~195 — still inside the read radius
+  const gy0 = g(cx);
+  for (const side of [-1, 1])
+    for (let d = LO; d <= HI; d += 3) {
+      const x = cx + side * d;
+      if (x < 40 || x > W - 40) continue;
+      if (Math.abs(g(x + 10) - g(x - 10)) / 20 < 0.25 && Math.abs(g(x) - gy0) < 70) return true;
+    }
+  return false;
+}
+
 /* per-sector recipe: each sector introduces one new element.
    scn = decorative scenery counts; fakes = Glycon's counterfeit fuel pods;
    lift marks the sectors whose ground hides a secret lift into the Hollows. */
@@ -688,6 +789,28 @@ const RECIPE = [
            night: [2, 3, 10], star: [200, 220, 255] } }
 ];
 const LIFT_CAVE = { 1: 0, 3: 1, 5: 2 };  // which sector's lift opens which cave
+
+/* V12/V13 (owner steer) — roll which side of the finale twin is real, where
+   both ships sit, and (re)arm the split-reveal. Pulled out of genLevel so a
+   life lost inside the Nullwave can call it again (see shipDie's respawn path
+   in js/update.js): otherwise dying leaves the assignment — and the fact
+   you've already watched the split resolve — exactly as it was, so respawning
+   would hand the answer back for free. `rngFn` is the level's seeded rng at
+   initial generation (keeps genLevel deterministic/reproducible); a later
+   in-play re-roll after death uses Math.random, since it isn't world
+   generation and has no reproducibility contract. */
+function rollMercyTwin(lvl, rngFn) {
+  const W = lvl.W;
+  const a = W * (0.20 + rngFn() * 0.14);   // ~0.20–0.34
+  const b = W * (0.60 + rngFn() * 0.16);   // ~0.60–0.76  (≥ ~0.26·W apart)
+  const realLeft = rngFn() < 0.5;
+  lvl.mx = realLeft ? a : b; lvl.my = 170;
+  // V13 (owner steer) — three rounds to bring her down (not one), so a stray
+  // shot meant for a turret/drone can't accidentally reveal her, and the
+  // heftier hull reads as a real target, not a lure that pops on contact.
+  lvl.fakeMercy = { x: realLeft ? b : a, y: 170, dead: false, dockT: 0, scanT: 0, hp: 3 };
+  lvl.mercySplitT = MERCY_SPLIT_DUR;   // the split-into-two reveal, replayed on every roll
+}
 
 function genLevel(n) {
   const r = RECIPE[n];
@@ -752,6 +875,18 @@ function genLevel(n) {
   // T1 — the wide campaign sectors (4–6) get +1 Scion and +1 turret each, so
   // the extra room reads as denser wilderness, not emptier ground.
   const wideBump = (n >= 4 && n < FINALE_IDX) ? 1 : 0;
+  // V10 — the veteran campaign RETURN is not a re-run of the first: same
+  // landscape (the terrain octaves above are untouched), but MORE GUNS, a HIGHER
+  // PROPORTION OF VECTORS, and — by decorrelating the placement RNG here, after
+  // the terrain is fixed — DIFFERENT Scion/Vector/turret positions. Gated to a
+  // veteran campaign run on the scored sectors: REMIX/DAILY already re-roll, and
+  // the finale keeps its authored setup + the counterfeit MERCY (N1). The
+  // non-veteran first run (and the M1 golden heightmap) is byte-for-byte as
+  // before — none of this fires unless `veteran`.
+  const vetReturn = veteran && runMode === "campaign" && n < FINALE_IDX;
+  const vetGuns = vetReturn ? 2 : 0;
+  const vetVectors = vetReturn && n >= 1 ? (n >= 3 ? 2 : 1) : 0;
+  if (vetReturn) { rng(); rng(); rng(); }   // shift the stream → a different layout
   for (let i = 0; i < r.oids + wideBump; i++) {
     const x = pick(280);
     const y = flatten(heights, x, 80);
@@ -770,7 +905,8 @@ function genLevel(n) {
     f.role = "famous"; f.famousId = famousIdFor(n);
   }
   // saboteurs are extra figures, indistinguishable at a distance
-  const nSabs = r.sabs + (dailyMod("sleepers") && r.sabs ? 1 : 0);
+  // (V10 raises the Vector proportion on a veteran return via vetVectors)
+  const nSabs = r.sabs + (dailyMod("sleepers") && r.sabs ? 1 : 0) + vetVectors;
   for (let i = 0; i < nSabs; i++) {
     const x = pick(260);
     const y = flatten(heights, x, 70);
@@ -786,7 +922,7 @@ function genLevel(n) {
   }
   lvl.total = lvl.oids.length;
 
-  for (let i = 0; i < r.turrets + wideBump; i++) {
+  for (let i = 0; i < r.turrets + wideBump + vetGuns; i++) {   // V10 — more guns on a veteran return
     const x = pick(220);
     const y = flatten(heights, x, 40);
     lvl.turrets.push({ x, y, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
@@ -864,17 +1000,111 @@ function genLevel(n) {
   // the finale's beacon — the source of the Static
   if (n === FINALE_IDX) {
     const bx = W - 420;
-    const by = flatten(heights, bx, 120);
-    lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false };
-    // Bundle N1 — Glycon's third act: a second, identical MERCY parked
-    // between spawn and the beacon. One difference only: the real emblem
-    // pulses like a pulse; the counterfeit's blinks in perfect mechanical
-    // unison with the fake fuel pods. Now distrust the thing you've
+    // flatten a WIDE ridge over her whole buried hull footprint (the fire-death
+    // reveal draws a ~±200px MERCY-class hull; ±250 covers it with margin) so she
+    // is genuinely buried — only the command tower breaks the surface — and the
+    // reveal never shows hull poking out over open land. by is the surface level.
+    const by = flatten(heights, bx, 250);
+    lvl.beacon = { x: bx, y: by, hp: 3, silenceT: 0, resolved: false, groundY: by };
+    // Bundle N1 — Glycon's third act: a second, identical MERCY. One difference
+    // only: the real emblem pulses like a heart; the counterfeit's ticks in
+    // perfect mechanical time, like the fake fuel. Now distrust the thing you've
     // trusted all game. Gated with the rest of the Glycon layer: a first
-    // playthrough meets only the true beacon; the counterfeit MERCY waits
-    // for the veteran return pass (see the lift gate above).
-    if (veteran)
-      lvl.fakeMercy = { x: W * 0.45, y: 170, dead: false, dockT: 0, scanT: 0 };
+    // playthrough meets only the true beacon; the counterfeit MERCY waits for
+    // the veteran return pass (see the lift gate above).
+    // V12 — location must tell you NOTHING: instead of the real MERCY at her
+    // usual home and the decoy parked mid-map, both ships take randomised,
+    // reachable positions (well separated), and which side is real varies. The
+    // only honest read is the beat. Everything downstream (bays, delivery,
+    // epilogue) reads level.mx live, so moving her is safe.
+    // V13 (owner steer) — deliberately Math.random, NOT the level's seeded
+    // rng: campaign mode always regenerates the finale at the same seed
+    // (runSeed 0), so rolling this with `rng` made which side is real
+    // perfectly deterministic — always the same result on every campaign
+    // veteran run (bug report: "fake mercy has always been on the left").
+    // This roll isn't part of the terrain-generation contract (unlike
+    // everything else `rng` drives here) and isn't checksummed by M1, so it
+    // can safely vary run to run the same way the life-loss re-roll already does.
+    if (veteran) rollMercyTwin(lvl, Math.random);
+  }
+
+  // V2 — scan-jeopardy fairness invariant: every scannable Scion must have a
+  // landable spot in the scan-distance band (see scanSpotOK). Where the terrain
+  // doesn't offer one, widen the Scion's own flat pad until it does —
+  // deterministic, no RNG, so only the heightmap changes and only where needed
+  // (a Scion in a clearing you can always back off from, never a rigged loss).
+  // Run as a final pass over the settled terrain, iterated a few times so it
+  // holds even where widening one pad nicks a neighbour's band.
+  // Cap the widen at 122: Scions are placed ≥260px apart (pick() minDist), so a
+  // ±122 pad can never overlap a neighbour's — which keeps this convergent (no
+  // two pads fight across passes). ±122 still reaches past the band's ~110px
+  // lower edge, so the pad itself always yields a valid touchdown.
+  const scannableOid = o => o.role === "normal" || o.role === "saboteur" || o.role === "famous";
+  const PAD_CAP = 122;
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (const o of lvl.oids) {
+      if (!scannableOid(o)) continue;
+      let hw = 80;
+      while (hw < PAD_CAP && !scanSpotOK(heights, W, o.x)) {
+        hw = Math.min(hw + 14, PAD_CAP); flatten(heights, o.x, hw); changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  // Last resort for the rare crowded map where pick() had to place two Scions
+  // closer than 260 and their pads still can't both hold: carve a small landing
+  // shelf at the Scion's own height, on the side away from its nearest
+  // scannable neighbour (so two such shelves point apart and never collide).
+  for (const o of lvl.oids) {
+    if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
+    let nearest = Infinity, dir = 1;
+    for (const q of lvl.oids)
+      if (q !== o && scannableOid(q) && Math.abs(q.x - o.x) < nearest) {
+        nearest = Math.abs(q.x - o.x); dir = q.x >= o.x ? -1 : 1;
+      }
+    const sx = clamp(o.x + dir * 140, 60, W - 60);
+    flattenTo(heights, sx, 26, groundOf(heights, o.x));
+  }
+  // re-seat ground-anchored entities in case a widened pad moved the ground
+  // under them (turrets are re-seated with the scenery pass below)
+  for (const o of lvl.oids) o.y = groundOf(heights, o.x);
+  for (const p of lvl.pods) p.y = groundOf(heights, p.x);
+  for (const p of lvl.fakePods) p.y = groundOf(heights, p.x);
+  if (lvl.blackbox) lvl.blackbox.y = groundOf(heights, lvl.blackbox.x);
+  if (lvl.beacon) lvl.beacon.y = groundOf(heights, lvl.beacon.x);
+  // the return-lift MUST end on a genuine FLAT — you land and hold on it, and its
+  // surface marker has to sit on that flat, not halfway up a slope. A crowded
+  // (esp. veteran) map can make pick() give up and drop the lift beside a Scion
+  // whose V2 pad-widen then re-slopes the lift's ground; the old code only
+  // re-SEATED the marker onto that slope. Re-assert the flat HERE, last of all,
+  // so nothing downstream can tilt it. Seeds where the lift was already flat are
+  // unchanged (±64 ⊂ the gen-time ±70 flat), so the M1 golden heightmap holds.
+  if (lvl.liftPad) {
+    const lx = lvl.liftPad.x;
+    const gs = [-64, -32, 0, 32, 64].map(d => groundOf(heights, lx + d));
+    // only re-flatten when the lift's ground is actually uneven (a later pass
+    // tilted it). Leaving already-flat lifts untouched keeps the RNG-free
+    // heightmap byte-identical on those seeds — so the M1 golden anchor holds.
+    if (Math.max(...gs) - Math.min(...gs) > 4) {
+      const ly = flatten(heights, lx, 64);
+      lvl.liftPad.y = ly;
+      if (lvl.lift) lvl.lift.y = ly;
+      for (const o of lvl.oids) o.y = groundOf(heights, o.x);   // a Scion the re-flatten nudged
+      // the lift flatten can overwrite a neighbouring Scion's V2 scan pad — re-carve
+      // a shelf for any Scion that now lacks one, on the side AWAY from the lift so
+      // it can't tilt the lift back (keeps the V2 fairness invariant intact).
+      for (const o of lvl.oids) {
+        if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
+        const dir = o.x >= lx ? 1 : -1;
+        const sx = clamp(o.x + dir * 150, 60, W - 60);
+        flattenTo(heights, sx, 30, groundOf(heights, o.x));
+        o.y = groundOf(heights, o.x);
+      }
+    } else {
+      lvl.liftPad.y = groundOf(heights, lx);
+      if (lvl.lift) lvl.lift.y = groundOf(heights, lx);
+    }
   }
 
   // ---- scenery: trees, rocks, buildings & ruins, crashed ships ----
@@ -1108,8 +1338,13 @@ function lampRadius() {
 }
 
 function spawnShip() {
+  // V13 (owner steer) — with the finale twin, arriving right next to the real
+  // MERCY would give the answer away by proximity alone before the split
+  // reveal even means anything. Spawn exactly midway between the two ships
+  // instead, so position carries no tell either way (see rollMercyTwin).
+  const sx = level.fakeMercy ? (level.mx + level.fakeMercy.x) / 2 : level.mx;
   ship = {
-    x: level.mx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
+    x: sx, y: level.my + 90, vx: 0, vy: 0, ang: 0,
     fuel: maxFuel(), vitals: maxVitals(), passengers: [], landed: false, dead: false,
     fireCd: 0, dockT: 0, redDockT: 0, beat: 0, escapeT: 0, breachDockT: 0,
     shield: false, parryT: 0, signalT: 0, scuttleT: 0,

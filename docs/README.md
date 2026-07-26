@@ -17,6 +17,7 @@ at once; each is here for a specific job.
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
 | [TESTER_LOG.md](TESTER_LOG.md) | Tracking potential TestFlight playtesters (name, email, approached/agreed status). |
 | [TESTER_KIT.md](TESTER_KIT.md) | Friends-and-family TestFlight round: TestFlight note, invite welcome message, and the full blind-play survey script. |
+| [QA_HARNESS.md](QA_HARNESS.md) | Testing a build on a phone (or anywhere) without a console — `tests/qa-harness.html`'s tap menu + injected Eruda console. |
 
 ## Reference & history
 

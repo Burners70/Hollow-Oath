@@ -55,8 +55,12 @@ test("finale sector has the beacon; campaign sectors have black boxes", async ({
 
 test("secret lift descends into the Hollows", async ({ page }) => {
   // sector 1 hides a lift; land on it and hold ~2.4s. The Hollows are a
-  // veteran-only layer now, so unlock it first.
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  // veteran-only layer now, so unlock it first. (V10 escalates the veteran
+  // return with extra guns; this test is about the descent, so quiet the field.)
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.blackbox = null;   // a box near the (V10-relocated) lift would interrupt the hold
+    __doids.warpLift(); });
   await page.waitForFunction(() => __doids.get().inCave, null, { timeout: 6000 });
   const s = await page.evaluate(() => __doids.get());
   expect(s.inCave).toBe(true);
@@ -240,7 +244,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   let s = await page.evaluate(() => __doids.get());
   expect(s.unresolvedHaunt).toBe(true);
   // land beside the beacon and answer the call
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
   s = await page.evaluate(() => __doids.get());
   expect(s.endingType).toBe("answered");
@@ -254,7 +258,7 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
 test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", async ({ page }) => {
   await page.evaluate(() => __doids.go(1));
   let sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1488047869);   // golden checksum: authored VESALIUS RIDGE terrain (T1 widths)
+  expect(sum).toBe(1090254029);   // golden checksum: authored VESALIUS RIDGE terrain (updated when the return-lift's flat is now re-asserted last, so the pad never sits on a slope)
   // remix: fresh seed, 7 famous minds drawn from the wider pool, briefing up
   await page.evaluate(() => __doids.remix());
   let s = await page.evaluate(() => __doids.get());
@@ -264,11 +268,11 @@ test("seed 0 reproduces the authored campaign; remix re-rolls it (Bundle M)", as
   expect(s.state).toBe("brief");
   await page.evaluate(() => __doids.go(1));
   const remixSum = await page.evaluate(() => __doids.heightChecksum());
-  expect(remixSum).not.toBe(1488047869);
+  expect(remixSum).not.toBe(1090254029);
   // a fresh campaign run restores seed 0 and the exact authored terrain
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
   sum = await page.evaluate(() => __doids.heightChecksum());
-  expect(sum).toBe(1488047869);
+  expect(sum).toBe(1090254029);
 });
 
 test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page }) => {
@@ -285,12 +289,12 @@ test("the daily flight is one attempt per UTC day (Bundle M3)", async ({ page })
   expect(s.state).toBe("title");
 });
 
-test("the counterfeit MERCY: docking springs the trap; the real bays still work (Bundle N)", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+test("the counterfeit MERCY: docking springs the trap — a full life lost; the real bays still work (Bundle N)", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
   let s = await page.evaluate(() => __doids.get());
   expect(s.fakeMercy).toBeTruthy();
   expect(s.fakeMercy.dead).toBe(false);
-  const before = await page.evaluate(() => __doids.get().score);
+  const livesBefore = s.lives;
   // hold the ship inside the decoy's bay — after 2s the bay shows its teeth
   await page.evaluate(() => {
     ship.x = level.fakeMercy.x; ship.y = level.fakeMercy.y + 70;
@@ -299,8 +303,9 @@ test("the counterfeit MERCY: docking springs the trap; the real bays still work 
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
   s = await page.evaluate(() => __doids.get());
   expect(s.decoyOutcome).toBe("trapped");
-  expect(s.state).toBe("reveal");   // the log-style card
-  expect(s.score).toBeLessThanOrEqual(Math.max(0, before - 200) + 5);
+  // V13 (owner steer) — the trap costs a full life, not a score ding
+  expect(s.state).toBe("dead");
+  expect(s.lives).toBe(livesBefore - 1);
   // the real MERCY's bay is untouched by the decoy machinery
   const realBayOk = await page.evaluate(() => {
     const b = bayRects().med;
@@ -310,8 +315,13 @@ test("the counterfeit MERCY: docking springs the trap; the real bays still work 
 });
 
 test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  // V13 — the twin's position (and so the ship's midpoint spawn) now varies
+  // run to run; go/launch and parking the stranded Scions must land in the
+  // SAME evaluate() call, with no round trip between them, or an oid placed
+  // near this run's particular spawn point can walk over and board (+500)
+  // before the reset below ever takes effect, flaking the score assertion.
   await page.evaluate(() => {
+    __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0;
     level.turrets.forEach(t => { t.alive = false; });
     level.drones.forEach(d => { d.alive = false; });
     // park the stranded Scions far away so none boards (+500) mid-scan
@@ -329,6 +339,36 @@ test("the counterfeit MERCY yields to observation: landed scan powers it down fo
   expect(s.firedAtSecret).toBe(false);   // observed, not shot — the oath holds
   // the beacon is still there: both endings remain reachable
   expect(s.level.beacon.resolved).toBe(false);
+});
+
+test("V13: three rounds bring the counterfeit MERCY down, not one — a stray shot can't accidentally reveal her", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); level.mercySplitT = 0; });
+  const before = await page.evaluate(() => __doids.get().score);
+  // first two rounds: she absorbs the hit but doesn't go down, and there's
+  // no reward/reveal yet — a stray shot meant for something else can't trip it
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate(() => {
+      const f = level.fakeMercy;
+      level.shots.push({ x: f.x, y: f.y - 10, vx: 0, vy: 0, t: 1 });
+    });
+    await page.waitForTimeout(80);
+  }
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.fakeMercy.dead, "two rounds aren't enough").toBe(false);
+  expect(s.fakeMercy.hp, "one hp left").toBe(1);
+  expect(s.decoyOutcome).toBeNull();
+  expect(s.score, "no reward yet, just absorbed hits").toBe(before);
+  // the third round finishes her — that's when the reveal card and reward land
+  await page.evaluate(() => {
+    const f = level.fakeMercy;
+    level.shots.push({ x: f.x, y: f.y - 10, vx: 0, vy: 0, t: 1 });
+  });
+  await page.waitForTimeout(80);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.fakeMercy.dead).toBe(true);
+  expect(s.decoyOutcome).toBe("observed");
+  expect(s.score).toBe(before + 800);
+  expect(s.firedAtSecret).toBe(true);
 });
 
 test("every sector briefing renders", async ({ page }) => {
@@ -430,7 +470,12 @@ test("riding the lift back up lands the ship ON the pad, not below ground", asyn
 });
 
 test("lift transition fades out, swaps level, and fades back in", async ({ page }) => {
-  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch(); __doids.warpLift(); });
+  // V10 escalates the veteran return with extra guns; quiet the field so the
+  // descent (what this test checks) isn't interrupted by a turret.
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(1); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.blackbox = null;   // a box near the (V10-relocated) lift would interrupt the hold
+    __doids.warpLift(); });
   // "black" is a full 0.3s window before the swap — safe to poll on, unlike
   // fade>0.95 which the tail of "black" and the head of "reveal" both hit
   await page.waitForFunction(() => liftTransit && liftTransit.phase === "black", null, { timeout: 6000 });
@@ -583,7 +628,7 @@ test("Game Center facade traces auth, rank achievements and the score report (Bu
   expect(s.cloudNative).toBe(false);
   expect(s.gcReports.map(r => r.method)).toContain("authenticate");
   // fly the answered ending without a single shot (same path as the L2 test)
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
@@ -949,9 +994,9 @@ test("S5: the landed scan flags a counterfeit and verifies a real Scion without 
   expect(await page.evaluate(() => !!level.oids[0].flagged)).toBe(false);
 });
 
-test("S5: destroying a PROVEN counterfeit is not malpractice; an unproven one still is", async ({ page }) => {
-  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
-  // a catalogued (flagged) Vector: shooting it neutralises it, no penalty
+test("S5: once the husks are known, destroying a PROVEN counterfeit is not malpractice; an unproven one still is", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.setHusksKnown(); });
+  // a catalogued (flagged) Vector, post-discovery: shooting it neutralises it, no penalty
   let before = await page.evaluate(() => {
     level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
       flagged: true, wave: 0, persona: "wave1", scale: 1 }];
@@ -980,6 +1025,38 @@ test("S5: destroying a PROVEN counterfeit is not malpractice; an unproven one st
   s = await page.evaluate(() => __doids.get());
   expect(s.runLost).toBe(1);
   expect(s.score).toBeLessThan(before);   // penalised
+});
+
+test("V13: before the husks are known, a flagged unit is only CORRUPTED — destroying it is still malpractice, and it boards for isolation instead of sitting inert", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); });
+  expect(await page.evaluate(() => __doids.husksKnown())).toBe(false);
+  // pre-discovery, a catalogued (flagged) Vector destroyed on the ground is
+  // still malpractice — it's suspected CORRUPTED, not proven hollow
+  const before = await page.evaluate(() => {
+    score = 1000;
+    level.oids = [{ role: "saboteur", state: "wait", x: 600, y: __doids.ground(600),
+      flagged: true, wave: 0, persona: "wave1", scale: 1 }];
+    level.lost = 0; level.contained = 0; runLost = 0;
+    const s = __doids.get().score;
+    killOid(level.oids[0], "shot"); level.oids[0].deathT = 1.35;
+    return s;
+  });
+  await page.waitForTimeout(150);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.runLost).toBe(1);
+  expect(s.score).toBeLessThan(before);   // still penalised, unlike post-discovery
+  // pre-discovery, a flagged unit left standing boards like anyone else (it no
+  // longer sits inert on the ground once catalogued) — the correct play is to
+  // carry it to the red isolation bay, not leave it or shoot it
+  await page.evaluate(() => {
+    level.heights.fill(1000);
+    level.oids = [{ role: "saboteur", state: "wait", x: 740, y: 1000, flagged: true,
+      wave: 0, persona: "wave1", scale: 1, panicT: 0, sabT: 0 }];
+    ship.x = 600; ship.y = 1000 - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false;
+    ship.passengers = [];
+  });
+  await page.waitForFunction(() => level.oids[0].state === "aboard", null, { timeout: 8000 });
+  expect(await page.evaluate(() => ship.passengers.length)).toBe(1);
 });
 
 test("S4: manifest close opens the ventral hangar; bays go inert; the hover-hold clears the sector", async ({ page }) => {
@@ -1054,7 +1131,7 @@ test("FIELD MEDIC runs stay off the Game Center boards (H3 gate)", async ({ page
   await page.evaluate(() => localStorage.setItem("doids_easy", "1"));
   await page.reload();
   await page.waitForFunction(() => window.__doids !== undefined);
-  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); });
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
   await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
@@ -1490,7 +1567,7 @@ test("Y3: wrecks generate on wreck sectors; the per-wreck cant is stable and RNG
   // the authored terrain is untouched by the wreck work (no RNG draw added) —
   // seed 0 still reproduces VESALIUS RIDGE's golden heightmap (see Bundle M)
   await page.evaluate(() => { __doids.reset(); __doids.go(1); });
-  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1488047869);
+  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1090254029);
 });
 
 test("Y4: counterfeit pods only blink loud with Avicenna; a subtle Static-beat dip without", async ({ page }) => {
@@ -1531,4 +1608,317 @@ test("Y5: the secret lift pad is marked on EVERY run, even pre-veteran", async (
   expect(v.level.lift).toBeTruthy();
   expect(v.level.liftPad).toBeTruthy();
   expect(v.level.liftPad.x).toBe(v.level.lift.x);
+});
+
+test("V2: every scannable Scion has a fair scan-landing spot (campaign + REMIX)", async ({ page }) => {
+  // fairness invariant: from some reachable, landable spot the scan must finish
+  // before the Scion creeps to the hatch — guaranteed at generation (widened
+  // pads). __doids.scanSpotFailures() returns the x of any Scion without one.
+  for (let n = 0; n < 8; n++) {
+    await page.evaluate(i => __doids.go(i), n);
+    const fails = await page.evaluate(() => __doids.scanSpotFailures());
+    expect(fails, `campaign sector ${n}`).toEqual([]);
+  }
+  // the invariant must also hold across the REMIX seed space
+  for (let k = 0; k < 8; k++) {
+    await page.evaluate(() => __doids.remix());
+    for (let n = 0; n < 7; n++) {
+      await page.evaluate(i => __doids.go(i), n);
+      const fails = await page.evaluate(() => __doids.scanSpotFailures());
+      expect(fails, `remix run #${k} sector ${n}`).toEqual([]);
+    }
+  }
+});
+
+test("the return-lift pad always sits on a flat, never halfway up a slope", async ({ page }) => {
+  // you land and HOLD on the lift, and its surface marker must sit on that flat.
+  // A crowded map used to make pick() drop the lift beside a Scion whose V2
+  // pad-widen then re-sloped the lift's ground; the flat is now re-asserted last.
+  await page.evaluate(() => __doids.setVeteran());
+  for (const seed of [0, 1, 42, 99, 123, 777, 1000, 31337, 60123]) {
+    for (const n of [1, 3, 5]) {   // the lift-bearing surface sectors
+      const span = await page.evaluate(({ seed, n }) => {
+        runSeed = seed;
+        const lvl = genLevel(n);
+        if (!lvl.liftPad) return 0;
+        const lx = lvl.liftPad.x;
+        const ys = [-44, -22, 0, 22, 44].map(d => groundOf(lvl.heights, lx + d));
+        return Math.max(...ys) - Math.min(...ys);
+      }, { seed, n });
+      expect(span, `lift pad flat on seed ${seed} sector ${n}`).toBeLessThan(6);
+    }
+  }
+  await page.evaluate(() => __doids.reset());
+});
+
+test("V10: a veteran campaign return escalates — more guns, more Vectors, moved", async ({ page }) => {
+  // first run (non-veteran) of a mid campaign sector
+  await page.evaluate(() => __doids.go(3));
+  const first = await page.evaluate(() => {
+    const g = __doids.get();
+    return { turrets: g.level.turrets.length,
+      sab: g.level.oids.filter(o => o.role === "saboteur").length,
+      xs: g.level.oids.map(o => Math.round(o.x)) };
+  });
+  // the veteran RETURN of the same sector: same landscape, escalated
+  await page.evaluate(() => { __doids.setVeteran(); __doids.reset(); __doids.go(3); });
+  const vet = await page.evaluate(() => {
+    const g = __doids.get();
+    return { turrets: g.level.turrets.length,
+      sab: g.level.oids.filter(o => o.role === "saboteur").length,
+      xs: g.level.oids.map(o => Math.round(o.x)) };
+  });
+  expect(vet.turrets, "more guns on return").toBeGreaterThan(first.turrets);
+  expect(vet.sab, "higher Vector proportion on return").toBeGreaterThan(first.sab);
+  expect(vet.xs, "different placements on return").not.toEqual(first.xs);
+});
+
+test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", async ({ page }) => {
+  // a first-time (non-veteran) run shows the full multi-panel INTRO
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  await page.evaluate(() => { markTrained(); startFreshRun(); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("intro");
+  expect(s.introLen).toBeGreaterThan(1);       // the full first-run INTRO
+  // now become a veteran and start again → the single-panel veteran opening.
+  // (a real veteran also has introSeen from their first run; set it so the
+  // final "subsequent run skips to the tasking" step exercises the right path)
+  await page.evaluate(() => { markVeteran(); markIntroSeen(); startFreshRun(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("intro");
+  expect(s.introLen).toBe(1);                  // VET_INTRO is one panel
+  expect(s.vetIntroSeen).toBe(false);
+  // tap through it → briefing, and it's marked seen
+  await page.waitForTimeout(400);              // clear the intro's stateT guard
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForTimeout(80);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.vetIntroSeen).toBe(true);
+  expect(s.state).toBe("brief");
+  // a subsequent veteran run skips straight to the tasking
+  await page.evaluate(() => { startFreshRun(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("brief");
+});
+
+test("V13: the veteran-intro recap names how many actually came home, not a blanket claim", async ({ page }) => {
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  // everything in one tick, as answerBeacon() must be — landing at the beacon
+  // and waiting a frame would trigger the proximity reveal card first (state
+  // flips to "reveal", where updateBeacon stops running and heardParry never
+  // gets checked); answerBeacon sets revealed itself so that branch is skipped
+  await page.evaluate(() => {
+    markTrained(); startFreshRun(); __doids.go(7); __doids.launch(); __doids.warpBeacon();
+    // stamp a tally with a loss before resolving the ending, so the snapshot
+    // saveLastRunTally() takes is deterministic
+    runSaved = 4; runLost = 2;
+    __doids.answerBeacon();
+  });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  expect(await page.evaluate(() => __doids.get().veteran)).toBe(true);
+  expect(await page.evaluate(() => __doids.lastRunTally())).toEqual({ saved: 4, lost: 2 });
+  // the next fresh (veteran) run's opening recap reflects it
+  await page.evaluate(() => { markIntroSeen(); startFreshRun(); });
+  expect(await page.evaluate(() => __doids.get().state)).toBe("intro");
+  expect(await page.evaluate(() => __doids.introCaption())).toContain("You brought 4 home. 2 didn't make it.");
+});
+
+test("V6: parrying a Vector's sonic wave flattens it and catalogues the Vector; a mid-game miss costs half", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });   // Avicenna Shoals — waves start here
+  await page.evaluate(() => {
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.oids = [{ role: "saboteur", state: "wait", x: 720, y: __doids.ground(720),
+      sleeper: false, flagged: false, verified: false, wave: 0, persona: "wave1", scale: 1 }];
+    ship.x = 650; ship.y = __doids.ground(650) - 11; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  // MISS (no shield): the wave washes over — no catalogue, and mid-game costs
+  // HALF the finale penalty (6 of 12 vitals)
+  await page.evaluate(() => { input.shield = false; ship.shield = false; ship.parryT = 0; ship.vitals = 80; __doids.armWave(); });
+  await page.waitForTimeout(200);
+  let s = await page.evaluate(() => ({ flagged: !!level.oids[0].flagged, vitals: ship.vitals }));
+  expect(s.flagged, "a missed wave does not catalogue").toBe(false);
+  expect(s.vitals, "mid-game miss costs half (−6)").toBe(74);
+  // PARRY (shield raised into the window): the signal is flattened, Vector catalogued
+  await page.evaluate(() => { input.shield = false; ship.shield = false; ship.parryT = 0; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { input.shield = true; __doids.armWave(); });
+  await page.waitForFunction(() => level.oids[0].flagged === true, null, { timeout: 2000 });
+  expect(await page.evaluate(() => level.oids[0].flagged)).toBe(true);
+  // V13 — a parried wave is knocked back into whatever cast it, not just
+  // flashed at the ship; give it its return-flight time and confirm the
+  // landing burst fires
+  await page.waitForFunction(
+    () => (__doids.waves() || []).some(w => w.hit && w.returnBurst),
+    null, { timeout: 2000 });
+  await page.evaluate(() => { input.shield = false; });
+});
+
+test("V3: landing beside the finale source reveals AMS Solace and pulses her hull", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    (level.oids || []).forEach(o => o.x = -9999);
+    const bx = level.beacon.x;
+    ship.x = bx - 70; ship.y = __doids.ground(bx - 70) - 11;
+    ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 2000 });
+  const s = await page.evaluate(() => ({ revealed: level.beacon.revealed, sonarT: level.beacon.sonarT }));
+  expect(s.revealed).toBe(true);
+  expect(s.sonarT).toBeGreaterThan(0);   // her hull is pulsing back into view
+});
+
+test("V6-finale: the Solace is answered by parrying her pulse, not by holding", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); });
+  await page.evaluate(() => {
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    (level.oids || []).forEach(o => o.x = -9999);
+    const bx = level.beacon.x;
+    ship.x = bx - 60; ship.y = __doids.ground(bx - 60) - 11; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  // examining her pops a quiet clue card (not an instruction banner) — dismiss it
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 2000 });
+  expect(await page.evaluate(() => __doids.get().state), "a clue card, not a big message").toBe("reveal");
+  await page.waitForTimeout(450);   // the reveal card guards taps until stateT > 0.4
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 2000 });
+  // land-and-hold no longer answers: sit for well over the old 5s window
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => __doids.get().state), "holding no longer answers").toBe("play");
+  expect(await page.evaluate(() => level.beacon.resolved)).toBe(false);
+  // parry her pulse → answered
+  await page.evaluate(() => { input.shield = false; ship.shield = false; ship.parryT = 0; });
+  await page.waitForTimeout(40);
+  await page.evaluate(() => { input.shield = true; __doids.armWave({ finale: true }); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 4000 });
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("answered");
+  await page.evaluate(() => { input.shield = false; });
+});
+
+test("V12: the finale spawns two identical MERCYs at randomised, separated positions; the beat is the only tell", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  const s = await page.evaluate(() => ({
+    mx: level.mx, fx: level.fakeMercy.x, split: level.mercySplitT, W: level.W, shipX: ship.x
+  }));
+  // both well inside the field and well separated (no fixed home / no fixed decoy spot)
+  expect(Math.abs(s.mx - s.fx), "the two MERCYs are well separated").toBeGreaterThan(s.W * 0.2);
+  expect(s.mx).toBeGreaterThan(s.W * 0.1);
+  expect(s.fx).toBeGreaterThan(s.W * 0.1);
+  expect(s.split, "arrives with the split-reveal running").toBeGreaterThan(0);
+  // V13 (owner steer) — arriving right next to the real one would give the
+  // answer away before the split even means anything; spawn is the midpoint
+  // between both ships, not glued to level.mx
+  expect(s.shipX, "spawn sits at the midpoint, not on the real MERCY").toBeCloseTo((s.mx + s.fx) / 2, 0);
+  expect(Math.abs(s.shipX - s.mx)).toBeGreaterThan(s.W * 0.08);
+  // the decoy is inert while the split reveal plays
+  await page.evaluate(() => {
+    const f = level.fakeMercy; ship.x = f.x; ship.y = f.y + 70; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => level.fakeMercy.dead), "inert during the reveal").toBe(false);
+  // once the reveal settles, docking the counterfeit still springs the trap
+  await page.evaluate(() => {
+    level.mercySplitT = 0;
+    window.__pin = setInterval(() => { const f = level.fakeMercy; ship.x = f.x; ship.y = f.y + 70; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false; }, 16);
+  });
+  await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
+  await page.evaluate(() => clearInterval(window.__pin));
+  expect(await page.evaluate(() => __doids.get().decoyOutcome)).toBe("trapped");
+});
+
+test("V13: the finale twin's roll isn't tied to the deterministic campaign seed — it varies run to run", async ({ page }) => {
+  // bug report: "fake mercy has always been on the left" — campaign mode
+  // always regenerates sector 7 at the same seed (runSeed 0), so rolling the
+  // twin with the level's seeded rng (rather than Math.random) made which
+  // side is real perfectly reproducible: identical on every single campaign
+  // veteran run. Regenerating the same seed-0 finale twice must NOT produce
+  // the same roll (continuous positions — an exact repeat is a real bug, not
+  // luck; see rollMercyTwin's call in js/world.js).
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  const first = await page.evaluate(() => ({ mx: level.mx, fx: level.fakeMercy.x }));
+  await page.evaluate(() => { __doids.reset(); __doids.go(7); __doids.launch(); });
+  const second = await page.evaluate(() => ({ mx: level.mx, fx: level.fakeMercy.x }));
+  expect(first.mx === second.mx && first.fx === second.fx).toBe(false);
+});
+
+test("V13: the finale twin's arrival is staged — hold, flicker out, a gap, then flicker in", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  // phase 1 — the hold: a single ordinary MERCY, the real two fully invisible
+  expect(await page.evaluate(() => twinInAlpha(1))).toBe(0);
+  // phase 2 — partway through the illusion's flicker-out stretch
+  await page.evaluate(() => { level.mercySplitT = MERCY_SPLIT_DUR - (TWIN_HOLD + 0.5); });
+  expect(await page.evaluate(() => twinInAlpha(1)), "reals still invisible mid flicker-out").toBe(0);
+  expect(await page.evaluate(() => {
+    const e = MERCY_SPLIT_DUR - level.mercySplitT; return e > TWIN_HOLD && e < TWIN_OUT;
+  }), "landed inside the OUT stretch").toBe(true);
+  // the gap — illusion fully gone, reals not yet started: nothing visible at all
+  await page.evaluate(() => { level.mercySplitT = MERCY_SPLIT_DUR - (TWIN_OUT + 0.1); });
+  expect(await page.evaluate(() => twinInAlpha(1)), "the gap between OUT and the second pulse").toBe(0);
+  // phase 3 — partway through the real two's flicker-in stretch
+  await page.evaluate(() => { level.mercySplitT = MERCY_SPLIT_DUR - (TWIN_PULSE2 + 0.5); });
+  const midIn = await page.evaluate(() => twinInAlpha(1));
+  expect(midIn, "mid flicker-in: neither 0 nor fully solid").toBeGreaterThan(0);
+  expect(midIn).toBeLessThan(1);
+  // phase 4 — fully resolved, stable
+  await page.evaluate(() => { level.mercySplitT = 0; });
+  expect(await page.evaluate(() => twinInAlpha(1))).toBe(1);
+});
+
+test("V13: losing a life inside the unresolved finale twin re-rolls it and replays the split reveal", async ({ page }) => {
+  await page.evaluate(() => { __doids.setVeteran(); __doids.go(7); __doids.launch(); });
+  const before = await page.evaluate(() => {
+    level.mercySplitT = 0;   // the reveal has already settled — still unresolved, just no longer playing
+    return { mx: level.mx, fx: level.fakeMercy.x };
+  });
+  // die with lives remaining, inside the still-unresolved twin
+  await page.evaluate(() => { lives = 2; ship.dead = false; ship.passengers = []; shipDie(); });
+  expect(await page.evaluate(() => __doids.get().state)).toBe("dead");
+  await page.waitForTimeout(1700);   // clear the "dead" state's stateT > 1.6 guard
+  await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 3000 });
+  const after = await page.evaluate(() => ({
+    mx: level.mx, fx: level.fakeMercy.x, split: level.mercySplitT, shipX: ship.x, W: level.W
+  }));
+  expect(after.split, "the split reveal plays again on respawn").toBeGreaterThan(0);
+  expect(after.mx !== before.mx || after.fx !== before.fx,
+    "which side is real is re-rolled, not carried over from before the death").toBe(true);
+  // and the respawn still lands at the (new) midpoint, not next to either ship
+  expect(after.shipX).toBeCloseTo((after.mx + after.fx) / 2, 0);
+});
+
+test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then SILENCE BY FIRE", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(7); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+  });
+  const hp0 = await page.evaluate(() => level.beacon.hp);
+  expect(hp0).toBeGreaterThan(0);
+  // she CAN be shot down — the destroy-on-sight order the CMO refused to sign.
+  // A player round on the tower drops her HP (the shootable path is wired).
+  await page.evaluate(() => { const b = level.beacon; level.shots.push({ x: b.x, y: b.y - 40, vx: 0, vy: 0, t: 1 }); });
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => level.beacon.hp), "a round drops her HP").toBe(hp0 - 1);
+  // finish her off → a scripted destruction plays (the full hull revealed, breaking),
+  // NOT an instant card
+  await page.evaluate(() => __doids.fireSolace());
+  expect(await page.evaluate(() => __doids.get().state)).toBe("destruct");
+  expect(await page.evaluate(() => level.beacon.resolved && level.beacon.death != null)).toBe(true);
+  // the scripted destruction (ignite → reveal → boom → crater) plays, then it
+  // lands on the fire ending card
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 9000 });
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
+  // V13 — the bad ending gets its own "win" panel (drawFireEnding), not a
+  // reskinned MISSION COMPLETE; tap through and confirm it renders (no JS
+  // error surfaces as a hung/blank page) and the tally is persisted for the
+  // next veteran-intro recap
+  await page.waitForTimeout(1100);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "win", null, { timeout: 2000 });
+  await page.waitForTimeout(100);   // let drawFireEnding actually paint a frame
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
+  expect(await page.evaluate(() => __doids.lastRunTally())).toEqual(
+    await page.evaluate(() => ({ saved: __doids.get().runSaved, lost: __doids.get().runLost })));
 });

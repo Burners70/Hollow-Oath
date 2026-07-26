@@ -1085,7 +1085,7 @@ checksum deliberately).**
 
 **Status (shipped):** the launch core **T1–T3 + T6 are done** on the web build.
 Progressive widths + distance-scaled fuel pods (golden checksum updated to
-`1488047869`), per-sector biome palettes (grad/stroke/glow + `night`/`star`
+`1837799405`), per-sector biome palettes (grad/stroke/glow + `night`/`star`
 tints, caves keep the Static violet), biome ornamentation (boulders, reeds +
 ward-lanterns that light the dark, ice spires, banded dunes, hedgerows) with
 per-sector surface ambience (wind on the shoals, insect shimmer over the
@@ -1553,8 +1553,22 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   here only because it was raised as a "1.01 fix". See Bundle Q's split note.
   Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
   checkpoint serialization (`doids_run`, `__doids.go(n)`).
-- [ ] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
-  cheat).** Today you often can't land far enough from a Scion for a scan to
+- [x] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
+  cheat).** *(Shipped — generation invariant. `scanSpotOK(heights,W,cx)`
+  (`js/world.js`) derives, from the scan/creep constants, the band of landable
+  touchdowns from which a read finishes before the creeping Scion reaches the
+  hatch (beyond ~110px, within `SCION_SCAN_RANGE`, slope < the 0.25 landing max,
+  within 70px vertically). A final generation pass widens each scannable Scion's
+  own flat pad — deterministically, no RNG, only where the terrain doesn't
+  already offer a spot — until the invariant holds, then re-seats ground-anchored
+  entities. Measured 13/62 campaign + ~21% of REMIX Scions failing before →
+  0/62 and 0/720 after. The creep behaviour (a) is unchanged: Scions already
+  approach the ship rather than flee. `__doids.scanSpotFailures()` exposes the
+  invariant; smoke: "V2 every scannable Scion has a fair scan-landing spot"
+  (campaign + 8 REMIX seeds). Reshapes a few pads, so the M1 golden heightmap
+  was intentionally updated (1488047869 → 1837799405; then → 1090254029 when the
+  return-lift's flat began being re-asserted last so the pad never sits on a
+  slope).)* Today you often can't land far enough from a Scion for a scan to
   complete before it reaches you, which reads as a rigged loss. Two changes:
   (a) a **running** Scion should stop fleeing and start *approaching* the ship;
   (b) generation/tuning must guarantee there is *always* a reachable landing
@@ -1565,7 +1579,16 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   approach logic (`updateScionScan`, the `scanCandidate` gate and `"wait"` /
   `"run"` states around `js/update.js:1131`), `SCAN_T`, `scanRate()`,
   `slopeAt()` and the walkability the Scion uses to climb.
-- [ ] **V3. The Solace reveal — a proper beat.** The discovery currently lacks
+- [x] **V3. The Solace reveal — a proper beat.** *(Shipped. Landing beside the
+  finale source now names it — banner **"AMS SOLACE — MERCY'S LOST SISTER"** +
+  `ringHollow()` — and fires a **sonar hull pulse** (`drawBeacon`, gated on
+  `beacon.revealed`/`beacon.sonarT`, `SONAR_DUR`): her whole drowned hull sweeps
+  into view as an x-ray outline over the terrain, bright near the surface and
+  dull deep, clipped to an expanding sweep so it "draws in". It re-pulses on
+  every 41-second Static beat (hooked in `updateStaticClock`). Respects
+  reduced-flash. Smoke: "V3 landing beside the finale source reveals AMS Solace".
+  The answer mechanic itself is reworked with V12 (the V6 wave-parry answer).)*
+  The discovery currently lacks
   a moment. Make the **first scan announce it is the top of a sister ship, the
   AMS Solace** (big reveal, not a whisper). On scan completion, trigger a
   **sonar-style pulse that draws the whole hull shape** — including the
@@ -1576,46 +1599,101 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   41-s pulse; a new draw pass in `js/render.js` for the hull outline (exposed
   vs. submerged alpha). Ties into the counterfeit-tell language — a real pulse
   that lives *with* the heartbeat clock. Update GAME_DESIGN.md narrative canon.
-- [ ] **V4. Solace pre-scan label legibility.** The text above the Solace
+- [x] **V4. Solace pre-scan label legibility.** *(Shipped. The pre-scan "THE
+  SIGNAL SOURCE — land beside it, or open fire" label in `drawBeacon`
+  (`js/render.js`) went from 9px at .7 alpha to a `bodyFontPx(10)` 700-weight
+  line in high-contrast `#d9ccff` on a dark backing plate, so it reads over the
+  nullwave ridge; respects `bigText` (via `bodyFontPx`) and drops the glow under
+  reduced-flash.)* The text above the Solace
   before it's scanned is illegible — fix size and contrast (add a backing
   plate / shadow like other world labels). Code anchor: the label draw in
   `js/render.js` for the pre-scan Solace; check against the `bigText`
   (`bodyFontPx()`) and reduced-flash paths so it stays legible in all modes.
-- [ ] **V5. Seed the Solace in the story panels (lightly).** Reference the
+- [x] **V5. Seed the Solace in the story panels (lightly).** *(Shipped. INTRO
+  (`js/render.js`): THE MISSION now names MERCY as one of the **second relief
+  wave** alongside sisters **AMS VIGIL** and **AMS SUCCOUR**; THE ZONE seeds the
+  lost **first wave, the SOLACE among them**. Owner-picked names. Mirrored to
+  COPY_DECK.md §2.)* Reference the
   Solace without over-signposting that players *should* expect to meet it:
   establish that the MERCY is one of a **second wave** alongside **AMS X** and
   **AMS Y**, following an **initial wave** that included the **X, the Solace,
   and the Y**. A line or two in the intro / early BRIEFS. Code anchors:
   `BRIEFS` / intro copy in `js/world.js`; **mirror every changed string into
   [COPY_DECK.md](COPY_DECK.md) in the same PR (R10).**
-- [ ] **V6. Make the "heard" scan playable — a sonic-wave parry.** Mirror the
+- [x] **V6. Make the "heard" scan playable — a sonic-wave parry.** *(Both halves
+  shipped. Finale-answer half: the Solace now casts an answerable pulse
+  (`updateBeacon` pushes a `finale` wave every `ANSWER_GAP` while you're within
+  `ANSWER_RANGE`); parrying it sets `beacon.heardParry` → `resolveBeacon
+  "answered"`, replacing the old land-and-hold (owner decision). A finale miss
+  costs −12 vitals + a Static surge. Owner design decisions:
+  window 0.09s / 0.18s assisted; introduced at **Avicenna Shoals (sector 5)**;
+  **a mid-game miss costs half** the finale penalty (−6 vitals vs −12 + surge).
+  From sector 5 on, an active un-catalogued Vector casts a telegraphed violet
+  wavefront (`updateWaves`/`drawWaves`, constants `WAVE_*` in `js/update.js`);
+  parry it with the shield on the E3 `parryT` window to FLATTEN it — cataloguing
+  the Vector (+250, "SIGNAL FLATTENED", oath clean, no shot). The wave resolves
+  at a fixed `WAVE_ARRIVE` after casting, so timing is learnable regardless of
+  distance; shape-based (expanding ring) so it survives colorblind, reduced-flash
+  tones the glow. The `finale` wave flag + `beacon.heardParry` hook are in place
+  for the Solace answer (V3/V12), where a miss costs −12 vitals + a surge.
+  `__doids.waves()`/`armWave()` expose it; smoke: "V6 parrying a Vector's sonic
+  wave …".)* Mirror the
   shield-parry mechanic, but instead of a bullet it's a **visible sonic wave**
   you must parry back to *flatten the corrupting signal*. Code anchors: the
   existing shield/parry code (deflection in `updatePlay` / the shield handling
   in `js/update.js`); render a travelling wavefront in `js/render.js`; resolve
   on a well-timed shield. **Needs a short design pass** (timing window, what
   failure costs, how it reads against the existing parry) before build.
-- [ ] **V7. Post-completion title & "start a run" framing.** After a first
+- [x] **V7. Post-completion title & "start a run" framing.** *(Shipped the copy:
+  the veteran CTA in `drawTitle` (`js/render.js`) now reads **▼ SOMETHING'S STILL
+  DOWN THERE** (owner pick) instead of ▶ START NEW FLIGHT — the downward ▼ teases
+  the Hollows — and the label auto-fits the pill so it never overruns a phone.
+  Mirrored to COPY_DECK.md. The fuller "shot of a Hollow" title visual is left as
+  an optional art follow-up.)* After a first
   completion (`veteran`), the title and the run-start language should
   acknowledge it. Change the visual — e.g. a shot of a **Hollow** to tease
   what's left to find — and change the button copy. **Options for the owner to
   pick from:** *"Is there more?"* · *"Go back down"* · *"Something's still
   down there"* · *"Return to the surface"*. Code anchors: `drawTitle` in
   `js/render.js`, the `veteran` flag, and the REMIX pill it already unlocks.
-- [ ] **V8. Adapted second-run intro.** The veteran (post-completion) run
+- [x] **V8. Adapted second-run intro.** *(Shipped. `VET_INTRO` (`js/render.js`)
+  — a single panel, "SOMETHING DOESN'T SIT RIGHT", its art an ordinary slice of
+  surface with a lift pad sitting faint on a flat shelf (uncalled, so it quietly
+  asks "why THIS ground?") — replaces the first-run INTRO on a veteran's
+  next fresh run, gated by a new `doids_vetintro` flag (`activeIntro` selects the
+  set in `startFreshRun`; `finishIntro` marks the right flag). Shown once, then
+  veteran runs launch straight into the tasking; re-shows after RESET PROGRESS.
+  `__doids.get()` exposes `vetIntroSeen`/`introLen`; smoke: "V8 a veteran's first
+  fresh run shows the one-panel veteran intro, once". Mirrored to COPY_DECK.md.)*
+  The veteran (post-completion) run
   opens with a different intro, e.g.: *"Something doesn't feel right. If
   everything came from a corruption of Solace's distress call, we're left with
   some big questions. Why did it corrupt? And why did it crash in the first
   place?"* Code anchors: the intro sequence gated on `veteran`; `doids_intro`;
   COPY_DECK.md.
-- [ ] **V9. Sound-led level intros.** Give subsequent sector intros a similar
+- [x] **V9. Sound-led level intros.** *(Shipped — one hook, only where the audio
+  delivers it. `briefText()` (`js/update.js`) appends "And captain — is that a
+  sound coming from under the ground?" on a **lift-bearing surface sector**
+  (`level.lift && !isCave`), where the pad rings hollow underfoot (U1) — so it's
+  never a promise the audio can't keep (heeding the cut Nightingale line).
+  Mirrored to COPY_DECK.md.)* Give subsequent sector intros a similar
   sensory hook — e.g. *"Is there a sound coming from beneath the ground?"* on a
   Hollows-bearing surface sector. Light touch, per-sector. Code anchors:
   `BRIEFS[]` in `js/world.js`; keep in sync with COPY_DECK.md. (Note: an
   earlier "Listen for them in the dark" promise on Nightingale Basin was cut
   for lack of an audio tell — see the parked stereo-beacon idea below; don't
   re-introduce a promise the audio can't yet keep.)
-- [ ] **V10. Post-win campaign variant.** The return (post-completion) run
+- [x] **V10. Post-win campaign variant.** *(Shipped. `genLevel` (`js/world.js`)
+  now detects a veteran campaign return (`veteran && runMode === "campaign" &&
+  n < FINALE_IDX`) and: adds +2 turrets (`vetGuns`) and +1–2 saboteurs
+  (`vetVectors`, raising the Vector proportion), and decorrelates the placement
+  RNG **after** the terrain octaves are generated — so the landscape is the same
+  but Scion/Vector/turret positions differ. Strictly veteran-gated: the
+  non-veteran first run and the M1 golden heightmap are byte-for-byte unchanged
+  (verified 1837799405). The early-sector no-pocket fairness pass and the V2
+  scan-spot invariant both still hold under the escalation. REMIX/DAILY already
+  re-roll and the finale keeps its authored setup + counterfeit MERCY. Smoke:
+  "V10 a veteran campaign return escalates".)* The return (post-completion) run
   should differ from the first: **same landscape, but different Scion/Vector
   placements, more guns, and a higher proportion of Vectors.** This extends the
   existing veteran-return machinery (the finale already spawns the counterfeit
@@ -1641,6 +1719,19 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
     (`js/update.js:671`) and keep the Solace / second-wave seeding (V5) light, so
     a *second MERCY* is genuinely unexpected. Trust the tells. (This is also what
     clears the Y7 overspill.) Mirror into COPY_DECK.md (R10).
+  *(Shipped V12a–c. **V12a** — the explicit twin warning is cut from `briefText()`
+  (the old "two ships … count the beats" paragraph is gone; nothing signposts a
+  second MERCY). **V12b** — on the veteran finale, `genLevel` gives BOTH MERCYs
+  randomised, well-separated positions (`level.mx` and the decoy, ~0.20–0.34·W
+  vs ~0.60–0.76·W, side randomised), so location tells you nothing; a
+  `drawMercySplit` reveal flickers one ship into two that drift to those spots
+  (`mercySplitT`/`MERCY_SPLIT_DUR`), during which docking is inert
+  (`updateDecoy`/`updateDocking` gated). Both already render identically (N1's
+  shared `mercy*` helpers); the only tell is the emblem beat — real = uneven
+  heartbeat, counterfeit = 41s metronome. **V12c** — the read is the beat alone,
+  and the reveal/tell respect reduced-flash. Docking the fake springs the
+  existing trap; identifying/answering the real is the win. Smoke: "V12 the
+  finale spawns two identical MERCYs …".)*
   - **V12b. Identical but for the tell; position uninformative.**
     **Owner-approved (late July 2026): build the full reveal.** A single MERCY
     **flickers, splits into two, both fade out, then reappear in randomised /
@@ -1658,10 +1749,86 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
     the read is fair from the learned beat cue — and that ASSIST / colorblind /
     reduced-flash don't wash the beat out. Ties to V11 (whether the decoy is
     surfaced more widely at all).
-- [ ] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
+- [x] **V·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
   to expose new state (Solace pulse, heard-scan parry, fly-back availability, the
   counterfeit-MERCY reveal V12); add tests for the V2 fairness invariant and V1
-  return-travel round-trip.
+  return-travel round-trip. *(Done for everything built this round: `__doids`
+  exposes `scanSpotFailures` (V2), `waves()`/`armWave()` (V6), `vetIntroSeen`/
+  `introLen` (V8), `answerBeacon()` (V6-finale), and `beacon.revealed/sonarT` +
+  `mercySplitT` via `level`. Smoke covers V2 fairness (campaign + REMIX), V6
+  mid-game parry, V3 Solace reveal, the V6-finale parry answer (and that holding
+  no longer answers), V8 veteran intro, V10 escalation, and V12 twin
+  (randomised/separated + trap). M1 golden checksum updated for V2's
+  pad-widening. V1 return-travel is a 1.1 item (Bundle Q), not part of 1.01.)*
+- [x] **V13. The bad ending — destroy the Solace.** *(Shipped. The fleet's
+  destroy-on-sight order — the one the CMO refused to sign (`primum non nocere`,
+  see BRIEF + LOG 09/10) — is now a real, spectacular choice. FIRE on the signal
+  source drops her `beacon.hp` (3 rounds; already wired in the `level.shots`
+  loop); the last round runs `resolveBeacon("fire")`, which no longer cuts
+  straight to the card. Instead a scripted **`destruct`** state plays out in
+  beats (owner steer — timings `SOL_IGNITE`/`SOL_REVEAL`/`SOL_BOOM`/`SOL_END` in
+  `js/update.js`): (1) the glow **ignites on her exposed broadcast tower + mast**;
+  (2) the red heat then **flows DOWN below the ground line**, drawing out her
+  buried hull top-to-bottom via a descending clip front — and the shape reads as
+  a **MERCY-class _sister_** (`solaceMercyPath()`: same family as `mercyHullPath`
+  — dorsal tower integral to the top edge, mast — but a taller/narrower tower and
+  a longer, deeper hull, so related not identical); (3) a held beat to take the
+  shape in; (4) she **detonates in a shower of sparks** with a flash + shockwave
+  and (5) resolves to a **smoking crater** in the ridge (`drawSolaceDeath` in
+  `js/render.js`; `updateDestruct` in `js/update.js`; `drawDarkness` keeps a
+  blast-growing light hole open so the reveal reads through the nullwave dark).
+  Terrain interaction, so the logic reads true: generation flattens a WIDE ridge
+  over her buried hull footprint (`flatten(...,250)`) so she is genuinely buried
+  — only the tower breaks the surface, no hull poking over open land — the tower
+  TOP is drawn poking out (not just a floating aerial), and the detonation sinks
+  a REAL crater into the heightmap (`crushCrater` in `js/world.js` +
+  `invalidateTiles`) so the ridge visibly collapses into a hole, not a flat
+  scorch. It settles onto
+  the reworded **SILENCE BY FIRE** card: "…That was one of ours. AMS SOLACE —
+  crew of 214 — silenced, not answered. The SOLACE deserved better." Respects
+  reduced-flash (no screen bloom, dimmer glows). Rank stays `SECTOR WARDEN`.
+  `__doids.fireSolace()` + smoke "Bad ending: the Solace can be destroyed by
+  fire". COPY_DECK updated.)*
+- [x] **V13a. Owner playtest follow-ups on the bad ending + logic tightening.**
+  *(Shipped.)*
+  - **Bad-ending end panel.** `drawWin()` now branches to its own
+    `drawFireEnding()` for `endingType === "fire"` instead of reusing MISSION
+    COMPLETE — a dark silhouette of the Solace's hull (`solaceMercyPath()`,
+    reused from the destruction reveal) under "THERE HAS TO BE A BETTER WAY."
+    SECTOR WARDEN still stands; the framing is regret, not triumph.
+  - **Variable homecoming line.** The veteran-intro recap's opening line
+    ("You brought them home") was a flat claim regardless of outcome. It's now
+    built from `lastRunSaved`/`lastRunLost` — a fresh pair snapshotted once via
+    `saveLastRunTally()` when `resolveBeacon()` resolves an ending, persisted as
+    `doids_lastrun_tally` — so it reads "You brought them all home" only when
+    true, otherwise "You brought N home. M didn't make it."
+  - **Jenner brief detuned.** `BRIEFS[6]` named the serpent mark/mask outright,
+    scooping LOG 12/13's gradual reveal on a first run. Reworded to keep the
+    dread without the spoiler; COPY_DECK mirrored.
+  - **Signal-wash parry knockback.** `drawWaves()` (`js/render.js`) now sends a
+    parried wave back the way it came — travelling ship → source over
+    `WAVE_RETURN` (0.4 s) and landing as a burst on the Vector (or the Solace at
+    the finale) — instead of only flashing at the ship.
+  - **Graceful early-extraction confirm.** `drawConfirm()` eases in (fade +
+    slight rise) over ~0.28 s instead of popping up instantly, landing just
+    before the existing 0.25 s input debounce opens.
+  - **MERCY-spooling banner repositioned.** `banner()` takes an optional
+    `yFrac`; the S4 "MANIFEST CLOSED — MERCY IS SPOOLING" call now sits lower
+    (0.58) so it clears MERCY and your own ship, both near the top of the
+    screen during the hangar approach.
+  - **Corrupted vs. counterfeit (the big one).** Before the husks are known
+    (`husksKnown()`, `js/world.js` — true once the WORKSHOP shrine, `SHRINES[1]`
+    "THEY WERE NEVER RESCUED," has been found; even a veteran doesn't start a
+    run knowing it), a disguised unit is framed as **CORRUPTED**, not
+    COUNTERFEIT, and the "proven, so it's a clean kill" exception is off: a
+    flagged/catalogued unit still boards (rather than sitting inert on the
+    ground) and must go through the red isolation bay like any other saboteur
+    passenger; destroying one on the ground is malpractice regardless of
+    flagged state. Once the husks are known, all of this reverts to the
+    original rules (clean kill, may be left on the ground). See `husksKnown()`
+    call sites in `js/update.js` (the S5 landed-scan catalogue text + the
+    "dying" kill resolution) and the boarding-exemption change in the oid
+    update loop.
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).

@@ -145,6 +145,35 @@ giving controls a faint internal light rather than a hard fill.
   letter to the 16-bit lander classics"`)
 - Never breaks the diegesis with generic app-UI phrasing ("Click here," "Settings
   saved!") — everything is framed as ship/mission language
+- **Line breaks: don't let a sentence run on across an awkward wrap.** For any
+  multi-line body copy (intro captions, briefings, reveal/clue cards), break the
+  string at sentence/thought boundaries with explicit `\n\n` so a distinct
+  sentence starts on its own line rather than trailing off the end of one line
+  and picking up mid-next. e.g. the veteran opening puts *"Why did her call
+  corrupt? And why did she go down at all?"* and *"Fly it again. Look closer this
+  time."* on their own lines. Width-wrapping (`wrapText`) then only wraps within
+  each authored line. Keep final lines from stranding a single orphan word.
+
+## 6.5 Layering & occlusion (the "one is always in front" rule)
+
+Depth must always read cleanly — the terrain and any object over it must look
+like one is clearly **in front of** the other, never a translucent overlap where
+the hillside's own outline shows straight through an object (an "X-ray glitch").
+
+- **Solid masses occlude.** Anything that is a physical mass sitting in the
+  landscape — rock, sand dune, hedge, building, boulder, a downed ship — fills
+  its body near-opaque (`SOLID_ALPHA`, see `js/render.js`) so it hides the
+  terrain and scenery behind it. Draw order already puts scenery after terrain;
+  opaque body + drawn-after = reliably in front. The neon edge stroke still
+  carries the flavour, so "solid" doesn't mean "flat".
+- **Only non-solid *materials* stay see-through**, and only where the
+  translucency reads as the material rather than a bug: airy foliage (tree
+  canopies), ice/crystal (spires), thin line-art with no body to X-ray (reeds,
+  lantern poles), and flat accents that lie *on* the ground (dune bands, salt-pan
+  sheen, the lift-pad seam). If in doubt, make it occlude.
+- A sheared/buried edge (a wreck cut by a ledge) gets a drawn torn edge so the
+  silhouette still closes — never leave a hard clip with no outline, which reads
+  as unfinished.
 
 ## 7. Do / Don't
 

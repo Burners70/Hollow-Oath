@@ -417,6 +417,61 @@ function gateSlam() {
   o1.stop(t + 0.42); o2.stop(t + 0.42);
 }
 
+/* V13 (owner steer) — the finale twin's two signal pulses. This is the
+   biggest structural lie in the game, so neither cue is clean or comforting:
+   two close, detuned partials throughout (a beating dissonance), not a
+   consonant chord. twinDissolve plays as the "normal" MERCY flickers OUT —
+   the partials slide down and drift apart, like a voice coming unglued, with
+   static swelling in under it (breaking into noise, not fading to silence).
+   twinEmerge plays as the real two flicker IN — a burst of static resolving
+   toward a sustained, still-dissonant close interval: arrival, not relief. */
+function twinDissolve() {
+  if (!AC) return;
+  const t = AC.currentTime, dur = 1.0;
+  const o1 = AC.createOscillator(), o2 = AC.createOscillator();
+  o1.type = "sine"; o2.type = "sine";
+  o1.frequency.setValueAtTime(340, t); o2.frequency.setValueAtTime(346, t);
+  o1.frequency.exponentialRampToValueAtTime(92, t + dur);
+  o2.frequency.exponentialRampToValueAtTime(68, t + dur);   // drifts further apart as it goes
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.17, t + 0.15);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o1.connect(g); o2.connect(g); g.connect(sfxGain);
+  o1.start(t); o2.start(t); o1.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+  const sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (i / sz);   // grows, not decays
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1200; bp.Q.value = 1.2;
+  const ng = AC.createGain(); ng.gain.value = 0.1;
+  s.connect(bp); bp.connect(ng); ng.connect(sfxGain); s.start();
+}
+function twinEmerge() {
+  if (!AC) return;
+  const t = AC.currentTime, dur = 1.1;
+  const sz = Math.floor(AC.sampleRate * 0.4);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const hp = AC.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 800;
+  const ng = AC.createGain(); ng.gain.value = 0.15;
+  s.connect(hp); hp.connect(ng); ng.connect(sfxGain); s.start();
+  const o1 = AC.createOscillator(), o2 = AC.createOscillator();
+  o1.type = "sine"; o2.type = "sine";
+  o1.frequency.setValueAtTime(80, t); o2.frequency.setValueAtTime(84, t);
+  o1.frequency.exponentialRampToValueAtTime(196, t + dur);   // a close, beating interval — not a clean fifth
+  o2.frequency.exponentialRampToValueAtTime(208, t + dur);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.16, t + dur * 0.5);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o1.connect(g); o2.connect(g); g.connect(sfxGain);
+  o1.start(t); o2.start(t); o1.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+}
+
 /* ---------------- generative ambient score ---------------- */
 const PENTATONIC = [220.00, 261.63, 293.66, 329.63, 392.00];
 let droneOsc1 = null, droneOsc2 = null, droneLfo = null;

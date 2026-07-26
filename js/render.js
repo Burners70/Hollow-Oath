@@ -102,6 +102,7 @@ function render() {
   if (state === "confirm") drawConfirm(now);
   if (state === "settings") drawSettings(now);
   if (state === "epilogue") drawEpilogue(now);
+  if (state === "destruct") drawDestruct(now);
   if (state === "ending") drawEnding(now);
   if (state === "gameover") drawGameOver(now);
   if (state === "win") drawWin();
@@ -114,7 +115,11 @@ function render() {
     ctx.shadowColor = bannerMsg.color; ctx.shadowBlur = 18;
     ctx.fillStyle = bannerMsg.color;
     ctx.globalAlpha = clamp(bannerMsg.t, 0, 1);
-    bannerMsg.str.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.26 + i * 28));
+    // V13 (owner steer) — most banners sit in the top quarter, but the S4
+    // "MERCY is spooling" call sits right over MERCY and your own ship during
+    // the hangar approach, so it carries a lower yFrac to clear both.
+    const bannerY = vh * (bannerMsg.yFrac != null ? bannerMsg.yFrac : 0.26);
+    bannerMsg.str.split("\n").forEach((l, i) => ctx.fillText(l, vw / 2, bannerY + i * 28));
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   }
 
@@ -286,6 +291,54 @@ function fakePodAlpha(now, known) {
   return 0.82 - 0.34 * beat;
 }
 
+/* V6 — the sonic-wave parry fronts (world space). Telegraph knot at the emitter,
+   then a violet ring sweeping to the ship. On a miss it washes over you (a
+   violet ring at the ship); on a parry (V13) it's knocked straight back into
+   whatever cast it, ending in a cyan burst there. Shape-based so it reads
+   under colorblind; reduced-flash tones the glow. */
+function drawWaves(now) {
+  if (!level.waves || !level.waves.length) return;
+  for (const w of level.waves) {
+    ctx.save();
+    if (w.t < WAVE_WINDUP) {
+      const p = w.t / WAVE_WINDUP;
+      const a = (reducedFlash ? 0.45 : 0.75) * (0.4 + 0.6 * Math.abs(Math.sin(now * 20)));
+      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")";
+      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w.ox, w.oy, 6 + p * 10, 0, 7); ctx.stroke();
+    } else if (w.t < WAVE_ARRIVE) {
+      const p = (w.t - WAVE_WINDUP) / WAVE_TRAVEL;
+      const r = Math.max(2, Math.hypot(ship.x - w.ox, ship.y - w.oy) * p);
+      ctx.strokeStyle = "rgba(179,136,255," + (0.75 * (1 - p * 0.25)).toFixed(2) + ")";
+      ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 5 : 12; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(w.ox, w.oy, r, 0, 7); ctx.stroke();
+    } else if (w.hit) {
+      // V13 (owner steer) — a parried wave doesn't just flash at the ship; the
+      // shield knocks it straight back the way it came, into whatever cast it
+      // (the Vector, or the Solace at the finale), landing as a burst there.
+      const src = w.src && !w.src.dead ? w.src : null;
+      const sx = src ? src.x : w.ox, sy = src ? src.y - 10 : w.oy;
+      const p = clamp((w.t - WAVE_ARRIVE) / WAVE_RETURN, 0, 1);
+      const rx = lerp(ship.x, sx, p), ry = lerp(ship.y, sy, p);
+      ctx.globalAlpha = 1 - p * 0.2;
+      ctx.strokeStyle = "rgb(0,229,255)"; ctx.shadowColor = "#00e5ff";
+      ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(rx, ry, 9, 0, 7); ctx.stroke();
+      if (p >= 1 && !w.returnBurst) {
+        w.returnBurst = true;
+        explode(sx, sy, "#00e5ff", 16);
+      }
+    } else {
+      const p = (w.t - WAVE_ARRIVE) / (WAVE_LIFE - WAVE_ARRIVE);
+      ctx.globalAlpha = (1 - p) * 0.85;
+      ctx.strokeStyle = "rgb(179,136,255)"; ctx.shadowColor = "rgb(179,136,255)";
+      ctx.shadowBlur = reducedFlash ? 5 : 14; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ship.x, ship.y, 14 + p * 18, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
 function drawWorld(now) {
   const { z, cx, cy } = worldTransform();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
@@ -336,6 +389,7 @@ function drawWorld(now) {
 
   if (!level.isCave) drawMothership(now);
   if (level.fakeMercy) drawDecoyMercy(now);
+  drawMercySplit(now);   // V13 — the staged one-then-two reveal on finale arrival
   drawLift(now);
   if (level.shrine) drawShrine(now);
 
@@ -456,6 +510,7 @@ function drawWorld(now) {
     ctx.fillStyle = "#a7f6ff";
     ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, 7); ctx.fill();
   }
+  drawWaves(now);   // V6 — Vector sonic-wave parry fronts
 
   for (const p of particles) {
     const a = clamp(p.t / p.max, 0, 1);
@@ -580,7 +635,17 @@ function drawDarkness(now) {
   for (const c of level.scenery)   // T3 — ward-lanterns carve small pools of light
     if (c.type === "lantern" && !c.dead)
       punch(c.x, c.y - c.pole * c.s, 72, 0.4 + 0.15 * Math.abs(Math.sin(now * 3 + c.ph)));
-  if (level.beacon && !level.beacon.resolved) punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
+  if (level.beacon && level.beacon.death != null) {
+    // her fire-death lights the whole area — a big, blast-growing hole so the
+    // heat reveal + detonation read through the nullwave dark (else the darkness
+    // overlay, drawn after the beacon, would swallow them)
+    const bt = level.beacon.death - SOL_BOOM;
+    const r = bt < 0 ? 240 + 150 * clamp(level.beacon.death / SOL_BOOM, 0, 1)
+                     : 400 + 220 * clamp(bt / 0.5, 0, 1);
+    punch(level.beacon.x, level.beacon.y - 20, r, 1);
+  } else if (level.beacon && !level.beacon.resolved) {
+    punch(level.beacon.x, level.beacon.y - 40, 220, 0.8);
+  }
   if (level.blackbox && !level.blackbox.found) punch(level.blackbox.x, level.blackbox.y, 36, 0.4);
   if (level.isCave) {   // the Hollows keep their own faint lights
     punch(level.lift.x, level.lift.y - 20, 120, 0.6);
@@ -1114,7 +1179,7 @@ function drawSpire(sc, now) {
   ctx.moveTo(-w, 0); ctx.lineTo(-w * 0.4, -h * 0.55); ctx.lineTo(0, -h);
   ctx.lineTo(w * 0.4, -h * 0.5); ctx.lineTo(w, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(120,110,200,.16)"; ctx.fill();
+  ctx.fillStyle = "rgba(120,110,200,.16)"; ctx.fill();   // ice/crystal — see-through BY MATERIAL (layering rule §2)
   glowStroke("rgba(166,255,156,.5)", 1.6);
   ctx.restore();
   const g = 0.3 + 0.2 * Math.abs(Math.sin(now * 1.2 + sc.ph));
@@ -1130,7 +1195,7 @@ function drawDune(sc, now) {
   ctx.quadraticCurveTo(-w * 0.15, -w * 0.16, 0, -w * 0.2);
   ctx.quadraticCurveTo(w * 0.25, -w * 0.16, w / 2, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(28,22,8," + DECO_ALPHA + ")"; ctx.fill();
+  ctx.fillStyle = "rgba(28,22,8," + SOLID_ALPHA + ")"; ctx.fill();   // solid sand mass — occludes (layering rule)
   glowStroke("rgba(230,200,95,.4)", 1.4);
   ctx.save();
   ctx.globalAlpha = 0.3; ctx.strokeStyle = "rgba(230,200,95,.5)"; ctx.lineWidth = 1;
@@ -1159,7 +1224,7 @@ function drawHedge(sc, now) {
   }
   ctx.lineTo(w / 2, 0);
   ctx.closePath();
-  ctx.fillStyle = "rgba(20,38,15," + DECO_ALPHA + ")"; ctx.fill();
+  ctx.fillStyle = "rgba(20,38,15," + SOLID_ALPHA + ")"; ctx.fill();   // dense hedge mass — occludes (layering rule)
   glowStroke("rgba(168,227,154,.4)", 1.4);
   ctx.restore();
 }
@@ -1182,7 +1247,7 @@ function drawTree(sc, now) {
   ctx.moveTo(0.6, -h * 0.45); ctx.lineTo(8 + sway * 2, -h * 0.7);
   ctx.moveTo(0, -h * 0.6); ctx.lineTo(-7 + sway * 2, -h * 0.85);
   ctx.stroke();
-  ctx.fillStyle = "rgba(0,191,165,.1)";
+  ctx.fillStyle = "rgba(0,191,165,.1)";   // airy foliage — see-through BY MATERIAL (layering rule §2)
   const puff = (px, py, r) => {
     ctx.beginPath(); ctx.arc(px + sway * 3, py, r, 0, 7);
     ctx.fill();
@@ -1207,7 +1272,7 @@ function drawRockScn(sc, now) {
   ctx.scale(sc.s, sc.s);
   const breathe = sc.hollow ? 0.16 * Math.sin(now * 1.1 + sc.ph) : 0;
   ctx.strokeStyle = "rgba(150,140,200," + (0.4 + breathe).toFixed(2) + ")";
-  ctx.fillStyle = "rgba(20,16,49," + DECO_ALPHA + ")";
+  ctx.fillStyle = "rgba(20,16,49," + SOLID_ALPHA + ")";   // solid stone — occludes (layering rule)
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   sc.verts.forEach(([vx, vy], i) => i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy));
@@ -1215,28 +1280,30 @@ function drawRockScn(sc, now) {
   ctx.restore();
 }
 
-/* QA1 — every entry in drawScenery() is purely decorative: drawScenery has no
-   ship-collision check at all, only terrain/turrets/drones/bullets and the
-   fake/hollow secrets (shootable, not collidable) can end a flight. Terrain
-   fills fully opaque (buildHeightTile); every decorative fill below stays
-   translucent instead, on purpose, so "solid" vs. "flavour" reads at a
-   glance without inventing a second colour language on top of H1/H2. */
-const DECO_ALPHA = 0.4;
-// buildings are the one decorative shape this reads badly on: a big flat
-// rectangular mass at DECO_ALPHA lets the terrain it should be standing in
-// front of show through crisply — an X-ray glitch, not "flavour," where the
-// same translucency reads fine on trees/hedges/rocks (small or organic
-// silhouettes) and on the wrecks (translucent = intentionally damaged).
-// Found on-device: a building on sloped ground showed the hillside's own
-// outline passing straight through it. Kept solid enough to actually occlude
-// what's behind it, just a touch softer than terrain's full opacity.
-const BUILDING_ALPHA = 0.82;
-// VESALIUS's stacked boulders hit the same X-ray glitch as buildings, but worse
-// because they OVERLAP: at DECO_ALPHA a front rock in the pile fails to hide the
-// rocks (and the trees / lift pad) behind it, so the stack reads as a tangle of
-// wireframes rather than a solid heap. Kept opaque enough to occlude, like the
-// buildings, while the neon edge stroke still carries the flavour.
-const BOULDER_ALPHA = 0.9;
+/* ===== LAYERING STANDARD (the "one is always in front" rule) =====
+   drawScenery() is purely decorative (no ship-collision — only terrain / turrets
+   / drones / bullets and the shootable fake/hollow secrets end a flight). But
+   decoration must still respect depth: the terrain is fully opaque, and anything
+   layered over it has to read as clearly IN FRONT OF or BEHIND it — never a
+   translucent overlap where the hillside's own outline shows straight through an
+   object ("X-ray glitch").
+
+   The rule, applied to every drawn element:
+   1. A SOLID MASS in the landscape — rock, dune, hedge, building, boulder, the
+      wrecks — fills its body at SOLID_ALPHA (near-opaque), so it OCCLUDES the
+      terrain and any scenery behind it. Draw order (drawWorld) already puts
+      scenery after terrain, so opaque body + drawn-after = reliably "in front".
+   2. Only a genuinely NON-SOLID MATERIAL may stay see-through, and only where
+      the translucency reads AS that material, not as a bug: airy foliage (tree
+      canopies), ice/crystal (Curie spires), thin line-art with no body to X-ray
+      (reeds, lantern poles), and flat surface accents that lie ON the ground
+      (dune bands, salt-pan sheen, the lift-pad seam). Each is deliberately faint
+      at its own draw site, noted there.
+   Found on-device three times — a building, a boulder stack, then an Avicenna
+   dune — all the same root cause (a solid mass left at the old 0.4 deco alpha),
+   so it's ONE shared constant now rather than a per-shape patch. */
+const SOLID_ALPHA = 0.88;
+const BUILDING_ALPHA = SOLID_ALPHA, BOULDER_ALPHA = SOLID_ALPHA;
 
 /* settlements: intact towers with lit windows, and what's left of them */
 function drawBuilding(sc, now, ruined) {
@@ -1293,22 +1360,67 @@ function drawBuilding(sc, now, ruined) {
    float as an invisible edge. Draw a jagged TORN edge along that line so the
    hull always reads as a broken wreck, buried or jutting out over a drop. The
    zigzag is seeded by the wreck's x so it never jitters frame to frame. */
-function tornHullEdge(sc, halfW, rgb) {
-  ctx.save();
-  ctx.translate(sc.x, sc.y);
-  ctx.rotate(sc.tilt);
-  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
-  let r = Math.floor(sc.x) | 1;
+/* Y3 — a ragged torn edge along the hull's broken underside. Drawn in the
+   caller's CURRENT transform — i.e. INSIDE the hull's own translate/rotate/
+   scale — so it tracks the wreck exactly. (It used to set up its own
+   translate(sc.x,sc.y)+rotate(sc.tilt) frame, ignoring the hull's lean/cant/
+   scale/offset, so on the plateau it floated off to one side as a stray line
+   that read as a drawing glitch, not damage.) Runs from local x0..x1 along the
+   hull base at `baseY`, jagging upward; jaggedness is seeded from x so it's
+   stable frame to frame. */
+function tornHullEdge(seedX, x0, x1, baseY, rgb) {
+  let r = Math.floor(seedX) | 1;
   const rnd = () => { r = (r * 1103515245 + 12345) & 0x7fffffff; return r / 0x7fffffff; };
+  const span = x1 - x0, step = Math.max(3, span / 10), jag = Math.min(7, span / 6);
+  ctx.save();
+  ctx.strokeStyle = "rgba(" + rgb + ",.4)"; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
   ctx.beginPath();
-  let x = -halfW;
-  ctx.moveTo(x, 5);
-  while (x < halfW) {
-    x += 5 + rnd() * 7;
-    ctx.lineTo(Math.min(x, halfW), 5 - rnd() * 7);
+  let x = x0;
+  ctx.moveTo(x, baseY);
+  while (x < x1) {
+    x += step * 0.6 + rnd() * step;
+    ctx.lineTo(Math.min(x, x1), baseY - rnd() * jag);
   }
   ctx.stroke();
   ctx.restore();
+}
+
+/* Y3-fix — the torn face of a hull SHEARED by the ground clip. Where a wreck
+   sits near a step-down, wreckGroundSpan caps the clip at the ledge and the
+   hull's overhanging side is cut by a hard, outline-less vertical clip edge — so
+   it read as unfinished. This closes that cut with a ragged vertical edge that
+   spans only the hull's OWN cross-section there (yTop..yBot from wreckMEdge), so
+   it reads as "this part of the ship was sheared off", NOT a bracket rising
+   above the deck or a line running down the cliff face. Jitter is symmetric
+   (a torn edge, not a bow) and seeded from x so it's stable frame to frame. */
+function tornBulkhead(x, yTop, yBot, rgb, seedX) {
+  if (yBot <= yTop) return;
+  let r = Math.floor(seedX + x) | 1;
+  const rnd = () => { r = (r * 1103515245 + 12345) & 0x7fffffff; return r / 0x7fffffff; };
+  ctx.save();
+  ctx.strokeStyle = "rgba(" + rgb + ",.45)"; ctx.lineWidth = 2; ctx.lineJoin = "round";
+  ctx.beginPath();
+  let y = yBot;
+  ctx.moveTo(x + (rnd() - 0.5) * 4, y);
+  while (y > yTop) {
+    y -= 2.5 + rnd() * 3.5;
+    ctx.lineTo(x + (rnd() - 0.5) * 5, Math.max(y, yTop));
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* the MERCY-class hull's top and bottom silhouette (world y) at a given world x,
+   so a sheared-face bulkhead matches the ship's cross-section right there —
+   short at the nose, full through the body. Rotation is tiny; ignore it. */
+function wreckMEdge(sc, worldX) {
+  const sc62 = sc.s * 0.62;
+  const ax = Math.abs((worldX - sc.x) / sc62);
+  let topL, botL;
+  if (ax >= 145) { topL = 0; botL = 0; }
+  else if (ax >= 95) { const f = (145 - ax) / 50; topL = -22 * f; botL = 20 * f; }
+  else { topL = -22; botL = 20; }   // deck..underside (never the tower — shears hit the flanks)
+  return { top: sc.y + 4 + topL * sc62, bot: sc.y + 4 + botL * sc62 };
 }
 
 /* QA3 — the breach used to be a couple of stroked lines drawn ON TOP of one
@@ -1436,8 +1548,16 @@ function drawWreckM(sc, now) {
   ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
   ctx.fillStyle = "rgba(155,234,249,.3)";
   ctx.fillText("A ␥ S · ␥ ␥ ␥ C ␥", 0, 36);
+  // broken underside along the hull base — drawn in the hull frame so it tracks
+  // the (canted/leaned/scaled) wreck; the ground clip still submerges its lower reach
+  tornHullEdge(sc.x, -95, 95, 20, "0,229,255");
   ctx.restore();   // pop the hull transform; the ground clip is still active
-  tornHullEdge(sc, 92, "0,229,255");   // broken underside along the land line — clipped to the span too
+  // Y3-fix — if the ground clip sheared a side of the hull at a ledge, close that
+  // cut with a ragged torn FACE across the hull's cross-section there, so it
+  // reads as a sheared-off section (not a bracket over the deck / a cliff line)
+  const reachM = 132 * sc.s * 0.62;
+  if (span.lo > sc.x - reachM + 4) { const e = wreckMEdge(sc, span.lo); tornBulkhead(span.lo, e.top, e.bot, "0,229,255", sc.x); }
+  if (span.hi < sc.x + reachM - 4) { const e = wreckMEdge(sc, span.hi); tornBulkhead(span.hi, e.top, e.bot, "0,229,255", sc.x); }
   // Y3 — the scar where she bit into the land: a shallow dark gouge that hugs the
   // ground directly under the hull. Clamped to the same plateau span as the clip
   // so it follows the real surface and never trails off a cliff edge into the air.
@@ -1495,8 +1615,9 @@ function drawWreckS(sc, now) {
   ctx.globalCompositeOperation = "source-over";
   ctx.beginPath(); ctx.moveTo(3, 6); ctx.lineTo(7, 4); ctx.lineTo(6, 8);
   glowStroke("rgba(150,140,200,.5)", 1.3);
+  // broken underside along the hull base — in the hull frame so it tracks the tilt
+  tornHullEdge(sc.x, -9, 9, 9, "0,229,255");
   ctx.restore();   // pop the hull transform; the ground clip is still active
-  tornHullEdge(sc, 12, "0,229,255");   // broken underside along the land line
   // scorch trail where it came down — clipped to the span so it doesn't run off a drop
   ctx.strokeStyle = "rgba(30,20,50,.9)"; ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1764,10 +1885,20 @@ function drawTractorBeam(b, colorRGB, now, vertical, pull) {
 
 function drawMothership(now) {
   const { mx, my } = mercyPos();
+  // V13 — computed once and applied to every block below (hull, the pulse-ring
+  // wash, AND the bay labels/beams), not just the hull's own save/restore pair —
+  // those bay labels used to leak through at full alpha during the reveal since
+  // they live in their own later save block that never inherited it. A small
+  // jitter rides along on the hull itself while she's actively resolving — a
+  // real distortion, not just an alpha wobble.
+  const twinEnv = level.mercySplitT > 0 ? twinInEnvelope() : 1;
+  const twinA = level.mercySplitT > 0 ? twinFlicker(now, twinEnv) : 1;
+  const jit = level.mercySplitT > 0 ? twinJitter(now, twinEnv) : { dx: 0, dy: 0 };
   // no idle bob: the hull, the bays and the ventral hangar all sit on the exact
   // same mercyPos, so the hangar can never drift out of sync with the hull
   ctx.save();
-  ctx.translate(mx, my);
+  ctx.globalAlpha *= twinA;
+  ctx.translate(mx + jit.dx, my + jit.dy);
   ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5;
   ctx.fillStyle = "rgba(0,40,60,.55)";
@@ -1784,8 +1915,13 @@ function drawMothership(now) {
   drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // her signature mast
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-  ctx.fillStyle = "#9beaf9";
+  // V13 (round 3, owner steer) — text was reported reading as fully solid
+  // well before the hull did during the flicker: shadowBlur glow doesn't
+  // always fade in lockstep with globalAlpha (canvas engines vary here), so
+  // the nameplate now bakes twinA into its own fill alpha AND shrinks its
+  // shadow with it, instead of trusting globalAlpha alone.
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * twinA;
+  ctx.fillStyle = "rgba(155,234,249," + twinA.toFixed(2) + ")";
   ctx.font = "700 10px Menlo, monospace";
   ctx.textAlign = "center";
   ctx.fillText("A M S · M E R C Y", 0, 34);
@@ -1795,6 +1931,7 @@ function drawMothership(now) {
   if (level.pulse) {
     const p = level.pulse.t / 1.2;
     ctx.save();
+    ctx.globalAlpha *= twinA;
     ctx.strokeStyle = "rgba(179,136,255," + ((1 - p) * 0.7).toFixed(2) + ")";
     ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 12;
     ctx.lineWidth = 2;
@@ -1813,6 +1950,7 @@ function drawMothership(now) {
 
   const bays = bayRects();
   ctx.save();
+  ctx.globalAlpha *= twinA;
   ctx.lineWidth = 1.5;
   // recovery bay: a beam hanging under the hull, dispensing outward
   const medRGB = mercyBreach ? "255,64,129" : "0,229,255";
@@ -1820,14 +1958,17 @@ function drawMothership(now) {
   // Bay labels: bigger (BIG-TEXT aware) and higher-contrast for mobile. A dark
   // halo lifts them off the hull and terrain; the isolation label uses a lighter,
   // more luminous red — pure #ff1744 was near-invisible against the dark ground.
+  // V13 — alpha baked directly into the label colour + shadow (see the
+  // nameplate above for why globalAlpha alone wasn't enough).
   ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4;
-  ctx.fillStyle = mercyBreach ? "rgba(255,90,120,.98)" : "rgba(120,240,255,.98)";
+  ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4 * twinA;
+  ctx.fillStyle = mercyBreach ? "rgba(255,90,120," + (0.98 * twinA).toFixed(2) + ")"
+    : "rgba(120,240,255," + (0.98 * twinA).toFixed(2) + ")";
   ctx.fillText(mercyBreach ? "LOCKDOWN" : "RECOVERY BAY",
     (bays.med.x0 + bays.med.x1) / 2, bays.med.y1 + 15);
   // quarantine bay: a beam off the starboard side, pulling inward — contained, not delivered
   drawTractorBeam(bays.red, "255,23,68", now, false, true);
-  ctx.fillStyle = "rgba(255,110,132,.98)";
+  ctx.fillStyle = "rgba(255,110,132," + (0.98 * twinA).toFixed(2) + ")";
   ctx.fillText("RED BAY · ISOLATION AIRLOCK", (bays.red.x0 + bays.red.x1) / 2, bays.red.y1 + 15);
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -1898,7 +2039,9 @@ function drawHangar(now, active) {
     ctx.globalAlpha = fade;
     ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
     ctx.fillStyle = "rgba(" + col + "," + (active ? 0.9 : 0.5) + ")";
-    ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 20);
+    // sit clear of the "A M S · M E R C Y" hull nameplate (hull-frame y≈34, i.e.
+    // my+34): bot is my+20, so bot+34 clears it instead of overlapping at bot+20
+    ctx.fillText(active ? "VENTRAL HANGAR" : "⇧ HANGAR · EARLY EXTRACTION", h.cx, bot + 34);
   }
   ctx.restore();
 }
@@ -1963,11 +2106,139 @@ function drawJumpStreak(now) {
    emblem pulses organically (0.55 + 0.45·sin) — this one blinks in perfect
    mechanical unison with the fake fuel pods (sin(now·π·2) > 0), the exact
    tell the game has taught since Avicenna Shoals. */
+/* V13 (owner steer) — the finale twin's arrival, staged: (1) hold on a single,
+   perfectly ordinary MERCY at the spawn point (this function); (2) a purple
+   signal pulse (drawTwinPulse), then that illusion flickers OUT; (3) a beat of
+   nothing, a second pulse, then the two real MERCYs flicker IN over their own
+   drawMothership/drawDecoyMercy (reading twinInAlpha) at their randomised,
+   separated positions; (4) the illusion is gone — only the two remain, stable
+   but for the emblem tell. Location and the opening beat both tell you
+   nothing; only the beat (and now the two pulses) are honest. */
+function twinElapsed() { return MERCY_SPLIT_DUR - level.mercySplitT; }
+// V13 (owner steer, round 2) — "this is not a subtle moment, it's big": the
+// first pass's flicker only dimmed between 0.4 and 1.0, which read as a
+// gentle shimmer. This strobes down to real blackouts (occasionally near-zero)
+// with hard on/off cuts layered on top of the wobble, so it reads as a signal
+// fighting to hold together. reduced-flash dampens the amplitude, not removes
+// it, so the beat still lands for players who need it toned down.
+function twinFlicker(now, envelope) {
+  if (envelope <= 0) return 0;
+  if (envelope >= 1) return 1;
+  if (reducedFlash) return envelope * 0.8;
+  const wobble = Math.abs(Math.sin(now * 34) * Math.sin(now * 13) * Math.sin(now * 5.3));
+  const cut = Math.sin(now * 61) > 0.82 ? 0.08 : 1;   // occasional hard dropout
+  return envelope * Math.max(0.05, wobble) * cut;
+}
+// a small on-screen positional jitter — real distortion, not just an alpha
+// wobble — active only mid-transition (never during the hold or once solid).
+function twinJitter(now, envelope) {
+  if (envelope <= 0 || envelope >= 1 || reducedFlash) return { dx: 0, dy: 0 };
+  const amp = 5;
+  return {
+    dx: (Math.sin(now * 53) + Math.sin(now * 97 + 1.3)) * amp * 0.5,
+    dy: (Math.sin(now * 61 + 0.7) + Math.sin(now * 83 + 2.1)) * amp * 0.5
+  };
+}
+// the envelope (0..1, NOT yet flickered) the two REAL ships (mothership +
+// decoy) share while resolving: 0 until the second pulse, 1 once solid
+function twinInEnvelope() {
+  const e = twinElapsed();
+  if (e < TWIN_PULSE2) return 0;
+  if (e >= TWIN_IN) return 1;
+  return (e - TWIN_PULSE2) / (TWIN_IN - TWIN_PULSE2);
+}
+function twinInAlpha(now) { return twinFlicker(now, twinInEnvelope()); }
+function drawTwinPulse(x, y, tSincePulse) {
+  const DUR = 0.6;
+  if (tSincePulse < 0 || tSincePulse > DUR) return;
+  const p = tSincePulse / DUR;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = (1 - p) * (reducedFlash ? 0.5 : 0.85);
+  ctx.strokeStyle = "#b388ff"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = reducedFlash ? 4 : 14;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, 20 + p * 130, 0, 7); ctx.stroke();
+  ctx.restore();
+}
+function drawMercySplit(now) {
+  if (!(level.mercySplitT > 0) || !level.fakeMercy) return;
+  const e = twinElapsed();
+  const midX = (level.mx + level.fakeMercy.x) / 2, midY = 170;
+
+  // the illusion: solid through the hold ("looks identical to normal" — bay
+  // signage included, so it reads as a completely ordinary arrival), then
+  // flickers out once the first pulse fires — never below here, never a ghost
+  const illusionEnv = e < TWIN_HOLD ? 1 : Math.max(0, 1 - (e - TWIN_HOLD) / (TWIN_OUT - TWIN_HOLD));
+  const illusionAlpha = twinFlicker(now, illusionEnv);
+  const jit = twinJitter(now, illusionEnv);
+  if (illusionAlpha > 0) {
+    ctx.save();
+    ctx.globalAlpha = illusionAlpha;
+    ctx.translate(midX + jit.dx, midY + jit.dy);
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 18;
+    ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(0,40,60,.55)";
+    mercyHullPath(); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    mercyGreebles("rgba(0,229,255,.3)");
+    drawGlow(-145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4));
+    drawGlow(145, 0, 13, "#00e5ff", 0.45 + 0.25 * Math.sin(now * 4 + 1.4));
+    // the same organic emblem pulse as the real ship — it's meant to read as
+    // completely ordinary, which is exactly the point
+    ctx.save();
+    ctx.translate(0, -15);
+    const pulse = 0.55 + 0.45 * Math.sin(now * 3);
+    ctx.shadowColor = "#ff1744"; ctx.shadowBlur = 16 * pulse + 6;
+    drawAsclepius(36, "rgba(255,23,68," + (0.5 + 0.5 * pulse).toFixed(2) + ")");
+    ctx.restore();
+    mercyAntenna(now, "0,229,255", true);
+    // V13 — alpha baked directly into the label + its shadow, not left to
+    // globalAlpha alone (canvas shadowBlur can visually outlast a fading
+    // globalAlpha, which is what was reported: text reading solid before the
+    // hull did)
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * illusionAlpha;
+    ctx.fillStyle = "rgba(155,234,249," + illusionAlpha.toFixed(2) + ")";
+    ctx.font = "700 10px Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("A M S · M E R C Y", 0, 34);
+    ctx.restore();
+    // bay signage — same alpha, drawn in absolute (untranslated) coords exactly
+    // like drawMothership's own bay block, so it fades WITH the hull rather
+    // than being a separate, ungated render (the original leak)
+    ctx.save();
+    ctx.globalAlpha = illusionAlpha;
+    ctx.lineWidth = 1.5;
+    const ibMed = { x0: midX - 100, x1: midX + 100, y0: midY + 24, y1: midY + 130 };
+    const ibRed = { x0: midX + 172, x1: midX + 260, y0: midY - 34, y1: midY + 30 };
+    drawTractorBeam(ibMed, "0,229,255", now, true, false);
+    ctx.font = "700 " + bodyFontPx(9) + "px Menlo, monospace"; ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 4 * illusionAlpha;
+    ctx.fillStyle = "rgba(120,240,255," + (0.98 * illusionAlpha).toFixed(2) + ")";
+    ctx.fillText("RECOVERY BAY", (ibMed.x0 + ibMed.x1) / 2, ibMed.y1 + 15);
+    drawTractorBeam(ibRed, "255,23,68", now, false, true);
+    ctx.fillStyle = "rgba(255,110,132," + (0.98 * illusionAlpha).toFixed(2) + ")";
+    ctx.fillText("RED BAY · ISOLATION AIRLOCK", (ibRed.x0 + ibRed.x1) / 2, ibRed.y1 + 15);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // the two signal pulses — purple rings marking each turn
+  drawTwinPulse(midX, midY, e - TWIN_PULSE1);
+  drawTwinPulse(midX, midY, e - TWIN_PULSE2);
+}
+
 function drawDecoyMercy(now) {
   const f = level.fakeMercy;
   const bob = Math.sin(now * 1.2 + 2.1) * 4;
+  // V13 — computed once, applied to the hull AND the bay label/beam below (that
+  // label used to leak through at full alpha — it lives past this function's
+  // first save/restore pair, which never covered it). Jitter rides the hull
+  // itself while she's actively resolving.
+  const twinEnv = level.mercySplitT > 0 ? twinInEnvelope() : 1;
+  const twinA = level.mercySplitT > 0 ? twinFlicker(now, twinEnv) : 1;
+  const jit = level.mercySplitT > 0 ? twinJitter(now, twinEnv) : { dx: 0, dy: 0 };
   ctx.save();
-  ctx.translate(f.x, f.y + bob);
+  ctx.globalAlpha *= twinA;
+  ctx.translate(f.x + jit.dx, f.y + bob + jit.dy);
   if (f.dead) {
     // powered down for good: dark hull, Glycon's masked serpent flickering
     // where the emblem hung
@@ -2008,8 +2279,10 @@ function drawDecoyMercy(now) {
   drawAsclepius(36, "rgba(255,23,68," + alpha.toFixed(2) + ")");
   ctx.restore();
   mercyAntenna(now, "0,229,255", true);   // the same signature mast — the lie is total
-  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
-  ctx.fillStyle = "#9beaf9";
+  // V13 — alpha baked directly into the label + its shadow, not left to
+  // globalAlpha alone (see drawMothership's nameplate for why)
+  ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8 * twinA;
+  ctx.fillStyle = "rgba(155,234,249," + twinA.toFixed(2) + ")";
   ctx.font = "700 10px Menlo, monospace";
   ctx.textAlign = "center";
   ctx.fillText("A M S · M E R C Y", 0, 34);
@@ -2022,11 +2295,14 @@ function drawDecoyMercy(now) {
   }
   ctx.restore();
   // identical bay furniture — the lie is complete down to the label
+  ctx.save();
+  ctx.globalAlpha *= twinA;
   const b = decoyBayRect();
   drawTractorBeam(b, "0,229,255", now, true, false);
   ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(0,229,255,.6)";
+  ctx.fillStyle = "rgba(0,229,255," + (0.6 * twinA).toFixed(2) + ")";
   ctx.fillText("RECOVERY BAY", (b.x0 + b.x1) / 2, b.y1 + 14);
+  ctx.restore();
   // the observed win in progress: counting the beats from the ground
   if (f.scanT > 0) {
     ctx.save();
@@ -2043,10 +2319,171 @@ function drawDecoyMercy(now) {
   }
 }
 
+// AMS SOLACE's full drowned hull — a big broken lozenge under the ridge line.
+// Shared by the V3 sonar reveal and the bad-ending destruction reveal so both
+// draw the SAME ship. Centred on the beacon origin; caller fills/strokes.
+const SOLACE_HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
+                     [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
+function solaceHullPath() {
+  ctx.beginPath();
+  ctx.moveTo(SOLACE_HULL[0][0], SOLACE_HULL[0][1]);
+  for (let i = 1; i < SOLACE_HULL.length; i++) ctx.lineTo(SOLACE_HULL[i][0], SOLACE_HULL[i][1]);
+  ctx.closePath();
+}
+
+/* AMS SOLACE's own silhouette — the SAME MERCY-class family (dorsal command
+   tower rising out of a lozenge hull, with the signature mast), but a sister,
+   not a clone: a taller, narrower tower and a slightly longer, deeper hull, so
+   she reads as related to MERCY, not identical. The tower is part of the TOP
+   edge of the outline (as on MERCY), so she reads as one ship — not a tower
+   pasted onto the middle of a blob. Centred at the local origin. */
+function solaceMercyPath() {
+  ctx.beginPath();
+  ctx.moveTo(-152, 0);
+  ctx.lineTo(-100, -18); ctx.lineTo(-46, -18);
+  ctx.lineTo(-19, -60); ctx.lineTo(19, -60); ctx.lineTo(46, -18);   // taller, narrower tower
+  ctx.lineTo(100, -18); ctx.lineTo(152, 0);
+  ctx.lineTo(90, 26); ctx.lineTo(-90, 26);                          // longer, deeper belly
+  ctx.closePath();
+}
+
+/* (owner steer) — the bad ending's destruction reveal, drawn in the beacon's
+   own frame, in scripted beats (timings in js/update.js: SOL_IGNITE / SOL_REVEAL
+   / SOL_BOOM / SOL_END):
+     1. IGNITE — the glow lights on her exposed broadcast tower + mast.
+     2. REVEAL — the red heat then flows DOWN below the ground line, drawing out
+        her buried hull top-to-bottom, and we realise the shape is a MERCY-class
+        sister (solaceMercyPath, scaled so the tower sits where the beacon's did
+        and the hull runs deep below the surface).
+     3. a held beat to take it in, then
+     4. BOOM — she blows in a shower of sparks (particles from updateDestruct) +
+        a flash and shockwave, resolving to a smoking crater in the ridge.
+   Respects reducedFlash. */
+function drawSolaceDeath(b, now) {
+  const t = b.death || 0;
+  const MS = 1.3, HY = 28;                       // scale + offset: tower peak lands at world y≈-50
+  const topY = -112, botY = 72;                  // antenna tip → below the buried belly
+  const revP = clamp((t - SOL_IGNITE) / (SOL_REVEAL - SOL_IGNITE), 0, 1);
+  const front = topY + (botY - topY) * revP;     // the descending heat front
+  const boomT = t - SOL_BOOM;
+
+  if (boomT < 0) {
+    // ---- ignition + heat-flows-down reveal ----
+    // reveal everything the heat has reached — i.e. ABOVE the descending front
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-600, -3200, 1200, front + 3200); ctx.clip();
+    // an ambient heat bloom filling the hull so she glows hot, not dark-maroon
+    if (!reducedFlash) { drawGlow(0, HY, 150, "#ff6d00", 0.5); drawGlow(0, HY - 6, 90, "#ffae40", 0.45); }
+    ctx.save();
+    ctx.translate(0, HY); ctx.scale(MS, MS);
+    solaceMercyPath();
+    const g = ctx.createLinearGradient(0, -60, 0, 26);
+    g.addColorStop(0, "rgba(255,250,232,1)");        // white-hot at the tower
+    g.addColorStop(0.4, "rgba(255,170,60,.98)");     // bright amber through the body
+    g.addColorStop(1, "rgba(255,80,26,.9)");          // hot orange-red at the belly
+    ctx.fillStyle = g; ctx.fill();
+    ctx.globalCompositeOperation = "lighter";        // additive edge so it reads as fire, not paint
+    ctx.strokeStyle = "rgba(255,224,170,1)"; ctx.lineWidth = 2.6 / MS; ctx.lineJoin = "round";
+    ctx.shadowColor = "#ff8a2c"; ctx.shadowBlur = (reducedFlash ? 6 : 30) / MS;
+    ctx.stroke();
+    if (!reducedFlash) ctx.stroke();   // double for bloom
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+    ctx.restore();
+    // a hot spot riding the heat front down through the hull
+    if (revP > 0 && revP < 1 && !reducedFlash) drawGlow(0, front, 66, "#ffe0a0", 1);
+    // the EXPOSED command-tower top poking out of the ground, with the aerial
+    // atop it — this is exactly what broke the surface before we fired, so it
+    // must read as a solid tower, not a mast floating in mid-air. Drawn unclipped
+    // (always above the surface) and it ignites first.
+    const ign = clamp(t / SOL_IGNITE, 0, 1);
+    ctx.save();
+    ctx.translate(0, HY); ctx.scale(MS, MS);
+    ctx.beginPath();
+    ctx.moveTo(-46, -18); ctx.lineTo(-19, -60); ctx.lineTo(19, -60); ctx.lineTo(46, -18);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(34,18,10,.92)"; ctx.fill();          // solid tower mass
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = "rgba(255," + Math.round(180 + 60 * ign) + "," + Math.round(120 + 90 * ign) + ",1)";
+    ctx.lineJoin = "round"; ctx.lineWidth = 2.4 / MS;
+    ctx.shadowColor = "#ff8a2c"; ctx.shadowBlur = (reducedFlash ? 5 : 18) / MS;
+    ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    mercyAntenna(now, "255,236,196", true);
+    ctx.restore();
+    if (!reducedFlash) drawGlow(0, -54, 24 + 22 * ign, "#fff3d6", 0.4 + 0.4 * ign);
+  } else {
+    // ---- detonation → smoking crater ----
+    const cf = clamp(boomT / 0.45, 0, 1);
+    if (!reducedFlash) {
+      if (cf < 1) {
+        const r = 60 + cf * 300;
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        g.addColorStop(0, "rgba(255,246,220," + (0.92 * (1 - cf)).toFixed(2) + ")");
+        g.addColorStop(1, "rgba(255,120,40,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+      }
+      for (let k = 0; k < 3; k++) {
+        const rp = clamp((boomT - k * 0.12) / 0.9, 0, 1);
+        if (rp <= 0 || rp >= 1) continue;
+        ctx.globalAlpha = (1 - rp) * 0.6;
+        ctx.strokeStyle = "#ffd27f"; ctx.shadowColor = "#ff9e40"; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, 30 + rp * 460, 0, 7); ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+    // the crater itself is now a REAL sunken hole in the terrain (crushCrater
+    // deformed the heightmap at detonation). All we add is what's left burning in
+    // it: coals glowing along the new pit floor + a low residual heat wash, with
+    // smoke (from updateDestruct) rising out. groundY is the old surface; the pit
+    // bottoms out ~96px below it (see crushCrater's depth), i.e. beacon-frame +96.
+    if (!reducedFlash) {
+      const gy = (b.groundY != null ? b.groundY : b.y) - b.y;   // surface in beacon frame (≈0)
+      const floor = gy + 78;
+      const cool = clamp(1 - boomT / 2.4, 0.15, 1);             // embers fade as she cools
+      drawGlow(0, floor, 130, "#ff6d00", 0.28 * cool);          // heat wash down in the hole
+      for (const ex of [-118, -64, -14, 40, 96, 138]) {
+        const fl = 0.4 + 0.4 * Math.sin(now * 4 + ex);
+        drawGlow(ex, floor - 6 + (ex & 8 ? 6 : 0), 5.5, "#ff8a2c", fl * cool);
+      }
+    }
+  }
+}
+
 function drawBeacon(now) {
   const b = level.beacon;
   ctx.save();
   ctx.translate(b.x, b.y);
+  // (owner steer) — once FIRE brings her down, drawBeacon becomes the destruction
+  // reveal: the whole hull, lit and breaking. Skip the tower/rings entirely.
+  if (b.death != null) { drawSolaceDeath(b, now); ctx.restore(); return; }
+  // V3 — the sonar hull pulse: once she's named, her whole drowned shape sweeps
+  // back into view on reveal and on every Static beat. An x-ray outline over the
+  // terrain (that IS sonar) — bright near the surface, dull deep — clipped to an
+  // expanding sweep so it "draws in", fading with sonarT. Drawn behind the tower.
+  if (b.sonarT > 0) {
+    const p = 1 - b.sonarT / SONAR_DUR;
+    const puls = Math.sin(Math.min(1, p) * Math.PI);
+    const sweepR = 30 + p * 340;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
+    solaceHullPath();
+    const g = ctx.createLinearGradient(0, -50, 0, 190);
+    g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
+    g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
+    g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
+    ctx.strokeStyle = g; ctx.lineWidth = 2;
+    ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
+    ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = puls * 0.55;
+    ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff"; ctx.shadowBlur = reducedFlash ? 4 : 10; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.stroke();
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
   // Owner steer: the Static's source is the top of a half-buried ship breaking
   // the nullwave ridge — and it carries AMS MERCY's own big antenna. On the
   // ANSWER it lights MERCY-cyan and gives up its name: her lost sister, SOLACE.
@@ -2093,18 +2530,26 @@ function drawBeacon(now) {
     ctx.shadowBlur = 0;
   }
   if (!b.resolved) {
-    if (b.silenceT > 0) {
-      ctx.strokeStyle = "#aef4ff"; ctx.shadowColor = "#aef4ff";
-      ctx.beginPath();
-      ctx.arc(0, -108, 20, -Math.PI / 2, -Math.PI / 2 + (b.silenceT / 5) * Math.PI * 2);
-      ctx.stroke();
-      ctx.font = "700 11px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "#aef4ff";
-      ctx.fillText("ANSWERING… " + Math.round(b.silenceT / 5 * 100) + "%", 0, -128);
+    if (b.revealed) {
+      // owner steer — once examined, just her name, quietly. The clue card and
+      // her own pulse do the teaching; no on-screen "parry" instruction.
+      ctx.font = "700 10px Menlo, monospace"; ctx.textAlign = "center";
+      if (!reducedFlash) { ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 6; }
+      ctx.fillStyle = "rgba(155,234,249,.6)";
+      ctx.fillText("A M S · S O L A C E", 0, -128);
+      ctx.shadowBlur = 0;
     } else {
-      ctx.font = "600 9px Menlo, monospace"; ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(179,136,255,.7)";
-      ctx.fillText("THE SIGNAL SOURCE — land beside it, or open fire", 0, -128);
+      // V4 — the legible pre-scan signal-source label on its dark plate
+      const lp = bodyFontPx(10);
+      ctx.font = "700 " + lp + "px Menlo, monospace"; ctx.textAlign = "center";
+      const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
+      const tw = ctx.measureText(txt).width, ly = -128;
+      ctx.fillStyle = "rgba(6,4,16,.72)";
+      ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
+      if (!reducedFlash) { ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 6; }
+      ctx.fillStyle = "#d9ccff";
+      ctx.fillText(txt, 0, ly);
+      ctx.shadowBlur = 0;
     }
   }
   ctx.restore();
@@ -2462,9 +2907,18 @@ function drawTitle(now) {
   ctx.strokeStyle = "rgba(255,255,255," + (0.55 + 0.35 * Math.sin(now * 2)).toFixed(2) + ")";
   ctx.shadowColor = "#fff"; ctx.shadowBlur = 14; ctx.lineWidth = 2;
   ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
-  ctx.font = "800 16px Menlo, monospace";
+  // V7 — after a first completion the CTA acknowledges it and teases the
+  // Hollows: a downward ▼ and "SOMETHING'S STILL DOWN THERE" instead of the
+  // first-run ▶ START NEW FLIGHT. Fit the (longer) label to the pill so it
+  // never overruns on a phone.
+  const startLabel = veteran ? "▼ SOMETHING'S STILL DOWN THERE" : "▶ START NEW FLIGHT";
+  let startFs = 16;
+  ctx.font = "800 " + startFs + "px Menlo, monospace";
+  while (startFs > 10 && ctx.measureText(startLabel).width > sr.w - 22) {
+    startFs -= 1; ctx.font = "800 " + startFs + "px Menlo, monospace";
+  }
   ctx.fillStyle = "#eaf6ff";
-  ctx.fillText("▶ START NEW FLIGHT", sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
+  ctx.fillText(startLabel, sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
   ctx.shadowBlur = 0;
 
   // build stamp + hi score along the bottom edge, out of the CTA's way
@@ -2876,7 +3330,7 @@ function iRidge(px, py, pw, ph, seed) {
 
 const INTRO = [
   { title: "THE MISSION",
-    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems. Her holds carry SCIONS — medical androids, each the inheritance of generations of human and machine endeavour, carrying true medical science forward.",
+    caption: "The hospital ship AMS MERCY runs mercy flights through the outer systems, one of the second relief wave alongside her sisters AMS VIGIL and AMS SUCCOUR. Her holds carry SCIONS — medical androids, each the inheritance of generations of human and machine endeavour, carrying true medical science forward.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 11);
       iShip(px + pw / 2, py + ph * 0.45, Math.min(1.4, pw / 320), 0,
@@ -2903,7 +3357,7 @@ const INTRO = [
       ctx.fillText("WARD 7 · CRYOSTASIS", px + pw / 2, py + ph * 0.2);
     } },
   { title: "THE ZONE",
-    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. Nobody remembers who they were built to keep out.",
+    caption: "The route crosses an interdicted zone — automated defences, dead relays, no traffic in living memory. The first wave came this way once — the SOLACE among them — and none ever called home.",
     draw: (px, py, pw, ph, now) => {
       iStars(px, py, pw, ph, 33);
       iRidge(px, py, pw, ph, 7);
@@ -2968,11 +3422,99 @@ const INTRO = [
     } }
 ];
 
+// V8 — the veteran (post-completion) opening. A first playthrough sees INTRO
+// above; a player who has finished the game gets this once on their next fresh
+// run — a short, unsettled reframe that points back at the Solace and down at
+// the Hollows — then veteran runs launch straight into the tasking.
+// V8 — cache a REAL lift sector once, so the veteran opening shows the actual
+// terrain around one of the lift pads (VESALIUS RIDGE, the first). genLevel's
+// only global side effect is `stars`, which the intro doesn't use and the real
+// run regenerates — safe to sample here. Copy the heights so nothing aliases.
+let VET_SAMPLE = null;
+function vetIntroSample() {
+  if (VET_SAMPLE) return VET_SAMPLE;
+  const n = 1;
+  const s = genLevel(n);
+  const pal = RECIPE[n].pal;
+  VET_SAMPLE = { heights: s.heights.slice(), W: s.W,
+    padX: (s.liftPad ? s.liftPad.x : s.W * 0.5), stroke: pal.stroke, grad: pal.grad };
+  return VET_SAMPLE;
+}
+const VET_INTRO = [
+  { title: "SOMETHING DOESN'T SIT RIGHT",
+    // owner steer on copy — key sentences start on their own line, no run-on
+    // split awkwardly across a wrap (see DESIGN_SYSTEM_STARTER.md · Copy).
+    // V13 (owner steer) — this used to open with a flat "You brought them
+    // home," even on a run that lost people. lastRunSaved/lastRunLost (set
+    // once, at the ending that finished that run — see saveLastRunTally) let
+    // it say what actually happened instead.
+    caption: () => {
+      const open = lastRunLost === 0
+        ? "You brought them all home."
+        : "You brought " + lastRunSaved + " home. " + lastRunLost + " didn't make it.";
+      return open + " But if all of it — the Vectors, the counterfeits, the Static itself — grew from a corruption of the Solace's distress call, two questions were never answered.\n\nWhy did her call corrupt? And why did she go down at all?\n\nFly it again. Look closer this time.";
+    },
+    draw: (px, py, pw, ph, now) => {
+      iStars(px, py, pw, ph, 40);
+      // owner steer — render the ACTUAL surface around one of the lift pads
+      // (exactly as it is on that level), with the dart just sitting on it. No
+      // arrow, no motion: a veteran should recognise the ground and wonder why
+      // THIS patch, and why they're parked there.
+      const smp = vetIntroSample();
+      const winW = 1100, x0 = smp.padX - winW / 2;
+      const gAt = wx => { const i = clamp(Math.floor(wx / STEP), 0, smp.heights.length - 2);
+        return lerp(smp.heights[i], smp.heights[i + 1], clamp(wx / STEP - i, 0, 1)); };
+      const padGY = gAt(smp.padX);
+      const toX = wx => px + ((wx - x0) / winW) * pw;
+      const gsY = py + ph * 0.64, vscale = (ph * 0.42) / 320;
+      const toY = wy => gsY + (wy - padGY) * vscale;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+      // terrain fill + biome stroke, sampled from the real heightmap
+      ctx.beginPath();
+      ctx.moveTo(px, py + ph); ctx.lineTo(toX(x0), toY(gAt(x0)));
+      for (let wx = x0; wx <= x0 + winW; wx += STEP) ctx.lineTo(toX(wx), toY(gAt(wx)));
+      ctx.lineTo(px + pw, py + ph); ctx.closePath();
+      ctx.fillStyle = smp.grad ? smp.grad[0] : "#151040"; ctx.fill();
+      ctx.strokeStyle = smp.stroke; ctx.shadowColor = smp.stroke; ctx.shadowBlur = 8; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(toX(x0), toY(gAt(x0)));
+      for (let wx = x0; wx <= x0 + winW; wx += STEP) ctx.lineTo(toX(wx), toY(gAt(wx)));
+      ctx.stroke(); ctx.shadowBlur = 0;
+      // the lift pad — visible enough to notice, still no label/arrow
+      const pcx = toX(smp.padX), pcy = toY(padGY);
+      const a = 0.34 + 0.08 * Math.sin(now * 1.3);
+      ctx.strokeStyle = "rgba(179,136,255," + a.toFixed(2) + ")"; ctx.shadowColor = "#b388ff"; ctx.shadowBlur = 8; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(pcx - 26, pcy + 2); ctx.lineTo(pcx + 26, pcy + 2);
+      ctx.moveTo(pcx - 26, pcy - 1); ctx.lineTo(pcx - 26, pcy + 5);
+      ctx.moveTo(pcx + 26, pcy - 1); ctx.lineTo(pcx + 26, pcy + 5);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(179,136,255," + (a + 0.1).toFixed(2) + ")";
+      for (const rx of [-18, -6, 6, 18]) ctx.fillRect(pcx + rx - 0.8, pcy + 0.6, 1.6, 1.6);
+      ctx.shadowBlur = 0;
+      // the dart, parked on the pad — no flame, no movement
+      guideShip(pcx, pcy - 11, 0, false, now);
+      ctx.restore();
+    } }
+];
+// which set the intro flow is currently showing (INTRO for a first run,
+// VET_INTRO for a veteran's post-completion opening)
+let activeIntro = INTRO;
+
+// V13 — a caption may be a plain string (INTRO) or a fn of current state
+// (VET_INTRO's recap, which varies with how the finished run actually went)
+function resolveCaption(panel) { return typeof panel.caption === "function" ? panel.caption() : panel.caption; }
+
 function drawIntroScreen(now) {
   const pw = Math.min(660, vw - 36);
-  const ph = Math.min(vh * 0.5, 300);
+  const panel = activeIntro[Math.min(introIdx, activeIntro.length - 1)];
+  const caption = resolveCaption(panel);
+  // a multi-paragraph caption needs more room below the panel — give the image
+  // a little less height so the copy always fits (esp. a 320-high phone)
+  const longCap = (caption.match(/\n/g) || []).length >= 2;
+  const ph = Math.min(vh * (longCap ? 0.4 : 0.5), 300);
   const px = (vw - pw) / 2, py = vh * 0.09;
-  const panel = INTRO[Math.min(introIdx, INTRO.length - 1)];
 
   ctx.save();
   ctx.strokeStyle = "rgba(0,229,255,.6)"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 14;
@@ -2988,23 +3530,38 @@ function drawIntroScreen(now) {
   ctx.fillStyle = "#aef4ff"; ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 8;
   ctx.fillText(panel.title, vw / 2, py + ph + 30);
   ctx.shadowBlur = 2;
-  const capPx = bodyFontPx(13), capLH = capPx + 6;
-  ctx.font = "600 " + capPx + "px Menlo, monospace";
   ctx.fillStyle = "#c9e6f7";
-  const lines = wrapText(panel.caption, Math.min(600, vw - 70));
-  lines.forEach((l, i) => ctx.fillText(l, vw / 2, py + ph + 52 + i * capLH));
+  // auto-fit the caption: a multi-paragraph veteran caption on a 320-high phone
+  // won't fit at the resting size, so shrink the font until it (and the page
+  // dots + tap prompt beneath it) clear the bottom of the viewport
+  const wrapW = Math.min(600, vw - 70);
+  const capTop = py + ph + 52;
+  const avail = vh - capTop - 34;
+  let capPx = bodyFontPx(13), lines, capLH;
+  for (;;) {
+    ctx.font = "600 " + capPx + "px Menlo, monospace";
+    lines = wrapText(caption, wrapW);
+    capLH = capPx + 6;
+    if (lines.length * capLH <= avail || capPx <= 8) {
+      if (lines.length * capLH > avail) capLH = Math.max(capPx + 1, avail / lines.length);
+      break;
+    }
+    capPx -= 1;
+  }
+  lines.forEach((l, i) => ctx.fillText(l, vw / 2, capTop + i * capLH));
   ctx.shadowBlur = 0;
+  const capBottom = capTop + lines.length * capLH;
 
   // page dots
-  for (let i = 0; i < INTRO.length; i++) {
+  for (let i = 0; i < activeIntro.length; i++) {
     ctx.fillStyle = i === introIdx ? "#00e5ff" : "rgba(255,255,255,.25)";
     ctx.beginPath();
-    ctx.arc(vw / 2 + (i - (INTRO.length - 1) / 2) * 18, py + ph + 58 + lines.length * capLH, 3, 0, 7);
+    ctx.arc(vw / 2 + (i - (activeIntro.length - 1) / 2) * 18, capBottom + 8, 3, 0, 7);
     ctx.fill();
   }
   ctx.font = "700 11px Menlo, monospace";
   ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * Math.sin(now * 4)).toFixed(2) + ")";
-  ctx.fillText("tap ▸", vw / 2, py + ph + 76 + lines.length * capLH);
+  ctx.fillText("tap ▸", vw / 2, capBottom + 24);
 
   const sr = skipRect();
   ctx.strokeStyle = "rgba(255,255,255,.3)"; ctx.lineWidth = 1;
@@ -3468,8 +4025,15 @@ function drawPause(now) {
 function drawConfirm(now) {
   if (!confirmCard) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "rgba(5,6,15,.8)";
+  // V13 (owner steer) — ease the card in over ~0.28s instead of popping up
+  // instantly; lands just before the existing 0.25s input debounce opens.
+  const cIn = clamp(stateT / 0.28, 0, 1);
+  const cEase = 1 - Math.pow(1 - cIn, 3);
+  ctx.fillStyle = "rgba(5,6,15," + (0.8 * cEase).toFixed(2) + ")";
   ctx.fillRect(0, 0, vw, vh);
+  ctx.save();
+  ctx.globalAlpha = cEase;
+  ctx.translate(0, (1 - cEase) * 18);
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,196,0,.75)"; ctx.font = "700 11px Menlo, monospace";
   ctx.fillText(confirmCard.kicker, vw / 2, vh * 0.20);
@@ -3499,6 +4063,7 @@ function drawConfirm(now) {
       ctx.shadowBlur = 0;
     }
   }
+  ctx.restore();
 }
 
 /* SOUND/MUSIC/ASSIST/COLORBLIND/FIELD MEDIC/BIG TEXT all take effect now;
@@ -3598,6 +4163,22 @@ function drawGameOver(now) {
   }
 }
 
+/* the bad ending's brief white bloom, in screen space (the hull reveal itself is
+   drawn in world space by drawSolaceDeath, via drawBeacon). Suppressed under the
+   reduced-flash accessibility setting. */
+function drawDestruct(now) {
+  const b = level && level.beacon; if (!b || reducedFlash) return;
+  // the screen bloom belongs to the DETONATION beat (SOL_BOOM), not the quiet
+  // ignition — the hull reveal before it is drawn in world space by drawSolaceDeath
+  const bt = (b.death || 0) - SOL_BOOM;
+  const a = bt >= 0 ? Math.max(0, 0.6 * (1 - bt / 0.5)) : 0;
+  if (a > 0) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "rgba(255,240,220," + a.toFixed(2) + ")";
+    ctx.fillRect(0, 0, vw, vh);
+  }
+}
+
 function drawEnding(now) {
   let title, body, color;
   if (endingType === "answered") {
@@ -3609,7 +4190,9 @@ function drawEnding(now) {
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
     color = "#ffc400";
-    body = "You burned the beacon out of the dark.\n\nThe Static is gone — and so is whatever was calling. MERCY logs the sector clean.\n\nThe silence feels heavier than it should.\n\nQuiet, at a cost. The oath, hollowed.\n\n+3000";
+    // (owner steer) — you took the destroy-on-sight order. It works. The cost is
+    // in what the blast revealed: no outpost, no enemy — one of the first wave.
+    body = "The signal stops. The Static is gone, and MERCY can continue.\n\nBut the CMO is very quiet.\n\nThat was no surprise outpost. No enemy relay. That was one of ours.\n\nAMS SOLACE — crew of 214 — silenced, not answered.\n\nThe SOLACE deserved better.\n\n+3000";
   } else {
     title = "ROTATION COMPLETE";
     color = "#b388ff";
@@ -3633,6 +4216,9 @@ function drawEnding(now) {
 }
 
 function drawWin() {
+  // V13 (owner steer) — burning the Solace isn't a clean win; it gets its own
+  // panel entirely, not a reskinned MISSION COMPLETE (see drawFireEnding).
+  if (endingType === "fire") { drawFireEnding(); return; }
   let rank = "FLIGHT SURGEON, MERCY RESCUE DIVISION";
   if (endingType === "answered") {
     // "eyes open": the oath held AND Glycon's lies were still read (Bundle J3)
@@ -3641,7 +4227,6 @@ function drawWin() {
     else if (firedAtSecret && !firedAtCombat) rank = "HOLLOW KEEPER";
     else rank = "THE ONE WHO ANSWERED";
   }
-  else if (endingType === "fire") rank = "SECTOR WARDEN";
   const spotless = runLost === 0 ? "\nspotless record — no Scion lost" : "";
   const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
   drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
@@ -3649,6 +4234,37 @@ function drawWin() {
     "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
     spotless + serpent +
     "\nrank: " + rank + "\ntap to play again", "#69f0ae");
+}
+
+/* V13 (owner steer) — the bad ending's own end panel: a dark, cooled
+   silhouette of the sister ship you burned (reusing solaceMercyPath — the
+   same hull the destruction reveal drew), under a line that isn't a victory
+   boast. SECTOR WARDEN is still earned (see gc.achieve / GC_ACH.sectorWarden
+   in update.js), but the framing here is regret, not triumph. */
+function drawFireEnding() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "rgba(5,6,15,.6)";
+  ctx.fillRect(0, 0, vw, vh);
+  ctx.save();
+  ctx.translate(vw / 2, vh * 0.24);
+  ctx.scale(Math.min(1, vw / 380), Math.min(1, vw / 380));
+  solaceMercyPath();
+  ctx.fillStyle = "rgba(18,12,20,.92)"; ctx.fill();
+  ctx.strokeStyle = "rgba(255,109,0,.5)"; ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = 12; ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#ff6d00"; ctx.shadowBlur = 16;
+  ctx.fillStyle = "#ffab73";
+  ctx.font = "900 " + Math.min(28, vw * 0.06) + "px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("THERE HAS TO BE A BETTER WAY", vw / 2, vh * 0.47);
+  ctx.shadowBlur = 4;
+  ctx.font = "600 14px Menlo, monospace";
+  ctx.fillStyle = "#dff8ff";
+  ["score " + score + "  ·  hi " + hiscore, tallyLine(), "rank: SECTOR WARDEN", "tap to play again"]
+    .forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.56 + i * 22));
+  ctx.shadowBlur = 0;
 }
 
 function drawCenter(big, small, color) {
@@ -3677,6 +4293,8 @@ window.__doids = {
     input: Object.assign({}, input), ctlShown, introSeen,
     // X1/X3 — onboarding introspection for the guard tests
     trained, guideReturn,
+    // V8 — veteran-opening introspection
+    vetIntroSeen, introLen: activeIntro.length,
     guide: { page: GUIDE.page, pages: GUIDE.pages, footY: GUIDE._footY },
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
@@ -3716,9 +4334,33 @@ window.__doids = {
   fakePodAlpha: (now, known) => fakePodAlpha(now, known),
   // Y3 — the deterministic per-wreck cant (stable frame to frame, RNG-free).
   wreckCant,
+  // V6 — sonic-wave introspection + a test hook to arm a wave about to land
+  waves: () => (level.waves || []).map(w => ({ t: +w.t.toFixed(2), done: w.done, hit: w.hit,
+    finale: w.finale, returnBurst: !!w.returnBurst })),   // V13 — the parry knock-back's landing
+  armWave: opts => {
+    level.waves = level.waves || [];
+    const src = (level.oids || []).find(o => o.role === "saboteur");
+    level.waves.push({ src, ox: ship.x - 90, oy: ship.y, t: WAVE_ARRIVE - 0.01,
+      done: false, hit: false, finale: !!(opts && opts.finale) });
+  },
+  // V2 — x of every scannable Scion that LACKS a fair scan-landing spot in the
+  // current level (empty array = the fairness invariant holds).
+  scanSpotFailures: () => (level.oids || [])
+    .filter(o => o.role === "normal" || o.role === "saboteur" || o.role === "famous")
+    .filter(o => !scanSpotOK(level.heights, level.W, o.x))
+    .map(o => Math.round(o.x)),
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),
+  // V13 — the "husks" reveal gate (WORKSHOP shrine): before it, a disguised
+  // unit is CORRUPTED not COUNTERFEIT, and there's no clean kill. Exposed so
+  // tests can assert both sides without actually visiting the Hollows.
+  husksKnown: () => husksKnown(),
+  setHusksKnown: () => { shrinesSeen.add(HUSK_SHRINE_IDX); saveShrinesSeen(); },
+  // V13 — the finished run's actual save/loss tally, for the veteran-intro
+  // recap's variable opening line
+  lastRunTally: () => ({ saved: lastRunSaved, lost: lastRunLost }),
+  introCaption: () => resolveCaption(activeIntro[Math.min(introIdx, activeIntro.length - 1)]),
   remix: startRemix,
   daily: startDaily,
   // M1 regression anchor: seed 0 must always produce today's exact levels
@@ -3735,6 +4377,10 @@ window.__doids = {
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   warpShrine: () => { const sh = level.shrine; if (sh) { ship.x = sh.x; ship.y = groundAt(sh.x) - SHIP_R;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
+  // V6-finale — force a successful Solace answer (a parried pulse), for tests
+  answerBeacon: () => { if (level.beacon && !level.beacon.resolved) { level.beacon.revealed = true; level.beacon.heardParry = true; } },
+  // the bad ending — take the destroy-on-sight order and burn the Solace down
+  fireSolace: () => { if (level.beacon && !level.beacon.resolved) resolveBeacon("fire"); },
   warpBeacon: () => { const b = level.beacon; if (b) { ship.x = b.x; ship.y = groundAt(b.x) - SHIP_R;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; } },
   warpScenery: kind => {

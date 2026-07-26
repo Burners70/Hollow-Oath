@@ -48,7 +48,7 @@ Landed (July 2026, Bundle S):
 | Hook (green) | `seven sectors · something is repeating every 41 seconds` |
 | Hook, haunted variant (violet, after an unresolved ending) | `the Static answers still — every 41 seconds` |
 | Warning (yellow) | `not every Scion you rescue is what it seems` |
-| Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5) |
+| Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5). After a first completion (veteran) it becomes `▼ SOMETHING'S STILL DOWN THERE`, teasing the Hollows — V7 |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
 | Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `◎ HUD GUIDE` (U3) · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |
@@ -56,21 +56,53 @@ Landed (July 2026, Bundle S):
 ## 2. Intro panels (`INTRO`, 5 panels; skippable, replayable via ▸ STORY)
 
 1. **THE MISSION** — "The hospital ship AMS MERCY runs mercy flights through
-   the outer systems. Her holds carry SCIONS — medical androids, each the
+   the outer systems, one of the second relief wave alongside her sisters AMS
+   VIGIL and AMS SUCCOUR. Her holds carry SCIONS — medical androids, each the
    inheritance of generations of human and machine endeavour, carrying true
-   medical science forward." *(panel label: `A M S · M E R C Y`)*
+   medical science forward." *(panel label: `A M S · M E R C Y`; V5 seeds the
+   second wave)*
 2. **THE CARGO** — "Most are standard units. A few carry something rarer — the
    complete minds of medicine's giants, preserved and still practising. All of
    them are needed where MERCY is headed." *(panel label: `WARD 7 · CRYOSTASIS`)*
 3. **THE ZONE** — "The route crosses an interdicted zone — automated defences,
-   dead relays, no traffic in living memory. Nobody remembers who they were
-   built to keep out."
+   dead relays, no traffic in living memory. The first wave came this way once
+   — the SOLACE among them — and none ever called home." *(V5 seeds the Solace
+   & the lost first wave)*
 4. **THE FAILURE** — "Mid-crossing, every system aboard failed at once. Cause
    unknown. The recorders kept only one thing: a signal, repeating, every 41
    seconds." *(panel label: `· 41s ·`)*
 5. **THE SCATTERING** — "The Scions evacuated in pods and were thrown across
    the zone. MERCY flies again — barely. You fly the rescue. Bring them home.
    And captain… count the heartbeats."
+
+### 2·V8. Veteran opening (`VET_INTRO`, one panel; shown once after a first completion)
+
+**SOMETHING DOESN'T SIT RIGHT** — "You brought them all home." *(or, if the
+finished run lost anyone: "You brought N home. M didn't make it." — V13, the
+opening line is now built from that run's actual `runSaved`/`runLost` tally,
+snapshotted once via `saveLastRunTally()` right as the ending resolves, since
+it often wasn't everyone)* "But if all of it — the Vectors, the counterfeits,
+the Static itself — grew from a corruption of the Solace's distress call, two
+questions were never answered. / Why did her call corrupt? And why did she go
+down at all? / Fly it again. Look closer this time."
+(the `/` marks are authored `\n\n` breaks — each key sentence starts on its own
+line, per DESIGN_SYSTEM_STARTER.md · Copy. The panel shows the **actual
+above-ground terrain** around one of the sector's lift pads, rendered exactly as
+that level generates it, with the dart parked on the faint pad — no arrow, no
+motion; a veteran should recognise the ground and wonder why *this* patch.)
+*(replaces the first-run INTRO on a veteran's next fresh run; then veteran runs
+launch straight into the tasking. Re-shows after a RESET PROGRESS wipe.)*
+
+### 2·V9. Sound-led sector hook (appended by `briefText()`)
+
+On a **lift-bearing surface sector** (where the pad rings hollow underfoot —
+U1), the briefing gains one line. Three sectors carry a lift, so the hook is
+**varied per sector** (`SOUND_HOOKS[levelIdx % 3]`) rather than repeating the
+same line each time — all in the "something is below" register, none promising
+what the pad's hollow ring can't deliver:
+- *"And captain — listen when you touch down. Something below the rock is keeping time."*
+- *"And captain — is that a sound coming from under the ground?"*
+- *"And captain — the ground hums where you land here. Tell me you hear it too."*
 
 ## 3. HOW TO FLY guide (`GUIDE` / `GUIDE_PAGES`) — X1
 
@@ -194,16 +226,18 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
    fire; the fakes keep perfect time. Trust nothing that looks too convenient.
    / And if you won't fire on a lie — land beside it and look at it long
    enough."
-6. **JENNER TERRACES** — "Last leg before the nullwave. The counterfeiter has a
-   mark now — ground crews found the same coiled serpent stamped on every lure
-   and every tampered unit. / Archive is still matching it. Whoever wears that
-   mask has been rewriting rescue into ruin for a long time. Bring our people
-   home anyway."
+6. **JENNER TERRACES** — "Last leg before the nullwave. Ground crews are
+   matching patterns across every lure and every tampered unit out here — too
+   many to be coincidence. / Whoever's behind this has been at it a long time,
+   and hasn't finished. Bring our people home anyway." *(V13 — trimmed so a
+   first run doesn't spoil the serpent mark/mask, which LOG 12/13 reveal
+   gradually instead.)*
 7. **THE NULLWAVE** — "Triangulation complete. The source of the Static is
-   below the nullwave ridge. / One more thing. Two beacons answer as MERCY on
-   approach. One of them is lying. Count the beats, captain. / Fleet orders:
-   destroy on sight. The chief medical officer refused to sign. Her note is
-   one line — primum non nocere. / Your call, captain."
+   below the nullwave ridge. / Fleet orders: destroy on sight. The chief medical
+   officer refused to sign. Her note is one line — primum non nocere. / Your
+   call, captain." *(V12a — the old "two ships answer as MERCY … count the
+   beats" twin warning is cut; the finale twin is no longer signposted, and the
+   beat you've learned all game is the only read.)*
 
 Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 `REMIX ROTATION // seed <n>` · `DAILY FLIGHT // <n> · yesterday-you: <score>` ·
@@ -318,10 +352,19 @@ PASSENGER IS DEAD — IT'S IN THE CABIN`] · `YOU LOST <FAMOUS NAME>` ·
 `PRIMER MIST — FLY TO THE LINE` · `-<n>` (U2 running resupply toll, drained
 live as the tank fills) · `TANK TOPPED — RESUPPLY COST -<n>` (U2, replaces the
 old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
-`THE PAD RINGS HOLLOW…` · `SCANNING…` · `SCANNING… hold position`
+`THE PAD RINGS HOLLOW…` · `SCANNING…` · `SCANNING… hold position` ·
+`SIGNAL FLATTENED — CATALOGUED +250` (V6 — parry a Vector's sonic wave with the
+shield to catalogue it, no shot)
 
 ## 10. Discovery & finale cards (`showCard` call sites)
 
+- **Solace reveal (V3/V6)** — on examining the finale source, kicker
+  `AMS SOLACE · MERCY'S LOST SISTER`, title `STILL TRANSMITTING`: "Her distress
+  call never stopped looping — years of it, alone out here in the dark. / It
+  isn't asking to be silenced. It's asking to be answered. / The signal seeks a
+  response." *(A clue, not an instruction — the player discovers that "a
+  response" means parrying her pulse. Replaces the old cross-screen "raise
+  shield" banner.)*
 - **Black box** — kicker `BLACK BOX RECOVERED · SIGNAL <n>/7 · +800`; body =
   the log fragment, or "The recorder is blank — wiped clean. Someone got here
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at
@@ -351,10 +394,15 @@ old `CLEAN LINE +250`) · `LINE RELEASED — FUEL +<n>  ·  -<n>` (U2) ·
   faded like a fever breaking. / +6000 [· OATH KEPT +2000]" — plus "The oath,
   kept whole." (no-fire) or "You found what he hid. It cost you the oath to
   do it." (secrets-only fire).
-- **SILENCE BY FIRE** — "You burned the beacon out of the dark. / The Static
-  is gone — and so is whatever was calling. MERCY logs the sector clean. / The
-  silence feels heavier than it should. / Quiet, at a cost. The oath,
-  hollowed. / +3000"
+- **SILENCE BY FIRE** (the bad ending — take the destroy-on-sight order the CMO
+  refused to sign, and shoot the Solace down. The kill plays out in beats: the
+  glow ignites on her exposed broadcast tower, the red heat flows DOWN below the
+  ground to draw out her buried hull — a MERCY-class *sister*, not a clone — we
+  get a beat to realise the shape, then she blows in a shower of sparks and
+  leaves a smoking crater) — "The signal stops. The Static is gone, and MERCY can
+  continue. / But the CMO is very quiet. / That was no surprise outpost. No
+  enemy relay. That was one of ours. / AMS SOLACE — crew of 214 — silenced, not
+  answered. / The SOLACE deserved better. / +3000" (rank: `SECTOR WARDEN`)
 - **ROTATION COMPLETE** (unresolved) — "The tour is over and the rescued are
   home. / But on the long ride back, under everything, the Static is still
   there. Repeating. / Left hollow. The Static answers still. / ◈ Black boxes

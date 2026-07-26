@@ -10,6 +10,36 @@ let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: FIELD MEDIC parry window (forgiving)
 const PARRY_WINDOW_STRICT = 0.09; // E3: the default, stricter window — a real timing test
+// V6 — the "heard" sonic-wave parry. A Vector (Avicenna Shoals on) emits a
+// telegraphed violet wavefront; parry it with the shield (the same parryT window
+// as E3) to FLATTEN the signal and catalogue the Vector without a shot. The wave
+// resolves at a fixed time after it's cast, decoupled from distance, so the
+// timing is learnable regardless of how near you are. Mid-game a miss is
+// free (a teaching beat); the costly version is the finale answer (V3/V12).
+const WAVE_WINDUP = 0.5;    // telegraph flash at the emitter before the front sweeps
+const WAVE_TRAVEL = 0.42;   // the front sweeps emitter → ship over this
+const WAVE_ARRIVE = WAVE_WINDUP + WAVE_TRAVEL;   // resolve (check the shield) here
+const WAVE_RETURN = 0.4;   // V13 — a parried wave's knock-back flight time, ship → source
+// brief fade after it lands — padded past WAVE_RETURN so the knock-back's
+// landing burst (drawWaves, at p>=1) gets at least one render before the wave
+// is pruned from level.waves, rather than being cut on the exact same tick.
+const WAVE_LIFE = WAVE_ARRIVE + Math.max(0.35, WAVE_RETURN + 0.12);
+const WAVE_GAP = 4.2;       // seconds between a Vector's casts while you're in range
+const WAVE_RANGE = 460;     // it only casts when the ship is this near
+const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
+const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counterfeits
+const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
+const ANSWER_GAP = 4.5;        // V6-finale — seconds between the Solace's answerable pulses
+const ANSWER_RANGE = 300;      // you must be this near for her to pulse (and to parry)
+// (owner steer) — the Solace's fire-death beats, shared by updateDestruct +
+// drawSolaceDeath. The glow ignites on her exposed broadcast tower; the red heat
+// then flows DOWN below the ground, drawing out her buried MERCY-class hull; a
+// held beat to take the shape in; then she blows in a shower of sparks and
+// resolves to a smoking crater.
+const SOL_IGNITE = 0.6;    // tower lit white-hot; reveal front starts descending
+const SOL_REVEAL = 2.1;    // heat front reaches the buried underside (full hull shown)
+const SOL_BOOM = 2.7;      // detonation instant (after a beat to absorb the shape)
+const SOL_END = 5.2;       // → ending card
 const STRUGGLE_GAP = 4.5;  // E1: seconds between a retrieved Vector's fights for the controls
 const STRUGGLE_YAW = 5.2;  // E1: how hard it wrenches the ship's rotation during a fight
 const RESTRAIN_HOLD = 1.1; // E1: release steering this long to restrain it — a longer hold (owner steer)
@@ -46,6 +76,8 @@ function updateStaticClock(dt) {
     const near = 1 - clamp(d / 2200, 0, 1);
     staticSurge = 1.2;
     camera.shake += 2 + 4 * near;
+    // V3 — once she's named, her whole hull pulses back into view on the beat
+    if (level.beacon.revealed) level.beacon.sonarT = SONAR_DUR;
   } else {
     staticSurge = 0.6;
   }
@@ -53,8 +85,11 @@ function updateStaticClock(dt) {
 
 let bannerMsg = null;
 /* R8 — in-flight copy lingers longer for a phone held at arm's length; the
-   banner keeps its last-second alpha fade (see render), the float slows. */
-function banner(str, color) { bannerMsg = { str, color, t: 4.2 }; }
+   banner keeps its last-second alpha fade (see render), the float slows.
+   V13 — an optional yFrac (0–1 of screen height) overrides the default
+   top-quarter position, for a banner that would otherwise sit over the
+   action (see the S4 extraction call below). */
+function banner(str, color, yFrac) { bannerMsg = { str, color, t: 4.2, yFrac }; }
 function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 2.6 }); }
 
 function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
@@ -182,7 +217,9 @@ function checkSectorClear() {
    withheld. */
 function beginExtraction(early) {
   level.extraction = { t: 0, pulseT: 0, hold: 0, done: false, beatT: 0, early: !!early };
-  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", "#ffc400");
+  // V13 — lowered (yFrac) so it clears MERCY and your own ship, both up near
+  // the top of the screen during the hangar approach this banner announces.
+  banner("MANIFEST CLOSED — MERCY IS SPOOLING TO JUMP\nFLY INTO HER VENTRAL HANGAR BEFORE THE STATIC REACHES HER", "#ffc400", 0.58);
   blip(660, 220, 0.6, "sawtooth", 0.15);
 }
 
@@ -510,6 +547,12 @@ function update(dt) {
           state = "gameover"; stateT = 0; saveHi(); recordDaily();
         } else {
           if (level.isCave) exitCave();   // the Hollows spit you back out
+          // V13 (owner steer) — a life lost inside the finale twin, while the
+          // mystery is still open, must not hand the answer back: re-roll which
+          // side is real and replay the split reveal, exactly as a fresh arrival
+          // would. Untouched once the decoy's already been resolved (dead) —
+          // nothing left to protect at that point.
+          if (level.fakeMercy && !level.fakeMercy.dead) rollMercyTwin(level, Math.random);
           spawnShip(); state = "play"; stateT = 0; checkSectorClear();
         }
       }
@@ -519,6 +562,7 @@ function update(dt) {
     case "confirm": updateConfirm(); return;
     case "settings": updateSettings(); return;
     case "epilogue": updateEpilogue(dt); return;
+    case "destruct": updateDestruct(dt); return;
     case "play": updatePlay(dt); return;
   }
 }
@@ -556,11 +600,12 @@ function startFreshRun() {
   goFullscreen();
   if (window.hideA2HS) window.hideA2HS();
   resetRun();
-  if (introSeen) {
-    toBriefing(0);   // veterans launch straight into the tasking
+  if (veteran && !vetIntroSeen) {
+    activeIntro = VET_INTRO; introIdx = 0; state = "intro"; stateT = 0;   // V8 — the once-only veteran opening
+  } else if (introSeen) {
+    toBriefing(0);   // veterans (and repeat first-runners) launch straight into the tasking
   } else {
-    introIdx = 0;
-    state = "intro"; stateT = 0;
+    activeIntro = INTRO; introIdx = 0; state = "intro"; stateT = 0;
   }
   blip(330, 660, 0.2, "sine", 0.1);
 }
@@ -680,12 +725,17 @@ function updateIntro(dt) {
     introBeat = 0;
     if (introIdx === 3) staticTick(); else heartbeat(0.55);
   }
+  // mark whichever intro set just played (V8: the veteran opening shows once)
+  const finishIntro = () => {
+    if (activeIntro === VET_INTRO) markVetIntroSeen(); else markIntroSeen();
+    toBriefing(0);
+  };
   if (input.tap && stateT > 0.35) {
-    if (inRect(skipRect(), input.tapX, input.tapY)) { markIntroSeen(); toBriefing(0); }
+    if (inRect(skipRect(), input.tapX, input.tapY)) { finishIntro(); }
     else {
       introIdx++; stateT = 0;
       blip(440, 550, 0.08, "sine", 0.07);
-      if (introIdx >= INTRO.length) { markIntroSeen(); toBriefing(0); }
+      if (introIdx >= activeIntro.length) { finishIntro(); }
     }
   }
   input.tap = false;
@@ -693,15 +743,29 @@ function updateIntro(dt) {
 
 /* the daily's two modifiers arrive inside the transmission itself — the
    conditions are part of the tasking, not HUD furniture */
+// V9 — the sound-led hook, one per lift-bearing surface sector so it never
+// repeats verbatim. levelIdx % 3 maps the three lift sectors (1,3,5) to three
+// distinct lines; all stay in the "something is below" register without
+// over-promising what the pad's hollow ring can deliver.
+const SOUND_HOOKS = [
+  "And captain — listen when you touch down. Something below the rock is keeping time.",
+  "And captain — is that a sound coming from under the ground?",
+  "And captain — the ground hums where you land here. Tell me you hear it too.",
+];
 function briefText() {
   let t = BRIEFS[levelIdx];
-  // The counterfeit MERCY only exists on a veteran return pass, so its warning
-  // (and the "count the beats" tell that tells the two ships apart) belongs in
-  // the finale briefing only then — a first run meets one true MERCY and never
-  // hears this. Spelled out so "count the beats" is never a mystery: ours beats
-  // like a heart, his keeps a machine's perfect time.
-  if (levelIdx === FINALE_IDX && level && level.fakeMercy)
-    t += "\n\nOne more thing, and it matters. Two ships will answer as MERCY on approach. One is ours. One is his — a hull built to wear the shape you stopped checking.\n\nTell them apart by the emblem. OURS beats like a heart: uneven, alive. HIS blinks in perfect mechanical time, like the counterfeit fuel. Count the beats before you dock.";
+  // V12a — the finale twin is no longer signposted. The old briefing spelled out
+  // "two ships will answer as MERCY … count the beats", which pre-announced the
+  // surprise and overran the panel (Y7). It's cut: a second MERCY should be
+  // genuinely unexpected, read from the beat you've learned all game, not a
+  // printed key. (Also removes the Y7 overspill at source.)
+  // V9 — a light, sound-led hook, only where the audio actually delivers it: a
+  // sector that hides a usable lift, whose pad rings hollow underfoot (U1). No
+  // promise the audio can't keep — hence lvl.lift only. Three surface sectors
+  // carry a lift (VESALIUS/SEMMELWEIS/AVICENNA), so the hook is VARIED per sector
+  // (indexed by levelIdx) rather than the same line repeated each time.
+  if (level && level.lift && !level.isCave)
+    t += "\n\n" + SOUND_HOOKS[levelIdx % SOUND_HOOKS.length];
   if (runMode === "daily" && dailyMods.length)
     t = "TODAY'S CONDITIONS — " +
       dailyMods.map(m => m.name + " (" + m.desc + ")").join(" · ") + ".\n\n" + t;
@@ -773,13 +837,14 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro", "doids_trained"];   // X3 — a wipe re-shows the first-play fork
+    "doids_intro", "doids_trained", "doids_vetintro"];   // X3 fork + V8 veteran intro re-show after a wipe
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
   }
   hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set();
   savedRun = null; checkpoint = null; veteran = false; introSeen = false;
+  vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
   unresolvedHaunt = false;
 }
@@ -1023,10 +1088,23 @@ function updatePlay(dt) {
   updateShrine(dt);
   updateScan(dt);
   updateScionScan(dt);    // S5 — read a grounded unit's vitals; flag the fakes
+  updateWaves(dt);        // V6 — Vectors cast a sonic wave; parry it to catalogue them
   updateContagion(dt);    // Semmelweis Deep — unscreened contagion spreads
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
+  // V13 — the twin's staged reveal: decrement the countdown, then fire the two
+  // one-shot signal-pulse cues at the instants drawMercySplit's rings mark
+  // (elapsed crossing TWIN_PULSE1 / TWIN_PULSE2), each exactly once. This is
+  // the biggest structural reveal in the game, so each pulse gets its own
+  // cue (twinDissolve/twinEmerge, js/audio.js) rather than a generic tick.
+  if (level.mercySplitT > 0) {
+    const prevE = MERCY_SPLIT_DUR - level.mercySplitT;
+    level.mercySplitT = Math.max(0, level.mercySplitT - dt);
+    const e = MERCY_SPLIT_DUR - level.mercySplitT;
+    if (prevE < TWIN_PULSE1 && e >= TWIN_PULSE1) { twinDissolve(); haptic.medium(); }
+    if (prevE < TWIN_PULSE2 && e >= TWIN_PULSE2) { twinEmerge(); haptic.heavy(); }
+  }
   if (level.isFinale) updateBeacon(dt);
   if (level.fakeMercy) updateDecoy(dt);
 
@@ -1126,8 +1204,11 @@ function updateOids(dt, now) {
         // with no heartbeat — not one of the medics we came for — so destroying
         // it is no malpractice; it's neutralised, off the manifest, no penalty.
         // An UNidentified unit still costs you: you couldn't know it wasn't a
-        // living medic, and that risk is the whole tension.
-        if (o.role === "saboteur" && o.flagged) {
+        // living medic, and that risk is the whole tension. V13 — that clean
+        // kill is only earned once the husks are known; before then a flagged
+        // unit is only CORRUPTED, not proven, so destroying it stays malpractice
+        // — the isolation bay, not the trigger, is the correct call.
+        if (o.role === "saboteur" && o.flagged && husksKnown()) {
           o.state = "contained"; level.contained++;
           addText(o.x, o.y - 40, "COUNTERFEIT DESTROYED", PAL().REVEAL);
           explode(o.x, o.y - 8, PAL().REVEAL, 18);
@@ -1165,12 +1246,15 @@ function updateOids(dt, now) {
       // S5 / owner steer: with ANTISEPSIS earned, a grounded unit within scan
       // range is READ rather than boarded — it stays "wait" while updateScionScan
       // runs the diagnostic and creeps it slowly toward you. Once verified it
-      // climbs aboard; a catalogued (flagged) counterfeit is left where it lies
-      // and never boards. Without the upgrade there's no read — units board as
-      // they always did.
+      // climbs aboard. A catalogued (flagged) unit, once the husks are known,
+      // is a proven hollow chassis and is left where it lies, never boarding.
+      // Pre-discovery (V13) it's only CORRUPTED, not proven — the correct play
+      // is still to carry it home and hand it to the red isolation bay, so it
+      // boards like anyone else. Without the upgrade there's no read — units
+      // board as they always did.
       const scanCandidate = upgrades.antisepsis && !o.verified && !o.flagged &&
         Math.abs(s.x - o.x) < SCION_SCAN_RANGE && Math.abs(s.vx) < 20 && Math.abs(s.vy) < 20;
-      if (!scanCandidate && !o.flagged) o.state = "walk";
+      if (!scanCandidate && (!o.flagged || !husksKnown())) o.state = "walk";
     }
     if (o.state === "walk") {
       if (!s.landed) { o.state = "wait"; continue; }
@@ -1363,12 +1447,17 @@ function updateEnemies(dt) {
       explode(level.beacon.x, level.beacon.y - 40, "#b388ff", 20);
       if (level.beacon.hp <= 0) resolveBeacon("fire");
     }
-    // one shot into the counterfeit MERCY's hull powers it down (N3) —
-    // it costs the oath the same way any secret opened by fire does
+    // V13 (owner steer) — three rounds into the counterfeit MERCY's hull power
+    // it down (N3), not one: a single stray shot meant for a turret/drone
+    // can't accidentally trigger the reveal, and the heftier hull reads as a
+    // real target. Firing at all still costs the oath the same way any secret
+    // opened by fire does; the reveal card itself only lands on the killing round.
     const fm = level.fakeMercy;
     if (fm && !fm.dead && Math.abs(b.x - fm.x) < 148 && b.y - fm.y > -55 && b.y - fm.y < 25) {
       gone = true; firedAtSecret = true;
-      decoyDown(fm);
+      fm.hp--;
+      if (fm.hp <= 0) decoyDown(fm);
+      else { explode(fm.x, fm.y - 10, "#00e5ff", 16); staticTick(); }
     }
     if (gone) level.shots.splice(i, 1);
   }
@@ -1474,10 +1563,13 @@ function updateScan(dt) {
 
 /* S5 — the landed Scion scan, the diagnostic EARNED by rescuing Semmelweis
    (ANTISEPSIS). Park directly on a waiting unit and hold ~4 s to read its
-   vitals: a counterfeit is CATALOGUED (+250, marked with a permanent "?", may
-   be left on the ground); a real Scion's heartbeat is VERIFIED (no score) and
-   it then boards as normal. Priced in time and exposure. Before you've earned
-   it there is no positive identification — only the behavioural tells. */
+   vitals: a Vector is CATALOGUED (+250, marked with a permanent "?"); a real
+   Scion's heartbeat is VERIFIED (no score) and it then boards as normal.
+   Priced in time and exposure. Before you've earned it there is no positive
+   identification — only the behavioural tells. V13 — a catalogued unit is
+   only proven hollow (COUNTERFEIT, may be left on the ground / destroyed
+   clean) once the husks are known; until then it's only CORRUPTED, so it
+   still boards and must go through the red isolation bay, see husksKnown(). */
 const SCION_SCAN_T = 4;
 const SCION_SCAN_RANGE = 200;   // land anywhere within this to begin reading a grounded unit
 const SCAN_CREEP = 22;          // px/s it drifts toward you while read — far edge ≈ 8s > the 4s read
@@ -1510,10 +1602,11 @@ function updateScionScan(dt) {
   if (target.oidScanT >= SCION_SCAN_T) {
     target.oidScanT = 0;
     if (target.role === "saboteur") {
-      target.flagged = true;   // stays on the ground, catalogued; oath untouched (no shot)
+      target.flagged = true;   // catalogued; oath untouched (no shot) — V13: boards for isolation until the husks are known, then stays put
       score += 250;
       staticTick();
-      addText(target.x, target.y - 44, "CATALOGUED — COUNTERFEIT +250", PAL().REVEAL);
+      addText(target.x, target.y - 44,
+        "CATALOGUED — " + (husksKnown() ? "COUNTERFEIT" : "CORRUPTED") + " +250", PAL().REVEAL);
       checkSectorClear();
     } else {
       target.verified = true;
@@ -1521,6 +1614,61 @@ function updateScionScan(dt) {
       addText(target.x, target.y - 44, "VITALS VERIFIED — A HEARTBEAT", "#69f0ae");
     }
   }
+}
+
+/* V6 — the heard-scan sonic-wave parry. An active, un-catalogued Vector from
+   Avicenna Shoals on casts a telegraphed violet wavefront while you're in range;
+   raise the shield as it lands (the E3 parryT window) to FLATTEN it and catalogue
+   the Vector — the "heard" read, no shot, oath clean. The wave resolves at a
+   fixed WAVE_ARRIVE after casting, so the timing is learnable regardless of how
+   near you are. Mid-game a miss is free (a teaching beat); the costly version is
+   the finale answer to the Solace (wired with V3/V12, flagged `finale`). */
+function waveEligible(o) {
+  return o.role === "saboteur" && !o.flagged && !o.sleeper && !o.dead &&
+    (o.state === "wait" || o.state === "walk");
+}
+function updateWaves(dt) {
+  if (!level.waves) level.waves = [];
+  const s = ship;
+  if (levelIdx >= WAVE_FIRST_SECTOR && !s.dead && state === "play") {
+    for (const o of level.oids) {
+      if (!waveEligible(o) || Math.hypot(s.x - o.x, s.y - o.y) > WAVE_RANGE) { o.waveT = 0; continue; }
+      o.waveT = (o.waveT || 0) + dt;
+      if (o.waveT >= WAVE_GAP) {
+        o.waveT = 0;
+        level.waves.push({ src: o, ox: o.x, oy: o.y - 10, t: 0, done: false, hit: false, finale: false });
+        staticTick(0.25);   // a wrong little tone — the telegraph
+      }
+    }
+  }
+  for (const w of level.waves) {
+    const prev = w.t; w.t += dt;
+    if (!w.done && prev < WAVE_ARRIVE && w.t >= WAVE_ARRIVE) {
+      w.done = true;
+      w.hit = s.shield && s.parryT > 0;
+      if (w.hit) {
+        shieldParry();
+        if (w.finale) {
+          // the answer — resolved by the finale beacon logic (V3/V12)
+          if (level.beacon && !level.beacon.resolved) level.beacon.heardParry = true;
+        } else if (w.src && !w.src.flagged) {
+          w.src.flagged = true; score += 250; staticTick();
+          addText(w.src.x, w.src.y - 44, "SIGNAL FLATTENED — CATALOGUED +250", PAL().REVEAL);
+          checkSectorClear();
+        }
+      } else {
+        // a wash-over costs vitals: the full hit at the finale, HALF mid-game
+        // (owner steer) — a Vector's pulse still stings, just less than Solace's.
+        const cost = w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2;
+        s.vitals = Math.max(0, s.vitals - cost);
+        staticSurge = Math.max(staticSurge, w.finale ? 0.6 : 0.35);
+        sabotageFlash = w.finale ? 0.5 : 0.3;
+        camera.shake += w.finale ? 5 : 3;
+        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, "#b388ff");
+      }
+    }
+  }
+  level.waves = level.waves.filter(w => w.t < WAVE_LIFE);
 }
 
 function contaminantAboard() {
@@ -1695,6 +1843,7 @@ function inBay(b) {
 
 function updateDocking(dt) {
   if (level.isCave) return;   // no MERCY down in the Hollows
+  if (level.mercySplitT > 0) { ship.dockT = 0; return; }   // V12 — bays inert until the twin has resolved
   // S4 — the moment the manifest closes MERCY retracts her bays: they go inert,
   // the recovery beam is dead, and the only way aboard is the ventral hangar.
   // A ship parked in the bay at that instant simply has the deck rise away.
@@ -2260,6 +2409,7 @@ function decoySnared() {
 function updateDecoy(dt) {
   const f = level.fakeMercy;
   if (f.dead) return;
+  if (level.mercySplitT > 0) { f.dockT = 0; return; }   // V12 — inert until the split reveal settles
   const s = ship;
   if (decoySnared()) {
     // N2 — the trap: no heal, no fuel; the bay drinks, and after two
@@ -2268,13 +2418,14 @@ function updateDecoy(dt) {
     s.fuel = Math.max(0, s.fuel - 6 * dt);
     if (f.dockT >= 2) {
       f.dead = true; decoyOutcome = "trapped";
-      score = Math.max(0, score - 200);
-      banner("COUNTERFEIT — THE BAY IS A MOUTH  -200", PAL().REVEAL);
+      // V13 (owner steer) — the trap costs a full life, not a score ding: this
+      // is the third act's real cost. shipDie() itself accounts for anyone
+      // still aboard (its own "-250 each" text), so the banner carries only
+      // the reveal — no stacked score penalty on top of the life.
+      banner("COUNTERFEIT — THE BAY IS A MOUTH\nNO HEALING. NO FUEL. A HULL WITH NOTHING INSIDE BUT APPETITE.", PAL().REVEAL);
       staticTick(); dullThud();
       explode(f.x, f.y + 40, PAL().REVEAL, 30);
-      showCard({ kicker: "THE THIRD ACT · -200", title: "THE BAY IS A MOUTH", subtitle: "",
-        body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
-        color: PAL().REVEAL });
+      shipDie();
     }
   } else {
     f.dockT = 0;
@@ -2300,26 +2451,36 @@ function updateBeacon(dt) {
   const b = level.beacon;
   if (!b || b.resolved) return;
   const s = ship;
-  if (s.landed && Math.abs(s.x - b.x) < 90) {
-    // Owner steer / the science of "being heard": answering isn't just landing
-    // nearby — you transmit her OWN looping distress heartbeat back to her, in
-    // time, so the signal finally receives the acknowledgement it has spent years
-    // asking for and can stop repeating. Reframed in copy + a visible pulse that
-    // spills from the ship to the beacon on each beat.
-    if (b.silenceT <= 0) banner("HOLD — TRANSMITTING SOLACE'S OWN HEARTBEAT BACK TO HER", "#aef4ff");
-    b.silenceT += dt;
-    b.ackT = (b.ackT || 0) + dt;
-    if (b.ackT >= 1.5) {
-      b.ackT = 0; heartbeat(0.4, true);
-      const dx = b.x - s.x, dy = (b.y - 40) - s.y, d = Math.hypot(dx, dy) || 1;
-      for (let i = 0; i < 8; i++)
-        particles.push({ x: s.x, y: s.y - 6,
-          vx: dx / d * 120 + (Math.random() - 0.5) * 20,
-          vy: dy / d * 120 + (Math.random() - 0.5) * 20,
-          t: d / 120, max: d / 120, color: "#aef4ff", size: 2 });
+  if (b.sonarT > 0) b.sonarT = Math.max(0, b.sonarT - dt);
+  // V3 — the reveal beat: land beside the source and it gives up its name, the
+  // AMS SOLACE, with a sonar pulse that draws her whole drowned hull. From then
+  // on she pulses back on every 41-second Static beat (see updateStaticClock).
+  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) {
+    b.revealed = true; b.sonarT = SONAR_DUR;
+    ringHollow();
+    // owner steer — a quiet CLUE, not an instruction: name her and hint that the
+    // signal wants answering. The player works out that "a response" means
+    // parrying her pulse; no cross-screen "raise shield" giveaway.
+    showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
+      body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
+      color: "#aef4ff" });
+  }
+  // V6-finale (owner: replace the old land-and-hold) — the answer is the
+  // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
+  // looping distress wave; parry it (shield, the E3 window) to send her own
+  // heartbeat back and mark her HEARD. A miss costs vitals + a surge (handled in
+  // updateWaves' finale branch); the pulse comes round again. FIRE still silences
+  // her (the other ending). The science of "being heard" — she stops repeating
+  // once the signal is finally acknowledged in kind.
+  if (b.revealed && !s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
+    b.castT = (b.castT || 0) + dt;
+    if (b.castT >= ANSWER_GAP) {
+      b.castT = 0;
+      level.waves = level.waves || [];
+      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false, finale: true });
     }
-    if (b.silenceT >= 5) resolveBeacon("answered");
-  } else { b.silenceT = Math.max(0, b.silenceT - dt * 2); b.ackT = 0; }
+  } else b.castT = 0;
+  if (b.heardParry) resolveBeacon("answered");
 }
 
 function resolveBeacon(how) {
@@ -2329,11 +2490,19 @@ function resolveBeacon(how) {
   endingFirstRun = !veteran;   // capture BEFORE markVeteran — did this run have the Glycon layer sealed?
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
+  saveLastRunTally();   // V13 — so the next veteran-intro recap can be honest about it
   if (how === "fire") {
+    // (owner steer) — the destroy-on-sight order the CMO refused to sign. The
+    // killing round IGNITES her exposed broadcast tower; the heat then flows down
+    // to draw out her buried MERCY-class hull, we get a beat to see the shape,
+    // and only THEN does she detonate and leave a crater. Scripted in the
+    // "destruct" state (updateDestruct / drawSolaceDeath); the ending card lands
+    // after. The big boom is deferred to SOL_BOOM — this is just the first spark.
     score += 3000;
-    explode(b.x, b.y - 40, "#b388ff", 80);
-    explode(b.x, b.y - 20, "#ffc400", 50);
-    state = "ending"; stateT = 0;
+    b.death = 0; b._det = false;
+    camera.shake = 8;
+    staticTick(0.5);
+    state = "destruct"; stateT = 0;
   } else {
     score += 6000;
     if (runFired === 0) score += 2000;
@@ -2366,6 +2535,68 @@ function updateEpilogue(dt) {
   if ((input.tap && stateT > 0.8) || stateT >= 6.5) { state = "ending"; stateT = 0; }
   input.tap = false;
 }
+/* (owner steer) — the bad ending's cinematic: FIRE brings the Solace down. The
+   camera eases to her, the blast keeps rolling for ~1.5s (a secondary detonation
+   as the spine goes), debris flies, then it settles and the ending card lands.
+   Tap skips once the first blast has read. drawSolaceDeath does the hull reveal. */
+function updateDestruct(dt) {
+  const b = level.beacon;
+  const prev = b.death || 0;
+  b.death = prev + dt;
+  const t = b.death;
+  camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.03, dt));
+  camera.y = lerp(camera.y, b.y - 10, 1 - Math.pow(0.03, dt));
+
+  if (t < SOL_BOOM) {
+    // ignition + the heat flowing down: a rising rumble, sparks streaming off the
+    // exposed tower, the shake building toward the blast
+    camera.shake = Math.max(camera.shake, 3 + 7 * (t / SOL_BOOM));
+    if (Math.random() < 0.6) particles.push({
+      x: b.x + (Math.random() - 0.5) * 34, y: b.y - 70 - Math.random() * 44,
+      vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 46,
+      t: 0.35 + Math.random() * 0.5, max: 0.9,
+      color: Math.random() < 0.5 ? "#fff3d6" : "#ffc400", size: 1 + Math.random() * 1.6 });
+  }
+  // DETONATION — once: a huge shower of sparks + debris off the whole hull, and
+  // the ridge COLLAPSES into a real crater (her mass is gone) — deform the
+  // heightmap and drop the terrain tile cache so the sunken profile re-renders.
+  if (t >= SOL_BOOM && !b._det) {
+    b._det = true; boom(); camera.shake = Math.max(camera.shake, 34);
+    crushCrater(level.heights, b.x, 240, 96);
+    invalidateTiles();
+    // the shower: a big omnidirectional burst of fine sparks…
+    for (let i = 0; i < 320; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 70 + Math.random() * 460;
+      particles.push({ x: b.x + (Math.random() - 0.5) * 60, y: b.y - 20 + (Math.random() - 0.5) * 60,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80,
+        t: 0.6 + Math.random() * 1.9, max: 2.5,
+        color: Math.random() < 0.4 ? "#fff3d6" : (Math.random() < 0.6 ? "#ffc400" : "#ff6d00"),
+        size: 1 + Math.random() * 2.6 });
+    }
+    // …plus a scatter of heavier, slower burning chunks thrown up and out
+    for (let i = 0; i < 40; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4, sp = 120 + Math.random() * 300;
+      particles.push({ x: b.x + (Math.random() - 0.5) * 40, y: b.y - 20,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        t: 1.2 + Math.random() * 1.6, max: 2.8,
+        color: Math.random() < 0.5 ? "#ff6d00" : "#ffae40", size: 3 + Math.random() * 3.5 });
+    }
+  }
+  // a couple of delayed secondary pops as she settles
+  for (const s of [0.25, 0.55]) if (t >= SOL_BOOM + s && prev < SOL_BOOM + s) {
+    explode(b.x + (s === 0.25 ? -70 : 80), b.y - 6, s === 0.25 ? "#ffc400" : "#ff6d00", 40);
+    camera.shake = Math.max(camera.shake, 12);
+  }
+  // after the blast: smoke rising from the crater for a good while
+  if (t >= SOL_BOOM && t < SOL_BOOM + 2.0 && Math.random() < 0.8) particles.push({
+    x: b.x + (Math.random() - 0.5) * 180, y: b.y + 10 - Math.random() * 16,
+    vx: (Math.random() - 0.5) * 12, vy: -8 - Math.random() * 12,
+    t: 1.4 + Math.random() * 1.5, max: 2.9, color: "#6b6560", size: 2.4 + Math.random() * 3.6 });
+
+  if ((input.tap && t > SOL_BOOM + 0.6) || t >= SOL_END) { state = "ending"; stateT = 0; }
+  input.tap = false;
+}
+
 function drawEpilogue(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "rgba(3,4,12," + Math.min(0.3, stateT * 0.08).toFixed(2) + ")";
