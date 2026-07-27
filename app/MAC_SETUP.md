@@ -174,9 +174,44 @@ configured → the report is dropped, play is never blocked.
 | Gyro/TILT permission flow | N/A — feature pulled, see below |  |  |
 | Pause on background / resume | X |  |  |
 | Silent switch respected | X |  |  |
-| 60 fps in sector 5 (`?perf=1`) |  |  |  |
+| 60 fps, every sector (`?perf=1`) |  | X |  |
 | iCloud save round-trip |  |  |  |
 | Game Center auth + report |  |  |  |
+
+**Perf result (iPhone 16 Pro, July 2026):** all sectors flown, including
+Nightingale Basin *after* nightfall completed. Held 59–60 FPS throughout and
+the meter never went red. 59 is a pass, not a near-miss — the readout is a
+single-frame `1000 / delta`, so ordinary vsync jitter rounds 60 down to 59; a
+genuinely dropped frame doubles the delta to ~33 ms (30 FPS) and trips the
+20 ms red threshold. **Never going red is the assertion**, not the headline
+number.
+
+> **The A11–A13 column is the one that matters here and is still open.** The
+> perf concern behind this row is `drawDarkness` building a radial gradient per
+> light per frame — up to ~15 on Nightingale — which an A18 Pro absorbs without
+> noticing. A pass on recent silicon says almost nothing about the iOS 16 floor
+> at 2× DPR. Re-run on the older handset before treating the row as closed.
+
+**How to run it** (the row's `?perf=1` can't be typed into the native shell —
+Capacitor loads `capacitor://localhost/` with no query string). Attach Safari
+Web Inspector to a **debug build run from Xcode** — a TestFlight build isn't
+inspectable, since iOS 16.4+ needs `isInspectable`, which Capacitor sets on
+debug only — then in the console:
+
+```js
+location.replace(location.pathname + "?perf=1")   // reload with the meter (do this first)
+__doids.go(2); __doids.launch()                   // sector, then skip the briefing
+```
+
+Sectors are 0-indexed: `go(2)` Nightingale Basin (dark), `go(6)` Jenner
+Terraces (entity-count peak), `go(7)` the Nullwave (dark *and* busy).
+**Nightingale opens at dusk**, not full dark — it drops to `darkAlpha` 0.9 only
+at 20 s or the first Scion aboard, then ramps over 6 s (T6, `updateNightfall`).
+Measuring before that misses the lighting load entirely; confirm with
+`__doids.get().nightFell === true`. `go(7)` is at full dark from the first
+frame. For a true reading, stop the Xcode debugger and relaunch the app from
+the home screen — it stays installed and inspectable — so only Web Inspector is
+attached.
 
 ## 8. F3 — haptics restraint pass (on device, with E8)
 
