@@ -9,8 +9,10 @@ external round).
 > them) — this repo tracks names and state only. Don't paste addresses back in.
 
 **External TestFlight round launched 2026-07-22** — v1.0 invites were sent to
-the first 8 testers below via an App Store Connect external group. **Rob
-Kavanagh was added afterwards (invited 2026-07-24).**
+the first 8 testers below via an App Store Connect external group. **Three more
+were added after the initial cohort:** Rob Kavanagh and John-Paul Allen
+(2026-07-24), and Casey Withers (2026-07-26). **11 testers in total** — above
+the 5–10 the roadmap's O6 asked for.
 
 Status values:
 - *(blank)* — identified as a candidate, not yet contacted
@@ -30,15 +32,19 @@ The **TestFlight** column records when the App Store Connect beta invite was sen
 | Stephen Garside | Agreed | Invited 2026-07-22 |
 | James Burnett | Agreed | Invited 2026-07-22 |
 | Rob Kavanagh | Agreed | Invited 2026-07-24 |
+| John-Paul Allen | Agreed | Invited 2026-07-24 |
+| Casey Withers | Agreed | Invited 2026-07-26 |
 
 > **James Burnett** was invited with the group and has since **agreed**
 > (confirmed 2026-07-24).
->
-> **Rob Kavanagh** agreed and was invited via TestFlight on 2026-07-24, after
-> the initial cohort — send him the thank-you / survey email when the next round
-> goes out.
 
 **Thank-you / survey email sent 2026-07-23** — the owner emailed the 8 testers
 invited on 2026-07-22 (BCC'd, from his personal address), thanking them and
 pointing them to the survey: https://tinyurl.com/HollowOath (see
 `docs/TESTER_KIT.md` for the survey script this links to).
+
+> **Three testers are still owed that email** — Rob Kavanagh, John-Paul Allen
+> and Casey Withers all joined after the 2026-07-23 send, so none of them has
+> the survey link. Worth clearing before 1.0 goes to review: they're the only
+> testers on the post-Bundle-DS build (merged 2026-07-26) and so the only ones
+> who can report on the retuned colour layer and colourblind mode.
