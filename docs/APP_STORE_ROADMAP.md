@@ -89,7 +89,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 5 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, V·ship |
+| V | 1.01 maintenance & narrative | 11 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, **V15–V20 owner-playtest defects (bay-is-a-mouth beat, Solace-adjacent turret, Solace-answer reveal, first-resupply beat, landing spin, dune overspill)**, V·ship |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
 | Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
 | P | The pendulum sling | 3 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md) |
@@ -486,6 +486,12 @@ point release — the fixes and narrative beats the owner wants in **1.01** once
 subsystem, but several fairness corrections and the payoff of the Solace as a
 named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
 1.0 shipped; V3/V4/V5 share the Solace reveal, so build them together.**
+**V15–V20 were added from a later owner playtest pass (late July 2026)** —
+smaller, independent defects (a story beat that reads as a toast, a
+Solace-adjacent turret left floating after the bad ending, a missing reveal
+on the "answered" ending, an unexplained first resupply, an occasional
+landing-spin bug, and a scenery overspill on one level) rather than new
+narrative beats; no shared dependency between them or with V1–V14.
 
 > **Tilt is dropped here, on the record.** The gyro/tilt steering path is
 > *not* on the forward plan (owner decision, July 2026 — "not really any good
@@ -813,6 +819,89 @@ named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
   seed.** Both flakes were misattributed to unrelated changes before being
   measured — check the failure rate on a clean worktree before believing a diff
   caused it.
+- [ ] **V15. "The bay is a mouth" needs to land as a beat, not a banner
+  (owner note, July 2026).** The decoy's reveal — that the counterfeit
+  MERCY's bay has no healing, no fuel, only appetite — is today just the
+  standard 4.2s `banner()` (`function banner`, `js/update.js:92`) fired from
+  `updateDecoy` when the trap closes (`js/update.js:2426`), and it races the
+  death flow: `shipDie()` (`js/update.js:161`) flips `state = "dead"` in that
+  same call, so the line barely gets read before the death screen takes over.
+  This is a story climax (the CMO's fear made literal), not a passing toast —
+  give it its own tap-gated panel, on the model of `showCard`/`drawWin` rather
+  than the transient banner, hold it until the player taps to continue, and
+  add an unpleasant swallow SFX distinct from the current `staticTick()` +
+  `dullThud()` (`js/audio.js:223`, `:234`) — something with a descending pitch
+  sweep under noise, in the spirit of `hydraulic()` (`js/audio.js:274`) but
+  wetter/worse, timed to when the ship visibly gets pulled in. Code anchors:
+  `updateDecoy` (`js/update.js:2410`), `shipDie` (`js/update.js:161`), the
+  tap-gated card pattern (`showCard`, `drawWin`/`drawFireEnding` in
+  `js/render.js`), `js/audio.js` for the new SFX.
+- [ ] **V16. Shooting the Solace should take a beside-her turret down with
+  her.** Firing on the Solace sinks the ridge over her buried hull into a
+  real crater (`crushCrater`, `js/world.js:779`, called from `updateDestruct`,
+  `js/update.js:2566`) — but any `level.turrets` entry planted near her at
+  generation keeps its own static `t.x`/`t.y` set once in `genLevel`, and is
+  never checked against the changed heightmap or killed, so it's left
+  hanging in mid-air over the hole. Add a check alongside the crater carve
+  (or in `updateDestruct`) that kills/explodes any turret within the crater
+  radius the same way a direct hit does (`explode`, `js/update.js:1413`),
+  instead of leaving it floating. Code anchors: `crushCrater`/
+  `invalidateTiles` (`js/world.js:779`; `js/update.js:2566`-`2567`), the
+  existing turret hit-test to mirror (`js/update.js:1409`-`1416`).
+- [ ] **V17. Returning the Solace's pulse should re-trigger the full hull
+  reveal.** V3's sonar sweep (`beacon.sonarT = SONAR_DUR`, `SONAR_DUR` at
+  `js/update.js:31`) currently fires on the first landing-beside reveal
+  (`js/update.js:2460`) and on every 41-second Static beat
+  (`js/update.js:80`), but **not** at the moment the player actually answers
+  her: `resolveBeacon("answered")` (`js/update.js:2487`, the non-`"fire"`
+  branch from `:2507`) only spawns particles and a blip and fades to
+  epilogue — it never touches `sonarT`. Add `b.sonarT = SONAR_DUR;` (or a
+  bigger, one-off flash variant) to that branch so the whole submerged hull
+  lights up the instant her pulse is returned — the payoff moment, not just
+  the ambient tell. Code anchor: `resolveBeacon` (`js/update.js:2487`).
+- [ ] **V18. First field resupply deserves a beat, not just a fuel bar.** The
+  resupply drone (`updateResupplySignal`, `js/update.js:2124`) launches
+  silently the first time a stranded player holds THRUST long enough to
+  signal — nothing acknowledges that help exists at all, let alone that it
+  comes at a cost. Add a one-time message on the very first drone launch
+  (gate on `runRefuels === 0`, before it's incremented at
+  `js/update.js:2205`, the same one-shot-flag shape as `doids_vetintro`/V8) —
+  something like *"You're not alone. Help is on the way. But there is a
+  price."* — landing as the drone launches or arrives. Code anchors: the
+  drone-spawn block (`js/update.js:2148`-`2156`), `runRefuels`
+  (`js/update.js:2205`), `banner()`/`showCard()` for how to present it;
+  mirror the new line into COPY_DECK.md (R10).
+- [ ] **V19. Occasional weird ship spin on landing (assist mode).** Reported:
+  the dart sometimes visibly spins on touchdown, possibly tied to shield use.
+  Likely cause: `s.ang` accumulates unbounded while flying — `steer` adds to
+  it every tick with no wraparound (`js/update.js:947`) — so after a long or
+  hard-turning flight it can sit several full turns past zero (e.g. ~15 rad)
+  rather than at its equivalent small angle. A soft/survivable landing with
+  **assist on** keeps that raw value (`s.ang = assist ? s.ang : 0`,
+  `js/update.js:1041` and `:1068`) and then eases it toward 0 by repeated
+  multiplication (`js/update.js:958`-`960`) — which visibly spins through
+  every accumulated extra rotation before settling, reading as a wild spin.
+  (The shield-bounce branch, `js/update.js:1042`-`1066`, doesn't touch
+  `s.ang` at all, which may compound this if the player is holding steer
+  through a bounce.) Likely fix: normalize `s.ang` to `(-π, π]` before it
+  reaches the landing/assist path — `js/update.js:142` already has the
+  modulo pattern to reuse. Code anchors: `js/update.js:947` (accumulation),
+  `:958`-`960` (assist ease), `:1041`/`:1068` (landing snap), `:142`
+  (existing normalize pattern).
+- [ ] **V20. Dune scenery overspills unnaturally on one level.** Owner
+  screenshot, July 2026: on one surface sector a hillside/dune reads as
+  spilling past its own terrain in a way that looks broken rather than
+  windswept. Avicenna's banded dunes are placed once at generation
+  (`deco("dune", …)`, `js/world.js:1270`) and drawn at that fixed
+  `sc.x`/`sc.y` (`drawDune`, `js/render.js:1191`); the layering note right
+  above `SOLID_ALPHA` (`js/render.js:1304`-`1307`) records a *prior* dune bug
+  (translucent alpha bleed, fixed by `SOLID_ALPHA`) — this may be a
+  recurrence, or a separate positional issue if the underlying heightmap
+  shifts after placement (e.g. a nearby pad-widening/`flatten()` pass, V2)
+  without re-seating the dune. Needs a repro (which sector/seed) before a
+  fix. Code anchors: `deco("dune", …)` (`js/world.js:1270`), `drawDune`
+  (`js/render.js:1191`), the ground-anchored-entity reseat V2 already does
+  for other scenery (`js/world.js`, `scanSpotOK`/pad-widening section).
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).
