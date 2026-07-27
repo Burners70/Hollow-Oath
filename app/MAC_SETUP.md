@@ -175,7 +175,7 @@ configured → the report is dropped, play is never blocked.
 | Pause on background / resume | ~ (TestFlight) | X |  |
 | Silent switch respected |  | X |  |
 | 60 fps, every sector (`?perf=1`) | ~ (TestFlight) | X |  |
-| iCloud save round-trip |  |  |  |
+| iCloud save round-trip |  | X | X |
 | Game Center auth + report |  | X |  |
 
 `X` = verified directly, instrumented where the row allows. `~` = covered by
@@ -209,6 +209,21 @@ iPhone 11 both run current iOS, so nothing is realistically being tested *on*
 iOS 16 — that's a deployment floor, not a test target, and App Review will run
 current iOS. The iOS qualifier has been dropped from the header to stop it
 implying coverage that will never exist.
+
+**iCloud round-trip (July 2026): passed.** Run across a second person's iPhone
+and iPad, both signed into **the same Apple ID as each other** — that shared
+account, not the device class, is what the test actually needs
+(`NSUbiquitousKeyValueStore` syncs per iCloud account). Progress written on the
+iPhone appeared on the iPad. The iPad leg also closes the iPad column for this
+row; the app runs landscape there rather than letterboxed, per the
+`UISupportedInterfaceOrientations~ipad` key this script sets.
+
+When re-running: background the app on the source device to force the KV push
+(sync is not immediate and can lag minutes — the commonest reason a working
+build looks broken), start from a device with no local save so you can tell
+sync from local state, and if the bridge itself looks dead, check
+`__doids.get().cloudNative === true` from a cabled debug build — a TestFlight
+build has no Web Inspector to check it from.
 
 **Game Center (iPhone 16 Pro, July 2026): verified on device by the owner** —
 auth, score report and achievement unlock all confirmed. Verified against the
