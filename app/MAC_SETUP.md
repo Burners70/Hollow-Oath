@@ -168,15 +168,47 @@ configured → the report is dropped, play is never blocked.
 
 ## 7. E8 device matrix (fill in as tested)
 
-| Check | iPhone (A11–A13, iOS 16) | Recent iPhone | iPad |
+| Check | iPhone (A11–A13) | Recent iPhone | iPad |
 |---|---|---|---|
-| Touch controls | X |  |  |
-| Gyro/TILT permission flow | N/A — feature pulled, see below |  |  |
-| Pause on background / resume | X |  |  |
-| Silent switch respected | X |  |  |
-| 60 fps, every sector (`?perf=1`) |  | X |  |
+| Touch controls | ~ (TestFlight) | X |  |
+| Gyro/TILT permission flow | N/A — feature pulled, see below | N/A | N/A |
+| Pause on background / resume | ~ (TestFlight) | X |  |
+| Silent switch respected |  | X |  |
+| 60 fps, every sector (`?perf=1`) | ~ (TestFlight) | X |  |
 | iCloud save round-trip |  |  |  |
 | Game Center auth + report |  | X |  |
+
+`X` = verified directly, instrumented where the row allows. `~` = covered by
+TestFlight play on that class of hardware with no problems reported, but not
+measured — see the note below before treating it as equivalent.
+
+**Whose device is whose (corrected July 2026).** The owner's **iPhone 16 Pro
+(A18 Pro) is the oldest phone in the house**, so every hands-on check belongs
+in *Recent iPhone*. Touch controls, pause-on-background and silent switch were
+previously ticked in the A11–A13 column; they were done on the 16 Pro and have
+been moved right. Nothing had ever been verified on A11–A13 hardware directly.
+
+**A11–A13 coverage comes from the TestFlight round, not from a device on the
+desk.** Testers have played the build on an **iPhone XS Max (A12)**, an
+**iPhone 11 (A13)** and a **16e (A18)**, all reporting no problems. That is
+real coverage of the floor bracket in real hands, but it is *qualitative* —
+nobody was running `?perf=1`, and nobody could have, because a TestFlight build
+isn't inspectable (see the perf note below). Hence `~` rather than `X`.
+
+**On the `drawDarkness` perf concern specifically: treat it as substantially
+de-risked.** The worry was a radial gradient built per light per frame (~15 on
+Nightingale) overwhelming an older GPU at 2× DPR. If that were dropping an A12
+to ~20 fps in a dark sector, a tester would have reported the game feeling
+sluggish or juddery rather than "no errors". Combined with the instrumented
+59–60 fps pass on the 16 Pro, that's enough for 1.0 — a perf regression on old
+hardware would be a 1.01 fix, not a review rejection. Buying an A12 to close
+the cell properly is not worth it.
+
+**Column header note:** the old header said *A11–A13, iOS 16*. The XS Max and
+iPhone 11 both run current iOS, so nothing is realistically being tested *on*
+iOS 16 — that's a deployment floor, not a test target, and App Review will run
+current iOS. The iOS qualifier has been dropped from the header to stop it
+implying coverage that will never exist.
 
 **Game Center (iPhone 16 Pro, July 2026): verified on device by the owner** —
 auth, score report and achievement unlock all confirmed. Verified against the
