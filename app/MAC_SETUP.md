@@ -168,15 +168,111 @@ configured → the report is dropped, play is never blocked.
 
 ## 7. E8 device matrix (fill in as tested)
 
-| Check | iPhone (A11–A13, iOS 16) | Recent iPhone | iPad |
+| Check | iPhone (A11–A13) | Recent iPhone | iPad |
 |---|---|---|---|
-| Touch controls | X |  |  |
-| Gyro/TILT permission flow | N/A — feature pulled, see below |  |  |
-| Pause on background / resume | X |  |  |
-| Silent switch respected | X |  |  |
-| 60 fps in sector 5 (`?perf=1`) |  |  |  |
-| iCloud save round-trip |  |  |  |
-| Game Center auth + report |  |  |  |
+| Touch controls | ~ (TestFlight) | X |  |
+| Gyro/TILT permission flow | N/A — feature pulled, see below | N/A | N/A |
+| Pause on background / resume | ~ (TestFlight) | X |  |
+| Silent switch respected |  | X |  |
+| 60 fps, every sector (`?perf=1`) | ~ (TestFlight) | X |  |
+| iCloud save round-trip |  | X | X |
+| Game Center auth + report |  | X |  |
+
+`X` = verified directly, instrumented where the row allows. `~` = covered by
+TestFlight play on that class of hardware with no problems reported, but not
+measured — see the note below before treating it as equivalent.
+
+**Whose device is whose (corrected July 2026).** The owner's **iPhone 16 Pro
+(A18 Pro) is the oldest phone in the house**, so every hands-on check belongs
+in *Recent iPhone*. Touch controls, pause-on-background and silent switch were
+previously ticked in the A11–A13 column; they were done on the 16 Pro and have
+been moved right. Nothing had ever been verified on A11–A13 hardware directly.
+
+**A11–A13 coverage comes from the TestFlight round, not from a device on the
+desk.** Testers have played the build on an **iPhone XS Max (A12)**, an
+**iPhone 11 (A13)** and a **16e (A18)**, all reporting no problems. That is
+real coverage of the floor bracket in real hands, but it is *qualitative* —
+nobody was running `?perf=1`, and nobody could have, because a TestFlight build
+isn't inspectable (see the perf note below). Hence `~` rather than `X`.
+
+**On the `drawDarkness` perf concern specifically: treat it as substantially
+de-risked.** The worry was a radial gradient built per light per frame (~15 on
+Nightingale) overwhelming an older GPU at 2× DPR. If that were dropping an A12
+to ~20 fps in a dark sector, a tester would have reported the game feeling
+sluggish or juddery rather than "no errors". Combined with the instrumented
+59–60 fps pass on the 16 Pro, that's enough for 1.0 — a perf regression on old
+hardware would be a 1.01 fix, not a review rejection. Buying an A12 to close
+the cell properly is not worth it.
+
+**Column header note:** the old header said *A11–A13, iOS 16*. The XS Max and
+iPhone 11 both run current iOS, so nothing is realistically being tested *on*
+iOS 16 — that's a deployment floor, not a test target, and App Review will run
+current iOS. The iOS qualifier has been dropped from the header to stop it
+implying coverage that will never exist.
+
+**iCloud round-trip (July 2026): passed.** Run across a second person's iPhone
+and iPad, both signed into **the same Apple ID as each other** — that shared
+account, not the device class, is what the test actually needs
+(`NSUbiquitousKeyValueStore` syncs per iCloud account). Progress written on the
+iPhone appeared on the iPad. The iPad leg also closes the iPad column for this
+row; the app runs landscape there rather than letterboxed, per the
+`UISupportedInterfaceOrientations~ipad` key this script sets.
+
+When re-running: background the app on the source device to force the KV push
+(sync is not immediate and can lag minutes — the commonest reason a working
+build looks broken), start from a device with no local save so you can tell
+sync from local state, and if the bridge itself looks dead, check
+`__doids.get().cloudNative === true` from a cabled debug build — a TestFlight
+build has no Web Inspector to check it from.
+
+**Game Center (iPhone 16 Pro, July 2026): verified on device by the owner** —
+auth, score report and achievement unlock all confirmed. Verified against the
+Game Center UI itself, which is the only real evidence: `__doids.get()
+.gcReports` fills up whether or not the native call succeeded (the trace is
+pushed in `call()` before the plugin is consulted, and the native call is
+fail-silent), so a populated trace proves the game *tried* and nothing more.
+Three things that make a correct build look broken when re-testing: the App
+Store Connect records must already exist and match the `GC_BOARD_*` / `GC_ACH`
+IDs exactly (§5), the all-time board is gated on `!easyMode && runMode !==
+"daily"` so a Field Medic or daily run reports nothing to it
+(`js/update.js:593`), and achievements fire once per session via the facade's
+`done` set, so re-testing one needs an app relaunch. Fastest end-to-end check
+is `FIRST DO NO HARM` — one sector cleared without firing.
+
+**Perf result (iPhone 16 Pro, July 2026):** all sectors flown, including
+Nightingale Basin *after* nightfall completed. Held 59–60 FPS throughout and
+the meter never went red. 59 is a pass, not a near-miss — the readout is a
+single-frame `1000 / delta`, so ordinary vsync jitter rounds 60 down to 59; a
+genuinely dropped frame doubles the delta to ~33 ms (30 FPS) and trips the
+20 ms red threshold. **Never going red is the assertion**, not the headline
+number.
+
+> **The A11–A13 column is the one that matters here and is still open.** The
+> perf concern behind this row is `drawDarkness` building a radial gradient per
+> light per frame — up to ~15 on Nightingale — which an A18 Pro absorbs without
+> noticing. A pass on recent silicon says almost nothing about the iOS 16 floor
+> at 2× DPR. Re-run on the older handset before treating the row as closed.
+
+**How to run it** (the row's `?perf=1` can't be typed into the native shell —
+Capacitor loads `capacitor://localhost/` with no query string). Attach Safari
+Web Inspector to a **debug build run from Xcode** — a TestFlight build isn't
+inspectable, since iOS 16.4+ needs `isInspectable`, which Capacitor sets on
+debug only — then in the console:
+
+```js
+location.replace(location.pathname + "?perf=1")   // reload with the meter (do this first)
+__doids.go(2); __doids.launch()                   // sector, then skip the briefing
+```
+
+Sectors are 0-indexed: `go(2)` Nightingale Basin (dark), `go(6)` Jenner
+Terraces (entity-count peak), `go(7)` the Nullwave (dark *and* busy).
+**Nightingale opens at dusk**, not full dark — it drops to `darkAlpha` 0.9 only
+at 20 s or the first Scion aboard, then ramps over 6 s (T6, `updateNightfall`).
+Measuring before that misses the lighting load entirely; confirm with
+`__doids.get().nightFell === true`. `go(7)` is at full dark from the first
+frame. For a true reading, stop the Xcode debugger and relaunch the app from
+the home screen — it stays installed and inspectable — so only Web Inspector is
+attached.
 
 ## 8. F3 — haptics restraint pass (on device, with E8)
 

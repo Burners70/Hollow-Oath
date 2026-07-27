@@ -87,7 +87,7 @@ bundle's section — grep the bundle heading to jump there.
 
 | # | Bundle | Open | Release | What's left |
 |---|--------|------|---------|-------------|
-| O | Store listing & submission | 2 | 1.0 | O8 — the custom-domain move (`hollow-oath.com`); O9 — swap the "coming soon" CTA for a real App Store link |
+| O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 5 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, V·ship |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
@@ -107,7 +107,9 @@ sequencing* — that's the only backlog; don't start a new one.
 
 All items checked off; sections moved out of this file with their acceptance
 notes and code anchors. The minimum viable paid release (**A + B + C + D + E +
-F + R + O**) is complete apart from O8.
+F + R + O**) is complete: every pre-submission item in Bundle O has landed, and
+the one remaining item (O9, the App Store CTA) is a launch-day task that can
+only be done *after* approval.
 
 Item-level anchors cited elsewhere in the docs (R10, S6, M1, M4, H3, H5, Y5,
 E7…) are searchable in the archive — if you grep this file for a bundle ID and
@@ -374,7 +376,11 @@ merged; G/H strongly recommended.**
     `hollow-oath.com` (CNAME on `gh-pages`), "Enforce HTTPS" on. The playable
     game is no longer reachable on the web; `main` keeps it for the Capacitor
     iOS build only.
-- [ ] **O8. Move the public shell to a custom domain (`hollow-oath.com`).** The
+- [x] **O8. Move the public shell to a custom domain (`hollow-oath.com`).**
+  *(Complete — owner, July 2026. The domain resolves and serves the shell over
+  HTTPS from `gh-pages`, the in-repo links were flipped to the new root, and
+  the three App Store Connect URL fields — Privacy, Support, Marketing — are
+  set to the `hollow-oath.com` addresses in `STORE_LISTING.md` §O5.)* The
   owner registered `hollow-oath.com` (Cloudflare, July 2026) to keep the
   personal `burners70` handle off anything users see (App Store
   Support/Marketing URLs, in-page links). It attaches to GitHub Pages for free
@@ -1088,10 +1094,14 @@ decision (late July 2026): pull the low-risk wins into the 1.0 launch build —
 Y1/Y2 (stability), X1 (guide) and X3 (fork) — and keep the heavier subsystems
 (X2/X4/X5, Y3–Y7, V + the V12 fake-MERCY reveal) and Z (variable gravity, after
 its fairness re-tune) for 1.01.**
-The support/marketing URL is moving to a **custom domain on GitHub Pages**,
-**`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). Once DNS
-is pointed at Pages and the domain resolves, the live-site links and the App
-Store URL fields flip to the new root.
+The support/marketing URL now lives on a **custom domain on GitHub Pages**,
+**`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). **Done:**
+the domain resolves over HTTPS, the in-repo links point at the new root, and
+the three App Store Connect URL fields are set. **The E8 device matrix is also
+complete** (`app/MAC_SETUP.md` §7) — perf, Game Center and the iCloud
+round-trip all verified on device in late July 2026, so each native feature
+cited in the O6 App Review notes is backed by a result. What remains before
+submission is the owner's own **Submit for Review** tap.
 
 Post-launch candidates (deliberately out of scope here): more famous Scions (M4
 grows), second-playthrough modifiers, Android/Google Play via the
