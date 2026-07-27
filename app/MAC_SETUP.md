@@ -176,7 +176,21 @@ configured → the report is dropped, play is never blocked.
 | Silent switch respected | X |  |  |
 | 60 fps, every sector (`?perf=1`) |  | X |  |
 | iCloud save round-trip |  |  |  |
-| Game Center auth + report |  |  |  |
+| Game Center auth + report |  | X |  |
+
+**Game Center (iPhone 16 Pro, July 2026): verified on device by the owner** —
+auth, score report and achievement unlock all confirmed. Verified against the
+Game Center UI itself, which is the only real evidence: `__doids.get()
+.gcReports` fills up whether or not the native call succeeded (the trace is
+pushed in `call()` before the plugin is consulted, and the native call is
+fail-silent), so a populated trace proves the game *tried* and nothing more.
+Three things that make a correct build look broken when re-testing: the App
+Store Connect records must already exist and match the `GC_BOARD_*` / `GC_ACH`
+IDs exactly (§5), the all-time board is gated on `!easyMode && runMode !==
+"daily"` so a Field Medic or daily run reports nothing to it
+(`js/update.js:593`), and achievements fire once per session via the facade's
+`done` set, so re-testing one needs an app relaunch. Fastest end-to-end check
+is `FIRST DO NO HARM` — one sector cleared without firing.
 
 **Perf result (iPhone 16 Pro, July 2026):** all sectors flown, including
 Nightingale Basin *after* nightfall completed. Held 59–60 FPS throughout and
