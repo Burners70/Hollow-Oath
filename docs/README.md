@@ -20,6 +20,7 @@ shouldn't be in the folder.
 | [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Working on Bundle Q (the Listening Post / deep Hollows — 1.1 core, 1.2 caves). |
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
 | [STORE_LISTING.md](STORE_LISTING.md) | App Store Connect metadata: pricing, description, keywords, support/privacy URLs. |
+| [PRESS_KIT.md](PRESS_KIT.md) | Writing about or featuring the game externally: fact sheet, pitch, boilerplate, and where the screenshot/icon/video assets live. |
 | [TESTER_KIT.md](TESTER_KIT.md) | Running a TestFlight round: the "What to Test" note, invite welcome message, and blind-play survey script. |
 | [TESTER_LOG.md](TESTER_LOG.md) | Who's testing, and which build they were invited to. |
 | [QA_HARNESS.md](QA_HARNESS.md) | Testing a build on a phone (or anywhere) without a console — `tests/qa-harness.html`'s tap menu + injected Eruda console. |
