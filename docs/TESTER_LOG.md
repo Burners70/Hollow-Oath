@@ -43,8 +43,11 @@ invited on 2026-07-22 (BCC'd, from his personal address), thanking them and
 pointing them to the survey: https://tinyurl.com/HollowOath (see
 `docs/TESTER_KIT.md` for the survey script this links to).
 
-> **Three testers are still owed that email** — Rob Kavanagh, John-Paul Allen
-> and Casey Withers all joined after the 2026-07-23 send, so none of them has
-> the survey link. Worth clearing before 1.0 goes to review: they're the only
-> testers on the post-Bundle-DS build (merged 2026-07-26) and so the only ones
-> who can report on the retuned colour layer and colourblind mode.
+> **All 11 testers have the survey link** (owner, July 2026). The three who
+> joined after the 2026-07-23 send — Rob Kavanagh, John-Paul Allen and Casey
+> Withers — were emailed separately as they came on board. Nothing outstanding
+> on this front.
+>
+> Those three are also the testers most likely to be on the **post-Bundle-DS
+> build** (merged 2026-07-26), so their responses are the ones to read for the
+> retuned colour layer and the reworked colourblind mode.

@@ -91,7 +91,7 @@ description below, this is where to put anything time-sensitive later.
 >   generic buzzes.
 > - **Seven sectors, three hidden Hollows.** Optional caves reward the
 >   curious and the careful with a second layer of story.
-> - **Two endings, one oath.** *Primum non nocere* — first, do no harm — is
+> - **Multiple endings, one oath.** *Primum non nocere* — first, do no harm — is
 >   scored, not just quoted.
 > - **Remix mode & a daily seed** for runs that don't play the same way twice.
 > - **Complete game.** No IAP, no ads, no data collected. Pay once, keep it.
@@ -102,6 +102,14 @@ terrain every run; only Remix mode and the Daily flight vary it. "Procedural"
 reads as roguelike per-run variety to most buyers, which would overpromise
 for the base campaign. The Remix/daily-seed bullet below already carries the
 accurate "no two runs the same" claim, scoped correctly.)*
+
+*(Note: "Two endings" changed to "Multiple endings" (owner, July 2026) — the
+game's own canon (`GAME_DESIGN.md` §2.5) counts three: THE ANSWERED CALL,
+SILENCE BY FIRE, and ROTATION COMPLETE (unresolved). The third is a fail
+state — finishing sector 7 without triangulating the finale — not a chosen
+story ending, so "Three endings" would overclaim it as content the same way
+"procedurally seeded" overclaimed above. "Multiple" is accurate either way and
+won't need revisiting if the count changes again.)*
 
 **Nostalgia paragraph (generic terms only — no trademarked titles):**
 
@@ -132,7 +140,7 @@ Hollow Oath is a 2D gravity-thrust rescue game: fly a small dart over hostile te
 • Real gravity, real consequence. No auto-land, no aim-assist crutch — just thrust, weight, and a landing you have to earn.
 • A heartbeat you can feel. Haptics tuned to the game's own pulse, not generic buzzes.
 • Seven sectors, three hidden Hollows. Optional caves reward the curious and the careful with a second layer of story.
-• Two endings, one oath. Primum non nocere — first, do no harm — is scored, not just quoted.
+• Multiple endings, one oath. Primum non nocere — first, do no harm — is scored, not just quoted.
 • Remix mode & a daily seed for runs that don't play the same way twice.
 • Complete game. No IAP, no ads, no data collected. Pay once, keep it.
 
