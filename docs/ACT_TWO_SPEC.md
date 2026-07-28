@@ -296,24 +296,62 @@ vitals to keep twelve people ticking a few minutes longer.
 - **FIELD MEDIC** (`doids_easy`): transfusion cost ×0.5, per the existing
   accessibility contract.
 
-### 7.5 The ward — heard, not seen
+### 7.5 The ward — readable without a HUD, and without sound
 
-A strip of ECGs along the top of the screen would turn Act Two into a management
-screen and wreck a deliberately austere HUD. No information at all is unfair.
-So:
+Two things this must not be. A strip of ECGs along the top of the screen would
+turn Act Two into a management screen and wreck a deliberately austere HUD. And
+an audio-only ward is unplayable for the majority of this game's audience —
+**it targets iPhone first, and most phone play is muted** (owner note, July
+2026). Sound is a bonus channel here, never the carrier.
 
-**Each rack's pulse is audible and positional**, and the weaker it gets the more
-urgent it sounds. You keep a ward alive by listening to it, in the dark — the
-grammar the game already taught with the boarding tell and the proximity
-lub-dub.
+**The racks are the light.**
+
+A rack is a life-support machine in a pitch-dark plant, so it has status
+indication — and in a black chamber that makes it the only thing you can see.
+Its glow *is* its pulse:
+
+| State | How it reads |
+|---|---|
+| On mains | Bright, steady, a full double-beat |
+| On reserve, healthy | Dimmer, still a clear double-beat |
+| Failing | Thinner and weaker, down to a single flicker |
+| **Gone** | A steady, unbroken glow with **no beat at all** |
+
+That last row holds the game's grammar: absence of rhythm has always meant
+something is wrong. Here it means someone died.
+
+**Cutting the feed dims it.** On mains a rack is bright and steady; the moment
+you close its trunk and put it on internal reserve it visibly drops — dimmer,
+and now fading. The act of starting the rescue is what starts the dying, and the
+player watches it happen because they caused it.
+
+**Off-screen racks:** the screen edge nearest a critical rack picks up its pulse
+— directional light bleed in its state colour and its rhythm. Not an arrow, not
+a HUD widget; it reads as light spilling from off-camera.
+
+**Four channels, none of them required:**
+
+| Channel | Available when |
+|---|---|
+| The rack's own pulsing glow | **Always — the primary** |
+| Directional edge bleed | **Always**, for racks off-screen |
+| Positional audio pulse (weaker = more urgent) | Sound on |
+| Lub-dub haptics via the F1 facade | Phone, haptics on |
+
+**Accessibility contract:**
+- Colour through `PAL()` so it swaps for colourblind mode, with the **beat shape
+  as the H2 redundancy partner** — a rack's state must be fully readable with
+  the colour channel removed.
+- **`reducedFlash`** (`js/world.js:390`) must be honoured: with it on, the pulse
+  becomes a smooth brightness/scale oscillation rather than a strobe. This
+  matters more here than anywhere else in the game, because the whole system is
+  built out of flashing lights.
 
 **AUSCULTATION** (René Laennec, rescued from Bundle Q where it was to be spent
-on finding lifts) is the upgrade that turns hearing into knowing: the whole ward
-rings clear at once. Earned, not given.
-
-**Fairness guard:** a minimal edge-of-screen tick when *any* rack goes critical
-— enough that you're never blindsided, not enough to save you from going to
-look.
+on finding lifts) is the upgrade that lets you **perceive the whole ward
+regardless of line of sight** — racks pulse faintly through rock — delivered
+through whichever channels the player has switched on. Earned, not given, and
+not sound-dependent.
 
 ### 7.6 The dock: THE WELL
 
@@ -353,8 +391,11 @@ dug where the anomalies were, because that's what made the digging cheap and the
 tunnels unreachable. Reversal and low-g zones are geology he exploited, not
 powers he has. Same rule as §2, and it keeps him a charlatan.
 
-**Darkness** is the act's default, which risks the lamp becoming wallpaper —
-open question, §14.
+**Darkness is load-bearing, not a difficulty setting.** The racks are the only
+light source in the plant (§7.5), so the dark is what makes the ward legible
+rather than something to fight through. The lamp needs no Act Two upgrade. The
+discomfort comes free: the only light down there is from the machines that are
+harvesting them.
 
 ### 9.1 The new medical-history layer
 
@@ -480,7 +521,8 @@ to the public.
 just the expertise · originals are not degraded · racks (arithmetic, not
 mysticism) · three tiers · hurry vs. care vs. cost · rack ECG going flat ·
 continuous drain with a bite on the beat · flatline is death · no trolley
-problems · trunk-cut found by pulse · vitals not fuel · ward heard not seen ·
+problems · trunk-cut found by pulse · vitals not fuel · **the ward is read by
+light, with sound and haptics as bonus channels** · darkness is load-bearing ·
 THE WELL · 41 seconds is her heartbeat · quickening finale · pendulum debuts
 here · 1.01 → 1.1, no 1.2.
 
@@ -508,9 +550,9 @@ here · 1.01 → 1.1, no 1.2.
 
 ## 15. Open questions
 
-1. **How dark is Act Two?** Ten underground levels are dark by default, which
-   risks the lamp becoming wallpaper. Does the lamp get an Act Two upgrade, or
-   is unrelenting darkness the point?
+1. ~~**How dark is Act Two?**~~ **Resolved** (July 2026): fully dark, and the
+   darkness is load-bearing — the racks light themselves, so the dark is what
+   makes the ward legible (§7.5, §9). No lamp upgrade.
 2. **The name of the act**, and with it the What's-New line that does the
    price-move work in the store. Owner steer: it comes out of the work.
 3. **Scoring and economy** — untouched here. Needs a table in the shape of
