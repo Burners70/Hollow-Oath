@@ -3626,9 +3626,10 @@ function drawBrief(now) {
     ctx.font = mono(11);
     ctx.fillStyle = runMode === "remix" ? PAL().SAFE : PAL().WARN;
     const prev = runMode === "daily" ? dailyPrevScore() : 0;
+    const gl = gravLabel();   // Z1 — "" for a near-1x roll
     afterHeaderY = kickerY + 24;
-    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed
-      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : ""),
+    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed + (gl ? " · " + gl : "")
+      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : "") + (gl ? " · " + gl : ""),
       vw / 2, afterHeaderY);
   }
   ctx.font = display(24);
@@ -4311,6 +4312,7 @@ window.__doids = {
     codexCardOpen: !!codexCard,
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
+    gravScale, grav: grav(), gravLabel: gravLabel(),   // Z1
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
     rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect(),
       help: helpRect(), legend: legendRect(), pauseLegend: pauseLegendRect() },

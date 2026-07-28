@@ -15,6 +15,9 @@ file; the *plan* they came from is
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
+**1.01 (queued for the first post-launch update)**
+- [Bundle Z — REMIX variable gravity](#bundle-z--remix-variable-gravity) — a per-seed gravity scale plus the landing-fairness re-tune it required
+
 **Design system & accessibility**
 - [Bundle DS — the design system made enforceable, and colourblind mode made real](#bundle-ds--the-design-system-made-enforceable-and-colourblind-mode-made-real) — token layer, 130 hardcoded semantic colours routed through `PAL()`, the flight controls made swappable
 
@@ -45,6 +48,29 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## Bundle Z — REMIX variable gravity
+
+**Release:** 1.01
+
+Closes out Bundle Z: variable gravity for REMIX/DAILY replay variety, plus
+the fairness re-tune it required.
+
+- **Z1 — a per-run gravity scale** (~0.7×–1.4×), drawn deterministically from
+  `runSeed` so the same seed always rolls the same gravity. REMIX/DAILY
+  only — campaign (seed 0) always plays at exactly 1×, byte-identical to
+  before. Surfaced in the briefing mode-line: `REMIX ROTATION // seed <n> ·
+  heavy world` / `· thin gravity` (no label for a near-1x roll).
+- **Z2 — the landing-fairness thresholds now scale with gravity.** A heavier
+  world means a naturally faster, harder-to-arrest descent; the safe-speed
+  tolerance scales by `sqrt(gravScale)` (not linearly — doubling gravity
+  only needs ~41% more allowed descent speed to stay equivalently fair) so
+  the same quality of approach reads the same across the whole gravity
+  range. Sideways drift and ground-slope tolerance are untouched, since
+  gravity doesn't cause either.
+
+M1 golden checksum unchanged; two new smoke tests confirm the seed-to-scale
+determinism and the fairness re-tune's exact scaling relationship.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 

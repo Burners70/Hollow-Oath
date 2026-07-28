@@ -244,7 +244,9 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
 
 Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 `REMIX ROTATION // seed <n>` · `DAILY FLIGHT // <n> · yesterday-you: <score>` ·
-`TAP TO LAUNCH`.
+`TAP TO LAUNCH`. **Z1** appends a gravity label to either mode-line when the
+run's roll lands away from 1x: `· heavy world` (gravScale ≥ 1.05) or
+`· thin gravity` (gravScale ≤ 0.95) — silent (no label) for a near-1x roll.
 
 ## 5. Log fragments (`FRAGMENTS[0..13]`; logs 1–10 the Static, 11–14 Glycon)
 

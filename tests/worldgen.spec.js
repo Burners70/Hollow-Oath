@@ -300,3 +300,58 @@ test("V10: a veteran campaign return escalates — more guns, more Vectors, move
   expect(vet.sab, "higher Vector proportion on return").toBeGreaterThan(first.sab);
   expect(vet.xs, "different placements on return").not.toEqual(first.xs);
 });
+
+/* ===== Bundle Z — REMIX variable gravity ===== */
+
+test("Z1: gravity varies by seed in REMIX/DAILY, and never in campaign", async ({ page }) => {
+  // campaign (seed 0) always plays at exactly 1x — the authored feel and the
+  // M1 golden heightmap stay untouched
+  await page.evaluate(() => { __doids.go(0); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.gravScale).toBe(1);
+  expect(s.grav).toBe(46);   // GRAV's base value
+  // deterministic per seed, and bounded to the ~0.7x-1.4x range
+  const rolls = await page.evaluate(() => {
+    const out = {};
+    for (const seed of [1, 2, 3, 42, 12345]) { runSeed = seed; rollGravity(); out[seed] = gravScale; }
+    return out;
+  });
+  for (const seed of Object.keys(rolls)) {
+    expect(rolls[seed], "seed " + seed).toBeGreaterThanOrEqual(0.7);
+    expect(rolls[seed], "seed " + seed).toBeLessThanOrEqual(1.4);
+  }
+  // same seed → same roll, every time (reproducible, no RNG bleed)
+  const again = await page.evaluate(() => { runSeed = 42; rollGravity(); return gravScale; });
+  expect(again).toBeCloseTo(rolls[42], 10);
+  // even called directly, seed 0 never scales
+  const zero = await page.evaluate(() => { runSeed = 0; rollGravity(); return gravScale; });
+  expect(zero).toBe(1);
+  // __doids.remix(seed) applies it end-to-end and surfaces a label in the briefing
+  await page.evaluate(() => __doids.remix(1));
+  s = await page.evaluate(() => __doids.get());
+  expect(s.gravScale).toBeCloseTo(rolls[1], 10);
+  expect(s.grav).toBeCloseTo(46 * rolls[1], 5);
+  expect(["", "heavy world", "thin gravity"]).toContain(s.gravLabel);
+});
+
+test("Z2: landing fairness thresholds scale with gravity, so the same approach reads the same across the range", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(0); __doids.launch();
+    ship.x = level.oids[0].x;   // a Scion's own pad — flattened at generation, always flat
+    ship.landed = false; ship.vx = 0; ship.ang = 0;
+  });
+  const base = 52;   // landingEval's non-gentle vyMax at gravScale === 1
+  const check = (gs, vy) => page.evaluate(({ gs, vy }) => {
+    gravScale = gs; ship.vy = vy;
+    return __doids.evalLanding();
+  }, { gs, vy });
+  // at 1x, just under the base threshold is soft; just over is not
+  expect((await check(1, base - 1)).soft).toBe(true);
+  expect((await check(1, base + 1)).soft).toBe(false);
+  // heavy world (1.4x): the same speed that failed at 1x now passes —
+  // sqrt(1.4) ≈ 1.18x, so base+1 sits comfortably under the new max
+  expect((await check(1.4, base + 1)).soft).toBe(true);
+  // thin gravity (0.7x): the threshold tightens — a speed that passed at 1x
+  // can now fail
+  expect((await check(0.7, base - 1)).soft).toBe(false);
+});
