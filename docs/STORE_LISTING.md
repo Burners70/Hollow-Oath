@@ -21,7 +21,7 @@ So the $4.99 case is now unlocked on paper. Here's the honest case against
 jumping to it anyway:
 
 - **Per-run length is short.** Seven sectors, three optional Hollows, one of
-  two endings — a clean run is a single sitting, not a multi-hour campaign.
+  multiple endings — a clean run is a single sitting, not a multi-hour campaign.
   Remix mode and the daily seed add *replay reason*, not *content volume*.
   Reviewers and buyers read "hours of content" into anything above $3.99;
   this game will disappoint that expectation at $4.99 even though it's well

@@ -66,7 +66,7 @@ haptics, and gyro need an actual phone, i.e. the iOS build via `app/` (see
   history hidden among the stranded (each grants an upgrade), log fragments that
   piece together what the Static is, hidden black boxes to recover, scenery from
   glow-forests to ruined settlements and crashed MERCY-class sisters, and a secret
-  finale with two endings — plus the **Hollow Keeper** rank for pilots who break
+  finale with multiple endings — plus the **Hollow Keeper** rank for pilots who break
   the oath only to uncover Glycon's secrets.
 
 ## Tests

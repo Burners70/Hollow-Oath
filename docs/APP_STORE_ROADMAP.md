@@ -92,7 +92,7 @@ bundle's section — grep the bundle heading to jump there.
 | V | 1.01 maintenance & narrative | 11 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, **V15–V20 owner-playtest defects (bay-is-a-mouth beat, Solace-adjacent turret, Solace-answer reveal, first-resupply beat, landing spin, dune overspill)**, V·ship |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
 | Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
-| P | The pendulum sling | 3 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md) |
+| P | The pendulum sling | 4 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md); plus P·review, the in-app rating prompt |
 | W | Landscape challenge escalation | 2 | 1.1 (with P) | W1 progressive terrain difficulty, W·guard |
 | Q | The deep Hollows | 3 | 1.1 core + 1.2 caves | Whole bundle — spec is [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) |
 
@@ -433,6 +433,15 @@ E wrapper on a real device.**
 - [ ] **P·feel. P10 device feel pass** — `SLING_L`, damping, the 30% tug;
   the three handling characters must feel different before they feel
   hard. Do alongside F3.
+- [ ] **P·review. Wire in the StoreKit in-app rating prompt.** Flagged while
+  drafting launch marketing (`LAUNCH_PLAN.md` Phase 0) — `requestReview()`
+  isn't called anywhere in the codebase today, and 1.0 is already in App
+  Review so it can't be added to that build; 1.1 is the first opportunity.
+  Call Apple's native prompt (`SKStoreReviewController.requestReview`, via a
+  small Capacitor plugin — no existing dependency covers this) at a natural
+  high-signal moment, e.g. after a clean ending or a new high score. Apple's
+  own OS-level throttling (roughly once per year per user) means the call
+  can be made freely on those triggers without adding throttling logic here.
 - [ ] **P·ship. Release 1.1** — What's-New copy per the E7 trademark
   tiers (generic in-store, named homage on the site), review-refresh
   prompt consideration, and the $2.99 → $4.99 price move case if launch
