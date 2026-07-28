@@ -23,6 +23,10 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   s = await page.evaluate(() => __doids.get());
   expect(s.endingType).toBe("answered");
   expect(s.unresolvedHaunt).toBe(false);   // the Static is heard; the title rests
+  // V17 — the payoff moment: the whole submerged hull lights up the instant
+  // her pulse is actually returned, not just on the ambient 41s-beat tell
+  // (updateEpilogue never decrements sonarT, so this holds through the epilogue)
+  expect(s.level.beacon.sonarT).toBeGreaterThan(0);
   // the typed line arrives, then a tap advances to the ending card
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
@@ -43,8 +47,15 @@ test("the counterfeit MERCY: docking springs the trap — a full life lost; the 
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
   s = await page.evaluate(() => __doids.get());
   expect(s.decoyOutcome).toBe("trapped");
+  // V15 — the reveal now holds as a tap-gated panel; shipDie() (and the life
+  // it costs) only fires once the player dismisses it, not in the same tick
+  expect(s.state).toBe("trapcard");
+  expect(s.lives).toBe(livesBefore);
+  await page.waitForTimeout(450);   // clear the trapcard's stateT > 0.4 tap guard
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "dead", null, { timeout: 3000 });
+  s = await page.evaluate(() => __doids.get());
   // V13 (owner steer) — the trap costs a full life, not a score ding
-  expect(s.state).toBe("dead");
   expect(s.lives).toBe(livesBefore - 1);
   // the real MERCY's bay is untouched by the decoy machinery
   const realBayOk = await page.evaluate(() => {
@@ -283,4 +294,20 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
   expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
   expect(await page.evaluate(() => __doids.lastRunTally())).toEqual(
     await page.evaluate(() => ({ saved: __doids.get().runSaved, lost: __doids.get().runLost })));
+});
+
+test("V16: shooting the Solace takes a beside-her turret down with the crater", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(7); __doids.launch();
+    level.drones.forEach(d => d.alive = false);
+    // plant one turret well inside the crater radius (240), the rest well clear
+    level.turrets.forEach(t => t.alive = false);
+    level.turrets.push({ x: level.beacon.x + 60, y: level.beacon.y, cd: 99, alive: true, ang: 0, _mine: true });
+  });
+  await page.evaluate(() => __doids.fireSolace());
+  await page.waitForFunction(() => __doids.get().state === "destruct", null, { timeout: 3000 });
+  // before the boom, a turret inside the eventual crater is still standing
+  expect(await page.evaluate(() => level.turrets.find(t => t._mine).alive)).toBe(true);
+  await page.waitForTimeout(3200);   // SOL_BOOM (2.7s) — the crater carve fires
+  expect(await page.evaluate(() => level.turrets.find(t => t._mine).alive), "left hanging over the crater").toBe(false);
 });

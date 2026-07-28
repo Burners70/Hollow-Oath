@@ -15,6 +15,9 @@ file; the *plan* they came from is
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
+**1.01 (queued for the first post-launch update)**
+- [Bundle V — fairness fixes and owner-playtest defects](#bundle-v--fairness-fixes-and-owner-playtest-defects) — the V14 REMIX scan-fairness domino, V15's tap-gated trap reveal, V16–V20's smaller playtest fixes
+
 **Design system & accessibility**
 - [Bundle DS — the design system made enforceable, and colourblind mode made real](#bundle-ds--the-design-system-made-enforceable-and-colourblind-mode-made-real) — token layer, 130 hardcoded semantic colours routed through `PAL()`, the flight controls made swappable
 
@@ -45,6 +48,49 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## Bundle V — fairness fixes and owner-playtest defects
+
+**Release:** 1.01
+
+Closes out Bundle V's remaining open items: a real generation-fairness bug
+(V14), a story-climax reveal that used to race the death screen (V15), and
+five smaller owner-playtest defects (V16–V20). V11 was an owner decision
+(resolved: leave the decoy MERCY as a deep secret, no code change) and V12's
+checkbox was stale (its sub-items had already shipped).
+
+- **V14 — the V2 scan-landing fairness invariant now holds across the whole
+  REMIX seed space**, not just the deterministic campaign. `startRemix(seed)`
+  takes an optional explicit seed (`__doids.remix(seed)`), so a failure is
+  reproducible instead of a one-shot. A brute-force sweep (30,000 seeds × 7
+  sectors) found two real domino effects the original single-pass fix never
+  re-checked for — the lift-flat reassert's own repair overwriting a third,
+  unrelated Scion's already-fair band, and a mutual ping-pong between two
+  neighbours whose pads never overlap but whose checked scan-bands do. Fixed
+  by re-running the fairness pass a second time after the lift reassert, plus
+  a final verify-as-you-go backstop. M1 golden checksum unchanged.
+- **V15 — the counterfeit MERCY's trap is a held beat, not a banner that
+  raced the death screen.** A new `swallow()` SFX (a lower, wetter
+  `hydraulic()`) fires the instant the trap closes; a tap-gated panel then
+  holds until dismissed, and only then does the ship go down.
+- **V16 — a turret beside the Solace no longer floats over her crater** once
+  the ridge collapses; it goes down with the blast.
+- **V17 — answering the Solace's pulse re-lights her whole hull**, the same
+  reveal the ambient 41-second tell gives, instead of only spawning
+  particles.
+- **V18 — the first field resupply gets a one-time acknowledgement** ("You're
+  not alone. Help is on the way. But there is a price."), instead of a drone
+  appearing with no context.
+- **V19 — the occasional landing spin is gone.** `s.ang` could sit several
+  full turns past zero after a long flight; a new `normAngle()` helper
+  normalizes it to `(-π, π]` before the assist ease, instead of visibly
+  spinning through every accumulated turn.
+- **V20 — Avicenna's dunes no longer spill past their own terrain on a
+  slope.** Every other wide ground-anchored decoration rotates to the local
+  ground tilt; `drawDune` was the one that didn't.
+
+Copy for V15/V18 mirrored in [COPY_DECK.md](COPY_DECK.md). Five new/updated
+smoke tests; full suite green.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 

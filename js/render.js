@@ -88,7 +88,7 @@ function render() {
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
-      state === "pause" || state === "confirm") drawHUD(now);
+      state === "pause" || state === "confirm" || state === "trapcard") drawHUD(now);
 
   if (state === "title") drawTitle(now);
   if (state === "fork") drawFork(now);
@@ -97,6 +97,7 @@ function render() {
   if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
+  if (state === "trapcard" && trapCard) drawCardPanel(trapCard, now);   // V15
   if (state === "clear") drawClear(now);
   if (state === "pause") drawPause(now);
   if (state === "confirm") drawConfirm(now);
@@ -1191,6 +1192,13 @@ function drawSpire(sc, now) {
 function drawDune(sc, now) {
   ctx.save();
   ctx.translate(sc.x, sc.y);
+  // V20 — every other wide ground-anchored decoration (drawHedge, drawSpire,
+  // drawRuin…) rotates to the local ground tilt; this one didn't, so a dune's
+  // flat base held level in screen space regardless of slope — on a sloped
+  // patch it visibly floated clear of the ground on one side and dug into it
+  // on the other, reading as "spilling past its own terrain." Same damping as
+  // drawHedge's organic mound (0.4) rather than the sharper spire/ruin rotate.
+  ctx.rotate(sc.tilt * 0.4);
   const w = sc.dw;
   ctx.beginPath();
   ctx.moveTo(-w / 2, 0);
