@@ -49,7 +49,7 @@ rescue, and later, what you see on the ground.
   generic buzzes. Hull health is shown as a live ECG trace.
 - **Seven sectors, three hidden Hollows.** Optional caves reward the curious
   and the careful with a second layer of story.
-- **Two endings, one oath.** *Primum non nocere*, first do no harm, is scored,
+- **Multiple endings, one oath.** *Primum non nocere*, first do no harm, is scored,
   not just quoted.
 - **Remix mode and a daily seed**, for runs that never play the same way
   twice.
