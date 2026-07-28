@@ -169,6 +169,7 @@ let level, ship, camera, particles, texts, stars;
 let resupplyDrone = null;   // the graceful bail-out for a ship stranded at 0 fuel
 let runRefuels = 0;         // U2 — field resupplies used this run; each fill carries less
 let liftTransit = null;     // in-progress lift descent/ascent animation
+let trainingStep = 0, trainingT = 0;   // X2a — progress through the guided-pause script
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
 // why a no-fire run ended: firedAtSecret = shot a lure-tree / hollow rock
@@ -183,7 +184,7 @@ let runFragments = 0, blackboxCount = 0;
    exact levels, regression-tested); a non-zero seed re-rolls every
    generator AND shuffles which famous mind waits in which sector. */
 let runSeed = 0;                       // 0 = authored campaign
-let runMode = "campaign";              // "campaign" | "remix" | "daily"
+let runMode = "campaign";              // "campaign" | "remix" | "daily" | "training"
 let famousMap = null;                  // null = canonical famousId === sector
 function famousIdFor(n) { return famousMap ? famousMap[n] : n; }
 function buildFamousMap(seed) {
@@ -544,6 +545,24 @@ function startDaily() {
   toBriefing(0);
   blip(330, 660, 0.2, "sine", 0.1);
 }
+/* X2 — the trainee sector. Bypasses toBriefing()/the "brief" state entirely
+   (its bespoke level has no BRIEFS/SECTOR_NAMES entry to read) and goes
+   straight to flight — X2a's guided-pause sequence (updateTrainingScript,
+   js/update.js) is the de facto intro. Never writes a hiscore or a
+   resumable snapshot (see the runMode === "training" gates elsewhere). */
+function startTraining() {
+  goFullscreen();
+  if (window.hideA2HS) window.hideA2HS();
+  resetRun();
+  runMode = "training";
+  levelIdx = -1;
+  surfaceCtx = null;
+  level = genTrainingLevel();
+  trainingStep = 0; trainingT = 0;
+  spawnShip();
+  state = "play"; stateT = 0;
+  blip(330, 660, 0.2, "sine", 0.1);
+}
 let introSeen = false;
 try { introSeen = localStorage.getItem("doids_intro") === "1"; } catch (e) {}
 // V8 — the veteran (post-completion) opening intro, shown once
@@ -556,6 +575,65 @@ function markVetIntroSeen() {
 function markIntroSeen() {
   introSeen = true;
   try { localStorage.setItem("doids_intro", "1"); } catch (e) {}
+}
+/* X5 — discovery gates for the post-death hint-card bank: three moments the
+   game doesn't already track persistently (a parry landed, a scan finished,
+   a counterfeit pod was taken). "Found a lift" and "met Avicenna" reuse
+   existing persistent state (veteran + shrinesSeen, and codex) instead. */
+let everParried = false, everScanned = false, metFake = false;
+try {
+  everParried = localStorage.getItem("doids_everparried") === "1";
+  everScanned = localStorage.getItem("doids_everscanned") === "1";
+  metFake = localStorage.getItem("doids_metfake") === "1";
+} catch (e) {}
+function markEverParried() {
+  if (everParried) return;
+  everParried = true;
+  try { localStorage.setItem("doids_everparried", "1"); } catch (e) {}
+}
+function markEverScanned() {
+  if (everScanned) return;
+  everScanned = true;
+  try { localStorage.setItem("doids_everscanned", "1"); } catch (e) {}
+}
+function markMetFake() {
+  if (metFake) return;
+  metFake = true;
+  try { localStorage.setItem("doids_metfake", "1"); } catch (e) {}
+}
+
+/* X5 — the post-death hint-card bank. One card shown per death, rotating
+   with no repeats until the bank is exhausted (`hintSeen` clears and starts
+   a fresh cycle). Discovery-gated cards only enter the pool once the player
+   has met the system they describe — "found a lift" and "met Avicenna" reuse
+   existing persistent state rather than new flags. Owner-reviewed copy;
+   mirrored in COPY_DECK.md §3. */
+const HINTS_ALWAYS = [
+  "Thrust is momentum, not a throttle — to stop, thrust the opposite way.",
+  "Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.",
+  "Fuel can be scarce. A pod picked up is a pod gone.",
+  "You don't have to fight — any Scion can come home without a shot fired.",
+  "A long fall needs a long burn to arrest. Start slowing early.",
+  "When you only need a nudge — tap, don't hold."
+];
+const CANON_FAMOUS_ID = FAMOUS.findIndex(f => f.upgrade === "canon");
+const HINTS_GATED = [
+  { gate: () => everParried, text: "A shield raised at the right moment turns a shot back on its sender." },
+  { gate: () => everScanned, text: "Land beside a thing and read it — it can tell you what firing never will." },
+  { gate: () => metFake, text: "Not every fuel pod is a friend. The honest ones flicker like fire; the fakes keep to the Static's beat." },
+  { gate: () => veteran && shrinesSeen.size > 0, text: "The ground rings hollow in places. There is a way down." },
+  { gate: () => codex.has(CANON_FAMOUS_ID), text: "Your CANON OF TRUTH marks the fakes now. Trust the mark." }
+];
+let hintSeen = new Set();
+let currentHint = "";
+function pickHint() {
+  const pool = HINTS_ALWAYS.concat(HINTS_GATED.filter(h => h.gate()).map(h => h.text));
+  if (hintSeen.size >= pool.length) hintSeen.clear();
+  const candidates = pool.filter(t => !hintSeen.has(t));
+  const from = candidates.length ? candidates : pool;
+  currentHint = from[Math.floor(Math.random() * from.length)];
+  hintSeen.add(currentHint);
+  return currentHint;
 }
 /* X3 — the first-play fork. `trained` records that the player has answered the
    one-time "played thrust games before?" prompt (Yes → straight in; No → the
@@ -598,9 +676,10 @@ function skipRect() {
 }
 /* Owner steer: the three reference screens (HOW TO FLY, HUD GUIDE, REPLAY STORY)
    collapse under one HELP pill to declutter the title. This is their submenu. */
+// X2 — a 4th row (TRAINEE SECTOR) joins the three reference screens
 function helpMenuRowRect(i) {
   const w = Math.min(300, vw * 0.7), h = 44, gap = 14;
-  const total = h * 3 + gap * 2;
+  const total = h * 4 + gap * 3;
   const y0 = vh / 2 - total / 2 + 10;
   return { x: vw / 2 - w / 2, y: y0 + i * (h + gap), w, h };
 }
@@ -889,7 +968,69 @@ function rollMercyTwin(lvl, rngFn) {
   lvl.mercySplitT = MERCY_SPLIT_DUR;   // the split-into-two reveal, replayed on every roll
 }
 
+/* X2 — the trainee sector ("Level 0"): a bespoke, always-identical layout —
+   gentle wide terrain, one Scion, one optional turret placed far from the
+   Scion (avoidable — it introduces the threat, it doesn't punish). Used only
+   by startTraining(). It never reads RECIPE/BRIEFS/SECTOR_NAMES (training
+   skips the "brief" state entirely, going straight to "play") and never ends
+   on its own or writes a hiscore (see the runMode === "training" gates on
+   checkSectorClear/updateEarlyExtraction/updateStaticClock/saveHi in
+   js/update.js). `n: 0` is set only so biomePal() picks up Asclepion's calm
+   teal-green — thematically apt for a teaching sector, and RECIPE[n] is read
+   nowhere else for a generated level. */
+function genTrainingLevel() {
+  const W = 3000;
+  const rng = mulberry32(0x54726169);   // fixed seed — training is always the same
+  const count = Math.floor(W / STEP) + 2;
+  const octave = (wl, amp) => {
+    const pts = [];
+    for (let i = 0; i <= Math.ceil(W / wl) + 1; i++) pts.push((rng() * 2 - 1) * amp);
+    return x => {
+      const p = x / wl, i = Math.floor(p), t = p - i;
+      return lerp(pts[i], pts[i + 1], (1 - Math.cos(t * Math.PI)) / 2);
+    };
+  };
+  // half the campaign's roughness at n=0 — "gentle wide terrain"
+  const o1 = octave(420, 95), o2 = octave(150, 32), o3 = octave(60, 10);
+  const heights = [];
+  for (let i = 0; i < count; i++) {
+    const x = i * STEP;
+    heights.push(clamp(1100 + o1(x) + o2(x) + o3(x), 900, 1300));
+  }
+  for (let i = 0; i < 4; i++) { heights[i] = 600; heights[count - 1 - i] = 600; }
+
+  const lvl = { n: 0, W, heights, oids: [], turrets: [], bullets: [], shots: [],
+    drones: [], pods: [], fakePods: [], anomalies: [], scenery: [],
+    blackbox: null, beacon: null, lift: null, shrine: null, roof: null,
+    mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
+    total: 1, firedShots: 0, extraction: null, pulse: null, isCave: false,
+    dark: false, isFinale: false, contamKnown: false, contagion: false,
+    contagSeen: false, fragmentsHere: [], training: true };
+
+  const sx = W * 0.55, sy = flatten(heights, sx, 80);
+  lvl.oids.push({ x: sx, y: sy, home: sx, state: "wait", wave: rng() * 6,
+    role: "normal", sleeper: false, famousId: -1, carrier: false, panicT: 0,
+    sabT: 0, persona: "sit", scale: 1, gait: 34, nearShip: false });
+
+  // one optional, avoidable turret — well clear of the Scion and off the
+  // direct MERCY↔Scion line
+  const tx = W * 0.82, ty = flatten(heights, tx, 40);
+  lvl.turrets.push({ x: tx, y: ty, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
+
+  // fuel pods so X2b's free-play can't strand a new pilot
+  for (const px of [W * 0.35, W * 0.68]) {
+    lvl.pods.push({ x: px, y: flatten(heights, px, 30), taken: false, ph: rng() * 7 });
+  }
+
+  stars = [];
+  const srng = mulberry32(0x54726169 ^ 999);
+  for (let i = 0; i < 220; i++)
+    stars.push({ x: srng() * W, y: srng() * 900, s: srng() * 1.6 + 0.4, tw: srng() * 6 });
+  return lvl;
+}
+
 function genLevel(n) {
+  if (runMode === "training") return genTrainingLevel();
   const r = RECIPE[n];
   // T1 — progressive widths: sectors grow with n so the maps feel like places.
   // Sector 0 is the smallest (the teaching sector); the finale keeps 4400 —

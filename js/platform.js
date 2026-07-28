@@ -108,3 +108,27 @@ const gc = (() => {
 })();
 gc.auth();   // silent sign-in at launch; auth continues in the background (G1)
 
+/* ---------------- StoreKit rating-prompt facade (Bundle X6) ----------------
+   Web build: records intent in a bounded trace (asserted by the smoke suite)
+   and does nothing else. Native: bridges to the local hollow-rating plugin
+   (SKStoreReviewController.requestReview). Apple throttles the native prompt
+   itself (~once/year/user), so this can be called freely at any high-signal
+   moment without extra throttling logic here. */
+const rating = (() => {
+  const plugin = () => {
+    const C = window.Capacitor;
+    return (C && C.isNativePlatform && C.isNativePlatform() &&
+            C.Plugins && C.Plugins.Rating) || null;
+  };
+  const reports = [];
+  return {
+    request: reason => {
+      reports.push({ reason });
+      if (reports.length > 60) reports.shift();
+      const P = plugin(); if (!P) return;
+      try { const p = P.requestReview({}); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+    },
+    reports
+  };
+})();
+

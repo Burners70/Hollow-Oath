@@ -163,9 +163,46 @@ so it never shows again (a RESET PROGRESS in Settings brings it back).
 > footnote `you can reopen HOW TO FLY any time from HELP`
 
 **YES** launches straight in (the veteran path — story intro then Level 1).
-**NO** opens the HOW TO FLY guide above; finishing its last page (`tap to fly`)
-drops into the same run. _(In 1.01, "No" will route into the X2 trainee sector
-instead of the guide.)_
+**NO** routes into the X2 trainee sector below (1.01 — before X2 shipped, "No"
+opened the HOW TO FLY guide above instead; the guide is still reachable any
+time from HELP).
+
+### 3·X2. Trainee sector guided-pause script (`TRAINING_SCRIPT`)
+
+A bespoke, always-identical "Level 0": gentle wide terrain, one Scion, one
+distant avoidable turret. Never scored, never ends on its own — the player
+leaves via the pause menu's `END TRAINING` row (§12). Reached from the X3
+fork's "No" answer, or any time from HELP (`◆ TRAINEE SECTOR`). Each line
+below shows as its own tap-to-continue guided-pause card (X4), the first
+firing shortly after the sector opens and the rest as the player reaches (or,
+for the last three, simply awaits) the moment it teaches:
+
+> `Press THRUST to fight gravity. The longer you hold, the faster and further you go.`
+> `Press RIGHT and tap THRUST to start drifting right — keep thrusting UP at the same time so you don't sink.`
+> `The faster you're moving one way, the more thrust it takes to stop. Watch your FUEL.`
+> `FIRE shoots — but firing is malpractice and costs your rank. Every Scion can come home without a shot fired.`
+> `Hold SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.`
+> `There are other ways to put a gun down than shooting it.`
+
+### 3·X5. Post-death hint-card bank (`HINTS_ALWAYS` / `HINTS_GATED`)
+
+One hint shown on the game-over screen, rotating with no repeats until the
+bank cycles. Six are always eligible; five more unlock once the player has
+met the system they describe (a parry landed, a scan finished, a counterfeit
+pod taken, a Hollow lift found while veteran, AVICENNA's `CANON OF TRUTH`
+earned).
+
+> always: `Thrust is momentum, not a throttle — to stop, thrust the opposite way.`
+> always: `Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.`
+> always: `Fuel can be scarce. A pod picked up is a pod gone.`
+> always: `You don't have to fight — any Scion can come home without a shot fired.`
+> always: `A long fall needs a long burn to arrest. Start slowing early.`
+> always: `When you only need a nudge — tap, don't hold.`
+> after a parry: `A shield raised at the right moment turns a shot back on its sender.`
+> after a scan: `Land beside a thing and read it — it can tell you what firing never will.`
+> after a counterfeit pod: `Not every fuel pod is a friend. The honest ones flicker like fire; the fakes keep to the Static's beat.`
+> after a lift (veteran): `The ground rings hollow in places. There is a way down.`
+> after Avicenna: `Your CANON OF TRUTH marks the fakes now. Trust the mark.`
 
 ### 3a. WHAT YOU'RE LOOKING AT card (`LEGEND_CARD`, U3)
 
@@ -431,7 +468,12 @@ shield to catalogue it, no shot)
 
 - **Pause** (`drawPause`): `PAUSED` · `RESUME` · `RESTART SECTOR` ·
   `SETTINGS` · `QUIT TO TITLE` · `◎ WHAT YOU'RE LOOKING AT` (link into the HUD
-  legend, U3).
+  legend, U3). In the X2 trainee sector, the two run-scoped rows relabel to
+  `RESTART TRAINING` and `END TRAINING` — the plain way to leave.
+- **HELP submenu** (`drawHelpMenu`): `HELP` · rows `✦ HOW TO FLY` "controls &
+  the basics" · `◎ HUD GUIDE` "what every readout means" · `▸ REPLAY STORY`
+  "watch the opening again" · `◆ TRAINEE SECTOR` "one gentle, unscored rescue"
+  (X2) · footer "tap outside to go back".
 - **Settings** (`drawSettings`): `SETTINGS` · rows `SOUND / MUSIC / HAPTICS /
   ASSIST / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
   (TILT pulled for now — see APP_STORE_ROADMAP.md; re-add once a native

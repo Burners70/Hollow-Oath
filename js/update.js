@@ -54,7 +54,7 @@ const MERCY_THROW_FIRST = 2.2, MERCY_THROW_GAP = 6;
 function updateStaticClock(dt) {
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
-  if (!(levelIdx >= 4 || level.isCave || dailyMod("surge"))) return;
+  if (runMode === "training" || !(levelIdx >= 4 || level.isCave || dailyMod("surge"))) return;
   staticClock += dt;
   if (staticClock < STATIC_PERIOD) return;
   staticClock -= STATIC_PERIOD;
@@ -93,6 +93,52 @@ function banner(str, color, yFrac) { bannerMsg = { str, color, t: 4.2, yFrac }; 
 function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 2.6 }); }
 
 function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
+
+/* X4 — the reusable "guided pause" overlay: dims the world and shows one
+   instruction, tap-anywhere-to-continue (like "reveal", but with no card
+   pagination and no snapshot/exit — it is not a real pause). Freezes the
+   sim for free, since update()'s switch only calls updatePlay for "play".
+   Built for X2a's trainee sequence but generic — any future guided-pause
+   moment can call showCoach() from live "play". */
+let coachText = "";
+function showCoach(text) {
+  if (state !== "play") return;
+  coachText = text;
+  state = "coach"; stateT = 0;
+}
+function updateCoach() {
+  if (input.tap && stateT > 0.3) state = "play";
+  input.tap = false;
+}
+
+/* X2a — the trainee sector's guided-pause sequence, stepped through via
+   showCoach(). Draft copy per APP_STORE_ROADMAP.md Bundle X (final copy
+   mirrored to COPY_DECK.md §3). The first three steps wait on the action
+   they're teaching (so each card lands right as it becomes relevant); the
+   last three are proactive introductions (FIRE / SHIELD / the parry tease)
+   and simply pace themselves a few seconds apart. */
+const TRAINING_SCRIPT = [
+  "Press THRUST to fight gravity. The longer you hold, the faster and further you go.",
+  "Press RIGHT and tap THRUST to start drifting right — keep thrusting UP at the same time so you don't sink.",
+  "The faster you're moving one way, the more thrust it takes to stop. Watch your FUEL.",
+  "FIRE shoots — but firing is malpractice and costs your rank. Every Scion can come home without a shot fired.",
+  "Hold SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.",
+  "There are other ways to put a gun down than shooting it."
+];
+function updateTrainingScript(dt) {
+  if (trainingStep >= TRAINING_SCRIPT.length) return false;
+  trainingT += dt;
+  const thrusting = input.thrust || pad.thrust;
+  const ready =
+    trainingStep === 0 ? stateT > 0.6 :
+    trainingStep === 1 ? thrusting :
+    trainingStep === 2 ? (Math.abs(ship.vx) > 40 && thrusting) :
+    trainingT > 3;   // steps 3–5: proactive intros, paced a few seconds apart
+  if (!ready) return false;
+  showCoach(TRAINING_SCRIPT[trainingStep]);
+  trainingStep++; trainingT = 0;
+  return true;
+}
 
 function grantFragment(queueForClear) {
   // Owner steer: a first playthrough tells only the wound/echo story — logs
@@ -205,6 +251,9 @@ function provenLeftBehind() {
   return n;
 }
 function checkSectorClear() {
+  // X2b — the trainee sector never ends on its own; the player leaves via
+  // the pause menu's END TRAINING row.
+  if (runMode === "training") return;
   if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach || pendingBreach) return;
   if (level.delivered + level.lost + level.contained + provenLeftBehind() < level.total) return;
   beginExtraction(false);
@@ -322,7 +371,9 @@ function updateExtraction(dt) {
    empty deliverable cabin and she offers an early extraction — at the cost of
    every Scion still waiting on the ground. Retreat is allowed, but never free. */
 function updateEarlyExtraction(dt) {
-  if (level.extraction || mercyBreach || pendingBreach || level.isFinale || level.isCave || state !== "play") {
+  // X2b — no score/manifest cost exists in training, so the triage-flee UI
+  // never applies there
+  if (runMode === "training" || level.extraction || mercyBreach || pendingBreach || level.isFinale || level.isCave || state !== "play") {
     level.earlyHold = 0; level.earlyEligible = false; return;
   }
   const accounted = level.delivered + level.lost + level.contained + provenLeftBehind();
@@ -532,19 +583,24 @@ function update(dt) {
         } else { revealCard = null; state = "play"; }
       }
       input.tap = false; return;
+    case "coach": updateCoach(); return;   // X4
     case "clear": updateClear(); return;
     case "ending":
       if (input.tap && stateT > 1) {
         state = "win"; stateT = 0;
         reportRunAchievements();   // G3 — before saveHi so the trace reads rank → score
         saveHi(); recordDaily(); clearRun();
+        // X6 — a clean ending is the natural high-signal moment for the
+        // native review prompt; Apple's own OS-level throttling (~once/year)
+        // means this can be called freely without extra logic here.
+        if (endingType === "answered") rating.request("ending");
       }
       input.tap = false; return;
     case "dead":
       if (stateT > 1.6) {
         if (lives <= 0) {
           checkpoint = savedRun; clearRun();
-          state = "gameover"; stateT = 0; saveHi(); recordDaily();
+          state = "gameover"; stateT = 0; saveHi(); recordDaily(); pickHint();   // X5
         } else {
           if (level.isCave) exitCave();   // the Hollows spit you back out
           // V13 (owner steer) — a life lost inside the finale twin, while the
@@ -582,10 +638,12 @@ function reportRunAchievements() {
 }
 
 function saveHi() {
+  if (runMode === "training") return;   // X2 — training is never a scored run
   if (score > hiscore) {
     hiscore = score;
     try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
     cloud.set("doids_hi", hiscore);   // E4 mirror
+    rating.request("hiscore");   // X6 — the other high-signal moment
   }
   // G2 — the all-time board. FIELD MEDIC runs stay off it (H3: report only
   // when easy mode is off); the daily flight posts to its own board in
@@ -691,6 +749,8 @@ function updateHelpMenu() {
       resetRun();
       introIdx = 0; state = "intro"; stateT = 0;
       blip(330, 660, 0.2, "sine", 0.1);
+    } else if (inRect(helpMenuRowRect(3), input.tapX, input.tapY)) {
+      startTraining();   // X2 — a second, always-available entry point
     } else {
       state = "title"; stateT = 0.5;   // tap outside → back to the title
     }
@@ -698,17 +758,16 @@ function updateHelpMenu() {
   input.tap = false;
 }
 
-/* X3 — the first-play fork. YES flies straight in (the veteran path); NO opens
-   the HOW TO FLY guide, which then flies in. Either answer marks the player
+/* X3 — the first-play fork. YES flies straight in (the veteran path); NO
+   routes into the X2 trainee sector now that it's shipped (1.01 — before X2,
+   "No" opened the HOW TO FLY guide instead). Either answer marks the player
    trained so the fork never shows again (until a RESET PROGRESS). */
 function updateFork() {
   if (input.tap && stateT > 0.25) {
     if (inRect(forkRowRect(0), input.tapX, input.tapY)) {
       markTrained(); startFreshRun();
     } else if (inRect(forkRowRect(1), input.tapX, input.tapY)) {
-      markTrained();
-      GUIDE.page = 0; guideReturn = "start"; state = "help"; stateT = 0;
-      blip(440, 660, 0.1, "sine", 0.08);
+      markTrained(); startTraining();
     }
     // taps that miss both rows are ignored — the fork is a required choice
   }
@@ -803,7 +862,7 @@ function updateClear() {
    restores both. Backgrounding the app while reading now pauses too, so you never
    lose your place. */
 let pauseReturnState = "play", pauseReturnT = 0;
-const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm"]);
+const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm", "coach"]);
 function enterPause() {
   if (!PAUSABLE.has(state)) return;
   if (state === "play") snapshotRun();
@@ -817,11 +876,20 @@ function updatePause() {
   if (thrustGain) thrustGain.gain.value = 0;
   if (input.tap && stateT > 0.25) {
     if (inRect(pauseRowRect(0), input.tapX, input.tapY)) { leavePause(); }
-    else if (inRect(pauseRowRect(1), input.tapX, input.tapY)) { toBriefing(levelIdx); }
+    else if (inRect(pauseRowRect(1), input.tapX, input.tapY)) {
+      // X2 — training has no scored sector to restart via toBriefing(levelIdx)
+      // (its sentinel levelIdx isn't a real BRIEFS/SECTOR_NAMES index); restart
+      // the trainee flow itself instead.
+      if (runMode === "training") startTraining(); else toBriefing(levelIdx);
+    }
     else if (inRect(pauseRowRect(2), input.tapX, input.tapY)) {
       settingsReturnState = "pause"; state = "settings"; stateT = 0;
     }
-    else if (inRect(pauseRowRect(3), input.tapX, input.tapY)) { snapshotRun(); state = "title"; stateT = 0; }
+    else if (inRect(pauseRowRect(3), input.tapX, input.tapY)) {
+      // X2 — training never persists a resumable snapshot (it isn't a real run)
+      if (runMode === "training") { clearRun(); state = "title"; stateT = 0; }
+      else { snapshotRun(); state = "title"; stateT = 0; }
+    }
     else if (inRect(pauseLegendRect(), input.tapX, input.tapY)) {
       state = "legend"; stateT = 0; LEGEND_CARD.page = 0; legendReturnState = "pause";
       blip(440, 660, 0.1, "sine", 0.08);
@@ -937,6 +1005,7 @@ function updatePlay(dt) {
     return;
   }
   input.tap = false;
+  if (runMode === "training" && updateTrainingScript(dt)) return;   // X2a
   const s = ship;
   const now = performance.now() / 1000;
 
@@ -1375,6 +1444,7 @@ function updateEnemies(dt) {
         shieldParry(); haptic.heavy();
         camera.shake += 4;
         addText(s.x, s.y - 30, "PARRY!", TOK.FOCUS);
+        markEverParried();   // X5
         continue;
       }
       level.bullets.splice(i, 1);
@@ -1602,6 +1672,7 @@ function updateScionScan(dt) {
   }
   if (target.oidScanT >= SCION_SCAN_T) {
     target.oidScanT = 0;
+    markEverScanned();   // X5
     if (target.role === "saboteur") {
       target.flagged = true;   // catalogued; oath untouched (no shot) — V13: boards for isolation until the husks are known, then stays put
       score += 250;
@@ -1649,6 +1720,7 @@ function updateWaves(dt) {
       w.hit = s.shield && s.parryT > 0;
       if (w.hit) {
         shieldParry();
+        markEverParried();   // X5
         if (w.finale) {
           // the answer — resolved by the finale beacon logic (V3/V12)
           if (level.beacon && !level.beacon.resolved) level.beacon.heardParry = true;
@@ -2027,6 +2099,7 @@ function updatePods() {
     if (p.taken) continue;
     if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
       p.taken = true;
+      markMetFake();   // X5
       s.fuel = Math.max(0, s.fuel - 18);
       score = Math.max(0, score - 100);
       addText(p.x, p.y - 30, "COUNTERFEIT — SOMEBODY'S LURE  -100", PAL().REVEAL);

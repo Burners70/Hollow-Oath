@@ -15,6 +15,9 @@ file; the *plan* they came from is
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
+**1.01 (queued for the first post-launch update)**
+- [Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating](#bundle-x--onboarding-trainee-sector-guided-pauses-hint-bank-in-app-rating) — the first 1.01 bundle to land; sequenced ahead of Bundles V and Z
+
 **Design system & accessibility**
 - [Bundle DS — the design system made enforceable, and colourblind mode made real](#bundle-ds--the-design-system-made-enforceable-and-colourblind-mode-made-real) — token layer, 130 hardcoded semantic colours routed through `PAL()`, the flight controls made swappable
 
@@ -45,6 +48,50 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating
+
+**Release:** 1.01
+
+The first 1.01 bundle to land — sequenced ahead of Bundles V and Z per the
+roadmap's own priority order (X was flagged "highest-value retention work,
+do it first"). Closes out Bundle X (X1/X3 already shipped in 1.0): X2, X4,
+X5, and X6 (moved here from Bundle P, since 1.01 now ships before 1.1).
+
+- **X2 — the trainee sector ("Level 0").** A bespoke, always-identical
+  level under a new `runMode === "training"` — gentle terrain, one Scion,
+  one distant avoidable turret, two fuel pods — entirely separate from
+  `RECIPE`/`SECTOR_NAMES`/`BRIEFS` and the scored campaign. Never writes a
+  hiscore. Reached from the X3 fork's "No" answer (which previously opened
+  the HOW TO FLY guide) or any time from a new `◆ TRAINEE SECTOR` row in
+  the HELP submenu.
+- **X4 — the reusable "guided pause" overlay.** A new `"coach"` state
+  dims the world and shows one tap-to-continue instruction, reusing the
+  existing card-panel chrome; freezes the sim for free and composes with a
+  real pause (Escape still works over it and resumes back into it).
+- **X2a — the trainee sector's guided-pause script**, built on X4: six
+  authored cards teaching THRUST, drift, fuel awareness, FIRE, SHIELD and
+  a tease of the parry, the first three timed to the action they teach.
+- **X2b — free-play after the rescue.** The sector never ends on its own
+  (the Static clock, extraction, and the triage-flee UI are all no-ops in
+  training); the plain way out is the pause menu, relabelled `RESTART
+  TRAINING` / `END TRAINING` for training runs.
+- **X5 — the post-death hint-card bank.** One rotating hint per death, no
+  repeats until the bank cycles; six are always eligible, five more unlock
+  once the player has met the system they describe (a parry, a scan, a
+  counterfeit pod, a Hollow lift while veteran, Avicenna's CANON OF TRUTH).
+  Three new persistent flags cover the gates without existing state.
+- **X6 — the StoreKit in-app rating prompt.** A new `rating` facade
+  (`js/platform.js`, mirroring the `gc`/`cloud` pattern) bridges to a new
+  local Capacitor plugin (`app/plugins/rating`,
+  `SKStoreReviewController.requestReview`). Called on a new high score and
+  on a clean ("answered") ending; Apple's own OS-level throttling means no
+  extra logic is needed on the JS side.
+
+Copy for all of the above is mirrored in [COPY_DECK.md](COPY_DECK.md) §3
+(new §3·X2/§3·X5 subsections). The full 96-test smoke suite is green,
+including five new/updated tests covering the trainee mode, the guided
+pauses, the hint bank's no-repeat rotation, and the rating-prompt trigger.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 

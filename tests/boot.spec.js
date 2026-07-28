@@ -53,6 +53,26 @@ test("game over returns to the main menu and the run survives as a RESUME save",
   expect(s.levelIdx).toBe(2);
 });
 
+test("X5: game over shows one hint from the always-available bank, no repeat until it cycles", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(2); __doids.launch(); });
+  await page.evaluate(() => { lives = 1; shipDie(); });
+  await page.waitForFunction(() => __doids.get().state === "gameover", null, { timeout: 5000 });
+  const first = await page.evaluate(() => __doids.get().currentHint);
+  expect(first.length).toBeGreaterThan(0);
+  // die five more times (there are 6 always-available hints) — none should repeat
+  const seen = new Set([first]);
+  for (let i = 0; i < 5; i++) {
+    await page.waitForTimeout(700);   // updateMenu ignores a tap before stateT > 0.6
+    await page.evaluate(() => { input.tap = true; input.tapX = 5; input.tapY = 5; });
+    await page.waitForFunction(() => __doids.get().state === "title", null, { timeout: 3000 });
+    await page.evaluate(() => { __doids.go(2); __doids.launch(); lives = 1; shipDie(); });
+    await page.waitForFunction(() => __doids.get().state === "gameover", null, { timeout: 5000 });
+    const hint = await page.evaluate(() => __doids.get().currentHint);
+    expect(seen.has(hint)).toBe(false);
+    seen.add(hint);
+  }
+});
+
 test("a corrupt saved run is rejected, not shown as a RESUME pill", async ({ page }) => {
   await page.evaluate(() => localStorage.setItem("doids_run", JSON.stringify({ v: 1, levelIdx: 99, score: "x" })));
   await page.reload();
@@ -196,7 +216,7 @@ test("X3: first START opens the fork; YES flies straight in and is remembered", 
   await ctx.close();
 });
 
-test("X3: fork NO opens the HOW TO FLY guide, then flies in", async ({ browser }) => {
+test("X3: fork NO routes into the X2 trainee sector", async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   const errs = [];
@@ -212,25 +232,64 @@ test("X3: fork NO opens the HOW TO FLY guide, then flies in", async ({ browser }
   await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => __doids.get().state)).toBe("fork");
-  // tap NO — opens the guide, primed to fly in when finished
+  // tap NO — now that X2 has shipped, this drops straight into training (1.01;
+  // pre-X2 it opened the HOW TO FLY guide instead)
   await page.waitForTimeout(300);
   r = await page.evaluate(() => window.forkRowRect(1));
   await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
   await page.waitForTimeout(150);
-  expect(await page.evaluate(() => __doids.get().state)).toBe("help");
-  expect(await page.evaluate(() => __doids.get().guideReturn)).toBe("start");
-  // page through the whole guide; the last tap flies in
-  const pages = await page.evaluate(() => __doids.get().guide.pages);
-  await page.waitForTimeout(450);
-  for (let p = 0; p < pages; p++) {
-    await page.evaluate(() => { input.tap = true; });
-    await page.waitForTimeout(80);
-  }
   const s = await page.evaluate(() => __doids.get());
   expect(s.trained).toBe(true);
-  expect(["intro", "brief", "play"]).toContain(s.state);
+  expect(s.training).toBe(true);
+  expect(s.state).toBe("play");
   expect(errs).toEqual([]);
   await ctx.close();
+});
+
+test("X2: the trainee sector is its own mode — never ends on its own and never writes a hiscore", async ({ page }) => {
+  await page.evaluate(() => { localStorage.setItem("doids_hi", "0"); __doids.training(); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.training).toBe(true);
+  expect(s.runMode).toBe("training");
+  expect(s.state).toBe("play");
+  expect(s.level.total).toBe(1);
+  // X2b — even with "everyone accounted for," the sector-clear check no-ops
+  await page.evaluate(() => { level.delivered = level.total; checkSectorClear(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("play");
+  // a life-loss to gameover must not touch the hiscore in training
+  await page.evaluate(() => { score = 500; hiscore = 0; saveHi(); });
+  expect(await page.evaluate(() => localStorage.getItem("doids_hi"))).toBe("0");
+});
+
+test("X2a/X4: the trainee sector opens with a guided-pause card; thrusting advances it", async ({ page }) => {
+  await page.evaluate(() => { __doids.training(); });
+  // step 0 ("press THRUST") fires automatically shortly after entering play
+  await page.waitForTimeout(900);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.coach.active).toBe(true);
+  expect(s.coach.text).toMatch(/THRUST/);
+  expect(s.state).toBe("coach");
+  // tap anywhere to dismiss, like a "reveal" card
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForTimeout(450);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.coach.active).toBe(false);
+  expect(s.state).toBe("play");
+  expect(s.trainingStep).toBe(1);
+  // holding THRUST should fire the next card (step 1 — drift)
+  await page.evaluate(() => { input.thrust = true; });
+  await page.waitForTimeout(200);
+  s = await page.evaluate(() => __doids.get());
+  expect(s.coach.active).toBe(true);
+  expect(s.trainingStep).toBe(2);
+});
+
+test("X6: a new high score requests the native rating prompt", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.evaluate(() => { hiscore = 0; score = 500; saveHi(); });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.ratingReports.some(r => r.reason === "hiscore")).toBe(true);
 });
 
 test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", async ({ page }) => {

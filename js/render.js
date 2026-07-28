@@ -88,7 +88,7 @@ function render() {
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
-      state === "pause" || state === "confirm") drawHUD(now);
+      state === "pause" || state === "confirm" || state === "coach") drawHUD(now);
 
   if (state === "title") drawTitle(now);
   if (state === "fork") drawFork(now);
@@ -97,6 +97,7 @@ function render() {
   if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
+  if (state === "coach") drawCoach(now);   // X4
   if (state === "clear") drawClear(now);
   if (state === "pause") drawPause(now);
   if (state === "confirm") drawConfirm(now);
@@ -2622,7 +2623,9 @@ function drawHUD(now) {
   ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
   ctx.font = mono(9, 600);
   ctx.fillStyle = "rgba(155,234,249,.7)";
-  let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
+  // X2 — training has no SECTOR_NAMES entry (its levelIdx is a sentinel, -1)
+  let mid = (runMode === "training" ? "TRAINEE FLIGHT" : SECTOR_NAMES[levelIdx]) +
+    (level.isCave ? " · THE HOLLOWS" : "") +
     "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
   if (dailyMod("stopwatch") && !level.isCave)
@@ -2866,8 +2869,9 @@ function drawHelpMenu(now) {
   ctx.shadowBlur = 0;
   const rows = [["✦ HOW TO FLY", "controls & the basics"],
                 ["◎ HUD GUIDE", "what every readout means"],
-                ["▸ REPLAY STORY", "watch the opening again"]];
-  for (let i = 0; i < 3; i++) {
+                ["▸ REPLAY STORY", "watch the opening again"],
+                ["◆ TRAINEE SECTOR", "one gentle, unscored rescue"]];   // X2
+  for (let i = 0; i < rows.length; i++) {
     const r = helpMenuRowRect(i);
     ctx.strokeStyle = "rgba(0,229,255,.7)"; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.5;
@@ -2878,8 +2882,9 @@ function drawHelpMenu(now) {
     ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = mono(10, 600);
     ctx.fillText(rows[i][1], r.x + r.w / 2, r.y + r.h / 2 + 14);
   }
+  const lastRow = helpMenuRowRect(rows.length - 1);
   ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.font = mono(11, 600);
-  ctx.fillText("tap outside to go back", vw / 2, helpMenuRowRect(2).y + helpMenuRowRect(2).h + 26);
+  ctx.fillText("tap outside to go back", vw / 2, lastRow.y + lastRow.h + 26);
 }
 
 function drawTitle(now) {
@@ -3968,6 +3973,13 @@ function drawCardPanel(card, now) {
   ctx.shadowBlur = 0;
 }
 
+/* X4 — the reusable guided-pause overlay: one short instruction over the
+   dimmed, frozen world, using the same tap-to-continue card chrome as a
+   narrative "reveal" (drawCardPanel) rather than a bespoke look. */
+function drawCoach(now) {
+  drawCardPanel({ kicker: "GUIDED", body: coachText, color: TOK.CYAN }, now);
+}
+
 function tallyLine() {
   return "saved " + runSaved + (runLost > 0 ? "  ·  ✝ lost " + runLost : "");
 }
@@ -3997,7 +4009,10 @@ function drawPause(now) {
   ctx.font = display(Math.min(38, vw * 0.08, (topRow.y - 10) * 0.9), 900);
   ctx.fillText("PAUSED", vw / 2, headY);
   ctx.shadowBlur = 0;
-  const labels = ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
+  // X2 — training reframes the two run-scoped rows in its own language
+  const labels = runMode === "training"
+    ? ["RESUME", "RESTART TRAINING", "SETTINGS", "END TRAINING"]
+    : ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
   // a controller has no pointer to hover, so its current row gets its own
   // cursor — a brighter stroke plus a leading marker — instead of relying on
   // a hover state that only touch/mouse can produce
@@ -4136,6 +4151,17 @@ function drawSettings(now) {
 function drawGameOver(now) {
   drawCenter("FLATLINE", "GAME OVER — " + tallyLine(), PAL().DANGER);
   ctx.textAlign = "center";
+  // X5 — one rotating hint, positioned to clear whichever follows it
+  // (the CONTINUE/MAIN MENU buttons, or the plain tap-to-menu line)
+  if (currentHint) {
+    ctx.font = mono(11, 600);
+    const lines = wrapText(currentHint, Math.min(340, vw - 70));
+    const lh = 15;
+    const bottomY = (checkpoint ? continueRect().y : vh * 0.6) - 16;
+    const topY = bottomY - (lines.length - 1) * lh;
+    ctx.fillStyle = "rgba(217,232,255,.75)";
+    lines.forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * lh));
+  }
   if (checkpoint) {
     const cr = continueRect(), nr = { x: cr.x, y: cr.y + cr.h + 14, w: cr.w, h: 40 };
     ctx.strokeStyle = shade(PAL().SAFE, .8); ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 10; ctx.lineWidth = 1.5;
@@ -4316,7 +4342,13 @@ window.__doids = {
       help: helpRect(), legend: legendRect(), pauseLegend: pauseLegendRect() },
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     darkAlpha: level && level.darkAlpha, nightFell: level && !!level.nightFell,   // T6
-    gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
+    gcReports: gc.reports.slice(), cloudNative: cloud.native(),
+    ratingReports: rating.reports.slice(),   // X6
+    // X2/X4/X5 — onboarding-bundle introspection for the guard tests
+    training: runMode === "training", trainingStep,
+    coach: { active: state === "coach", text: coachText },
+    currentHint, codex: [...codex],
+    everParried, everScanned, metFake }),
   go: toBriefing,
   // Y1 — the foreground tile-cache invalidation, plus a peek at the current
   // cache sizes so a test can assert the caches drop and then repaint.
@@ -4364,6 +4396,7 @@ window.__doids = {
   introCaption: () => resolveCaption(activeIntro[Math.min(introIdx, activeIntro.length - 1)]),
   remix: startRemix,
   daily: startDaily,
+  training: startTraining,   // X2
   // M1 regression anchor: seed 0 must always produce today's exact levels
   heightChecksum: () => level.heights.reduce((a, h) => (a * 31 + Math.round(h)) | 0, 0),
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
