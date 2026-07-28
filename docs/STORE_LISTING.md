@@ -329,9 +329,10 @@ job is to make sure the build survives review, not to be shown to it.
   Haptics don't work in the simulator — for any shot that depends on
   device-only behaviour, grab that one from a real device instead
   (`xcrun simctl io booted screenshot` works the same way over a wired
-  device). The preview video still needs a real device/QuickTime screen
-  recording. (Gyro/tilt is no longer in the build — see the roadmap; nothing
-  in the capture set needs motion input.)
+  device). Preview video: captured — `assets/marketing/Video/demo-preview.mp4`,
+  also used as the press kit's demo clip (`docs/PRESS_KIT.md`). (Gyro/tilt is
+  no longer in the build — see the roadmap; nothing in the capture set needs
+  motion input.)
 - **O6 Submission dry run.** TestFlight internal build → full compatibility
   matrix (Bundle E8) → external TestFlight round (5–10 players, watch where
   they die/quit) → submit. Budget one rejection cycle — 4.2 ("Minimum
