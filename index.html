@@ -8,21 +8,49 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Hollow Oath — a gravity rescue</title>
-<style>@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&display=swap');:root{--ho-font-display:'Helvetica Neue','Helvetica',Arial,sans-serif;--ho-font-mono:'Menlo','JetBrains Mono','SF Mono',ui-monospace,monospace}</style>
+<style>
+/* Bundle DS6 — the Hollow Oath tokens, mirroring TOK + PALETTES in js/world.js
+   and docs/DESIGN_SYSTEM_STARTER.md. Before this the palette was duplicated as
+   raw hex across all three pages, so a palette change meant three hand-edits.
+   Change a value here, in js/world.js and in the design system doc together.
+
+   The JetBrains Mono @import that used to sit on this line is gone. It was a
+   third typeface (design system §3 allows two), it never won the cascade on
+   Apple hardware where Menlo is present, and on privacy.html it made a
+   third-party request to Google — from the page that promises "No data is
+   sent to us, sold, or shared with third parties." The stack below is the
+   game's own, so the site and the app now render in the same face. */
+:root{
+  --ho-font-display:'Helvetica Neue','Helvetica',Arial,sans-serif;
+  --ho-font-mono:'Menlo','SF Mono',ui-monospace,monospace;
+  /* base / void */
+  --ho-void:#05060f; --ho-void-mid:#0a0d22; --ho-void-high:#101433;
+  /* the cyan ramp */
+  --ho-cyan:#00e5ff; --ho-cyan-ink:#aef4ff; --ho-cyan-text:#9beaf9;
+  --ho-cyan-soft:#7fe9ff; --ho-cyan-bright:#eaffff;
+  /* semantic state (PALETTES.normal) */
+  --ho-safe:#69f0ae; --ho-warn:#ffc400; --ho-danger:#ff4081; --ho-reveal:#ff5ce1;
+  /* narrative accents */
+  --ho-violet:#b388ff; --ho-violet-soft:#c9a6ff; --ho-gold:#ffd54f;
+  /* page-only neutrals — prose greys the game has no use for */
+  --ho-ink:#cfe9f2; --ho-ink-mute:#a9c6d1; --ho-ink-pale:#dff8ff;
+  --ho-violet-pale:#e6d9ff; --ho-violet-mute:#cdbfe8; --ho-safe-pale:#c9ffe6;
+}
+</style>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
     background:
-      radial-gradient(120% 80% at 50% -10%, #101433 0%, #0a0d22 42%, #05060f 78%);
+      radial-gradient(120% 80% at 50% -10%, var(--ho-void-high) 0%, var(--ho-void-mid) 42%, var(--ho-void) 78%);
     background-attachment:fixed;
-    color:#cfe9f2;
+    color:var(--ho-ink);
     font-family:var(--ho-font-mono);
     line-height:1.6;
     overflow-x:hidden;
   }
-  a{color:#9beaf9;text-decoration:none}
-  a:hover{color:#eaffff}
+  a{color:var(--ho-cyan-text);text-decoration:none}
+  a:hover{color:var(--ho-cyan-bright)}
   .stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.7}
   .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 32px}
 
@@ -31,11 +59,11 @@
     max-width:1180px;margin:0 auto;padding:22px 32px}
   .brand{display:flex;align-items:center;gap:12px}
   .brand img{width:40px;height:40px;border-radius:9px;box-shadow:0 0 22px rgba(0,229,255,.35)}
-  .brand .nm{font-family:var(--ho-font-display);font-weight:800;font-size:19px;color:#aef4ff;
+  .brand .nm{font-family:var(--ho-font-display);font-weight:800;font-size:19px;color:var(--ho-cyan-ink);
     text-shadow:0 0 16px rgba(0,229,255,.5);letter-spacing:-.3px}
   .navlinks{display:flex;gap:26px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-  .navlinks a{color:#7fe9ff;text-shadow:0 0 8px rgba(0,229,255,.35)}
-  .navlinks a:hover{color:#eaffff}
+  .navlinks a{color:var(--ho-cyan-soft);text-shadow:0 0 8px rgba(0,229,255,.35)}
+  .navlinks a:hover{color:var(--ho-cyan-bright)}
 
   /* ---- Hero ---- */
   .hero{position:relative;text-align:center;padding:76px 0 40px}
@@ -45,14 +73,14 @@
   @keyframes markpulse{0%,100%{box-shadow:0 0 50px rgba(0,229,255,.3),0 0 110px rgba(124,77,255,.2)}
     50%{box-shadow:0 0 70px rgba(0,229,255,.45),0 0 140px rgba(124,77,255,.3)}}
   h1.title{font-family:var(--ho-font-display);font-weight:800;
-    font-size:clamp(56px,11vw,132px);line-height:.95;margin:0;color:#aef4ff;letter-spacing:-2px;
+    font-size:clamp(56px,11vw,132px);line-height:.95;margin:0;color:var(--ho-cyan-ink);letter-spacing:-2px;
     text-shadow:0 0 44px rgba(0,229,255,.55),0 0 14px rgba(0,229,255,.6);
     animation:titlepulse 3s ease-in-out infinite}
   @keyframes titlepulse{0%,100%{opacity:.92}50%{opacity:1}}
-  .tagline{color:#9beaf9;font-size:clamp(15px,2.4vw,22px);margin:22px 0 0;letter-spacing:.3px}
-  .hook{color:#ffc400;font-weight:700;font-size:clamp(14px,2vw,18px);margin:16px auto 0;max-width:680px;
+  .tagline{color:var(--ho-cyan-text);font-size:clamp(15px,2.4vw,22px);margin:22px 0 0;letter-spacing:.3px}
+  .hook{color:var(--ho-warn);font-weight:700;font-size:clamp(14px,2vw,18px);margin:16px auto 0;max-width:680px;
     text-shadow:0 0 12px rgba(255,196,0,.4)}
-  .lede{color:#cfe9f2;font-size:16px;max-width:660px;margin:26px auto 0}
+  .lede{color:var(--ho-ink);font-size:16px;max-width:660px;margin:26px auto 0}
 
   /* ECG divider */
   .ecg{display:block;width:100%;max-width:1180px;margin:44px auto 0;height:60px}
@@ -61,7 +89,7 @@
   .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:34px 0 8px}
   .cta{display:inline-flex;align-items:center;gap:9px;padding:15px 28px;border-radius:9px;
     font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;
-    border:1.5px solid rgba(0,229,255,.7);color:#aef4ff;background:rgba(0,229,255,.1);
+    border:1.5px solid rgba(0,229,255,.7);color:var(--ho-cyan-ink);background:rgba(0,229,255,.1);
     box-shadow:0 0 22px rgba(0,229,255,.28),inset 0 0 14px rgba(0,229,255,.1);
     transition:background .15s ease,box-shadow .15s ease}
   .cta:hover{background:rgba(0,229,255,.2);box-shadow:0 0 34px rgba(0,229,255,.45),inset 0 0 16px rgba(0,229,255,.18)}
@@ -72,10 +100,10 @@
   /* ---- Sections ---- */
   section.block{padding:64px 0}
   .kicker{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:3px;
-    text-transform:uppercase;color:#7fe9ff;text-shadow:0 0 8px rgba(0,229,255,.4);margin-bottom:12px}
-  h2{font-family:var(--ho-font-display);font-weight:800;font-size:clamp(28px,4vw,40px);color:#eaffff;
+    text-transform:uppercase;color:var(--ho-cyan-soft);text-shadow:0 0 8px rgba(0,229,255,.4);margin-bottom:12px}
+  h2{font-family:var(--ho-font-display);font-weight:800;font-size:clamp(28px,4vw,40px);color:var(--ho-cyan-bright);
     margin:0 0 8px;letter-spacing:-.5px;text-shadow:0 0 20px rgba(0,229,255,.35)}
-  .sec-sub{color:#9beaf9;font-size:15px;max-width:560px;margin:0 0 34px}
+  .sec-sub{color:var(--ho-cyan-text);font-size:15px;max-width:560px;margin:0 0 34px}
 
   /* Features grid */
   .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -83,39 +111,39 @@
     padding:24px 22px;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
   .feat:hover{border-color:rgba(0,229,255,.5);box-shadow:0 0 26px rgba(0,229,255,.18);transform:translateY(-3px)}
   .feat .g{font-size:26px;line-height:1;margin-bottom:14px;display:inline-block}
-  .feat h3{font-family:var(--ho-font-display);font-weight:800;font-size:18px;color:#aef4ff;margin:0 0 8px}
-  .feat p{color:#a9c6d1;font-size:13.5px;margin:0;line-height:1.55}
+  .feat h3{font-family:var(--ho-font-display);font-weight:800;font-size:18px;color:var(--ho-cyan-ink);margin:0 0 8px}
+  .feat p{color:var(--ho-ink-mute);font-size:13.5px;margin:0;line-height:1.55}
 
   /* Gallery */
   .gallery{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
-  figure{margin:0;grid-column:span 2;background:#05060f;border:1.5px solid rgba(0,229,255,.2);
+  figure{margin:0;grid-column:span 2;background:var(--ho-void);border:1.5px solid rgba(0,229,255,.2);
     border-radius:14px;overflow:hidden;box-shadow:0 0 22px rgba(0,0,0,.5);transition:border-color .18s,box-shadow .18s}
   figure:hover{border-color:rgba(0,229,255,.5);box-shadow:0 0 30px rgba(0,229,255,.2)}
   figure:nth-child(1),figure:nth-child(2){grid-column:span 3}
   figure img{width:100%;display:block;aspect-ratio:auto}
-  figcaption{padding:12px 16px;font-size:12px;color:#7fe9ff;letter-spacing:.4px;
+  figcaption{padding:12px 16px;font-size:12px;color:var(--ho-cyan-soft);letter-spacing:.4px;
     border-top:1px solid rgba(0,229,255,.12)}
 
   /* Homage */
   .homage{position:relative;background:linear-gradient(135deg,rgba(21,16,64,.6),rgba(8,10,26,.7));
     border:1.5px solid rgba(179,136,255,.3);border-radius:18px;padding:44px 46px;
     box-shadow:0 0 40px rgba(124,77,255,.15),inset 0 0 30px rgba(124,77,255,.06)}
-  .homage h2{text-shadow:0 0 20px rgba(179,136,255,.4);color:#e6d9ff}
-  .homage .kicker{color:#c9a6ff;text-shadow:0 0 8px rgba(179,136,255,.4)}
-  .homage p{color:#cdbfe8;font-size:15.5px;max-width:760px;margin:0}
-  .homage em{color:#e6d9ff;font-style:italic}
+  .homage h2{text-shadow:0 0 20px rgba(179,136,255,.4);color:var(--ho-violet-pale)}
+  .homage .kicker{color:var(--ho-violet-soft);text-shadow:0 0 8px rgba(179,136,255,.4)}
+  .homage p{color:var(--ho-violet-mute);font-size:15.5px;max-width:760px;margin:0}
+  .homage em{color:var(--ho-violet-pale);font-style:italic}
 
   /* Oath strip */
   .oath{text-align:center;padding:70px 0 40px}
   .oath .lat{font-family:var(--ho-font-display);font-weight:800;font-size:clamp(26px,4vw,38px);
-    color:#69f0ae;text-shadow:0 0 24px rgba(105,240,174,.5);font-style:italic;letter-spacing:-.3px}
-  .oath .en{color:#9beaf9;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-top:12px}
+    color:var(--ho-safe);text-shadow:0 0 24px rgba(105,240,174,.5);font-style:italic;letter-spacing:-.3px}
+  .oath .en{color:var(--ho-cyan-text);font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-top:12px}
 
   /* Footer */
   footer{border-top:1px solid rgba(0,229,255,.15);margin-top:40px;padding:34px 0 56px}
   .foot-in{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
     font-size:12px;color:rgba(255,255,255,.5)}
-  .foot-in a{color:#7fe9ff}
+  .foot-in a{color:var(--ho-cyan-soft)}
   .foot-links{display:flex;gap:22px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
 
   @media(max-width:860px){
@@ -158,7 +186,7 @@
     </div>
     <div class="price">complete game · no ads · no IAP · no data collected</div>
     <svg class="ecg" viewBox="0 0 1180 60" preserveAspectRatio="none" aria-hidden="true">
-      <polyline fill="none" stroke="#69f0ae" stroke-width="2.5"
+      <polyline fill="none" stroke="var(--ho-safe)" stroke-width="2.5"
         style="filter:drop-shadow(0 0 6px rgba(105,240,174,.8))"
         points="0,30 400,30 430,30 445,10 460,50 475,18 490,30 560,30 575,30 585,4 598,56 610,24 622,30 1180,30"/>
     </svg>
@@ -168,19 +196,19 @@
 <section class="block wrap" id="features">
   <div class="kicker">◎ what you're flying into</div>
   <h2>Real gravity. Real consequence.</h2>
-  <p class="sec-sub">Seven sectors, three hidden Hollows, two endings — and one oath that is scored, not just quoted.</p>
+  <p class="sec-sub">Seven sectors, three hidden Hollows, multiple endings — and one oath that is scored, not just quoted.</p>
   <div class="features">
-    <div class="feat"><span class="g" style="color:#00e5ff;text-shadow:0 0 14px rgba(0,229,255,.6)">↔</span>
+    <div class="feat"><span class="g" style="color:var(--ho-cyan);text-shadow:0 0 14px rgba(0,229,255,.6)">↔</span>
       <h3>Earn every landing</h3><p>No auto-land. No aim-assist crutch. Just thrust, gravity, and a landing you have to earn.</p></div>
-    <div class="feat"><span class="g" style="color:#ff4081;text-shadow:0 0 14px rgba(255,64,129,.6)">♥</span>
+    <div class="feat"><span class="g" style="color:var(--ho-danger);text-shadow:0 0 14px rgba(255,64,129,.6)">♥</span>
       <h3>A heartbeat you feel</h3><p>Your hull health is a live ECG trace, with haptics tuned to the game's own pulse — not generic buzzes.</p></div>
-    <div class="feat"><span class="g" style="color:#b388ff;text-shadow:0 0 14px rgba(179,136,255,.6)">▸</span>
+    <div class="feat"><span class="g" style="color:var(--ho-violet);text-shadow:0 0 14px rgba(179,136,255,.6)">▸</span>
       <h3>Three hidden Hollows</h3><p>Optional caves reward the curious and the careful with a second layer of story beneath the surface.</p></div>
-    <div class="feat"><span class="g" style="color:#69f0ae;text-shadow:0 0 14px rgba(105,240,174,.6)">⚕</span>
-      <h3>Two endings, one oath</h3><p><em style="color:#9beaf9;font-style:italic">Primum non nocere.</em> First, do no harm. Clear a sector without firing for the Hippocratic bonus.</p></div>
-    <div class="feat"><span class="g" style="color:#ffd54f;text-shadow:0 0 14px rgba(255,213,79,.6)">◈</span>
+    <div class="feat"><span class="g" style="color:var(--ho-safe);text-shadow:0 0 14px rgba(105,240,174,.6)">⚕</span>
+      <h3>Multiple endings, one oath</h3><p><em style="color:var(--ho-cyan-text);font-style:italic">Primum non nocere.</em> First, do no harm. Clear a sector without firing for the Hippocratic bonus.</p></div>
+    <div class="feat"><span class="g" style="color:var(--ho-gold);text-shadow:0 0 14px rgba(255,213,79,.6)">◈</span>
       <h3>Remix &amp; daily seed</h3><p>A remix rotation and a fresh daily flight give you runs that never play the same way twice.</p></div>
-    <div class="feat"><span class="g" style="color:#ff5ce1;text-shadow:0 0 14px rgba(255,92,225,.6)">?</span>
+    <div class="feat"><span class="g" style="color:var(--ho-reveal);text-shadow:0 0 14px rgba(255,92,225,.6)">?</span>
       <h3>Not what it seems</h3><p>Watch how they wave. Listen to what boards. The red quarantine bay exists for a reason.</p></div>
   </div>
 </section>
@@ -232,7 +260,7 @@
   svg.setAttribute('viewBox','0 0 '+W+' '+H);
   let s='';for(let i=0;i<160;i++){const x=(Math.random()*W).toFixed(0),y=(Math.random()*H).toFixed(0),
     r=(Math.random()*1.6+.4).toFixed(1),o=(Math.random()*.6+.15).toFixed(2);
-    s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="#dff8ff" opacity="'+o+'"/>';}
+    s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="var(--ho-ink-pale)" opacity="'+o+'"/>';}
   svg.innerHTML=s;
 })();
 </script>
