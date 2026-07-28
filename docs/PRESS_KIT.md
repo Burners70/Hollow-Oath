@@ -22,7 +22,7 @@ source-of-truth copy this kit quotes from.
 | **Genre** | 2D gravity-thrust rescue / arcade lander, story-driven |
 | **Website** | https://hollow-oath.com/ |
 | **Support** | hollowoath.support@gmail.com |
-| **Developer / public credit** | *(open — decide how you want to be credited publicly; the iOS bundle ID is `com.burners70.hollowoath` but the `burners70` handle is deliberately kept off anything players see, per STORE_LISTING.md §O5)* |
+| **Developer** | Darren Burnett |
 
 ## One-line pitch
 
@@ -106,7 +106,7 @@ detail and artwork notes: [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.m
 > being entirely itself. Built in the lineage of 16-bit gravity-lander
 > classics like *Oids*, *Thrust* and *Gravitar*, with its own original story,
 > art and world. A complete game: no ads, no in-app purchases, no data
-> collected. $2.99 on the App Store.
+> collected. $2.99 on the App Store. Developed by Darren Burnett.
 
 ## Assets available in this repo
 
