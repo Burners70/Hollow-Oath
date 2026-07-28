@@ -21,6 +21,7 @@ shouldn't be in the folder.
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
 | [STORE_LISTING.md](STORE_LISTING.md) | App Store Connect metadata: pricing, description, keywords, support/privacy URLs. |
 | [PRESS_KIT.md](PRESS_KIT.md) | Sending something to press: a ready-to-copy fact sheet, pitch and boilerplate (UK English, no house jargon), plus an internal-only note on where the asset files live. |
+| [LAUNCH_PLAN.md](LAUNCH_PLAN.md) | Planning or running the low/no-cost launch marketing push: Featuring Nomination, press/community targets, Apple Ads Basic, budget and timing. The marketing layer only — not the shipping checklist (that's APP_STORE_ROADMAP.md Bundle O). |
 | [TESTER_KIT.md](TESTER_KIT.md) | Running a TestFlight round: the "What to Test" note, invite welcome message, and blind-play survey script. |
 | [TESTER_LOG.md](TESTER_LOG.md) | Who's testing, and which build they were invited to. |
 | [QA_HARNESS.md](QA_HARNESS.md) | Testing a build on a phone (or anywhere) without a console — `tests/qa-harness.html`'s tap menu + injected Eruda console. |
