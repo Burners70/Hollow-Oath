@@ -118,7 +118,7 @@ detail and artwork notes: [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.m
 | Screenshots — iPhone 17 (8 shots) | `assets/marketing/Screenshots/iPhone-17/` |
 | Screenshots — iPhone 17 Pro Max (8 shots) | `assets/marketing/Screenshots/iPhone-17-Pro-Max/` |
 | Achievement art (9 PNGs + SVG sources) | `assets/gamecenter/achievements/` |
-| Demo video | *not yet in the repo — see note below* |
+| Demo video | `assets/marketing/Video/demo-preview.mp4` |
 
 The 8 screenshots (same content, shot at both device sizes) are: title
 screen, log scan & Scion, MERCY docking, dark-sector lamp, a Hollows shrine,
@@ -127,9 +127,10 @@ the transfusion/refuel moment. The 5-shot subset used on the marketing site
 (`about.html`) is title, "someone extraordinary," MERCY docking, log scan,
 and the shrine.
 
-> **Demo video:** you mentioned a demo video uploaded elsewhere yesterday —
-> it isn't in this repo yet. Once it's added (see the open question below),
-> list it here with its filename and a one-line description of what it shows.
+The demo video (`assets/marketing/Video/demo-preview.mp4`) is separate from
+the O4 App Store preview video requirement in STORE_LISTING.md — that one
+still needs a real-device capture per the checklist there; this file is the
+press-kit copy.
 
 ---
 
