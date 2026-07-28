@@ -189,6 +189,20 @@ than a rack, heavier, worse to handle, worth far more.
 
 ### 6.3 HER — the last one
 
+**Who she is (decided, July 2026).** Act One's *"she"* is the **ship** — naval
+convention throughout the shipped copy (*"her distress call"*, *"she could
+finally stop"*). Act Two's reveal is that the call was never automated: SOLACE's
+beacon died years ago, and what has been repeating since is **a person**, and
+nobody ever checked. This is a deliberate shift, not an inheritance — write it
+as a discovery (§3.1).
+
+**She is human**, one of the 214. The plausibility gap you would expect isn't
+there: the game already has *preserved human minds* inside the famous Scions, so
+preservation is established technology in this world. It also gives the act its
+ladder — twelve androids in a box, then a preserved giant, then one woman — and
+the point of the ladder is that you flew exactly as carefully for the racks.
+
+
 The maximum version of the same idea. She isn't merely transmitting; she is the
 carrier. Everything he broadcasts rides on her. Carrying her out is carrying a
 lighthouse, and the reason the lanes go quiet behind you is that the light is in
@@ -264,9 +278,25 @@ all on the same tap. The surge stops being a shove and becomes the moment people
 die. It is also what the player plans around: *can I reach the well before the
 next beat, or do I give now?*
 
-**Flatline is death.** There has to be jeopardy, and a rack is eight to twelve
-people. Tracked separately from Act One's `runLost` so existing ranks and
-achievements keep their meaning.
+**Flatline is death — total, never partial.** There has to be jeopardy, and a
+rack is eight to twelve people. Tracked separately from Act One's `runLost` so
+existing ranks and achievements keep their meaning.
+
+*Why not partial survival* (examined July 2026 and rejected): "you saved seven
+of twelve" is a number, not a feeling, and it destroys the death state §7.5
+depends on, whose whole power is that a steady unbroken glow with no beat is
+absolute. Half-written Scions would also open a narrative branch — what MERCY
+does with them — that the act would then owe an answer to.
+
+*The real problem total loss creates, and its actual fix.* Two locked pillars
+say the player must always be able to save everyone, and that there are no
+trolley problems. A total loss sits in tension with both: the instant a rack
+flatlines the chamber's intended outcome is gone, so anyone chasing a clean run
+restarts — and the mistake that killed it usually happened minutes earlier, so
+cause and consequence are badly separated. Partial survival is the wrong fix.
+**Checkpointing is the right one:** the chamber is the unit of retry (§11.1), so
+a flatline costs you a room rather than an act. Teeth kept, save-scumming
+removed.
 
 ### 7.4 The transfusion — your vitals, not your fuel
 
@@ -391,11 +421,31 @@ dug where the anomalies were, because that's what made the digging cheap and the
 tunnels unreachable. Reversal and low-g zones are geology he exploited, not
 powers he has. Same rule as §2, and it keeps him a charlatan.
 
-**Darkness is load-bearing, not a difficulty setting.** The racks are the only
-light source in the plant (§7.5), so the dark is what makes the ward legible
-rather than something to fight through. The lamp needs no Act Two upgrade. The
-discomfort comes free: the only light down there is from the machines that are
-harvesting them.
+### 9.2 Light — a place, not a default
+
+**Act Two is mostly lit, and that reverses an earlier call in this document
+(owner correction, July 2026).** The first draft made the racks the only light
+source. Three things were wrong with it:
+
+- **It disabled §8.** False floors and painted rocks are *visual* deceptions
+  whose tell is "perfectly flat and perfectly level." You cannot read terrain
+  shape in the dark. The two systems cancelled each other.
+- **Darkness in this game is a contrast effect.** NIGHTINGALE BASIN works
+  because it is one sector in eight. Ten dark levels neutralise it.
+- **The fiction is better lit.** Glycon's plant is a *working facility*.
+  Alexander of Abonoteichus ran a successful business, and the horror of medical
+  misinformation is that it looks legitimate. A bright, clean, orderly room full
+  of people being read is worse than a dark cave — and it contrasts against Act
+  One's Hollows instead of repeating them.
+
+| Space | Light |
+|---|---|
+| **Plant chambers** | Lit. His facility, maintained and orderly. Terrain readable, so §8 functions. |
+| **Connective tunnels** | Dark. The parts between his rooms, where nothing is kept up. |
+| **Lights-out** | An *event*, once or twice across the act — the lighting fails or he kills it, and the racks become the only light exactly as §7.5 describes. Frightening because it is rare. |
+
+§7.5 is unaffected: a rack's glow signals through colour and beat rather than
+brightness alone, so it reads in a lit room and becomes primary in the dark.
 
 ### 9.1 The new medical-history layer
 
@@ -433,10 +483,75 @@ tuning so it reads as recovery rather than punishment: the surge **quickens in
 frequency while weakening in amplitude.** She is getting stronger; the machine
 is losing its grip.
 
+## 10a. Fuel, threat, and the oath
+
+### 10a.1 Fuel is a lap budget, not a crisis
+
+Three pressures is the design (§7). Fuel scarcity would be a fourth and would
+blunt all of them. **Refuel is free at THE WELL**, and fuel becomes a
+per-chamber budget: enough to clear the room flying efficiently, not enough to
+be careless. `genCave` already scatters three pods per cave — keep pods in
+chambers as the pressure valve and a reason to explore.
+
+### 10a.2 The oath, made physical
+
+The inherited tow convention (PENDULUM_SPEC §4.2) makes FIRE the release. So
+**you physically cannot shoot while carrying.** The Act Two oath question is
+therefore not *shoot or don't* but **put them down, in this room, and pick up a
+gun.** Same moral question as Act One, made kinetic, at zero build cost.
+
+OATH KEPT carries into Act Two unchanged.
+
+### 10a.3 What threatens you
+
+He is a charlatan, not a warlord. His defences are cheap tricks and repurposed
+kit — **never military hardware.** Two classes:
+
+- **Handling machinery, repurposed.** Mechanical, shootable, no guilt. The
+  ordinary threat.
+- **Unfinished husks.** Vectors that were never given a voice, wandering the
+  plant. Not malicious — incomplete. Shooting one is shooting a Scion that never
+  got made, after seven sectors of learning that a husk is what a person gets
+  turned into. An oath question with real teeth, and free: the fiction exists
+  already.
+
+### 10a.4 Ranks, scoring and replay
+
+Act Two runs **its own score and its own rank ladder**, in the same oath
+grammar as Act One's but with its own names. Folding it into Act One's rank
+would make a single run eighty-plus minutes.
+
+Integrity-based bonuses in the shape of GENTLE HANDS (PENDULUM_SPEC §5).
+
+**Replay** comes from performance, not new content: the chambers are authored
+and fixed, but rack integrity delivered, vitals spent, time taken and oath
+intact vary enormously. Per-chamber bests plus an act rank make it replay the
+way a speedrun does — which suits a score-attack game and costs nothing to
+author.
+
 ## 11. Structure
 
 Ten levels, hand-authored (owner decision: authored geometry, not procedural —
 the courses must teach the swing, which noise can't do).
+
+### 11.1 The descent, and where the checkpoint lives
+
+The act is a descent, so the structure is one: **each chamber's exit is the next
+chamber's entrance**, going down, with a long climb out at the end.
+
+**MERCY lowers the well deeper as you clear.** She pays out more cable each
+time, so THE WELL always sits at the level you last finished. One idea, five
+jobs: delivery point, resupply, **checkpoint**, save, and a physical progress
+meter. It bounds every haul to roughly one level, so a chamber's route stays
+tractable — and it is quietly tense, because MERCY is committing more and more
+of herself to a hole.
+
+**The finale earns itself:** at the deepest point the well cannot follow —
+something forces it to withdraw — so the last climb is yours alone, carrying
+her, with the surge quickening the whole way (§10).
+
+**Checkpoint unit is the chamber.** See §14 on why this matters: it is what lets
+a rack flatline be total loss without training the player to save-scum.
 
 | Beat | Levels | Content |
 |---|---|---|
@@ -520,11 +635,14 @@ to the public.
 **Locked:** SOLACE as wellhead, not dungeon · the reading finds the crack, not
 just the expertise · originals are not degraded · racks (arithmetic, not
 mysticism) · three tiers · hurry vs. care vs. cost · rack ECG going flat ·
-continuous drain with a bite on the beat · flatline is death · no trolley
-problems · trunk-cut found by pulse · vitals not fuel · **the ward is read by
-light, with sound and haptics as bonus channels** · darkness is load-bearing ·
-THE WELL · 41 seconds is her heartbeat · quickening finale · pendulum debuts
-here · 1.01 → 1.1, no 1.2.
+continuous drain with a bite on the beat · flatline is death, never partial ·
+no trolley problems · **the chamber is the checkpoint** · trunk-cut found by
+pulse · vitals not fuel · **the ward is read by light, with sound and haptics as
+bonus channels** · **mostly lit, darkness as a place and an event** · THE WELL,
+lowered deeper as you clear · **fuel is a lap budget** · **you cannot shoot
+while carrying** · **she is human** · 41 seconds is her heartbeat · quickening
+finale · Act Two runs its own score and rank · pendulum debuts here · 1.01 →
+1.1, no 1.2.
 
 **Rejected, with reasons:**
 
@@ -550,18 +668,31 @@ here · 1.01 → 1.1, no 1.2.
 
 ## 15. Open questions
 
-1. ~~**How dark is Act Two?**~~ **Resolved** (July 2026): fully dark, and the
-   darkness is load-bearing — the racks light themselves, so the dark is what
-   makes the ward legible (§7.5, §9). No lamp upgrade.
-2. **The name of the act**, and with it the What's-New line that does the
+Resolved by the July 2026 drains-up review, kept for the reasoning trail:
+~~how dark is Act Two~~ (§9.2, reversed — mostly lit) · ~~partial flatline
+survival~~ (§7.3, rejected; checkpointing is the fix) · ~~who "she" is~~ (§6.3,
+human) · ~~descent structure and checkpoint unit~~ (§11.1) · ~~fuel~~ (§10a.1) ·
+~~combat and the oath~~ (§10a.2–3) · ~~ranks and replay~~ (§10a.4).
+
+Still open:
+
+1. **Is 1.0 approved, and is there Mac access right now?** The release plan
+   (§13) rests on an *inference*: the roadmap says 1.0 is in App Review, so Mac
+   + Xcode + TestFlight must exist, so P·slice can be tuned on hardware. **This
+   was never verified.** If it's wrong, the vertical slice can't be feel-tuned
+   and the sequencing needs rethinking. Owner question.
+2. **Does Act Two really leave the surface level cache untouched?** Used to
+   justify moving V1/ROTATION CHART to 1.01. Plausible, unverified against
+   HOLLOWS_EXPANSION_SPEC §Q5.
+3. **The name of the act**, and with it the What's-New line that does the
    price-move work in the store. Owner steer: it comes out of the work.
-3. **Scoring and economy** — untouched here. Needs a table in the shape of
-   PENDULUM_SPEC §5 once the loop is proven in the vertical slice.
-4. **Does a rack partially survive a flatline?** Currently specced as total
-   loss. Worth revisiting once the reserve is tuned and we know how often a good
-   player actually loses one.
+4. **Scoring numbers** — the shape is decided (§10a.4); the table isn't. Write
+   it from what the vertical slice proves, in the form of PENDULUM_SPEC §5.
 5. **Persistence and save schema** — Act Two is a second campaign, not a run
-   mode, and the A1 resume snapshot will need a schema bump. Unscoped.
+   mode. Per-chamber checkpointing (§11.1) plus Act One's A1 resume snapshot
+   means a schema bump and a migration. Unscoped.
+6. **Chamber pacing** — racks per chamber, and how long one takes. Deliberately
+   left until the slice; guessing now would be fiction.
 
 ## 16. Next step
 
