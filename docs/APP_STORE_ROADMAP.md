@@ -89,12 +89,12 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 11 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, **V15–V20 owner-playtest defects (bay-is-a-mouth beat, Solace-adjacent turret, Solace-answer reveal, first-resupply beat, landing spin, dune overspill)**, V·ship |
+| V | 1.01 maintenance & narrative | 11 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, **V15–V20 owner-playtest defects (bay-is-a-mouth beat, Solace-adjacent turret, Solace-answer reveal, first-resupply beat, landing spin, dune overspill)**, V·ship |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
 | Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
-| P | The pendulum sling | 4 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md); plus P·review, the in-app rating prompt |
-| W | Landscape challenge escalation | 2 | 1.1 (with P) | W1 progressive terrain difficulty, W·guard |
-| Q | The deep Hollows | 3 | 1.1 core + 1.2 caves | Whole bundle — spec is [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) |
+| P | **Act Two — the descent** | 4 | **1.1** | Whole bundle — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only |
+| W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
+| Q | The deep Hollows | 3 | 1.01 core; caves absorbed | Only the ROTATION CHART survives as a 1.01 utility. Laennec/AUSCULTATION move into Act Two; **the three caves are absorbed by Act Two and 1.2 is cancelled** |
 
 **One owner decision is open:** V11 — whether to surface the decoy MERCY earlier
 (today it needs a completed run + the secret finale + enough black boxes, so most
@@ -414,25 +414,39 @@ merged; G/H strongly recommended.**
 
 ---
 
-## Bundle P — The pendulum sling (update 1.1)
+## Bundle P — Act Two, the descent (update 1.1)
 
-**Why:** The Oids/Thrust pendulum homage, decoupled from Scion pickup (owner
-direction, July 2026): each Hollow hides one towable relic of Glycon's
-(THE FIRST CALL, THE LAST HEART, THE MASK), slung beneath the ship on real
-pendulum physics and carried out through roof and darkness to MERCY —
-patient transport as a flight skill. **Locked (owner decision, July 2026):
-ships as the free 1.1 content update, "1.1 — THE PENDULUM", not in the
-launch build.** Full spec, rationale and draft copy:
-[PENDULUM_SPEC.md](PENDULUM_SPEC.md). **Priority: first post-launch.
-Dependencies: all shipped (I, J, K, H, D, F1); the P10 feel pass needs the
-E wrapper on a real device.**
+**Why:** Re-scoped by an owner design round, July 2026. P was three towable
+relics hidden in Act One's Hollows; the review found that placement fatal —
+the relics sit behind the veteran gate *and* the deliberately-hard-to-find
+lifts, so the headline mechanic of a paid update would have been invisible to
+most buyers and unable to carry a price move. **P is now Act Two: a ten-level
+authored underground rescue campaign beneath AMS SOLACE**, where the pendulum
+debuts and nowhere earlier.
 
-- [ ] **P·impl. Implement per the spec checklist** — work through
-  PENDULUM_SPEC.md §7, items P1–P9, checking off there (one source of
-  truth; don't mirror the list here).
-- [ ] **P·feel. P10 device feel pass** — `SLING_L`, damping, the 30% tug;
-  the three handling characters must feel different before they feel
-  hard. Do alongside F3.
+Your missing Scions are in **racks** — sealed banks of eight to twelve, being
+read so Glycon can find the fault line that makes a counterfeit persuasive. You
+cut a rack's feed (identified by taking its pulse), sling it beneath the hull,
+and fly it to a docking bay MERCY lowers down the shaft on a cable, while its
+reserve drains and you spend your own vitals to keep it alive. The 41-second
+Static turns out to be a heartbeat. Full spec, rationale, rejected options and
+release plan: **[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md)**;
+[PENDULUM_SPEC.md](PENDULUM_SPEC.md) survives as the tether-physics reference.
+
+**Priority: the 1.1 release, entire. Dependencies: 1.01 must ship first and is
+a hard commercial dependency, not housekeeping** — Act Two is gated behind
+finishing the campaign, and Bundle X exists because new players don't. Device
+tuning is available now (1.0 in review ⇒ Mac + TestFlight exist).
+
+- [ ] **P·slice. Vertical slice before content.** One chamber, one rack, the
+  trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
+  end and tuned on a phone, **before a single additional level is authored.**
+  If hurry-versus-care doesn't feel good in one room, no amount of level
+  design saves it. Gates everything below.
+- [ ] **P·impl. Implement per ACT_TWO_SPEC.md** — the spec still needs its
+  scoring table, copy-deck entries and an implementation checklist in the
+  shape of PENDULUM_SPEC §7; write those from what the slice proves, then work
+  through them there (one source of truth; don't mirror the list here).
 - [ ] **P·review. Wire in the StoreKit in-app rating prompt.** Flagged while
   drafting launch marketing (`LAUNCH_PLAN.md` Phase 0) — `requestReview()`
   isn't called anywhere in the codebase today, and 1.0 is already in App
@@ -444,12 +458,30 @@ E wrapper on a real device.**
   can be made freely on those triggers without adding throttling logic here.
 - [ ] **P·ship. Release 1.1** — What's-New copy per the E7 trademark
   tiers (generic in-store, named homage on the site), review-refresh
-  prompt consideration, and the $2.99 → $4.99 price move case if launch
-  priced low (O1).
+  prompt consideration, and the **£2.99 → £4.99 price move** (owner decision,
+  July 2026: launch low, move on Act Two). The act's name comes out of the
+  work, so the What's-New line is written last.
 
 ---
 
-## Bundle Q — The deep Hollows (update 1.2)
+## Bundle Q — The deep Hollows (mostly absorbed; ROTATION CHART → 1.01)
+
+> **Re-scoped by the July 2026 Act Two design round
+> ([ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §13).** A ten-level underground network
+> supersedes Q's three extra Hollows — two separate cave systems with different
+> rules would confuse rather than enrich — so **the caves are absorbed into Act
+> Two and 1.2 is cancelled.** Two pieces survive:
+> - **Laennec + AUSCULTATION move into Act Two**, where they get a better job:
+>   the ward is *heard, not seen*, and AUSCULTATION is the upgrade that makes
+>   the whole floor ring clear at once. Spending him on finding lift pads was
+>   always the weaker use.
+> - **The ROTATION CHART** (fly-back to cleared sectors, cached as-left) stays,
+>   and moves to **1.01** — it answers V1 and no longer needs to wait on the
+>   pendulum, since Act Two doesn't touch the surface level cache.
+>
+> The rest of this section is the pre-review record. Read
+> HOLLOWS_EXPANSION_SPEC.md for the ROTATION CHART's design; treat its cave
+> content as history.
 
 **Why:** The lifts stay hard to find (a virtue, named by the owner) — the
 aid is priced instead: René Laennec joins as a twelfth famous Scion hidden
@@ -510,14 +542,16 @@ narrative beats; no shared dependency between them or with V1–V14.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
-- [ ] **V1. Fly back to previous zones (rescue those left behind) — RESOLVED
-  to 1.1, tracked under Bundle Q.** The owner's request is the **ROTATION
-  CHART**: return travel to cleared sectors (cached as-left), **unlocked
-  in-game** by rescuing René Laennec (AUSCULTATION). **Decision (owner, July
-  2026): keep the in-game unlock, and split Bundle Q so this core ships in
-  1.1** — sequenced *after* the pendulum (P) so the level cache lands on a
-  settled base — while Q's three new caves stay in 1.2. Not a 1.01 item; listed
-  here only because it was raised as a "1.01 fix". See Bundle Q's split note.
+- [ ] **V1. Fly back to previous zones (rescue those left behind) — now a 1.01
+  item.** The owner's request is the **ROTATION CHART**: return travel to
+  cleared sectors (cached as-left). **Re-decided by the Act Two design round
+  (July 2026):** Laennec and AUSCULTATION move into Act Two, so the chart can
+  no longer hang off his rescue — it needs a new unlock (simplest honest
+  option: any resolved ending, the `doids_veteran` gate the game already uses).
+  With that decoupling it stops waiting on the pendulum and **lands in 1.01**,
+  which is where the owner wanted it in the first place. Act Two doesn't touch
+  the surface level cache, so there's no sequencing risk. See Bundle Q's
+  re-scope note and ACT_TWO_SPEC.md §13.
   Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
   checkpoint serialization (`doids_run`, `__doids.go(n)`).
 - [x] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
@@ -915,7 +949,16 @@ narrative beats; no shared dependency between them or with V1–V14.
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md).
 
-## Bundle W — Landscape challenge escalation (update 1.1, with P)
+## Bundle W — Landscape challenge escalation (optional polish)
+
+> **Downgraded by the July 2026 Act Two design round
+> ([ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §13).** W still improves Act One, but it
+> no longer does any pricing work — Act Two carries 1.1 and the £4.99 move on
+> its own. Take it when there's room; don't let it gate a release. Note also
+> that Act Two's authored underground chambers will exercise `roofAt` and the
+> overhang/collision questions W1 raises, so doing W *after* the Act Two
+> vertical slice means solving them once.
+
 
 **Why:** Owner idea (July 2026) for a **1.1** feature update: more landscape
 *challenge* as the campaign progresses — **crazy deep / narrow valleys, rocky

@@ -40,10 +40,13 @@ jumping to it anyway:
   served by an impulse-buy price than a $4.99 ask, which invites more
   scrutiny of length/value before purchase.
 
-**When $4.99 becomes the right call:** after Bundle Q (deep Hollows) ships as
-1.1/1.2, or after you have enough reviews/ratings that "short but excellent"
-is a visible signal on the page (a 4.7★ with reviews saying "wish it were
-longer" sells a $4.99 sequel-price better than a 0-review listing does).
+**When $4.99 becomes the right call — decided (owner, July 2026): at 1.1, on
+Act Two.** Act Two ([ACT_TWO_SPEC.md](ACT_TWO_SPEC.md)) roughly doubles the
+game with a ten-level underground rescue campaign, which is a far better price
+case than the earlier plan (Bundle Q's three extra caves, now absorbed and 1.2
+cancelled). By then the reviews argument should also be live: a 4.7★ with
+reviews saying "wish it were longer" sells a $4.99 price better than a 0-review
+listing does. 1.0 and 1.01 both stay at $2.99.
 
 **No IAP, no ads** either way — that's a genuine differentiator worth
 protecting; don't let a future "just add a tip jar" conversation erode it
