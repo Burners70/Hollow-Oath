@@ -164,20 +164,27 @@ const FAMOUS = [
 const GRAV = 46, THRUST = 138, ROT = 3.7, SHIP_R = 11;
 const WORLD_H = 1500, STEP = 16;
 const CAPACITY = 6;
-// Z1 — REMIX/DAILY replay variety: a per-run gravity scale drawn from
-// runSeed, ~0.7x-1.4x. Campaign (seed 0) always stays exactly 1 — the
-// authored feel and the M1 golden heightmap are untouched. Every gravity
+// Z1 — REMIX/DAILY replay variety: a per-SECTOR gravity scale, ~0.4x-2.2x
+// (owner steer, July 2026 — the original ~0.7x-1.4x roll read as barely
+// different from 1x; widened, and re-rolled every sector instead of once
+// per run so a whole REMIX run doesn't sit at one barely-noticed value).
+// Deterministic from (runSeed, sector index) so the same seed always rolls
+// the same sequence of sectors. Campaign (seed 0) always stays exactly 1 —
+// the authored feel and the M1 golden heightmap are untouched. Every gravity
 // reference in physics code reads grav(), never the bare GRAV constant.
 let gravScale = 1;
 function grav() { return GRAV * gravScale; }
-function rollGravity() {
-  gravScale = runSeed === 0 ? 1 : 0.7 + mulberry32(runSeed ^ 0x5a17e5)() * 0.7;
+function rollGravity(n) {
+  gravScale = runSeed === 0 ? 1 : 0.4 + mulberry32((runSeed ^ 0x5a17e5) + n * 7919)() * 1.8;
 }
 // Z1 — named in the briefing prefix so the roll is a KNOWN condition, not a
 // silent difficulty modifier; "" for a near-1x roll (rare, but not every
 // seed lands far from center — no label reads as no news, not a bug).
+// Owner steer: graded further at the extremes now that the range is wider.
 function gravLabel() {
+  if (gravScale >= 1.7) return "crushing gravity";
   if (gravScale >= 1.05) return "heavy world";
+  if (gravScale <= 0.5) return "near-weightless";
   if (gravScale <= 0.95) return "thin gravity";
   return "";
 }
@@ -546,7 +553,6 @@ function startRemix(seed) {
   runMode = "remix";
   runSeed = seed != null ? seed : 1 + Math.floor(Math.random() * 2147483646);
   famousMap = buildFamousMap(runSeed);
-  rollGravity();   // Z1
   toBriefing(0);
   blip(330, 660, 0.2, "sine", 0.1);
 }
@@ -559,7 +565,6 @@ function startDaily() {
   runSeed = utcDateNum();
   famousMap = buildFamousMap(runSeed);
   rollDailyMods();
-  rollGravity();   // Z1
   // the attempt is spent the moment it launches — no re-rolling a bad start
   try { localStorage.setItem("doids_daily", JSON.stringify({ date: utcDateNum(), score: 0, done: true })); } catch (e) {}
   toBriefing(0);
@@ -1475,6 +1480,7 @@ let sectorT = 0;   // sector flight time — the daily STOPWATCH reads it
 function toBriefing(n) {
   levelIdx = n;
   surfaceCtx = null;
+  rollGravity(n);   // Z1 — re-rolled every sector, not just once per run
   level = genLevel(n);
   sectorT = 0;
   setCaveEcho(false);   // S3 — every sector starts on the dry surface

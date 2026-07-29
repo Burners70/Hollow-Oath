@@ -72,6 +72,20 @@ the fairness re-tune it required.
 M1 golden checksum unchanged; two new smoke tests confirm the seed-to-scale
 determinism and the fairness re-tune's exact scaling relationship.
 
+**Owner playtest follow-up:** the ~0.7x-1.4x range read as barely different
+from 1x, and one roll for the whole run meant a REMIX flight sat at that
+one barely-noticed value the entire time.
+- Widened to **~0.4x-2.2x**.
+- **Re-rolled every sector** (`toBriefing(n)` now calls `rollGravity(n)`,
+  seeded from `(runSeed, n)`) instead of once at launch — a REMIX/DAILY run
+  now moves through a genuinely different gravity each sector, still fully
+  deterministic per seed.
+- `gravLabel()` gained two more tiers at the new extremes: `crushing
+  gravity` (≥1.7x) and `near-weightless` (≤0.5x), alongside the existing
+  `heavy world`/`thin gravity`.
+- Campaign (seed 0) is unaffected either way — still exactly 1x, every
+  sector, always.
+
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 
 An audit of the live game assets against

@@ -303,35 +303,48 @@ test("V10: a veteran campaign return escalates — more guns, more Vectors, move
 
 /* ===== Bundle Z — REMIX variable gravity ===== */
 
-test("Z1: gravity varies by seed in REMIX/DAILY, and never in campaign", async ({ page }) => {
+test("Z1: gravity varies by seed AND sector in REMIX/DAILY, and never in campaign", async ({ page }) => {
   // campaign (seed 0) always plays at exactly 1x — the authored feel and the
   // M1 golden heightmap stay untouched
   await page.evaluate(() => { __doids.go(0); });
   let s = await page.evaluate(() => __doids.get());
   expect(s.gravScale).toBe(1);
   expect(s.grav).toBe(46);   // GRAV's base value
-  // deterministic per seed, and bounded to the ~0.7x-1.4x range
+  // deterministic per (seed, sector), and bounded to the ~0.4x-2.2x range —
+  // owner steer (July 2026): widened from ~0.7x-1.4x (read as barely
+  // different from 1x) and re-rolled every sector, not once per run
   const rolls = await page.evaluate(() => {
     const out = {};
-    for (const seed of [1, 2, 3, 42, 12345]) { runSeed = seed; rollGravity(); out[seed] = gravScale; }
+    for (const seed of [1, 2, 3, 42, 12345]) {
+      runSeed = seed;
+      out[seed] = [0, 1, 2, 3, 4, 5, 6, 7].map(n => { rollGravity(n); return gravScale; });
+    }
     return out;
   });
   for (const seed of Object.keys(rolls)) {
-    expect(rolls[seed], "seed " + seed).toBeGreaterThanOrEqual(0.7);
-    expect(rolls[seed], "seed " + seed).toBeLessThanOrEqual(1.4);
+    for (const v of rolls[seed]) {
+      expect(v, "seed " + seed).toBeGreaterThanOrEqual(0.4);
+      expect(v, "seed " + seed).toBeLessThanOrEqual(2.2);
+    }
+    // a whole run doesn't sit at one barely-noticed value — sectors differ
+    expect(new Set(rolls[seed].map(v => v.toFixed(6))).size, "seed " + seed).toBeGreaterThan(1);
   }
-  // same seed → same roll, every time (reproducible, no RNG bleed)
-  const again = await page.evaluate(() => { runSeed = 42; rollGravity(); return gravScale; });
-  expect(again).toBeCloseTo(rolls[42], 10);
+  // same (seed, sector) → same roll, every time (reproducible, no RNG bleed)
+  const again = await page.evaluate(() => { runSeed = 42; rollGravity(3); return gravScale; });
+  expect(again).toBeCloseTo(rolls[42][3], 10);
   // even called directly, seed 0 never scales
-  const zero = await page.evaluate(() => { runSeed = 0; rollGravity(); return gravScale; });
+  const zero = await page.evaluate(() => { runSeed = 0; rollGravity(2); return gravScale; });
   expect(zero).toBe(1);
-  // __doids.remix(seed) applies it end-to-end and surfaces a label in the briefing
+  // __doids.remix(seed) applies it end-to-end (sector 0) and surfaces a label
   await page.evaluate(() => __doids.remix(1));
   s = await page.evaluate(() => __doids.get());
-  expect(s.gravScale).toBeCloseTo(rolls[1], 10);
-  expect(s.grav).toBeCloseTo(46 * rolls[1], 5);
-  expect(["", "heavy world", "thin gravity"]).toContain(s.gravLabel);
+  expect(s.gravScale).toBeCloseTo(rolls[1][0], 10);
+  expect(s.grav).toBeCloseTo(46 * rolls[1][0], 5);
+  expect(["", "heavy world", "thin gravity", "crushing gravity", "near-weightless"]).toContain(s.gravLabel);
+  // advancing sectors within the same REMIX run re-rolls gravity, not just at launch
+  await page.evaluate(() => { __doids.go(1); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.gravScale).toBeCloseTo(rolls[1][1], 10);
 });
 
 test("Z2: landing fairness thresholds scale with gravity, so the same approach reads the same across the range", async ({ page }) => {
@@ -354,4 +367,9 @@ test("Z2: landing fairness thresholds scale with gravity, so the same approach r
   // thin gravity (0.7x): the threshold tightens — a speed that passed at 1x
   // can now fail
   expect((await check(0.7, base - 1)).soft).toBe(false);
+  // the widened range (owner steer) still holds the same sqrt relationship
+  // at its new extremes — crushing gravity (2.2x) widens further...
+  expect((await check(2.2, base * Math.sqrt(2.2) - 1)).soft).toBe(true);
+  // ...near-weightless (0.4x) tightens further
+  expect((await check(0.4, base * Math.sqrt(0.4) + 1)).soft).toBe(false);
 });
