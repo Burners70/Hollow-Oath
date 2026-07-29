@@ -84,6 +84,101 @@ test("stranding at 0 fuel: the signal brings a drone, a primer, and a line", asy
   expect(s.ship.fuel).toBeGreaterThan(6);   // the primer mist — enough to reach the line
 });
 
+/* (owner feedback, July 2026 — "you can get trapped in a gravity well with no fuel
+   to escape. We need a scuttle for that situation") — the scuttle charge used to be
+   Hollows-only; on the surface a strand always called the drone, so a dip the ship
+   couldn't climb out of let the drone answer forever with a tank that was never
+   enough. That's a soft-lock with a friendly face on it. */
+test("a surface strand can be escaped by holding SHIELD to scuttle, without touching the drone", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
+  const s0 = await page.evaluate(() => __doids.get());
+  expect(s0.ship.fuel).toBe(0);
+  expect(s0.ship.landed).toBe(true);
+  expect(s0.inCave).toBe(false);
+  // SHIELD is a genuine no-op at zero fuel, so it's free for this and can't
+  // collide with the THRUST-to-signal lifeline
+  await page.evaluate(() => { input.shield = true; });
+  await page.waitForFunction(() => ship.scuttleT > 0.3, null, { timeout: 3000 });
+  expect(await page.evaluate(() => ship.shield), "no force field at zero fuel").toBe(false);
+  expect(await page.evaluate(() => __doids.get().resupplyDrone), "SHIELD doesn't call a drone").toBeNull();
+  // releasing it decays the charge rather than firing
+  await page.evaluate(() => { input.shield = false; });
+  await page.waitForFunction(() => ship.scuttleT === 0, null, { timeout: 3000 });
+  expect(await page.evaluate(() => __doids.get().state)).toBe("play");
+  // holding it through SCUTTLE_HOLD_T fires the charge and breaks the soft-lock
+  await page.evaluate(() => { bannerMsg = null; input.shield = true; });
+  await page.waitForFunction(() => __doids.get().state === "dead", null, { timeout: 6000 });
+  expect(await page.evaluate(() => bannerMsg && bannerMsg.str)).toMatch(/SCUTTLED/);
+  expect(await page.evaluate(() => bannerMsg.str), "the Hollows line is underground-only")
+    .not.toMatch(/HOLLOWS/);
+  await page.evaluate(() => { input.shield = false; });
+});
+
+/* (owner feedback, July 2026 — the real "gravity well") — caught in a gravity
+   anomaly with an empty tank. The anomaly's pull is strongest at its core
+   (str * (1 - d/r)) and NOTHING in the physics damps velocity, so a fuel-dry ship
+   oscillates around the equilibrium indefinitely: it never touches ground, so
+   `landed` never goes true, so the drone can't be signalled — and before this fix
+   the scuttle couldn't be armed either, because it required a landing too. Total
+   soft-lock, abandonable only from the pause menu. */
+test("caught fuel-dry in a gravity anomaly: the ship never lands, and the scuttle is still reachable", async ({ page }) => {
+  // sector 4 (CURIE FIELDS) carries anomalies
+  const trapped = await page.evaluate(() => {
+    __doids.go(4); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    if (!level.anomalies.length) return null;
+    const a = level.anomalies[0];
+    // drop the ship at the anomaly's core with no fuel and no velocity
+    ship.x = a.x; ship.y = a.y; ship.vx = 0; ship.vy = 0;
+    ship.fuel = 0; ship.landed = false; ship.dead = false;
+    return { ax: a.x, ay: a.y, r: a.r, str: a.str };
+  });
+  expect(trapped, "sector 4 generates anomalies").not.toBeNull();
+  // the anomaly is strong enough to hold a dry ship: after a couple of seconds it
+  // is still airborne and still inside the field
+  await page.waitForTimeout(2200);
+  const held = await page.evaluate(() => ({
+    landed: ship.landed, dead: ship.dead, state: __doids.get().state,
+    d: Math.hypot(ship.x - level.anomalies[0].x, ship.y - level.anomalies[0].y),
+    r: level.anomalies[0].r,
+  }));
+  expect(held.state).toBe("play");
+  expect(held.landed, "never touches ground — so the drone can't be called").toBe(false);
+  expect(held.d, "still held inside the field").toBeLessThan(held.r);
+  // the escape hatch is reachable even though the ship is airborne
+  await page.evaluate(() => { bannerMsg = null; input.shield = true; });
+  await page.waitForFunction(() => ship.scuttleT > 0.3, null, { timeout: 3000 });
+  await page.waitForFunction(() => __doids.get().state === "dead", null, { timeout: 6000 });
+  expect(await page.evaluate(() => bannerMsg && bannerMsg.str)).toMatch(/SCUTTLED/);
+  await page.evaluate(() => { input.shield = false; });
+});
+
+test("the THRUST-to-signal lifeline still works untouched alongside the scuttle", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
+  await page.evaluate(() => { input.thrust = true; });
+  await page.waitForFunction(() => __doids.get().resupplyDrone !== null, null, { timeout: 4000 });
+  expect(await page.evaluate(() => ship.scuttleT), "THRUST arms the signal, not the charge").toBe(0);
+  await page.evaluate(() => { input.thrust = false; });
+});
+
+/* (owner decision, July 2026) — the resupply floor stays FLAT across gravity. It was
+   briefly scaled by gravScale to keep the "can never soft-lock" claim true in a heavy
+   sector; that's rolled back, because the scuttle charge now closes the soft-lock on
+   any empty tank instead, and scaling the floor would only soften exactly the sectors
+   Bundle Z widened its range to make harder. */
+test("the resupply floor stays flat across gravity — heavy sectors are meant to be heavy", async ({ page }) => {
+  const caps = await page.evaluate(() => {
+    __doids.go(1); __doids.launch();
+    const out = {};
+    for (const g of [0.4, 1, 2.2]) { gravScale = g; out[g] = xfuseCap(); }
+    gravScale = 1;
+    return out;
+  });
+  expect(caps["2.2"]).toBe(caps["1"]);
+  expect(caps["0.4"]).toBe(caps["1"]);
+  expect(await page.evaluate(() => typeof xfuseFloor), "the scaling helper is gone").toBe("undefined");
+});
+
 test("V18: the very first field resupply gets a one-time acknowledgement banner", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
   expect(await page.evaluate(() => runRefuels)).toBe(0);

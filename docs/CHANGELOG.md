@@ -16,6 +16,8 @@ file; the *plan* they came from is
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
+- [The scuttle charge becomes a universal escape hatch](#the-scuttle-charge-becomes-a-universal-escape-hatch) — the gravity-anomaly soft-lock, and why the fuel floor deliberately stays flat
+- [The Solace's hull reveal reads brighter and holds](#the-solaces-hull-reveal-reads-brighter-and-holds) — the reflected-ping hull outline was a blink, not a reveal
 - [Bundle X + Z integration: the trainee sector's inherited crosswind](#bundle-x--z-integration-the-trainee-sectors-inherited-crosswind) — a bug that only exists once X's training mode and Z's gravity share a codebase
 - [Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating](#bundle-x--onboarding-trainee-sector-guided-pauses-hint-bank-in-app-rating) — the first 1.01 bundle to land; sequenced ahead of Bundles V and Z
 - [Bundle X owner-feedback round: onboarding refinements, an efficiency bonus, and an ASSIST fix](#bundle-x-owner-feedback-round-onboarding-refinements-an-efficiency-bonus-and-an-assist-fix) — owner playtest notes on PR #61, plus the minimum-journeys bonus and the ASSIST landing-guide fix
@@ -52,6 +54,88 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## The scuttle charge becomes a universal escape hatch
+
+**Release:** 1.01
+
+Owner playtest: *"You can get trapped in a gravity well with no fuel to escape. We
+need a scuttle for that situation."* The "gravity well" is a **gravity anomaly** —
+the concentric rings in CURIE FIELDS and later sectors — not a dip in the terrain,
+which is how it was first read. The anomaly case is the substantive fix below; the
+first attempt at a terrain reading has been rolled back.
+
+- **The resupply floor stays flat across gravity** (owner decision). It was briefly
+  scaled by `gravScale`: `XFUSE_FLOOR = 35` is documented as the smallest tank the
+  drone will leave you with — "≥ primer + enough to limp to the next pad" — so the
+  lifeline "can never soft-lock a run", and that was measured at 1× while Bundle Z
+  now allows ~2.2×. **Rolled back.** The anti-soft-lock guarantee is carried by the
+  scuttle charge instead, which works on any empty tank whether the ship is landed
+  or held aloft, so no amount of gravity can make a strand terminal. With the
+  soft-lock closed there, scaling the floor would only hand the player a bigger tank
+  in exactly the sectors Z widened its range to make *harder*, and quietly inflate
+  the points `XFUSE_COST` charges for the fill. Heavy gravity is meant to be heavy.
+  The reasoning is recorded at the constant so it isn't re-derived and re-applied.
+- **The scuttle charge now works above ground, and does not require a landing.**
+  It existed already but was gated to the Hollows, where there's no drone to call.
+  On the surface it sits on **SHIELD** rather than THRUST: THRUST already signals
+  the drone there, and the force field is a genuine no-op at zero fuel
+  (`wantShield` requires `fuel > 0`), so there is nothing to collide with. Same
+  2.4s hold and progress ring as underground, so it reads as the one mechanic it
+  is. Deliberately **not** gated on the drone having been used — the two are
+  alternatives the player chooses between, and U2's diminishing priced resupply
+  economy is untouched. (A first attempt did gate it that way and broke three
+  existing tests, including U2's own "never soft-locks" case, which legitimately
+  takes two tanks in one sector.)
+- **The gravity-anomaly soft-lock** — the owner's actual "gravity well", and the
+  reason the scuttle can't require a landing. An anomaly's pull is strongest at its
+  **core** (`str * (1 - d/r)`, so it grows as you approach) and **nothing in the
+  physics damps velocity** — the only velocity scaling anywhere is the resupply
+  drone's own speed clamp. So a fuel-dry ship carried into one oscillates around
+  the equilibrium indefinitely: it never touches ground, `ship.landed` never goes
+  true, and therefore *neither* the drone signal *nor* (before this fix) the
+  scuttle could be reached. The run could only be abandoned from the pause menu.
+  Both the charge and the on-ship prompt now trigger on an empty tank alone,
+  airborne or not; the prompt reads `OUT OF FUEL — SET DOWN TO SIGNAL` while
+  airborne, since the drone genuinely does need a touchdown. Allowing it mid-air
+  everywhere else costs nothing — a dry ship anywhere but an anomaly is simply
+  falling, and it still takes a deliberate 2.4s hold.
+
+**Owner decision, no code change: the anomaly stays dangerous.** `str` is 80–120
+against `THRUST` 138, so escaping a core under power is possible but tight — and
+tighter still in a heavy Bundle Z sector, where a strong anomaly may be inescapable
+even with a full tank. Asked directly, the owner wants that risk kept: *"Happy with
+the chance of being stuck in an anomaly. Like that risk."* So `str` is deliberately
+**not** capped against `THRUST` and **not** scaled against `gravScale`. It reads like
+a fairness bug and isn't one: losing the ship to an anomaly is a legitimate outcome,
+and the out is the scuttle. Being unable to *act at all* was the bug. Recorded at the
+force calculation in `updatePlay` as well as here, since that's where a future
+session would go looking to "fix" it.
+
+New copy in [COPY_DECK.md](COPY_DECK.md) §8/§8b: the surface prompt gains
+`OR HOLD SHIELD TO SCUTTLE`, and the scuttle banner no longer claims the Hollows
+when you're on the surface. Three new smoke tests (the surface scuttle including
+release-decay, the untouched THRUST lifeline, and the gravity-scaled floor at
+0.4×/1×/2.2×); full suite green at 120.
+
+## The Solace's hull reveal reads brighter and holds
+
+**Release:** 1.01
+
+Owner playtest: *"she could ping slightly brighter/more sustained"* — meaning the
+reflected-ping reveal that outlines her **whole** drowned hull, not her outgoing
+pulse.
+
+Two causes, both in the sweep's envelope. `SONAR_DUR` was 1.8s, and the opacity
+was `Math.sin(p × π)` — a hump that only touched full brightness at the exact
+midpoint, so the biggest reveal in the game was effectively a blink. Now 2.6s with
+a **held plateau**: a quick sweep-in, full brightness while the sweep ring finishes
+travelling out, then a fade. The sweep still paints her in progressively; what it
+has painted now stays lit. The hull gradient is also lifted across the board and
+most at the *bottom* stop (0.12 → 0.3) — the buried belly is the part that says
+"this is a whole ship, not the bit you can see", and it was barely visible.
+Reduced-flash still tones the glow, and a steadier reveal is if anything gentler
+than the old hump.
 
 ## Bundle X + Z integration: the trainee sector's inherited crosswind
 
@@ -363,6 +447,31 @@ pending a retest against the now-merged `main`.
   being docked 12 vitals every 4.5s for approaching a mystery you haven't been told
   how to answer would just relocate the unfairness — but it keeps the surge, shake
   and flash. Full stakes resume once she's named.
+- **A pre-reveal parry names her instead of being thrown away** (owner: "when I
+  parry the Solace's signal, I see it bounce back and hit the ship — but nothing
+  happens"). A follow-up defect in the change above: now that she pulses on
+  approach, a player can parry her *before* ever touching down. That parry
+  succeeded — the round visibly bounced off the shield and burst back at her — and
+  then the beacon logic silently discarded it, because resolving her before the
+  STILL TRANSMITTING card would land the card after its own payoff. A successful
+  parry is the hardest input in the game and must never be a no-op. It now
+  triggers the **reveal**: she answers being answered by giving up her name, and
+  the next pulse you parry resolves her. Same beats, same order, nothing wasted.
+  The reveal is factored into a shared `revealBeacon()` so the landing route and
+  the parry route can't drift apart. One consequence, deliberate: landing beside
+  her is no longer the *only* way to earn the name card.
+- **Landing anywhere on her buried hull names her** (owner: "I didn't get the card
+  either… it just started pinging me"). The reveal band was **120px** — narrower
+  than the ship the player is standing on. `genLevel` flattens a **±250** ridge
+  over her, and her hull (`solaceMercyPath`, ±152 × `SOLACE_MS` 1.3) spans **±198**.
+  So you could set down directly on top of her, well inside `ANSWER_RANGE` and
+  being pulsed every `ANSWER_GAP`, and get nothing at all — her tower is a small
+  target on a wide flat ridge, and in the dark it's barely visible. Now a named
+  `REVEAL_RANGE = 200`, matching her actual hull: land anywhere *on* her and she
+  gives up her name. Strictly a superset of the old band, so nothing regresses.
+  The existing V3 test couldn't catch this — `warpBeacon()` teleports to her exact
+  x — so the new test lands 170px out and also asserts the ridge really is flat
+  there, i.e. that it was a genuinely landable spot rather than a cliff.
 
 Owner decision, no code change: arriving at the finale with no fuel makes the
 Solace unanswerable (the shield, and so the parry, needs `fuel > 0`) while her

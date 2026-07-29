@@ -28,9 +28,25 @@ const WAVE_GAP = 4.2;       // seconds between a Vector's casts while you're in 
 const WAVE_RANGE = 460;     // it only casts when the ship is this near
 const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
 const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counterfeits
-const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
+/* V3 — how long a Solace sonar hull-pulse takes to sweep + fade.
+   (owner feedback, July 2026) — lengthened from 1.8s. Reflecting her ping outlines
+   her WHOLE drowned hull, not just the exposed tower, and it's the biggest reveal
+   in the game; at 1.8s with the old sine-hump envelope it was full-brightness for
+   an instant at the midpoint and gone. See drawBeacon for the matching envelope
+   change (a held plateau instead of a hump) — the two together are what make it
+   read as sustained rather than a blink. */
+const SONAR_DUR = 2.6;
 const ANSWER_GAP = 4.5;        // V6-finale — seconds between the Solace's answerable pulses
 const ANSWER_RANGE = 300;      // you must be this near for her to pulse (and to parry)
+/* (owner feedback, July 2026 — "I didn't get the card either… it just started
+   pinging me") — how close a touchdown has to be to NAME her. This was 120,
+   which was narrower than the ship she's buried under: genLevel flattens a ±250
+   ridge over her, and her hull (solaceMercyPath, ±152 × SOLACE_MS 1.3) spans
+   ±198. So you could set down directly on top of her buried hull, well inside
+   ANSWER_RANGE and being pinged every ANSWER_GAP, and still get nothing — the
+   tower is a small target on a wide flat ridge, and at night it's barely visible.
+   200 ≈ her actual hull: land anywhere ON her and she gives up her name. */
+const REVEAL_RANGE = 200;
 // (owner steer) — the Solace's fire-death beats, shared by updateDestruct +
 // drawSolaceDeath. The glow ignites on her exposed broadcast tower; the red heat
 // then flows DOWN below the ground, drawing out her buried MERCY-class hull; a
@@ -1221,7 +1237,21 @@ function updatePlay(dt) {
     }
   }
 
-  // gravity anomalies pull the ship toward their centres
+  /* gravity anomalies pull the ship toward their centres. The pull is strongest at
+     the CORE (str * (1 - d/r), growing as you close in), and nothing here damps
+     velocity, so a fuel-dry ship taken into one can orbit indefinitely without ever
+     touching ground.
+     OWNER DECISION (July 2026): that is deliberate and stays. `str` is 80–120
+     (js/world.js, genLevel) against THRUST 138, so escaping a core under power is
+     possible but tight — and tighter still in a heavy Bundle Z sector, where a
+     strong anomaly may be inescapable even with a full tank. The owner was asked
+     directly and wants the risk: "Happy with the chance of being stuck in an
+     anomaly. Like that risk."
+     So do NOT cap `str` relative to THRUST or scale it against gravScale. It reads
+     like a fairness bug and isn't one — the out is the SCUTTLE CHARGE, which is
+     reachable on any empty tank whether the ship is landed or held aloft (see
+     updateResupplySignal). Losing the ship to an anomaly is a real outcome; being
+     unable to act at all was the bug, and that is what got fixed. */
   for (const a of level.anomalies) {
     const dx = a.x - s.x, dy = a.y - s.y, d = Math.hypot(dx, dy);
     if (d < a.r && d > 1 && !s.landed) {
@@ -2356,7 +2386,10 @@ const SIGNAL_HOLD_T = 1.8;
 const SCUTTLE_HOLD_T = 2.4;
 function scuttleShip() {
   addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", PAL().DANGER);
-  banner("SCUTTLED IN THE HOLLOWS", PAL().DANGER);
+  // the Hollows line only fits underground; a surface scuttle is a dip the ship
+  // couldn't climb back out of
+  banner(level.isCave ? "SCUTTLED IN THE HOLLOWS" : "SCUTTLED — NO CLIMBING OUT OF THAT ONE",
+    PAL().DANGER);
   blip(220, 40, 0.8, "sawtooth", 0.2);
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 180, style: "heavy" }]);
   shipDie();   // the wreck is spat back to the surface on respawn (see updateDead)
@@ -2368,6 +2401,16 @@ const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 13
    limp to the next pad) so the crutch, even the RATIONED TANK daily mod plus
    this penalty, can never soft-lock a run. Each resupply caps lower than the
    last: maxFuel × 0.9^refuels, floored at XFUSE_FLOOR. */
+/* (owner decision, July 2026) — this floor is FLAT on purpose, and does not scale
+   with Bundle Z's per-sector gravity. It was briefly made to, on the reasoning that
+   35 units buys well under half the altitude in a 2.2x sector, so the "can never
+   soft-lock a run" claim above no longer held. That was rolled back: the guarantee
+   is now carried by the SCUTTLE CHARGE, which is available on any empty tank whether
+   the ship is landed or held aloft (see updateResupplySignal), so no amount of
+   gravity can make a strand terminal. With the soft-lock closed there, scaling the
+   floor would only hand the player a bigger tank in exactly the sectors Bundle Z
+   widened its range to make harder — and quietly inflate the points XFUSE_COST
+   charges for the fill. Heavy gravity is meant to be heavy. */
 const XFUSE_COST = 4, XFUSE_FLOOR = 35;
 // Owner steer: on SEMMELWEIS DEEP the supply lines are cut — the drone still
 // answers (a stranded ship must never be un-rescuable) but on scavenged reserves:
@@ -2415,10 +2458,22 @@ function tethered() {
 function updateResupplySignal(dt) {
   const s = ship;
   const stranded = s.landed && s.fuel <= 0 && !s.dead;
+  /* (owner feedback, July 2026) — the scuttle charge deliberately does NOT require
+     a landing, unlike the drone signal. The case that needs it most is being caught
+     in a gravity anomaly with an empty tank: the anomaly's inward pull is strongest
+     at its core (`str * (1 - d/r)`, `js/update.js` updatePlay) and nothing in the
+     physics damps velocity, so a fuel-dry ship taken into one oscillates around the
+     equilibrium indefinitely — it never touches ground, so `stranded` never goes
+     true, so the drone can't be signalled AND the charge couldn't be armed either.
+     That's a total soft-lock: the run can only be abandoned from the pause menu.
+     Being dry and airborne anywhere ELSE just means you're falling and will land or
+     crash within a second or two, so allowing it there costs nothing — it takes a
+     deliberate 2.4s hold either way. */
+  const dry = s.fuel <= 0 && !s.dead;
   // In the Hollows there is no drone to call — SIGNAL NOT RECEIVED. Holding
-  // THRUST while stranded arms the scuttle charge instead (the only way out).
+  // THRUST while dry arms the scuttle charge instead (the only way out).
   if (level.isCave) {
-    if (stranded && (input.thrust || pad.thrust)) {
+    if (dry && (input.thrust || pad.thrust)) {
       s.scuttleT = (s.scuttleT || 0) + dt;
       if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); }
     } else {
@@ -2426,7 +2481,22 @@ function updateResupplySignal(dt) {
     }
     return;
   }
-  s.scuttleT = 0;
+  /* (owner feedback, July 2026 — "you can get trapped in a gravity well with no
+     fuel to escape. We need a scuttle for that situation") — above ground the
+     scuttle charge is now available too, so neither an anomaly's core nor a dip the
+     ship can't climb out of is ever terminal. It sits on SHIELD rather than THRUST
+     because THRUST already signals the drone here, and SHIELD is a genuine no-op at
+     zero fuel (see updatePlay's `wantShield` gate, which requires fuel > 0) — so
+     there is nothing to collide with. Deliberately NOT gated on the drone having
+     been used: the two are alternatives the player chooses between, and the resupply
+     economy (U2's diminishing, priced lifeline) is untouched. Same 2.4s hold and
+     progress ring as underground, so it reads as the one mechanic it is. */
+  if (dry && (input.shield || pad.shield)) {
+    s.scuttleT = (s.scuttleT || 0) + dt;
+    if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); return; }
+  } else {
+    s.scuttleT = Math.max(0, (s.scuttleT || 0) - dt * 2.5);
+  }
   if (stranded && !resupplyDrone && (input.thrust || pad.thrust)) {
     s.signalT += dt;
     if (Math.random() < dt * 8) particles.push({
@@ -2759,19 +2829,10 @@ function updateBeacon(dt) {
   if (!b || b.resolved) return;
   const s = ship;
   if (b.sonarT > 0) b.sonarT = Math.max(0, b.sonarT - dt);
-  // V3 — the reveal beat: land beside the source and it gives up its name, the
+  // V3 — the reveal beat: land on the source and it gives up its name, the
   // AMS SOLACE, with a sonar pulse that draws her whole drowned hull. From then
   // on she pulses back on every 41-second Static beat (see updateStaticClock).
-  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) {
-    b.revealed = true; b.sonarT = SONAR_DUR;
-    ringHollow();
-    // owner steer — a quiet CLUE, not an instruction: name her and hint that the
-    // signal wants answering. The player works out that "a response" means
-    // parrying her pulse; no cross-screen "raise shield" giveaway.
-    showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
-      body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
-      color: TOK.CYAN_INK });
-  }
+  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < REVEAL_RANGE) revealBeacon(b);
   // V6-finale (owner: replace the old land-and-hold) — the answer is the
   // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
   // looping distress wave; parry it (shield, the E3 window) to send her own
@@ -2802,13 +2863,37 @@ function updateBeacon(dt) {
         finale: true, preReveal: !b.revealed });
     }
   } else b.castT = 0;
-  // only a parry she can be named by counts as being HEARD: pre-reveal you don't
-  // yet know who or what you're answering, so a lucky early parry is discarded
-  // rather than banked (it would otherwise resolve her the instant she's revealed).
+  /* Answering her is what resolves her — but only once she's been NAMED, so the
+     STILL TRANSMITTING card can't land after its own payoff.
+     (owner feedback, July 2026, follow-up) — this used to silently DISCARD a
+     pre-reveal parry, which was the worst of both: now that she pulses on
+     approach, a player can parry her before ever touching down, see the round
+     visibly bounce off the shield and burst back at her, and have the game do
+     absolutely nothing with it. A successful parry is the hardest input in the
+     game; it must never be a no-op. So a pre-reveal parry now triggers the
+     REVEAL instead: she answers being answered by giving up her name, and the
+     NEXT pulse you parry resolves her. Same beats, same order, nothing thrown
+     away. (This does mean landing beside her is no longer the only route to the
+     name card — answering her signal is now an equally valid way to earn it.) */
   if (b.heardParry) {
+    b.heardParry = false;
     if (b.revealed) resolveBeacon("answered");
-    else b.heardParry = false;
+    else revealBeacon(b);
   }
+}
+
+/* V3 — the reveal beat: she gives up her name, the AMS SOLACE, with a sonar pulse
+   that draws her whole drowned hull. Two ways to earn it (see updateBeacon): land
+   beside her, or parry the pulse she's been looping all along. */
+function revealBeacon(b) {
+  b.revealed = true; b.sonarT = SONAR_DUR;
+  ringHollow();
+  // owner steer — a quiet CLUE, not an instruction: name her and hint that the
+  // signal wants answering. The player works out that "a response" means
+  // parrying her pulse; no cross-screen "raise shield" giveaway.
+  showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
+    body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
+    color: TOK.CYAN_INK });
 }
 
 function resolveBeacon(how) {

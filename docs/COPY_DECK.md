@@ -411,6 +411,17 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | Transfusion line snaps | `LINE SEVERED — REMAINDER LOST  -50 / SIGNAL AGAIN IF YOU NEED IT` |
 | Transfusion window closes | `TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED` |
 | First field resupply (V18, one-time) | `YOU'RE NOT ALONE. HELP IS ON THE WAY. BUT THERE IS A PRICE.` |
+| Scuttle fired | `SCUTTLED IN THE HOLLOWS` underground; `SCUTTLED — NO CLIMBING OUT OF THAT ONE` on the surface (July 2026 — the surface scuttle is new; the Hollows line only ever fitted underground) |
+
+### 8b. Stranded-at-zero-fuel prompts (`drawShip`)
+
+Shown on the ship when landed with an empty tank and no drone inbound.
+
+| Where | Copy |
+|---|---|
+| Surface, landed | `OUT OF FUEL — HOLD THRUST TO SIGNAL` and, below it in gold, `OR HOLD SHIELD TO SCUTTLE` *(July 2026 — the second line is new. THRUST calls the drone as before; SHIELD is a no-op at zero fuel, so it's free to carry the escape hatch. Both are offered; the player picks.)* |
+| Surface, airborne | `OUT OF FUEL — SET DOWN TO SIGNAL` / `OR HOLD SHIELD TO SCUTTLE` *(July 2026 — the drone only answers a ship that has set down, and a gravity anomaly can hold a fuel-dry ship aloft indefinitely, so the prompt has to appear and the scuttle has to work while airborne)* |
+| Hollows | `SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT` / `HOLD THRUST TO SCUTTLE` *(no drone reaches underground, so THRUST arms the charge directly)* |
 
 ## 9. Floating texts (`addText()` call sites)
 
@@ -443,7 +454,9 @@ shield to catalogue it, no shot)
   isn't asking to be silenced. It's asking to be answered. / The signal seeks a
   response." *(A clue, not an instruction — the player discovers that "a
   response" means parrying her pulse. Replaces the old cross-screen "raise
-  shield" banner.)*
+  shield" banner. **Two triggers** (July 2026): landing beside her, or parrying
+  the pulse she loops on approach — a parry before she's named earns this card
+  rather than resolving her, so the card can never land after its own payoff.)*
 - **Black box** — kicker `BLACK BOX RECOVERED · SIGNAL <n>/7 · +800`; body =
   the log fragment, or "The recorder is blank — wiped clean. Someone got here
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at
