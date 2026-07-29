@@ -2445,10 +2445,22 @@ function tethered() {
 function updateResupplySignal(dt) {
   const s = ship;
   const stranded = s.landed && s.fuel <= 0 && !s.dead;
+  /* (owner feedback, July 2026) — the scuttle charge deliberately does NOT require
+     a landing, unlike the drone signal. The case that needs it most is being caught
+     in a gravity anomaly with an empty tank: the anomaly's inward pull is strongest
+     at its core (`str * (1 - d/r)`, `js/update.js` updatePlay) and nothing in the
+     physics damps velocity, so a fuel-dry ship taken into one oscillates around the
+     equilibrium indefinitely — it never touches ground, so `stranded` never goes
+     true, so the drone can't be signalled AND the charge couldn't be armed either.
+     That's a total soft-lock: the run can only be abandoned from the pause menu.
+     Being dry and airborne anywhere ELSE just means you're falling and will land or
+     crash within a second or two, so allowing it there costs nothing — it takes a
+     deliberate 2.4s hold either way. */
+  const dry = s.fuel <= 0 && !s.dead;
   // In the Hollows there is no drone to call — SIGNAL NOT RECEIVED. Holding
-  // THRUST while stranded arms the scuttle charge instead (the only way out).
+  // THRUST while dry arms the scuttle charge instead (the only way out).
   if (level.isCave) {
-    if (stranded && (input.thrust || pad.thrust)) {
+    if (dry && (input.thrust || pad.thrust)) {
       s.scuttleT = (s.scuttleT || 0) + dt;
       if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); }
     } else {
@@ -2458,15 +2470,15 @@ function updateResupplySignal(dt) {
   }
   /* (owner feedback, July 2026 — "you can get trapped in a gravity well with no
      fuel to escape. We need a scuttle for that situation") — above ground the
-     scuttle charge is now available too, so a dip the ship can't climb out of is
-     never terminal. It sits on SHIELD rather than THRUST because THRUST already
-     signals the drone here, and SHIELD is a genuine no-op at zero fuel (see
-     updatePlay's `wantShield` gate, which requires fuel > 0) — so there is nothing
-     to collide with. Deliberately NOT gated on the drone having been used: the two
-     are alternatives the player chooses between, and the resupply economy (U2's
-     diminishing, priced lifeline) is untouched. Same 2.4s hold and progress ring
-     as underground, so it reads as the one mechanic it is. */
-  if (stranded && (input.shield || pad.shield)) {
+     scuttle charge is now available too, so neither an anomaly's core nor a dip the
+     ship can't climb out of is ever terminal. It sits on SHIELD rather than THRUST
+     because THRUST already signals the drone here, and SHIELD is a genuine no-op at
+     zero fuel (see updatePlay's `wantShield` gate, which requires fuel > 0) — so
+     there is nothing to collide with. Deliberately NOT gated on the drone having
+     been used: the two are alternatives the player chooses between, and the resupply
+     economy (U2's diminishing, priced lifeline) is untouched. Same 2.4s hold and
+     progress ring as underground, so it reads as the one mechanic it is. */
+  if (dry && (input.shield || pad.shield)) {
     s.scuttleT = (s.scuttleT || 0) + dt;
     if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); return; }
   } else {

@@ -749,7 +749,10 @@ function drawShip(now) {
   }
   // stranded at zero fuel — hold THRUST to call a resupply drone, except in the
   // Hollows where no signal reaches you and THRUST arms the scuttle charge
-  if (s.landed && s.fuel <= 0 && !s.dead && !resupplyDrone) {
+  // (owner feedback, July 2026) — no longer gated on `landed`: the case that most
+  // needs the scuttle prompt is hanging fuel-dry in a gravity anomaly, where the
+  // ship never touches ground at all.
+  if (s.fuel <= 0 && !s.dead && !resupplyDrone) {
     ctx.textAlign = "center";
     ctx.font = mono(10);
     if (level.isCave) {
@@ -773,11 +776,14 @@ function drawShip(now) {
       }
     } else {
       ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 8;
-      ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
+      // the drone only answers a ship that has set down, so say so when airborne —
+      // which is also the state an anomaly can hold you in indefinitely
+      ctx.fillText(s.landed ? "OUT OF FUEL — HOLD THRUST TO SIGNAL"
+                            : "OUT OF FUEL — SET DOWN TO SIGNAL", s.x, s.y - 40);
       ctx.shadowBlur = 0;
-      // (owner feedback, July 2026) — the second way out, for a dip the drone's
-      // tank can't lift you clear of. Quieter than the signal line: the drone is
-      // still the first thing to try, this is the escape hatch under it.
+      // (owner feedback, July 2026) — the second way out, for an anomaly core or a
+      // dip the drone's tank can't lift you clear of. Quieter than the signal line:
+      // the drone is still the first thing to try, this is the hatch under it.
       ctx.fillStyle = shade(TOK.GOLD, .8);
       ctx.fillText("OR HOLD SHIELD TO SCUTTLE", s.x, s.y - 28);
       if (s.signalT > 0) {

@@ -73,16 +73,33 @@ need a scuttle for that situation."* Two independent causes, both fixed.
   goes *below* the old value (a thin-gravity sector doesn't make the primer
   cheaper). This is the same class of bug as the X/Z gravity leak below: a constant
   tuned before Z existed, silently invalidated by it.
-- **The scuttle charge now works above ground.** It existed already but was gated
-  to the Hollows, where there's no drone to call. On the surface it sits on
-  **SHIELD** rather than THRUST: THRUST already signals the drone there, and the
-  force field is a genuine no-op at zero fuel (`wantShield` requires `fuel > 0`),
-  so there is nothing to collide with. Same 2.4s hold and progress ring as
-  underground, so it reads as the one mechanic it is. Deliberately **not** gated on
-  the drone having been used — the two are alternatives the player chooses between,
-  and U2's diminishing priced resupply economy is untouched. (A first attempt did
-  gate it that way and broke three existing tests, including U2's own
-  "never soft-locks" case, which legitimately takes two tanks in one sector.)
+- **The scuttle charge now works above ground, and does not require a landing.**
+  It existed already but was gated to the Hollows, where there's no drone to call.
+  On the surface it sits on **SHIELD** rather than THRUST: THRUST already signals
+  the drone there, and the force field is a genuine no-op at zero fuel
+  (`wantShield` requires `fuel > 0`), so there is nothing to collide with. Same
+  2.4s hold and progress ring as underground, so it reads as the one mechanic it
+  is. Deliberately **not** gated on the drone having been used — the two are
+  alternatives the player chooses between, and U2's diminishing priced resupply
+  economy is untouched. (A first attempt did gate it that way and broke three
+  existing tests, including U2's own "never soft-locks" case, which legitimately
+  takes two tanks in one sector.)
+- **The gravity-anomaly soft-lock** — the owner's actual "gravity well", and the
+  reason the scuttle can't require a landing. An anomaly's pull is strongest at its
+  **core** (`str * (1 - d/r)`, so it grows as you approach) and **nothing in the
+  physics damps velocity** — the only velocity scaling anywhere is the resupply
+  drone's own speed clamp. So a fuel-dry ship carried into one oscillates around
+  the equilibrium indefinitely: it never touches ground, `ship.landed` never goes
+  true, and therefore *neither* the drone signal *nor* (before this fix) the
+  scuttle could be reached. The run could only be abandoned from the pause menu.
+  Both the charge and the on-ship prompt now trigger on an empty tank alone,
+  airborne or not; the prompt reads `OUT OF FUEL — SET DOWN TO SIGNAL` while
+  airborne, since the drone genuinely does need a touchdown. Allowing it mid-air
+  everywhere else costs nothing — a dry ship anywhere but an anomaly is simply
+  falling, and it still takes a deliberate 2.4s hold.
+  Worth noting for tuning: `THRUST` is 138 against an anomaly `str` of 80–120, so
+  escaping a core *with* fuel is possible but tight, and that margin has never been
+  re-checked against Bundle Z's heavier gravity.
 
 New copy in [COPY_DECK.md](COPY_DECK.md) §8/§8b: the surface prompt gains
 `OR HOLD SHIELD TO SCUTTLE`, and the scuttle banner no longer claims the Hollows
