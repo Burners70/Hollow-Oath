@@ -2539,28 +2539,18 @@ function drawBeacon(now) {
     ctx.fillText("A M S · S O L A C E", 0, 26);
     ctx.shadowBlur = 0;
   }
-  if (!b.resolved) {
-    if (b.revealed) {
-      // owner steer — once examined, just her name, quietly. The clue card and
-      // her own pulse do the teaching; no on-screen "parry" instruction.
-      ctx.font = mono(10); ctx.textAlign = "center";
-      if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "rgba(155,234,249,.6)";
-      ctx.fillText("A M S · S O L A C E", 0, -128);
-      ctx.shadowBlur = 0;
-    } else {
-      // V4 — the legible pre-scan signal-source label on its dark plate
-      const lp = bodyFontPx(10);
-      ctx.font = mono(lp); ctx.textAlign = "center";
-      const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
-      const tw = ctx.measureText(txt).width, ly = -128;
-      ctx.fillStyle = "rgba(6,4,16,.72)";
-      ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
-      if (!reducedFlash) { ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "#d9ccff";
-      ctx.fillText(txt, 0, ly);
-      ctx.shadowBlur = 0;
-    }
+  if (!b.resolved && b.revealed) {
+    // owner steer — once examined, just her name, quietly. The clue card and
+    // her own pulse do the teaching; no on-screen "parry" instruction.
+    // Owner follow-up: the pre-reveal "land beside it, or open fire" label
+    // is gone entirely — too much of a handhold; every other secret in the
+    // game (a lure-tree, a shrine) gives you nothing until you've actually
+    // examined it, and the signal source should read the same way.
+    ctx.font = mono(10); ctx.textAlign = "center";
+    if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
+    ctx.fillStyle = "rgba(155,234,249,.6)";
+    ctx.fillText("A M S · S O L A C E", 0, -128);
+    ctx.shadowBlur = 0;
   }
   ctx.restore();
 }
