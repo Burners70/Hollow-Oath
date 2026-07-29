@@ -258,6 +258,47 @@ test("V2: every scannable Scion has a fair scan-landing spot (campaign + REMIX)"
   }
 });
 
+test("V14: the V2 fairness invariant holds across a broad REMIX seed sweep", async ({ page }) => {
+  // V14 — __doids.remix(seed) now takes an explicit seed, so a failure is a
+  // fixed repro, not a one-shot. These are the exact seeds a brute-force sweep
+  // (4000 seeds × 7 sectors, on the pre-fix generator) found failing: a domino
+  // between the lift-flat reassert's own repair and a THIRD Scion's
+  // already-fair band elsewhere in the level, and a mutual ping-pong between
+  // two neighbours ~260px apart whose pads never overlap but whose checked
+  // BANDS (which reach further than either pad) do.
+  const knownFailingSeeds = [402, 1476, 1661, 2024, 2340, 2528, 3234, 3386, 3479, 3678, 3788, 3954];
+  for (const seed of knownFailingSeeds) {
+    await page.evaluate(s => __doids.remix(s), seed);
+    for (let n = 0; n < 7; n++) {
+      await page.evaluate(i => __doids.go(i), n);
+      const fails = await page.evaluate(() => __doids.scanSpotFailures());
+      expect(fails, `remix seed ${seed} sector ${n}`).toEqual([]);
+    }
+  }
+  // a fast, broad sweep in-process (bypassing the full remix()/toBriefing()
+  // flow) — thousands of generations in one call, the same brute-force check
+  // that found the seeds above, so the invariant is verified far beyond what
+  // a handful of live runs could cover. Does not touch the current live run.
+  const sweepFails = await page.evaluate(() => {
+    const savedSeed = runSeed, savedMode = runMode;
+    runMode = "remix";
+    const fails = [];
+    for (let seed = 1; seed <= 5000; seed++) {
+      runSeed = seed;
+      for (let n = 0; n < 7; n++) {
+        const lvl = genLevel(n);
+        const bad = (lvl.oids || [])
+          .filter(o => o.role === "normal" || o.role === "saboteur" || o.role === "famous")
+          .filter(o => !scanSpotOK(lvl.heights, lvl.W, o.x));
+        if (bad.length) fails.push("seed " + seed + " sector " + n);
+      }
+    }
+    runSeed = savedSeed; runMode = savedMode;
+    return fails;
+  });
+  expect(sweepFails).toEqual([]);
+});
+
 test("the return-lift pad always sits on a flat, never halfway up a slope", async ({ page }) => {
   // you land and HOLD on the lift, and its surface marker must sit on that flat.
   // A crowded map used to make pick() drop the lift beside a Scion whose V2

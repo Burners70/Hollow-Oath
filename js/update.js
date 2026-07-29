@@ -135,11 +135,16 @@ function goldBurst(x, y) {
   }
 }
 
+// V19 — `s.ang` accumulates unbounded while flying (steer adds to it every
+// tick with no wraparound), so after a long or hard-turning flight it can sit
+// several full turns past zero. Reduces to the equivalent angle in (-π, π].
+function normAngle(a) { return ((a % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI; }
+
 /* ---------------- landing rules ---------------- */
 function landingEval() {
   const s = ship;
   const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
-  const tilt = Math.abs(((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  const tilt = Math.abs(normAngle(s.ang));
   const upright = tilt < 0.5;
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance
   const vyMax = (upgrades.gentle ? 62 : 52) * tol;
@@ -532,6 +537,9 @@ function update(dt) {
         } else { revealCard = null; state = "play"; }
       }
       input.tap = false; return;
+    case "trapcard":   // V15 — held until dismissed; only then does shipDie() run
+      if (input.tap && stateT > 0.4) { trapCard = null; shipDie(); }
+      input.tap = false; return;
     case "clear": updateClear(); return;
     case "ending":
       if (input.tap && stateT > 1) {
@@ -803,7 +811,7 @@ function updateClear() {
    restores both. Backgrounding the app while reading now pauses too, so you never
    lose your place. */
 let pauseReturnState = "play", pauseReturnT = 0;
-const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm"]);
+const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm", "trapcard"]);
 function enterPause() {
   if (!PAUSABLE.has(state)) return;
   if (state === "play") snapshotRun();
@@ -1038,7 +1046,7 @@ function updatePlay(dt) {
     if (soft) {
       // assist eases the real touchdown tilt to level afterward (above);
       // without assist, keep the original instant snap unchanged
-      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? normAngle(s.ang) : 0;   // V19 — normalize before the assist ease
     } else if (s.shield) {
       // the force field turns a bad approach into a bounce — reflected off
       // the ACTUAL local slope normal, not just vertically. A vertical-only
@@ -1065,7 +1073,7 @@ function updatePlay(dt) {
       addText(s.x, s.y - 30, "SHIELD BOUNCE", PAL().SAFE);
       blip(200, 380, 0.15, "sine", 0.12);
     } else if (survivable) {
-      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? normAngle(s.ang) : 0;   // V19 — normalize before the assist ease
       const dmg = upgrades.gentle ? 12 : 35;
       s.vitals -= dmg; camera.shake += 10;
       haptic.heavy();
@@ -2153,6 +2161,10 @@ function updateResupplySignal(dt) {
       given: 0, occluded: false, attachedNow: false, everAttached: false,
       dripT: 0, dripFlip: false, firePrev: true };
     blip(180, 420, 0.4, "sine", 0.12);
+    // V18 — the first field resupply this run deserves a beat, not just a
+    // fuel bar: nothing until now has acknowledged the drone exists at all,
+    // let alone that it comes at a cost (U2's diminishing allowance).
+    if (runRefuels === 0) banner("YOU'RE NOT ALONE. HELP IS ON THE WAY. BUT THERE IS A PRICE.", PAL().WARN);
   }
   if (!resupplyDrone) return;
   const rd = resupplyDrone;
@@ -2421,12 +2433,17 @@ function updateDecoy(dt) {
       f.dead = true; decoyOutcome = "trapped";
       // V13 (owner steer) — the trap costs a full life, not a score ding: this
       // is the third act's real cost. shipDie() itself accounts for anyone
-      // still aboard (its own "-250 each" text), so the banner carries only
-      // the reveal — no stacked score penalty on top of the life.
-      banner("COUNTERFEIT — THE BAY IS A MOUTH\nNO HEALING. NO FUEL. A HULL WITH NOTHING INSIDE BUT APPETITE.", PAL().REVEAL);
-      staticTick(); dullThud();
+      // still aboard (its own "-250 each" text).
+      // V15 — this is a story climax (the CMO's fear made literal), not a
+      // passing toast: the swallow SFX fires now, timed to the ship visibly
+      // getting pulled in, then a tap-gated panel holds the beat — shipDie()
+      // (and the "dead" state it enters) only fires once the player dismisses it.
+      staticTick(); swallow();
       explode(f.x, f.y + 40, PAL().REVEAL, 30);
-      shipDie();
+      trapCard = { kicker: "THE THIRD ACT", title: "THE BAY IS A MOUTH",
+        body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
+        color: PAL().REVEAL };
+      state = "trapcard"; stateT = 0;
     }
   } else {
     f.dockT = 0;
@@ -2440,11 +2457,17 @@ function updateDecoy(dt) {
 }
 function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure fails
   f.dead = true; decoyOutcome = "observed";
-  score += 800;
-  explode(f.x, f.y - 10, PAL().REVEAL, 40);
+  score += 2000;   // owner steer — a full hull's worth of a reveal, priced accordingly
+  // owner feature — a full hull going down deserves more than a lure-tree's
+  // burst: several staggered bursts across her whole footprint, not one
+  // burst at her centre, with a real camera shake to match.
+  explode(f.x, f.y - 10, PAL().REVEAL, 50);
+  explode(f.x - 60, f.y, TOK.GOLD, 26);
+  explode(f.x + 60, f.y, TOK.GOLD, 26);
+  camera.shake = Math.max(camera.shake, 18);
   staticTick();
-  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +800", title: "MACHINE TIME", subtitle: "",
-    body: "Her emblem pulses like a pulse. Its emblem keeps perfect time.\n\nYou counted the beats. He never learned a heartbeat.",
+  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +2000", title: "COUNTERFEIT TIME", subtitle: "",
+    body: "Mercy's emblem pulses. An organic pulse.\nGlycon's keeps perfect time. Plausible. False.\n\nOne thing Glycon never managed.\nA beating heart.",
     color: TOK.CYAN_INK });
 }
 
@@ -2515,6 +2538,9 @@ function resolveBeacon(how) {
     blip(220, 880, 1.2, "sine", 0.15);
     // Bundle L2 — the answered call earns a held breath before the card:
     // the camera goes to her, the rings die down, and she gets a name.
+    // V17 — the payoff moment: the whole submerged hull lights up the
+    // instant her pulse is actually returned, not just on the ambient tell.
+    b.sonarT = SONAR_DUR;
     b.fade = 1;
     state = "epilogue"; stateT = 0; epilogueChars = 0;
   }
@@ -2531,6 +2557,13 @@ function updateEpilogue(dt) {
     camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.05, dt));
     camera.y = lerp(camera.y, b.y - 90, 1 - Math.pow(0.05, dt));
     b.fade = Math.max(0, (b.fade || 0) - dt / 3);
+    // V17 (owner playtest, follow-up) — the instant light-up in resolveBeacon
+    // only lasted one SONAR_DUR (1.8s); the rest of this 6.5s scripted scene
+    // then played with a dark hull, since nothing else re-arms sonarT once
+    // updateBeacon (which normally does, every Static beat) stops running
+    // outside "play". Keep re-triggering the sweep for the whole scene.
+    b.sonarT = Math.max(0, (b.sonarT || 0) - dt);
+    if (b.sonarT <= 0) b.sonarT = SONAR_DUR;
   }
   if (stateT > 0.8) epilogueChars = Math.min(EPILOGUE_LINE.length, epilogueChars + dt * 16);
   if ((input.tap && stateT > 0.8) || stateT >= 6.5) { state = "ending"; stateT = 0; }
@@ -2565,6 +2598,15 @@ function updateDestruct(dt) {
     b._det = true; boom(); camera.shake = Math.max(camera.shake, 34);
     crushCrater(level.heights, b.x, 240, 96);
     invalidateTiles();
+    // V16 — a turret planted near her at generation keeps its own static x/y;
+    // without this it's left hanging in mid-air over the crater the blast just
+    // carved. Take down anything the collapse would have brought with it.
+    for (const t of level.turrets) {
+      if (t.alive && Math.abs(t.x - b.x) < 240) {
+        t.alive = false;
+        explode(t.x, t.y - 8, PAL().WARN, 30);
+      }
+    }
     // the shower: a big omnidirectional burst of fine sparks…
     for (let i = 0; i < 320; i++) {
       const a = Math.random() * Math.PI * 2, sp = 70 + Math.random() * 460;
