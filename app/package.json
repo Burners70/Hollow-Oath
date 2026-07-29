@@ -16,7 +16,8 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
     "hollow-game-connect": "file:plugins/game-connect",
-    "hollow-icloud-kv": "file:plugins/icloud-kv"
+    "hollow-icloud-kv": "file:plugins/icloud-kv",
+    "hollow-rating": "file:plugins/rating"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",

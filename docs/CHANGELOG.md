@@ -16,6 +16,9 @@ file; the *plan* they came from is
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
+- [Bundle X + Z integration: the trainee sector's inherited crosswind](#bundle-x--z-integration-the-trainee-sectors-inherited-crosswind) — a bug that only exists once X's training mode and Z's gravity share a codebase
+- [Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating](#bundle-x--onboarding-trainee-sector-guided-pauses-hint-bank-in-app-rating) — the first 1.01 bundle to land; sequenced ahead of Bundles V and Z
+- [Bundle X owner-feedback round: onboarding refinements, an efficiency bonus, and an ASSIST fix](#bundle-x-owner-feedback-round-onboarding-refinements-an-efficiency-bonus-and-an-assist-fix) — owner playtest notes on PR #61, plus the minimum-journeys bonus and the ASSIST landing-guide fix
 - [Bundle Z — REMIX variable gravity](#bundle-z--remix-variable-gravity) — a per-sector gravity scale and crosswind, plus the landing-fairness re-tune both required
 - [Bundle V — fairness fixes and owner-playtest defects](#bundle-v--fairness-fixes-and-owner-playtest-defects) — the V14 REMIX scan-fairness domino, V15's tap-gated trap reveal, V16–V20's smaller playtest fixes
 
@@ -50,6 +53,146 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 ---
 
+## Bundle X + Z integration: the trainee sector's inherited crosswind
+
+**Release:** 1.01
+
+Found while merging Bundles X, V and Z into one build — the bug only exists once
+X's training mode and Z's gravity system share a codebase, so neither branch's own
+suite could have caught it.
+
+`resetRun()` reset `gravScale` but **not** `gravTilt`. A campaign run is saved from
+the leak by `rollGravity()`'s `runSeed === 0` early return, but **training never
+calls `rollGravity` at all**: `startTraining()` builds its level directly instead
+of going through `toBriefing()`. So opening the trainee sector after a REMIX or
+DAILY run inherited that run's crosswind, and the tutorial taught "hold THRUST and
+see it work" while an unexplained sideways shove pushed the ship off course —
+teaching the wrong thing to exactly the players Bundle X exists for.
+
+`resetRun()` now clears both. One new smoke test flies a REMIX seed that rolls a
+real crosswind, then asserts the trainee sector comes up at plain 1× with no
+sideways force. Full suite green at 116.
+
+## Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating
+
+**Release:** 1.01
+
+The first 1.01 bundle to land — sequenced ahead of Bundles V and Z per the
+roadmap's own priority order (X was flagged "highest-value retention work,
+do it first"). Closes out Bundle X (X1/X3 already shipped in 1.0): X2, X4,
+X5, and X6 (moved here from Bundle P, since 1.01 now ships before 1.1).
+
+- **X2 — the trainee sector ("Level 0").** A bespoke, always-identical
+  level under a new `runMode === "training"` — gentle terrain, one Scion,
+  one distant avoidable turret, two fuel pods — entirely separate from
+  `RECIPE`/`SECTOR_NAMES`/`BRIEFS` and the scored campaign. Never writes a
+  hiscore. Reached from the X3 fork's "No" answer (which previously opened
+  the HOW TO FLY guide) or any time from a new `◆ TRAINEE SECTOR` row in
+  the HELP submenu.
+- **X4 — the reusable "guided pause" overlay.** A new `"coach"` state
+  dims the world and shows one tap-to-continue instruction, reusing the
+  existing card-panel chrome; freezes the sim for free and composes with a
+  real pause (Escape still works over it and resumes back into it).
+- **X2a — the trainee sector's guided-pause script**, built on X4: six
+  authored cards teaching THRUST, drift, fuel awareness, FIRE, SHIELD and
+  a tease of the parry, the first three timed to the action they teach.
+- **X2b — free-play after the rescue.** The sector never ends on its own
+  (the Static clock, extraction, and the triage-flee UI are all no-ops in
+  training); the plain way out is the pause menu, relabelled `RESTART
+  TRAINING` / `END TRAINING` for training runs.
+- **X5 — the post-death hint-card bank.** One rotating hint per death, no
+  repeats until the bank cycles; six are always eligible, five more unlock
+  once the player has met the system they describe (a parry, a scan, a
+  counterfeit pod, a Hollow lift while veteran, Avicenna's CANON OF TRUTH).
+  Three new persistent flags cover the gates without existing state.
+- **X6 — the StoreKit in-app rating prompt.** A new `rating` facade
+  (`js/platform.js`, mirroring the `gc`/`cloud` pattern) bridges to a new
+  local Capacitor plugin (`app/plugins/rating`,
+  `SKStoreReviewController.requestReview`). Called on a new high score and
+  on a clean ("answered") ending; Apple's own OS-level throttling means no
+  extra logic is needed on the JS side.
+
+Copy for all of the above is mirrored in [COPY_DECK.md](COPY_DECK.md) §3
+(new §3·X2/§3·X5 subsections). The full 96-test smoke suite is green,
+including five new/updated tests covering the trainee mode, the guided
+pauses, the hint bank's no-repeat rotation, and the rating-prompt trigger.
+
+## Bundle X owner-feedback round: onboarding refinements, an efficiency bonus, and an ASSIST fix
+
+**Release:** 1.01
+
+A round of owner playtest notes on the shipped Bundle X (PR #61), plus two
+requests that landed alongside it. All copy below is directional, not final.
+
+- **Guided-pause pacing.** The THRUST → drift cards no longer advance on a
+  bare tap; drift now needs 1.5s of *cumulative* held thrust so the player
+  can actually feel THRUST work before the next card interrupts.
+- **Event-driven training script (`TRAINING_CARDS`).** Rebuilt the
+  sequential `TRAINING_SCRIPT` as an ordered list of `{id, cond, text}`
+  cards, each firing the first time its own real condition is true rather
+  than on a timer — FIRE waits for a gun actually on screen, a new "land
+  close and it'll board" card waits for a Scion on screen, a low-fuel card
+  fires under 33% tank, and two new cards ("fly it home to the recovery
+  bay" / "hold in the bay to refuel") land after the first pickup and
+  first delivery respectively. The old "other ways to put a gun down"
+  tease — which gated on a parry the trainee sector never taught — moved
+  out of the script entirely into the always-available hint bank.
+- **A second Scion in the trainee sector**, placed past the turret, plus a
+  third fuel pod — somewhere to fly once the FIRE/rescue cards land, and a
+  reason to keep flying in X2b's free-play afterward.
+- **Hint bank reworded and re-set.** All twelve hint-bank lines (`HINTS_ALWAYS`
+  / `HINTS_GATED`) reworded to read as a flight-training officer's own
+  advice, now quoted and attributed (`— FLIGHT OPS`) on the game-over
+  screen, repositioned into the clear space above `FLATLINE` instead of
+  wedged between the tally and the buttons below.
+- **Bug fix: a "pace" Scion's post-panic position jump.** `explode()` panics
+  any grounded Scion within 160px of gunfire; when the panic ended, the
+  `persona === "pace"` branch snapped straight to an absolute sine-wave
+  position instead of continuing from wherever the Scion actually was,
+  reading as a visible teleport (reported on Level 1 / Asclepion). Now eases
+  toward the target instead of snapping.
+- **Owner feature: the minimum-journeys efficiency bonus.** Deliver every
+  Scion in a sector using the fewest possible MERCY-bay trips for that
+  sector's Scion count (`⌈scions / CAPACITY⌉`) and the sector-clear screen
+  now shows `EVERY TRIP COUNTED — efficiency bonus +1000`, alongside the
+  existing Hippocratic and stopwatch bonuses.
+- **X6 refinement: a 5-completed-runs rating milestone.** `rating.request`
+  is unchanged (Apple's own `SKStoreReviewController` dialog text can't be
+  customized), but the contextual line shown just before it now has three
+  tiers in priority order — a new hiscore, a clean sweep ("Every Scion came
+  home. Want others to share your success?"), then the 5th completed run of
+  any kind ("Five flights and counting — enjoying it?"). A new
+  `doids_plays` counter tracks completed runs (wiped by RESET PROGRESS along
+  with the rest of a player's save).
+  **Owner follow-up:** on the web build the contextual line was showing with
+  no native prompt to follow it (there's no OS dialog outside the Capacitor
+  wrapper), reading as an odd standalone comment ("New personal best —
+  enjoying it?" with nothing else happening). It's a lead-in to the review
+  ask, not a comment on its own — a new `rating.native()` check gates it, so
+  it only shows when a real prompt is actually about to fire.
+- **Owner fix: ASSIST now also gates the landing-guide visuals.** Previously
+  the dashed landing line, its SAFE/WARN/DANGER colour and glyph, and the
+  descent/drift readout drew regardless of the ASSIST setting — only the
+  post-touchdown auto-level behaviour actually respected it. With ASSIST off,
+  none of that on-screen guidance draws; judging a landing is now unaided,
+  matching what the toggle's label implies.
+- **Owner feature: known-fake fuel pods can be scanned or destroyed, not
+  only stumbled into.** Once Avicenna's CANON OF TRUTH marks a counterfeit
+  pod, blind contact with it is no longer an automatic trap — land beside it
+  and hold (same pacing as a lure-tree scan) or shoot it, either way +200 and
+  no fuel/score penalty. Before CANON OF TRUTH, nothing changes: the pod is
+  indistinguishable from a real one and blind contact still drains the tank.
+- **Bug fix: answering the Solace's signal didn't reliably light up her
+  submerged hull.** The hull-sweep visual (`sonarT`) only refreshed on the
+  41-second Static beat, which stops entirely the instant the beacon
+  resolves — so at the exact moment of a successful parry the pulse was
+  often already stale by up to 41s and the payoff scene played with a dark
+  hull. `resolveBeacon("answered")` now lights it immediately, and
+  `updateEpilogue` keeps re-arming it so she stays visibly lit through the
+  whole scripted scene, not just one flash.
+
+Copy updates mirrored in [COPY_DECK.md](COPY_DECK.md) §3·X2/§3·X5 (rewritten)
+and a new §3·X6, plus the §11 sector-clear line. Full smoke suite green.
 ## Bundle Z — REMIX variable gravity
 
 **Release:** 1.01

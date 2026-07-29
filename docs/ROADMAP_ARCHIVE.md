@@ -1392,6 +1392,214 @@ hostile fire, which it previously did not. Worth a look on real hardware.
 
 ---
 
+## Bundle X — Onboarding & the new-player experience (1.01)
+
+**Why:** The loudest note from the July 2026 external TestFlight round — the
+**learning curve is too steep for players who have never played a
+thrust/gravity game**. Newton's-cradle momentum that feels obvious to a
+Gravitar/Lunar-Lander veteran reads as "the ship won't do what I tell it" to
+everyone else, and they bounce off before the game gets good. This bundle is the
+fix: an **optional, opt-in** learning path that never gets in an experienced
+player's way — an illustrated guide, a guided trainee sector, a first-play fork
+that routes each player to the right starting point, and a post-death hint-card
+bank. **Priority: highest-value retention work — do it first.
+Dependencies: X2 depends on X4's guided-pause overlay; X1 and X5 are
+independent.**
+
+> **Design pillar: opt-in, never mandatory.** An experienced player must be able
+> to start Level 1 on first launch and never see a tutorial pause, a training
+> sector, or a "how to thrust" card. Everything here sits behind the X3 fork or
+> a home-screen button — the same opt-in stance as ASSIST / Field Medic
+> (Bundle H).
+
+> **Launch split (owner decision, late July 2026).** The low-risk, high-impact
+> slices ship in the **1.0 launch build**: **X1** (beginner's guide) and **X3**
+> (first-play fork). The heavier new subsystems — **X2** (trainee sector), **X4**
+> (guided-pause overlay), **X5** (hint-card bank) — stay **1.01**, so the trainee
+> level never gates App-Completeness review of the launch binary. Consequence for
+> X3: with X2 not in 1.0, the fork's **"No" branch routes into the X1 guide** at
+> launch, and upgrades to route into the trainee sector once X2 ships in 1.01.
+
+- [x] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** *(Shipped.
+  The `✦ HOW TO FLY` HELP-submenu entry now opens an illustrated, paged guide
+  — `GUIDE` / `GUIDE_PAGES` in `js/world.js`, `drawGuide` / `drawGuideArt` /
+  `guideShip` / `guideButton` in `js/render.js`, paged via the `help` state in
+  `js/update.js`. Eight diagram pages — TURN, THRUST, SLOW DOWN, SHIELD, FUEL,
+  FIRE, LAND & RESCUE, OTHER CONTROLS — reusing the real hull path and the
+  on-screen button art. Respects `bigText` / `reducedFlash` / `colorblind`;
+  fits a 320-high phone (R1 contract). Copy mirrored to COPY_DECK.md §3. Smoke:
+  "R1/X1 illustrated guide paginates".)* A **HOW TO
+  FLY** button on the title screen (`drawTitle` in `js/render.js`, alongside the
+  existing REMIX / settings pills) opens a paged, **illustrated** guide with
+  literal step-by-step visuals, not walls of text: rotate, thrust (hold = more
+  speed / distance), counter-thrust to slow, shield on impact, fuel management,
+  fire. Each page is a labelled diagram of the ship + the on-screen buttons —
+  reuse the FIRE / THRUST / SHIELD control art already drawn in `js/input.js` /
+  `js/render.js` so the guide matches what the player actually sees. Reachable
+  any time, not only first-run. Copy authored for owner review in
+  [COPY_DECK.md](COPY_DECK.md) (R10); respect `bigText` / reduced-flash /
+  colorblind.
+- [x] **X2. Trainee sector — "Level 0" (owner: signed off, July 2026).** *(Shipped.
+  `genTrainingLevel()`/`startTraining()` (`js/world.js`) build a bespoke,
+  always-identical level — gentle terrain, one Scion, one distant avoidable
+  turret, two fuel pods — under its own `runMode === "training"`, entirely
+  separate from `RECIPE`/`SECTOR_NAMES`/`BRIEFS` and the scored campaign;
+  training never writes a hiscore (`saveHi()` no-ops for it). Reached from the
+  X3 fork's "No" answer or any time from a new `◆ TRAINEE SECTOR` row in the
+  HELP submenu. X2a/X2b below. Smoke: "X2 the trainee sector is its own
+  mode…", "X3 fork NO routes into the X2 trainee sector".)* A new, very simple guided rescue
+  **before** the scored campaign: gentle wide terrain, **one Scion**, **one
+  optional turret placed far from the Scion** (avoidable — it introduces the
+  threat, it doesn't punish). It runs as its **own mode / flow, not a renumber
+  of the scored campaign** — the campaign stays Sector 0–10 with its seeds,
+  scores, ranks and `veteran` logic untouched, and training **never writes a
+  hiscore**. Code anchors: a bespoke trainee layout in `genLevel` / `RECIPE`
+  (`js/world.js`), the `resetRun` / `toBriefing` flow and mode plumbing
+  (`js/world.js` / `js/update.js`).
+  - **X2a. Guided proactive pauses.** *(Shipped as `TRAINING_SCRIPT` +
+    `updateTrainingScript()` (`js/update.js`), stepped via the X4 coach
+    overlay. Card 1 fires shortly after entering play; cards 2–3 wait on the
+    action they teach (thrust, then rightward drift); cards 4–6 are
+    proactive and simply pace a few seconds apart. Copy in COPY_DECK.md
+    §3·X2.)* Step the player through the ship using the
+    X4 overlay. Authored sequence (draft — final copy to COPY_DECK.md):
+    1. *"Press THRUST to fight gravity. The longer you hold, the faster and
+       further you go."*
+    2. *"Press RIGHT and tap THRUST to start drifting right — keep thrusting UP
+       at the same time so you don't sink."*
+    3. *"The faster you're moving one way, the more thrust it takes to stop.
+       Watch your FUEL."*
+    4. Introduce **FIRE** (and that shots count against the pacifist ranks).
+    5. Introduce **SHIELD** for impacts — **and warn that holding it burns
+       fuel.**
+    6. **Tease the parry without teaching it:** *"There are other ways to put a
+       gun down than shooting it."* (No explicit parry tutorial — X5 has a
+       discovery-gated card for when they find it.)
+  - **X2b. Free-play after the rescue.** *(Shipped. `runMode === "training"`
+    gates `checkSectorClear`/`updateEarlyExtraction`/`updateStaticClock`
+    (`js/update.js`) to no-ops, so the sector never ends on its own. The
+    plain affordance is the pause menu, training-relabelled: `RESTART
+    TRAINING` / `END TRAINING` swap in for `RESTART SECTOR` / `QUIT TO
+    TITLE` (`drawPause`, `js/render.js`; `updatePause`, `js/update.js`).)*
+    Once the Scion is aboard, **do not end
+    the level.** Disable the 41-second Static clock and the extraction / signal
+    pulse for the trainee sector so the player keeps flying, refuelling and
+    experimenting, and **leaves only when they choose to** (a plain "END
+    TRAINING" affordance). Code anchors: the Static clock (`updateStaticClock`)
+    and extraction / MERCY logic in `js/update.js`, both gated off in training
+    mode.
+- [x] **X3. First-play fork. [→1.0 launch]** *(Shipped. A first-ever `▶ START NEW
+  FLIGHT` on an untrained install (`doids_trained` absent) opens a one-time
+  `"fork"` screen — `updateFork` / `drawFork` / `forkRowRect`, the `trained`
+  flag + `markTrained()` in `js/world.js`. **YES** flies straight in (veteran
+  path); **NO** opened the X1 guide (`guideReturn = "start"`) and finishing it
+  dropped into the run — now that X2 has shipped, **NO** calls `startTraining()`
+  directly instead. Answering sets `doids_trained` so it never shows again; a
+  RESET PROGRESS clears the key so it re-shows (the "from Settings" path). Copy
+  in COPY_DECK.md §3·X3. Smoke: "X3 first START opens the fork" + "X3 fork NO
+  routes into the X2 trainee sector".)* On a
+  first launch (no `doids_intro`,
+  or a new `doids_trained` flag), ask once: **"Played thrust / gravity games
+  before?"** — **Yes → straight to Level 1** (current behaviour); **No →** the
+  onboarding path. **In 1.0** (X2 not yet built) **"No" opens the X1 guide**, then
+  drops into Level 1; **in 1.01** "No" routes into the **trainee sector** (X2).
+  Never shown again once answered; re-runnable from the X1 guide or Settings. Code
+  anchors: the intro gate (`doids_intro`) in `js/world.js`, the title / intro flow
+  in `js/render.js`; add a `doids_trained` key (keep the `doids_` prefix).
+- [x] **X4. Reusable "guided pause" overlay.** *(Shipped as a new `"coach"`
+  state — `showCoach()`/`updateCoach()` (`js/update.js`), `drawCoach()`
+  (`js/render.js`, reusing the existing `drawCardPanel` tap-to-continue
+  chrome). Added to `PAUSABLE` so a real pause still interrupts and resumes
+  back into it; freezes the sim for free since `update()`'s dispatch only
+  calls `updatePlay` for `"play"`. No snapshot, no exit rows — genuinely not
+  a real pause. Smoke: "X2a/X4 the trainee sector opens with a guided-pause
+  card…".)* A small system to **pause the sim
+  and show a step card** (dim the world, instruction + a CONTINUE tap), fired by
+  game conditions (entered training, first thrust, first rightward drift, fuel
+  below a threshold, …). Built once here, reused by X2a. Code anchors: the pause
+  machinery from Bundle A (`enterPause` / `PAUSABLE`, `js/update.js`); a
+  lightweight "coach" state that does **not** snapshot / exit like the real
+  pause.
+- [x] **X5. Post-death hint-card bank.** *(Shipped. `HINTS_ALWAYS`/
+  `HINTS_GATED`/`pickHint()` (`js/world.js`); shown via `currentHint` in
+  `drawGameOver` (`js/render.js`), positioned to clear whichever follows it
+  (the CONTINUE/MAIN MENU buttons, or the plain tap-to-menu line). Three new
+  persistent discovery flags (`doids_everparried`/`doids_everscanned`/
+  `doids_metfake`) cover the parry/scan/counterfeit-pod gates; the lift and
+  Avicenna gates reuse existing state (`veteran && shrinesSeen.size > 0`,
+  `codex.has(CANON_FAMOUS_ID)`) per the note below. Copy in COPY_DECK.md
+  §3·X5. Smoke: "X5 game over shows one hint from the always-available
+  bank…".)* After each death, show **one** short
+  hint card (rotating, no repeats until the bank is exhausted). **Some cards are
+  discovery-gated** — they enter the pool only once the player has met the
+  relevant system (a parry landed, a Scion scanned, a counterfeit met, a Hollow
+  lift found), tracked via existing flags (`upgrades.*`, `veteran`, codex /
+  `doids_codex` discovery state) plus any new discovery bits (keep the `doids_`
+  prefix). Code anchors: the `gameover` screen (`js/render.js` / `js/update.js`);
+  a new hint-selection helper. **Starter bank below — for owner review and
+  approval; mirror into COPY_DECK.md when built (R10).**
+
+  *Always available:*
+  - Thrust is momentum, not a throttle — to stop, thrust the opposite way.
+  - Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.
+  - Fuel can be scarce. A pod picked up is a pod gone.
+  - You don't have to fight — any Scion can come home without a shot fired.
+  - A long fall needs a long burn to arrest. Start slowing early.
+  - When you only need a nudge — tap, don't hold.
+
+  *Discovery-gated (enter the pool once the thing is seen):*
+  - *(after a parry)* A shield raised at the right moment turns a shot back on its sender.
+  - *(after first scan)* Land beside a thing and read it — it can tell you what firing never will.
+  - *(after meeting a counterfeit)* Not every fuel pod is a friend. The honest ones flicker like fire; the fakes keep to the Static's beat.
+  - *(after finding a lift — veteran)* The ground rings hollow in places. There is a way down.
+  - *(after Avicenna)* Your CANON OF TRUTH marks the fakes now. Trust the mark.
+
+  (Owner-reviewed July 2026: Always cards 3 / 4 / 6 reworded; the counterfeit card
+  now names *both* tells and tracks Y4; the Avicenna card uses the full upgrade
+  name **CANON OF TRUTH** — the term the player actually sees on pickup
+  (`js/world.js:122`), not a bare "Canon." **Watch the "any Scion" card:** it
+  promises the pacifist route works for *every* Scion, which is exactly the
+  invariant **V2** must guarantee generation-side — ship this card *with* V2, not
+  before it. Still a starting point; owner to add / cut / reword, one sentence
+  each in the game's clinical-poetic register.)
+- [x] **X6. Wire in the StoreKit in-app rating prompt.** *(Moved here from
+  Bundle P — since 1.01 now ships before 1.1 (1.0 hasn't gone live yet, see
+  the versioning note above), 1.01 is the first opportunity, not 1.1.
+  Shipped: a `rating` facade (`js/platform.js`) mirroring the `gc`/`cloud`
+  pattern, bridging to a new local Capacitor plugin (`app/plugins/rating`,
+  `jsName: "Rating"`, `SKStoreReviewController.requestReview`), wired into
+  `app/package.json`'s dependencies. Called from `saveHi()` on a new high
+  score and from the "ending" → "win" transition when `endingType ===
+  "answered"`. `ratingReports` exposed via `__doids.get()`. Smoke: "X6 a new
+  high score requests the native rating prompt".)*
+  Flagged while drafting launch marketing (`LAUNCH_PLAN.md` Phase 0) —
+  `requestReview()` isn't called anywhere in the codebase today, and 1.0 is
+  already in App Review so it can't be added to that build. Call Apple's
+  native prompt (`SKStoreReviewController.requestReview`, via a small
+  Capacitor plugin — no existing dependency covers this) at a natural
+  high-signal moment, e.g. after a clean ending or a new high score. Apple's
+  own OS-level throttling (roughly once per year per user) means the call
+  can be made freely on those triggers without adding throttling logic here.
+- [x] **X·guard. Regression gate.** *(Full 96-test smoke suite green.
+  `__doids.get()` now also exposes `training`, `trainingStep`, `coach`
+  {active,text}, `currentHint`, `codex` (array), `everParried`, `everScanned`,
+  `metFake`, and `ratingReports`; `__doids.training()` action added
+  alongside `remix`/`daily`. New/updated tests in `tests/boot.spec.js`: "X2
+  the trainee sector is its own mode — never ends on its own and never
+  writes a hiscore", "X2a/X4 the trainee sector opens with a guided-pause
+  card; thrusting advances it", "X5 game over shows one hint from the
+  always-available bank, no repeat until it cycles", "X6 a new high score
+  requests the native rating prompt", and "X3 fork NO routes into the X2
+  trainee sector" (replacing the retired "fork NO opens the guide" test now
+  that X2 has shipped).)* Smoke suite green; extend `__doids.get()`
+  to expose training mode, the fork flag, guided-pause state and hint-card
+  discovery bits; add a test that an experienced-path first launch (X3 "Yes")
+  reaches Level 1 with **no** training state set, and that training never writes
+  a hiscore. *(1.0-launch slice done: `__doids.get()` now exposes `trained`,
+  `guideReturn` and `guide` {page,pages,footY}; smoke covers the X3 "Yes"→run
+  and "No"→guide→run paths and the illustrated-guide pagination/on-screen fit.
+  The trainee-sector / guided-pause / hint-card assertions land with X2/X4/X5 in
+  1.01.)*
 ## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
 
 **Why:** Owner idea (late July 2026) — add **variable gravity to REMIX** for
