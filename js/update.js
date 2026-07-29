@@ -670,8 +670,20 @@ function updateMenu() {
         blip(300, 200, 0.12, "sine", 0.08);
       }
     } else if (state === "win") {
-      // the win screen keeps tap-anywhere-to-launch; the title does not
-      startFreshRun();
+      // (owner feedback, July 2026) — a FIRST completion still flows straight on
+      // from the win screen: that tap is what plays the once-only VET_INTRO
+      // ("SOMETHING DOESN'T SIT RIGHT") and opens the Hollows layer, and it
+      // should stay a single unbroken beat. A REPEAT completion used to do the
+      // same thing and, with vetIntroSeen already set, silently dropped the
+      // player into sector 1 of yet another full campaign with no menu in
+      // between. Send that case home to the title instead, with a nudge toward
+      // the rotations — the campaign is finished; REMIX/DAILY is the loop now.
+      if (endingFirstRun) startFreshRun();
+      else {
+        titleNudge = true;
+        state = "title"; stateT = 0;
+        blip(300, 200, 0.12, "sine", 0.08);
+      }
     }
     // a title tap that hit no pill now does nothing (R5)
   }
@@ -799,7 +811,15 @@ function updateClear() {
     else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
     else if (levelIdx === FINALE_IDX - 1) {
       if (blackboxCount >= TRIANGULATE_N) toBriefing(FINALE_IDX);
-      else { endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0; }
+      else {
+        // endingFirstRun is otherwise only stamped by resolveBeacon, so on this
+        // path it kept a stale value from a previous run. The win screen now
+        // reads it to decide whether to flow on or go home to the title, so
+        // stamp it here too. (drawEnding's own use is already guarded by
+        // endingType !== "unresolved", so it is unaffected.)
+        endingFirstRun = !veteran;
+        endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0;
+      }
     } else { state = "ending"; stateT = 0; }
   }
   input.tap = false;
@@ -845,7 +865,13 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro", "doids_trained", "doids_vetintro"];   // X3 fork + V8 veteran intro re-show after a wipe
+    "doids_intro", "doids_trained", "doids_vetintro",   // X3 fork + V8 veteran intro re-show after a wipe
+    // both found while wiring the post-completion title flow: doids_solace
+    // gates the Solace's hull on the title, and doids_lastrun_tally fed the
+    // VET_INTRO recap stale saved/lost counts from before the wipe (so a
+    // freshly-reset save could be told it "brought them all home" on the
+    // strength of a run that no longer exists).
+    "doids_solace", "doids_lastrun_tally"];
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
@@ -855,6 +881,24 @@ function resetProgress() {
   vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
   unresolvedHaunt = false;
+  solaceSeen = false;
+  lastRunSaved = 0; lastRunLost = 0;
+  /* (owner feedback, July 2026 — "the reset didn't fully clear") — a wipe has to
+     take the LIVE RUN with it. SETTINGS is reachable from the pause menu, so the
+     wipe could be triggered mid-flight; it cleared the saves and every persisted
+     flag but left the run in progress completely untouched, and tapping out of
+     settings returned you to that same pause screen. You then resumed a run
+     belonging to the save you had just deleted — its score, sector and already-
+     generated content intact, including the veteran-only Glycon layer (the
+     counterfeit MERCY twin and the Hollows lift are gated on `veteran` at
+     genLevel time, so a sector generated before the wipe still carries them even
+     though `veteran` is now false). Go home to a boot-fresh title instead. */
+  resetRun();
+  levelIdx = 0; level = genLevel(0); spawnShip();
+  camera = { x: ship.x, y: ship.y, shake: 0 };
+  particles = []; texts = [];
+  settingsReturnState = "title";   // so tapping out of settings lands home, not on a stale pause
+  state = "title"; stateT = 0;
 }
 let settingsReturnState = "title";
 function updateSettings() {
@@ -1668,12 +1712,17 @@ function updateWaves(dt) {
       } else {
         // a wash-over costs vitals: the full hit at the finale, HALF mid-game
         // (owner steer) — a Vector's pulse still stings, just less than Solace's.
-        const cost = w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2;
+        // A PRE-REVEAL Solace pulse is free: it exists to tell you she's there and
+        // transmitting (see updateBeacon), and the game hasn't yet told you a parry
+        // is the answer. It still lands the surge, shake and flash — unsettling,
+        // just not damaging. Full cost once she's named.
+        const cost = w.preReveal ? 0 : (w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2);
         s.vitals = Math.max(0, s.vitals - cost);
         staticSurge = Math.max(staticSurge, w.finale ? 0.6 : 0.35);
         sabotageFlash = w.finale ? 0.5 : 0.3;
         camera.shake += w.finale ? 5 : 3;
-        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
+        if (cost > 0) addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
+        else addText(s.x, s.y - 34, "SIGNAL WASH", TOK.VIOLET);
       }
     }
   }
@@ -2496,15 +2545,36 @@ function updateBeacon(dt) {
   // updateWaves' finale branch); the pulse comes round again. FIRE still silences
   // her (the other ending). The science of "being heard" — she stops repeating
   // once the signal is finally acknowledged in kind.
-  if (b.revealed && !s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
+  /* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to
+     pulse ONLY once revealed, i.e. only after you had already landed within 120px
+     of her. Until then she was completely inert: you could hover right beside her,
+     well inside ANSWER_RANGE, and get nothing back at all. The pre-reveal "land
+     beside it, or open fire" label was the only thing carrying that requirement,
+     and removing it (correctly — too much of a handhold) left the beat with no
+     tell whatsoever. She is "still transmitting" — that is her whole character —
+     so she now casts her looping distress wave as soon as you are near, revealed
+     or not. That IS the clue, with no words: something down here is signalling at
+     you, and closing in and touching down is what names her.
+     A pre-reveal wash costs no vitals, though (see updateWaves): being punished
+     12 vitals every ANSWER_GAP for approaching a mystery you have not been told
+     how to answer would just relocate the unfairness. Full stakes resume once
+     she's named and the card has told you the signal seeks a response. */
+  if (!s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
     b.castT = (b.castT || 0) + dt;
     if (b.castT >= ANSWER_GAP) {
       b.castT = 0;
       level.waves = level.waves || [];
-      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false, finale: true });
+      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false,
+        finale: true, preReveal: !b.revealed });
     }
   } else b.castT = 0;
-  if (b.heardParry) resolveBeacon("answered");
+  // only a parry she can be named by counts as being HEARD: pre-reveal you don't
+  // yet know who or what you're answering, so a lucky early parry is discarded
+  // rather than banked (it would otherwise resolve her the instant she's revealed).
+  if (b.heardParry) {
+    if (b.revealed) resolveBeacon("answered");
+    else b.heardParry = false;
+  }
 }
 
 function resolveBeacon(how) {
@@ -2514,6 +2584,7 @@ function resolveBeacon(how) {
   endingFirstRun = !veteran;   // capture BEFORE markVeteran — did this run have the Glycon layer sealed?
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
+  markSolaceSeen();  // she's been found and dealt with — her hull may show on the title now
   saveLastRunTally();   // V13 — so the next veteran-intro recap can be honest about it
   if (how === "fire") {
     // (owner steer) — the destroy-on-sight order the CMO refused to sign. The

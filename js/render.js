@@ -2889,6 +2889,24 @@ function drawTitle(now) {
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
   const pulse = 0.7 + 0.3 * Math.sin(now * 2);
+  // (owner feedback, July 2026) — once the Solace has actually been found
+  // (solaceSeen, set only by resolveBeacon), her hull sits under the wordmark:
+  // an outline-only ghost, drawn BEFORE the title text so the wordmark's own
+  // fill and glow stay fully legible over it. Deliberately a watermark rather
+  // than a framed illustration — it can't collide with the corner pills on a
+  // narrow phone, and it reads as the thing still down there rather than a
+  // trophy. Breathes on the same slow pulse as the wordmark.
+  if (solaceSeen) {
+    ctx.save();
+    ctx.translate(vw / 2, vh * 0.30);
+    const hs = Math.min(1, vw * 0.7 / 304);   // solaceMercyPath spans 304 wide
+    ctx.scale(hs, hs);
+    solaceMercyPath();
+    ctx.strokeStyle = shade(TOK.CYAN, .18 + .07 * pulse);
+    ctx.lineWidth = 2 / hs;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 30 * pulse;
   ctx.fillStyle = TOK.CYAN_INK;
   // narrow screens shrink the wordmark so it clears the corner pills
@@ -2983,6 +3001,22 @@ function drawTitle(now) {
     ctx.font = mono(13);
     ctx.fillStyle = TOK.GOLD;
     ctx.fillText("▶ RESUME — " + SECTOR_NAMES[savedRun.levelIdx], rr.x + rr.w / 2, rr.y + 22);
+    ctx.shadowBlur = 0;
+  }
+
+  // (owner feedback, July 2026) — the one-off nudge shown when a REPEAT
+  // completion has just sent the player home here (titleNudge, cleared by
+  // resetRun). Points at the REMIX/DAILY pills, which are the actual loop once
+  // the campaign is done. Positioned in the gap between the START stack and the
+  // bottom pill row and auto-fitted, so it can't crowd either on a short phone.
+  if (titleNudge && veteran) {
+    const gapTop = startRect().y + startRect().h, gapBot = remixRect().y;
+    const nudge = "the sector still turns — try a REMIX ROTATION or the DAILY FLIGHT below";
+    let nf = 12;
+    ctx.font = mono(nf, 600);
+    while (nf > 8 && ctx.measureText(nudge).width > vw - 32) { nf -= 1; ctx.font = mono(nf, 600); }
+    ctx.fillStyle = shade(TOK.GOLD, .8); ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 8;
+    ctx.fillText(nudge, vw / 2, (gapTop + gapBot) / 2 + nf / 2);
     ctx.shadowBlur = 0;
   }
 
@@ -4297,6 +4331,8 @@ window.__doids = {
     trained, guideReturn,
     // V8 — veteran-opening introspection
     vetIntroSeen, introLen: activeIntro.length,
+    // (owner feedback, July 2026) — the post-completion title flow
+    solaceSeen, titleNudge, endingFirstRun,
     guide: { page: GUIDE.page, pages: GUIDE.pages, footY: GUIDE._footY },
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
@@ -4354,6 +4390,9 @@ window.__doids = {
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),
+  // (owner feedback, July 2026) — the Solace-hull title watermark's gate, so a
+  // test can assert it stays hidden until she's actually been met
+  setSolaceSeen: () => markSolaceSeen(),
   // V13 — the "husks" reveal gate (WORKSHOP shrine): before it, a disguised
   // unit is CORRUPTED not COUNTERFEIT, and there's no clean kill. Exposed so
   // tests can assert both sides without actually visiting the Hollows.
