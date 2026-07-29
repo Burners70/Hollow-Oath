@@ -775,12 +775,23 @@ function drawShip(now) {
       ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 8;
       ctx.fillText("OUT OF FUEL — HOLD THRUST TO SIGNAL", s.x, s.y - 40);
       ctx.shadowBlur = 0;
+      // (owner feedback, July 2026) — the second way out, for a dip the drone's
+      // tank can't lift you clear of. Quieter than the signal line: the drone is
+      // still the first thing to try, this is the escape hatch under it.
+      ctx.fillStyle = shade(TOK.GOLD, .8);
+      ctx.fillText("OR HOLD SHIELD TO SCUTTLE", s.x, s.y - 28);
       if (s.signalT > 0) {
         const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
         ctx.strokeStyle = PAL().WARN; ctx.lineWidth = 2.4;
         ctx.beginPath();
         ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
         glowStroke(PAL().WARN, 2.4);
+      }
+      if (s.scuttleT > 0) {
+        const p = clamp(s.scuttleT / SCUTTLE_HOLD_T, 0, 1);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - 56, 11, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+        glowStroke(PAL().DANGER, 2.4);
       }
     }
   }
@@ -2493,7 +2504,17 @@ function drawBeacon(now) {
   // expanding sweep so it "draws in", fading with sonarT. Drawn behind the tower.
   if (b.sonarT > 0) {
     const p = 1 - b.sonarT / SONAR_DUR;
-    const puls = Math.sin(Math.min(1, p) * Math.PI);
+    /* (owner feedback, July 2026 — "she could ping slightly brighter/more
+       sustained") — this was Math.sin(p * PI): a hump that only touched full
+       brightness at the exact midpoint, so her whole outlined hull — the biggest
+       reveal in the game — was effectively a blink. Now a quick sweep-in, a HELD
+       plateau at full brightness while the sweep ring finishes travelling out, and
+       only then a fade. The sweep still paints her in progressively (it's the clip
+       region below); the difference is that what it has painted stays lit. */
+    const q = Math.min(1, p);
+    const puls = q < 0.15 ? q / 0.15
+               : q < 0.68 ? 1
+               : Math.max(0, (1 - q) / 0.32);
     const sweepR = 30 + p * 340;
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
@@ -2503,13 +2524,18 @@ function drawBeacon(now) {
     ctx.save();
     ctx.translate(0, SOLACE_HY); ctx.scale(SOLACE_MS, SOLACE_MS);
     solaceMercyPath();
+    // (owner feedback, July 2026) — lifted across the board, and most at the
+    // BOTTOM stop: the buried belly is the part that says "this is a whole ship,
+    // not the bit you can see", and at 0.12 it was barely there. Still graded
+    // top-to-bottom (the tower reads brightest, the hull stays submerged), just no
+    // longer nearly invisible where it matters most.
     const g = ctx.createLinearGradient(0, -60, 0, 26);
-    g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
-    g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
-    g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
-    ctx.strokeStyle = g; ctx.lineWidth = 2 / SOLACE_MS;
-    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls / SOLACE_MS;
-    ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
+    g.addColorStop(0, "rgba(155,234,249," + (0.95 * puls).toFixed(2) + ")");
+    g.addColorStop(0.35, "rgba(0,229,255," + (0.7 * puls).toFixed(2) + ")");
+    g.addColorStop(1, "rgba(0,229,255," + (0.3 * puls).toFixed(2) + ")");   // submerged = dimmer, not dark
+    ctx.strokeStyle = g; ctx.lineWidth = 2.4 / SOLACE_MS;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 4 : 11) * puls / SOLACE_MS;
+    ctx.fillStyle = "rgba(0,60,90," + (0.26 * puls).toFixed(2) + ")"; ctx.fill();
     ctx.stroke();
     ctx.restore();
     ctx.restore();

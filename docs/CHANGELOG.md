@@ -16,6 +16,8 @@ file; the *plan* they came from is
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
+- [A surface scuttle, and the resupply floor re-tuned for Bundle Z's gravity](#a-surface-scuttle-and-the-resupply-floor-re-tuned-for-bundle-zs-gravity) — the "trapped in a gravity well" soft-lock, from both ends
+- [The Solace's hull reveal reads brighter and holds](#the-solaces-hull-reveal-reads-brighter-and-holds) — the reflected-ping hull outline was a blink, not a reveal
 - [Bundle X + Z integration: the trainee sector's inherited crosswind](#bundle-x--z-integration-the-trainee-sectors-inherited-crosswind) — a bug that only exists once X's training mode and Z's gravity share a codebase
 - [Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating](#bundle-x--onboarding-trainee-sector-guided-pauses-hint-bank-in-app-rating) — the first 1.01 bundle to land; sequenced ahead of Bundles V and Z
 - [Bundle X owner-feedback round: onboarding refinements, an efficiency bonus, and an ASSIST fix](#bundle-x-owner-feedback-round-onboarding-refinements-an-efficiency-bonus-and-an-assist-fix) — owner playtest notes on PR #61, plus the minimum-journeys bonus and the ASSIST landing-guide fix
@@ -52,6 +54,60 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## A surface scuttle, and the resupply floor re-tuned for Bundle Z's gravity
+
+**Release:** 1.01
+
+Owner playtest: *"You can get trapped in a gravity well with no fuel to escape. We
+need a scuttle for that situation."* Two independent causes, both fixed.
+
+- **The resupply floor was measured at 1× gravity.** `XFUSE_FLOOR = 35` is
+  documented as the smallest tank the drone will leave you with — "≥ primer +
+  enough to limp to the next pad" — so that the lifeline "can never soft-lock a
+  run". Bundle Z then introduced per-sector gravity up to ~2.2× plus a crosswind
+  and never re-tuned it. Climbing out of a dip costs fuel in rough proportion to
+  gravity, so 35 units in a heavy sector buys well under half the altitude it was
+  sized for — and the drone would then keep answering with the same never-enough
+  tank, forever. A new `xfuseFloor()` scales the floor with `gravScale`, and never
+  goes *below* the old value (a thin-gravity sector doesn't make the primer
+  cheaper). This is the same class of bug as the X/Z gravity leak below: a constant
+  tuned before Z existed, silently invalidated by it.
+- **The scuttle charge now works above ground.** It existed already but was gated
+  to the Hollows, where there's no drone to call. On the surface it sits on
+  **SHIELD** rather than THRUST: THRUST already signals the drone there, and the
+  force field is a genuine no-op at zero fuel (`wantShield` requires `fuel > 0`),
+  so there is nothing to collide with. Same 2.4s hold and progress ring as
+  underground, so it reads as the one mechanic it is. Deliberately **not** gated on
+  the drone having been used — the two are alternatives the player chooses between,
+  and U2's diminishing priced resupply economy is untouched. (A first attempt did
+  gate it that way and broke three existing tests, including U2's own
+  "never soft-locks" case, which legitimately takes two tanks in one sector.)
+
+New copy in [COPY_DECK.md](COPY_DECK.md) §8/§8b: the surface prompt gains
+`OR HOLD SHIELD TO SCUTTLE`, and the scuttle banner no longer claims the Hollows
+when you're on the surface. Three new smoke tests (the surface scuttle including
+release-decay, the untouched THRUST lifeline, and the gravity-scaled floor at
+0.4×/1×/2.2×); full suite green at 120.
+
+## The Solace's hull reveal reads brighter and holds
+
+**Release:** 1.01
+
+Owner playtest: *"she could ping slightly brighter/more sustained"* — meaning the
+reflected-ping reveal that outlines her **whole** drowned hull, not her outgoing
+pulse.
+
+Two causes, both in the sweep's envelope. `SONAR_DUR` was 1.8s, and the opacity
+was `Math.sin(p × π)` — a hump that only touched full brightness at the exact
+midpoint, so the biggest reveal in the game was effectively a blink. Now 2.6s with
+a **held plateau**: a quick sweep-in, full brightness while the sweep ring finishes
+travelling out, then a fade. The sweep still paints her in progressively; what it
+has painted now stays lit. The hull gradient is also lifted across the board and
+most at the *bottom* stop (0.12 → 0.3) — the buried belly is the part that says
+"this is a whole ship, not the bit you can see", and it was barely visible.
+Reduced-flash still tones the glow, and a steadier reveal is if anything gentler
+than the old hump.
 
 ## Bundle X + Z integration: the trainee sector's inherited crosswind
 

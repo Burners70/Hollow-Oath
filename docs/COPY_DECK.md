@@ -411,6 +411,16 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | Transfusion line snaps | `LINE SEVERED — REMAINDER LOST  -50 / SIGNAL AGAIN IF YOU NEED IT` |
 | Transfusion window closes | `TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED` |
 | First field resupply (V18, one-time) | `YOU'RE NOT ALONE. HELP IS ON THE WAY. BUT THERE IS A PRICE.` |
+| Scuttle fired | `SCUTTLED IN THE HOLLOWS` underground; `SCUTTLED — NO CLIMBING OUT OF THAT ONE` on the surface (July 2026 — the surface scuttle is new; the Hollows line only ever fitted underground) |
+
+### 8b. Stranded-at-zero-fuel prompts (`drawShip`)
+
+Shown on the ship when landed with an empty tank and no drone inbound.
+
+| Where | Copy |
+|---|---|
+| Surface | `OUT OF FUEL — HOLD THRUST TO SIGNAL` and, below it in gold, `OR HOLD SHIELD TO SCUTTLE` *(July 2026 — the second line is new. THRUST calls the drone as before; SHIELD is a no-op at zero fuel, so it's free to carry the escape hatch for a dip the drone's tank can't lift you clear of. Both are offered; the player picks.)* |
+| Hollows | `SIGNAL NOT RECEIVED — THE ROCK SWALLOWS IT` / `HOLD THRUST TO SCUTTLE` *(no drone reaches underground, so THRUST arms the charge directly)* |
 
 ## 9. Floating texts (`addText()` call sites)
 

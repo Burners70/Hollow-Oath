@@ -28,7 +28,14 @@ const WAVE_GAP = 4.2;       // seconds between a Vector's casts while you're in 
 const WAVE_RANGE = 460;     // it only casts when the ship is this near
 const WAVE_MISS_VITALS = 12;   // finale-only cost (mid-game misses are free)
 const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counterfeits
-const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
+/* V3 — how long a Solace sonar hull-pulse takes to sweep + fade.
+   (owner feedback, July 2026) — lengthened from 1.8s. Reflecting her ping outlines
+   her WHOLE drowned hull, not just the exposed tower, and it's the biggest reveal
+   in the game; at 1.8s with the old sine-hump envelope it was full-brightness for
+   an instant at the midpoint and gone. See drawBeacon for the matching envelope
+   change (a held plateau instead of a hump) — the two together are what make it
+   read as sustained rather than a blink. */
+const SONAR_DUR = 2.6;
 const ANSWER_GAP = 4.5;        // V6-finale — seconds between the Solace's answerable pulses
 const ANSWER_RANGE = 300;      // you must be this near for her to pulse (and to parry)
 /* (owner feedback, July 2026 — "I didn't get the card either… it just started
@@ -2365,7 +2372,10 @@ const SIGNAL_HOLD_T = 1.8;
 const SCUTTLE_HOLD_T = 2.4;
 function scuttleShip() {
   addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", PAL().DANGER);
-  banner("SCUTTLED IN THE HOLLOWS", PAL().DANGER);
+  // the Hollows line only fits underground; a surface scuttle is a dip the ship
+  // couldn't climb back out of
+  banner(level.isCave ? "SCUTTLED IN THE HOLLOWS" : "SCUTTLED — NO CLIMBING OUT OF THAT ONE",
+    PAL().DANGER);
   blip(220, 40, 0.8, "sawtooth", 0.2);
   haptic.pattern([{ delay: 0, style: "heavy" }, { delay: 180, style: "heavy" }]);
   shipDie();   // the wreck is spat back to the surface on respawn (see updateDead)
@@ -2378,13 +2388,24 @@ const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 13
    this penalty, can never soft-lock a run. Each resupply caps lower than the
    last: maxFuel × 0.9^refuels, floored at XFUSE_FLOOR. */
 const XFUSE_COST = 4, XFUSE_FLOOR = 35;
+/* (owner feedback, July 2026 — "you can get trapped in a gravity well with no
+   fuel to escape") — the floor above is a fixed constant, and the guarantee it
+   documents ("enough to limp to the next pad", "can never soft-lock a run") was
+   measured at 1x gravity. Bundle Z then introduced per-sector gravity up to ~2.2x
+   plus a crosswind, without re-tuning this: climbing out of a dip costs fuel in
+   rough proportion to gravity, so 35 units in a 2.2x sector buys well under half
+   the altitude it was sized for, and the drone would then keep answering with the
+   same never-enough tank forever. Scale the floor with the sector's own gravity so
+   the original guarantee holds again — and never go BELOW the old value, since a
+   thin-gravity sector doesn't make the primer any cheaper. */
+function xfuseFloor() { return Math.round(XFUSE_FLOOR * Math.max(1, gravScale)); }
 // Owner steer: on SEMMELWEIS DEEP the supply lines are cut — the drone still
 // answers (a stranded ship must never be un-rescuable) but on scavenged reserves:
 // it comes slower, fills slower, and leaves you with less. Never below the floor.
 function supplyCut() { return !!(level && level.contagion); }
 function xfuseCap() {
   const base = Math.round(maxFuel() * Math.pow(0.9, runRefuels) * (supplyCut() ? 0.7 : 1));
-  return Math.max(XFUSE_FLOOR, base);
+  return Math.max(xfuseFloor(), base);
 }
 function xfuseRate() { return XFUSE_RATE * (supplyCut() ? 0.55 : 1); }
 function signalHoldT() { return SIGNAL_HOLD_T * (supplyCut() ? 1.6 : 1); }
@@ -2435,7 +2456,22 @@ function updateResupplySignal(dt) {
     }
     return;
   }
-  s.scuttleT = 0;
+  /* (owner feedback, July 2026 — "you can get trapped in a gravity well with no
+     fuel to escape. We need a scuttle for that situation") — above ground the
+     scuttle charge is now available too, so a dip the ship can't climb out of is
+     never terminal. It sits on SHIELD rather than THRUST because THRUST already
+     signals the drone here, and SHIELD is a genuine no-op at zero fuel (see
+     updatePlay's `wantShield` gate, which requires fuel > 0) — so there is nothing
+     to collide with. Deliberately NOT gated on the drone having been used: the two
+     are alternatives the player chooses between, and the resupply economy (U2's
+     diminishing, priced lifeline) is untouched. Same 2.4s hold and progress ring
+     as underground, so it reads as the one mechanic it is. */
+  if (stranded && (input.shield || pad.shield)) {
+    s.scuttleT = (s.scuttleT || 0) + dt;
+    if (s.scuttleT >= SCUTTLE_HOLD_T) { s.scuttleT = 0; scuttleShip(); return; }
+  } else {
+    s.scuttleT = Math.max(0, (s.scuttleT || 0) - dt * 2.5);
+  }
   if (stranded && !resupplyDrone && (input.thrust || pad.thrust)) {
     s.signalT += dt;
     if (Math.random() < dt * 8) particles.push({

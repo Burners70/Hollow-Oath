@@ -84,6 +84,59 @@ test("stranding at 0 fuel: the signal brings a drone, a primer, and a line", asy
   expect(s.ship.fuel).toBeGreaterThan(6);   // the primer mist — enough to reach the line
 });
 
+/* (owner feedback, July 2026 — "you can get trapped in a gravity well with no fuel
+   to escape. We need a scuttle for that situation") — the scuttle charge used to be
+   Hollows-only; on the surface a strand always called the drone, so a dip the ship
+   couldn't climb out of let the drone answer forever with a tank that was never
+   enough. That's a soft-lock with a friendly face on it. */
+test("a surface strand can be escaped by holding SHIELD to scuttle, without touching the drone", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
+  const s0 = await page.evaluate(() => __doids.get());
+  expect(s0.ship.fuel).toBe(0);
+  expect(s0.ship.landed).toBe(true);
+  expect(s0.inCave).toBe(false);
+  // SHIELD is a genuine no-op at zero fuel, so it's free for this and can't
+  // collide with the THRUST-to-signal lifeline
+  await page.evaluate(() => { input.shield = true; });
+  await page.waitForFunction(() => ship.scuttleT > 0.3, null, { timeout: 3000 });
+  expect(await page.evaluate(() => ship.shield), "no force field at zero fuel").toBe(false);
+  expect(await page.evaluate(() => __doids.get().resupplyDrone), "SHIELD doesn't call a drone").toBeNull();
+  // releasing it decays the charge rather than firing
+  await page.evaluate(() => { input.shield = false; });
+  await page.waitForFunction(() => ship.scuttleT === 0, null, { timeout: 3000 });
+  expect(await page.evaluate(() => __doids.get().state)).toBe("play");
+  // holding it through SCUTTLE_HOLD_T fires the charge and breaks the soft-lock
+  await page.evaluate(() => { bannerMsg = null; input.shield = true; });
+  await page.waitForFunction(() => __doids.get().state === "dead", null, { timeout: 6000 });
+  expect(await page.evaluate(() => bannerMsg && bannerMsg.str)).toMatch(/SCUTTLED/);
+  expect(await page.evaluate(() => bannerMsg.str), "the Hollows line is underground-only")
+    .not.toMatch(/HOLLOWS/);
+  await page.evaluate(() => { input.shield = false; });
+});
+
+test("the THRUST-to-signal lifeline still works untouched alongside the scuttle", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
+  await page.evaluate(() => { input.thrust = true; });
+  await page.waitForFunction(() => __doids.get().resupplyDrone !== null, null, { timeout: 4000 });
+  expect(await page.evaluate(() => ship.scuttleT), "THRUST arms the signal, not the charge").toBe(0);
+  await page.evaluate(() => { input.thrust = false; });
+});
+
+test("the resupply floor scales with gravity, so a heavy sector can't hand back a never-enough tank", async ({ page }) => {
+  // the floor is the drone's promise: "enough to limp to the next pad". It was a
+  // flat 35, measured at 1x, and Bundle Z then allowed gravity up to ~2.2x.
+  const floors = await page.evaluate(() => {
+    __doids.go(1); __doids.launch();
+    const out = {};
+    for (const g of [0.4, 1, 2.2]) { gravScale = g; out[g] = xfuseFloor(); }
+    gravScale = 1;
+    return out;
+  });
+  expect(floors["1"]).toBe(35);                       // unchanged at normal gravity
+  expect(floors["0.4"]).toBe(35);                     // never LESS generous than before
+  expect(floors["2.2"]).toBeGreaterThan(70);          // a heavy sector gets a real tank
+});
+
 test("V18: the very first field resupply gets a one-time acknowledgement banner", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
   expect(await page.evaluate(() => runRefuels)).toBe(0);
