@@ -311,7 +311,12 @@ smoke tests; full suite green.
 A second live round on the same branch. Earlier items in this round (the
 pre-reveal Solace hint removed, the sonar hull-shape bug, the COUNTERFEIT TIME
 card, the veteran ending line) are described in the commits; this entry covers
-the post-completion flow.
+the post-completion flow, the reset wipe and the Solace's tell.
+
+One report from this round is **not** fixed: a "floating gun" turret left
+hanging, which two investigations could not reproduce or explain — V16's kill
+radius provably matches the crater's. It's tracked as roadmap item **V21**,
+pending a retest against the now-merged `main`.
 
 - **A repeat completion goes home to the title, not into another campaign.**
   Finishing a run that was *already* a veteran run used to tap straight through
