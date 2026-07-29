@@ -2329,17 +2329,14 @@ function drawDecoyMercy(now) {
   }
 }
 
-// AMS SOLACE's full drowned hull — a big broken lozenge under the ridge line.
-// Shared by the V3 sonar reveal and the bad-ending destruction reveal so both
-// draw the SAME ship. Centred on the beacon origin; caller fills/strokes.
-const SOLACE_HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
-                     [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
-function solaceHullPath() {
-  ctx.beginPath();
-  ctx.moveTo(SOLACE_HULL[0][0], SOLACE_HULL[0][1]);
-  for (let i = 1; i < SOLACE_HULL.length; i++) ctx.lineTo(SOLACE_HULL[i][0], SOLACE_HULL[i][1]);
-  ctx.closePath();
-}
+// owner bug fix (July 2026) — the V3 sonar reveal and the bad-ending
+// destruction reveal were supposed to draw the SAME ship (per the comment
+// that used to sit here) but didn't: the sonar sweep drew this file's own
+// SOLACE_HULL point array — an unrelated, asymmetric blob nothing like her
+// actual silhouette — while drawSolaceDeath drew the real one
+// (solaceMercyPath, below). Retired the stray shape; both now share
+// solaceMercyPath and this one transform, so they can't drift apart again.
+const SOLACE_MS = 1.3, SOLACE_HY = 28;   // scale + offset: tower peak lands at world y≈-50
 
 /* AMS SOLACE's own silhouette — the SAME MERCY-class family (dorsal command
    tower rising out of a lozenge hull, with the signature mast), but a sister,
@@ -2371,7 +2368,7 @@ function solaceMercyPath() {
    Respects reducedFlash. */
 function drawSolaceDeath(b, now) {
   const t = b.death || 0;
-  const MS = 1.3, HY = 28;                       // scale + offset: tower peak lands at world y≈-50
+  const MS = SOLACE_MS, HY = SOLACE_HY;
   const topY = -112, botY = 72;                  // antenna tip → below the buried belly
   const revP = clamp((t - SOL_IGNITE) / (SOL_REVEAL - SOL_IGNITE), 0, 1);
   const front = topY + (botY - topY) * revP;     // the descending heat front
@@ -2477,15 +2474,21 @@ function drawBeacon(now) {
     const sweepR = 30 + p * 340;
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
-    solaceHullPath();
-    const g = ctx.createLinearGradient(0, -50, 0, 190);
+    // owner bug fix — draw the SAME hull the destruction reveal does
+    // (solaceMercyPath, shared SOLACE_MS/SOLACE_HY transform), not the
+    // stray, unrelated shape this used to draw
+    ctx.save();
+    ctx.translate(0, SOLACE_HY); ctx.scale(SOLACE_MS, SOLACE_MS);
+    solaceMercyPath();
+    const g = ctx.createLinearGradient(0, -60, 0, 26);
     g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
     g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
     g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
-    ctx.strokeStyle = g; ctx.lineWidth = 2;
-    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
+    ctx.strokeStyle = g; ctx.lineWidth = 2 / SOLACE_MS;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls / SOLACE_MS;
     ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
     ctx.stroke();
+    ctx.restore();
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = puls * 0.55;
@@ -4185,7 +4188,7 @@ function drawEnding(now) {
     color = TOK.CYAN_INK;
     body = "You landed beside it and listened.\n\nThe source was the top of a ship — AMS SOLACE, MERCY's sister, lost with all hands, her distress call looping on their shared frequency for years. Every Scion that answered it honestly was rewritten by the echo.\n\nSo you answered it properly: you matched her own rhythm and sent it back — the one acknowledgement her signal had spent years repeating to hear. Told that she was heard, she could finally stop.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
-    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
+    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou defeated his ultimate lie.\nBut it cost your oath to do it.";
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
     color = PAL().WARN;

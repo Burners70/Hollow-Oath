@@ -71,7 +71,7 @@ test("the counterfeit MERCY: docking springs the trap — a full life lost; the 
   expect(realBayOk).toBe(true);
 });
 
-test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
+test("the counterfeit MERCY yields to observation: landed scan powers it down for +2000 (Bundle N3)", async ({ page }) => {
   // V13 — the twin's position (and so the ship's midpoint spawn) now varies
   // run to run; go/launch and parking the stranded Scions must land in the
   // SAME evaluate() call, with no round trip between them, or an oid placed
@@ -99,7 +99,7 @@ test("the counterfeit MERCY yields to observation: landed scan powers it down fo
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 9000 });
   const s = await page.evaluate(() => __doids.get());
   expect(s.decoyOutcome).toBe("observed");
-  expect(s.score).toBe(before + 800);
+  expect(s.score).toBe(before + 2000);   // owner steer: raised from +800
   expect(s.scannedSecret).toBe(true);
   expect(s.firedAtSecret).toBe(false);   // observed, not shot — the oath holds
   // the beacon is still there: both endings remain reachable
@@ -132,7 +132,7 @@ test("V13: three rounds bring the counterfeit MERCY down, not one — a stray sh
   s = await page.evaluate(() => __doids.get());
   expect(s.fakeMercy.dead).toBe(true);
   expect(s.decoyOutcome).toBe("observed");
-  expect(s.score).toBe(before + 800);
+  expect(s.score).toBe(before + 2000);   // owner steer: raised from +800
   expect(s.firedAtSecret).toBe(true);
 });
 

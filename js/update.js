@@ -2457,11 +2457,17 @@ function updateDecoy(dt) {
 }
 function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure fails
   f.dead = true; decoyOutcome = "observed";
-  score += 800;
-  explode(f.x, f.y - 10, PAL().REVEAL, 40);
+  score += 2000;   // owner steer — a full hull's worth of a reveal, priced accordingly
+  // owner feature — a full hull going down deserves more than a lure-tree's
+  // burst: several staggered bursts across her whole footprint, not one
+  // burst at her centre, with a real camera shake to match.
+  explode(f.x, f.y - 10, PAL().REVEAL, 50);
+  explode(f.x - 60, f.y, TOK.GOLD, 26);
+  explode(f.x + 60, f.y, TOK.GOLD, 26);
+  camera.shake = Math.max(camera.shake, 18);
   staticTick();
-  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +800", title: "MACHINE TIME", subtitle: "",
-    body: "Her emblem pulses like a pulse. Its emblem keeps perfect time.\n\nYou counted the beats. He never learned a heartbeat.",
+  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +2000", title: "COUNTERFEIT TIME", subtitle: "",
+    body: "Mercy's emblem pulses. An organic pulse.\nGlycon's keeps perfect time. Plausible. False.\n\nOne thing Glycon never managed.\nA beating heart.",
     color: TOK.CYAN_INK });
 }
 
