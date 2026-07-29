@@ -302,6 +302,67 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
     await page.evaluate(() => ({ saved: __doids.get().runSaved, lost: __doids.get().runLost })));
 });
 
+/* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to pulse
+   only AFTER being revealed by a landing within 120px, so hovering beside her gave
+   nothing back at all and the beat had no tell once the hint label was removed. */
+test("the Solace transmits on approach, before she is revealed — but a pre-reveal wash is free and can't answer her", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.setVeteran(); __doids.go(7); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.waves = [];
+    // sit parked 200px away: outside the 120px reveal band, inside the 300px
+    // pulse radius. Landed rather than hovering so gravity can't drop the ship
+    // into the reveal (or into a crash) while we wait out ANSWER_GAP.
+    const b = level.beacon;
+    ship.x = b.x - 200; ship.y = groundAt(ship.x) - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;
+  });
+  const d = await page.evaluate(() => Math.hypot(ship.x - level.beacon.x, ship.y - level.beacon.y));
+  expect(d, "parked inside her pulse radius").toBeLessThan(300);
+  expect(await page.evaluate(() => level.beacon.revealed), "too far to have named her").toBeFalsy();
+  // she casts anyway, and the wave is marked pre-reveal
+  await page.waitForFunction(() => (level.waves || []).some(w => w.finale), null, { timeout: 8000 });
+  expect(await page.evaluate(() => level.waves.find(w => w.finale).preReveal)).toBe(true);
+  // letting it wash over costs no vitals (it's a tell, not a punishment)
+  const v0 = await page.evaluate(() => { ship.vitals = 90; return ship.vitals; });
+  await page.evaluate(() => {
+    ship.shield = false; ship.parryT = 0;
+    level.waves = [{ src: level.beacon, ox: level.beacon.x, oy: level.beacon.y - 40,
+      t: WAVE_ARRIVE - 0.01, done: false, hit: false, finale: true, preReveal: true }];
+  });
+  await page.waitForFunction(() => (level.waves[0] || {}).done === true, null, { timeout: 3000 });
+  expect(await page.evaluate(() => ship.vitals), "a pre-reveal wash is free").toBe(v0);
+  // and a lucky pre-reveal parry does NOT resolve her — she isn't named yet
+  await page.evaluate(() => {
+    level.beacon.heardParry = true;
+  });
+  await page.waitForTimeout(120);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.state, "still flying — a pre-reveal parry can't answer her").toBe("play");
+  expect(await page.evaluate(() => level.beacon.resolved)).toBeFalsy();
+  expect(await page.evaluate(() => level.beacon.heardParry), "discarded, not banked").toBe(false);
+  // land beside her → she gives up her name (the STILL TRANSMITTING card)
+  await page.evaluate(() => { __doids.warpBeacon(); });
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 3000 });
+  expect(await page.evaluate(() => __doids.get().state), "the reveal card holds").toBe("reveal");
+  expect(await page.evaluate(() => __doids.get().revealCard.kicker)).toContain("AMS SOLACE");
+  // dismiss it, and NOW a parry answers her
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 3000 });
+  // her pulses cost full vitals from here — she's named and the card has said
+  // the signal seeks a response
+  expect(await page.evaluate(() => {
+    level.waves = [];
+    return null;
+  })).toBeNull();
+  await page.waitForFunction(() => (level.waves || []).some(w => w.finale), null, { timeout: 8000 });
+  expect(await page.evaluate(() => level.waves.find(w => w.finale).preReveal)).toBe(false);
+  await page.evaluate(() => { level.beacon.heardParry = true; });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 3000 });
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("answered");
+});
+
 /* (owner feedback, July 2026) — the post-completion flow. A FIRST completion
    still flows straight on from the win screen (that tap is what plays the
    once-only VET_INTRO); a REPEAT completion goes home to the title with the

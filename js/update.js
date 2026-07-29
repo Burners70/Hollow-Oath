@@ -1712,12 +1712,17 @@ function updateWaves(dt) {
       } else {
         // a wash-over costs vitals: the full hit at the finale, HALF mid-game
         // (owner steer) — a Vector's pulse still stings, just less than Solace's.
-        const cost = w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2;
+        // A PRE-REVEAL Solace pulse is free: it exists to tell you she's there and
+        // transmitting (see updateBeacon), and the game hasn't yet told you a parry
+        // is the answer. It still lands the surge, shake and flash — unsettling,
+        // just not damaging. Full cost once she's named.
+        const cost = w.preReveal ? 0 : (w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2);
         s.vitals = Math.max(0, s.vitals - cost);
         staticSurge = Math.max(staticSurge, w.finale ? 0.6 : 0.35);
         sabotageFlash = w.finale ? 0.5 : 0.3;
         camera.shake += w.finale ? 5 : 3;
-        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
+        if (cost > 0) addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
+        else addText(s.x, s.y - 34, "SIGNAL WASH", TOK.VIOLET);
       }
     }
   }
@@ -2540,15 +2545,36 @@ function updateBeacon(dt) {
   // updateWaves' finale branch); the pulse comes round again. FIRE still silences
   // her (the other ending). The science of "being heard" — she stops repeating
   // once the signal is finally acknowledged in kind.
-  if (b.revealed && !s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
+  /* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to
+     pulse ONLY once revealed, i.e. only after you had already landed within 120px
+     of her. Until then she was completely inert: you could hover right beside her,
+     well inside ANSWER_RANGE, and get nothing back at all. The pre-reveal "land
+     beside it, or open fire" label was the only thing carrying that requirement,
+     and removing it (correctly — too much of a handhold) left the beat with no
+     tell whatsoever. She is "still transmitting" — that is her whole character —
+     so she now casts her looping distress wave as soon as you are near, revealed
+     or not. That IS the clue, with no words: something down here is signalling at
+     you, and closing in and touching down is what names her.
+     A pre-reveal wash costs no vitals, though (see updateWaves): being punished
+     12 vitals every ANSWER_GAP for approaching a mystery you have not been told
+     how to answer would just relocate the unfairness. Full stakes resume once
+     she's named and the card has told you the signal seeks a response. */
+  if (!s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
     b.castT = (b.castT || 0) + dt;
     if (b.castT >= ANSWER_GAP) {
       b.castT = 0;
       level.waves = level.waves || [];
-      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false, finale: true });
+      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false,
+        finale: true, preReveal: !b.revealed });
     }
   } else b.castT = 0;
-  if (b.heardParry) resolveBeacon("answered");
+  // only a parry she can be named by counts as being HEARD: pre-reveal you don't
+  // yet know who or what you're answering, so a lucky early parry is discarded
+  // rather than banked (it would otherwise resolve her the instant she's revealed).
+  if (b.heardParry) {
+    if (b.revealed) resolveBeacon("answered");
+    else b.heardParry = false;
+  }
 }
 
 function resolveBeacon(how) {

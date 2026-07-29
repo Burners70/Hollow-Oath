@@ -138,8 +138,27 @@ the post-completion flow.
   lands on the title, which also makes the wipe visible: hi score 0, empty codex,
   no REMIX/DAILY pills.
 
-Four new smoke tests (both routing branches, the hull gate, and the mid-run
-wipe); full suite green at 100.
+- **The Solace transmits on approach** (owner: "the beacon wouldn't respond").
+  She used to pulse only once `revealed` — and `revealed` requires you *landed*
+  within 120px of her. Until then she was completely inert: you could hover right
+  beside her, well inside the 300px `ANSWER_RANGE`, and get nothing back at all.
+  The pre-reveal "land beside it, or open fire" label removed earlier in this same
+  round was the only thing carrying that requirement, so the beat was left with no
+  tell whatsoever. She now casts her looping distress wave as soon as you are near,
+  revealed or not — she *is* "still transmitting", and that is the clue, wordlessly.
+  Landing still names her; only a post-reveal parry answers her (a lucky early
+  parry is discarded rather than banked). A **pre-reveal wash costs no vitals** —
+  being docked 12 vitals every 4.5s for approaching a mystery you haven't been told
+  how to answer would just relocate the unfairness — but it keeps the surge, shake
+  and flash. Full stakes resume once she's named.
+
+Owner decision, no code change: arriving at the finale with no fuel makes the
+Solace unanswerable (the shield, and so the parry, needs `fuel > 0`) while her
+pulses keep draining vitals. Reviewed and **left as-is** — flying in dry is a
+planning failure and losing the run to it is fair.
+
+Five new smoke tests (both routing branches, the hull gate, the mid-run wipe, and
+the pre-reveal pulse); full suite green at 101.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 
