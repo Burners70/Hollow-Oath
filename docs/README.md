@@ -17,6 +17,7 @@ shouldn't be in the folder.
 | [COPY_DECK.md](COPY_DECK.md) | Editing any user-facing text/wording. Any PR that changes a player-facing string updates this deck too. |
 | [DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) | Adding UI/HUD: the colour, type, spacing and glow tokens as actually shipped in `css/game.css` / `js/render.js`. |
 | [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) | **The 1.1 plan.** Act Two — the ten-level underground rescue campaign beneath SOLACE, where the pendulum debuts. Supersedes PENDULUM_SPEC.md and absorbs Bundle Q's caves. Read this for *what to build*. |
+| [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md) | **Briefing a designer on Act Two.** A self-contained hand-out for someone with no repo access: what we need (the rack's four states first), the non-negotiables (token layer, colourblind swap, reduced flash, no red cross, perf), and the two genuine image files. Explains up front that the game has no sprites — the deliverable is specified direction, not art. |
 | [PENDULUM_SPEC.md](PENDULUM_SPEC.md) | **Superseded as a plan; still the physics reference.** The tether model, damage model and tow conventions, which carry over into Act Two unchanged. Read this for *how the sling works*. |
 | [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Bundle Q. Its three new caves are absorbed into Act Two; what survives is the core (Laennec/AUSCULTATION, now an Act Two upgrade, and the ROTATION CHART as a 1.01 utility). |
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |

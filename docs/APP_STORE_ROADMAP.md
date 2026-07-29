@@ -90,7 +90,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 8 | **1.1** | Whole bundle, now phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain gates everything** |
+| P | **Act Two — the descent** | 9 | **1.1** | Whole bundle, now phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain gates everything** |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -477,6 +477,18 @@ behind a feature flag until P·slice signs off — `main` stays releasable for a
   spans at load), built before the content rather than after two levels of it.
   Act One's surface generation must be untouched — the M1 golden checksum is the
   proof.
+- [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
+  with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
+  the rack reads correctly, and that is a design problem before it is a code
+  one. The hand-out is [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md),
+  written to be self-contained for someone with no repo access. Two things worth
+  knowing before briefing anyone: **the game has no in-game art assets** (all
+  visuals are procedural canvas drawing, so the deliverable is specified
+  direction plus timing numbers, not sprites), and **there is no public web
+  build** since O7, so the brief points at running `index.html` locally, the
+  demo video and the marketing stills instead. Only two real image files come out
+  of it: the twelfth star on `the_full_codex.png` (a **1.01** item, independent of
+  everything else — see V1) and, later, the two Act Two achievement badges.
 - [ ] **P·slice. Vertical slice before content.** One chamber, one rack, the
   trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
   end and tuned on a phone, **before a single additional level is authored.**
