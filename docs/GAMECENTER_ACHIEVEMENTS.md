@@ -55,5 +55,20 @@ Bundle B, nothing uses a red cross; the medical emblem throughout is the
   `shrines`, `runFragments`, `runLost`, `firedShots`, `codex` vs `FAMOUS`).
 - Report at the ending/win screens and on codex save; fail-silent, same as
   localStorage.
-- 1.2 adds EVERY HOLLOW HEARD and GENTLE HANDS to this set if Game Center has
-  shipped (see APP_STORE_ROADMAP.md, Q·ship).
+- **1.1 (Act Two)** adds EVERY HOLLOW HEARD and GENTLE HANDS to this set — see
+  APP_STORE_ROADMAP.md, **P·ship**. *(This used to say 1.2 / Q·ship; 1.2 was
+  cancelled when Act Two absorbed Bundle Q's caves — ACT_TWO_SPEC.md §13.)*
+- **THE FULL CODEX becomes 12 in 1.01, and needs no code change.** The threshold
+  is derived — `codex.size >= FAMOUS.length` (`js/update.js`) — so adding **Mary
+  Seacole** as the twelfth famous Scion (roadmap V1) moves it automatically.
+  Nothing in code, tests, COPY_DECK.md or STORE_LISTING.md pins the number, and
+  the earned description above is count-free, per this file's own copy rule — so
+  **the App Store Connect text does not change either.**
+  **One asset does:** `the_full_codex.png` is *"the open codex under a
+  constellation of eleven famous minds"* and needs a twelfth star. Regenerate
+  from `svg/` via `generate.py` (headless Chromium, 1024×1024). The achievement
+  works correctly either way, so if editing Game Center metadata while a build is
+  in review is awkward, ship the eleven-star art and swap the image with 1.01.
+  Act Two adds ten more minds on top (ACT_TWO_SPEC §9.1), taking the
+  constellation to 22 — worth designing the art so the count is legible rather
+  than countable.

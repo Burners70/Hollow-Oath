@@ -15,6 +15,9 @@ file; the *plan* they came from is
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
+**1.1 — Act Two (planning; nothing built)**
+- [1.1 planning round: span terrain, the reversed deception tell, ten new minds, and Mary Seacole](#11-planning-round-span-terrain-the-reversed-deception-tell-ten-new-minds-and-mary-seacole) — the round that phased Bundle P, and the two places the spec was wrong against the code
+
 **1.01 (queued for the first post-launch update)**
 - [The scuttle charge becomes a universal escape hatch](#the-scuttle-charge-becomes-a-universal-escape-hatch) — the gravity-anomaly soft-lock, and why the fuel floor deliberately stays flat
 - [The Solace's hull reveal reads brighter and holds](#the-solaces-hull-reveal-reads-brighter-and-holds) — the reflected-ping hull outline was a blink, not a reveal
@@ -54,6 +57,93 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## 1.1 planning round: span terrain, the reversed deception tell, ten new minds, and Mary Seacole
+
+**Release:** planning only — no code changed. Affects **1.01** (V1) and **1.1**
+(Bundle P).
+
+An owner round settling how Act Two gets built. Six decisions, three of which
+came out of checking the spec against the code and finding it wrong.
+
+**Span terrain, because the shipped model can't express an overhang.** The
+chambers are specified as larger than any surface sector, with overhangs and tight
+spaces, authored for a tether. Terrain today is a heightmap — one value per 16px
+column — and caves add a single parallel `roof[]` clamped to
+`heights[i] - 175`, so every Act One cave is a tube with a guaranteed gap and no
+re-entrant geometry at all. Decision: generalise `roof[]` to **N floor/ceiling
+pairs per column**, a strict superset that keeps O(1) collision, `STEP`, the tile
+cache and the shape of `groundAt`/`roofAt`. True re-entrant hooks stay
+unexpressible and that's accepted; polygon terrain was rejected as it would
+invalidate every terrain helper, the tile renderer, the landing maths, the M1
+checksum and the V2 fairness passes. This now **gates the vertical slice**, and
+the slice chamber must contain an overhang and a pinch point — otherwise it
+proves the tether against terrain the real chambers won't have.
+See ACT_TWO_SPEC.md §11.0.
+
+**The deception tell was false against the code, and is replaced.** The spec said
+a projected ledge reads as fake because it is *"perfectly flat and perfectly
+level — nothing in this game's terrain is level except things he made."* But
+`flatten()` sets every heightmap sample in a span to a single height, so every
+landing pad, lift pad and V2 scan shelf in the shipped game is mathematically
+level; and Act Two is set inside a maintained facility, where machined level
+floors are legitimately everywhere. Replaced with **"the world doesn't respond to
+you"**: thruster wash raises grit off real rock and nothing off a projection (and
+the inverse for painted rock), with the lamp-casts-no-shadow tell promoted to a
+real second channel. Better than a patch — it's an active probe that costs only
+time and care, so hovering to check now fights the draining reserve instead of
+sitting beside it, and it never touches the oath. See §8.1.
+
+**Ten new famous minds, each tied to a system** (owner ask). Laennec
+(AUSCULTATION), Snow (THE PUMP HANDLE), Harvey (CLOSED CIRCUIT), Paré (I DRESSED
+HIM), Röntgen (RADIOGRAPH — capped at one sweep per chamber or it disables the
+deception layer), Landsteiner (CROSSMATCH), Morton (THE ETHER DOME), Forssmann
+(THE CATHETER), Apgar (THE APGAR SCORE) and Saunders (THE VIGIL). THE VIGIL is
+the load-bearing one: it lets a failing rack hold at a single flicker rather than
+flatline, which resolves the standing tension between "flatline is total death"
+and "the player must always be able to save everyone" without softening either —
+and because it's earned, the softening is a reward rather than a difficulty
+setting. Checked against `FAMOUS` for benefit collisions; none. See §9.1.
+
+**Mary Seacole unlocks the ROTATION CHART, in 1.01.** Fly-back to cleared sectors
+lost its unlock when Laennec moved into Act Two. The owner's answer: a **twelfth
+famous Scion in THE NULLWAVE**, left behind the finale's existing 6-of-7
+black-box gate — she paid her own passage to the Crimea after being refused, and
+went back onto the field for men others had left behind, which is precisely what
+the chart is for. The unlock is persistent (keyed off `codex`, like the CANON hint
+gate) so it arms every *subsequent* rotation, making it the veteran's tool. Two
+constraints recorded: the new finale placement must not consume RNG (or the
+finale layout shifts), and she must be pinned and excluded from
+`buildFamousMap`'s shuffle or REMIX can draw her onto a surface sector.
+**THE FULL CODEX becomes 12 for free** — the threshold is derived from
+`FAMOUS.length` and the Game Center description is count-free — but
+`the_full_codex.png` depicts eleven stars and needs a twelfth.
+She lands in **1.01, not the 1.0 build in review**: a new binary would restart
+App Review, and completing the codex takes multiple REMIX rotations, so
+effectively nobody can hit 11/11 before 1.01 ships. See roadmap V1.
+
+**SOLACE's beacon was a relay, not the transmitter** (owner refinement). This
+closes a hole in the first draft — *why did the signal read as coming from her?* —
+because her beacon has been faithfully rebroadcasting what's tapped below it all
+along. The instruments were right about the bearing and wrong about the origin,
+which is the game's thesis in one object. No shipped copy contradicts it: THE
+ANSWERED CALL identifies *where* the beacon was, not what was transmitting, and
+Hollow 0's shrine card already establishes hand-built relay hardware. See §5.1a.
+
+**Also:** persistence promoted from an open question to real scope (§11.2 — a
+`doids_run` schema bump with a non-destructive migration, per-chamber
+checkpointing, the E4 iCloud mirror, and a test that an Act One save still
+loads); Bundle P **phased** into eight dependency-ordered items; Bundle Q **fully
+dispositioned** with its items struck and its guard moved to V1; **1.2 confirmed
+cancelled** and the two queued achievements moved to P·ship; device tuning
+**confirmed available**, which decouples build order from release order so Act Two
+is built now and held for 1.01; and **new source files approved for Act Two** —
+`js/acttwo-data.js`, `js/acttwo-update.js`, `js/acttwo-render.js`, loaded between
+`world.js` and `update.js`. That last one lifts a convention rather than breaking
+it: the "don't add files" rule was a guardrail against unasked drift back to the
+old 5,400-line sprawl, not a technical constraint, and the technical ones
+(non-module, load order, `index.html`'s script list, `app/sync.sh` copying `js/`
+wholesale) all still hold.
 
 ## The scuttle charge becomes a universal escape hatch
 

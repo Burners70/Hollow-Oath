@@ -89,12 +89,15 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 3 | **1.1** | Whole bundle — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only |
+| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
+| P | **Act Two — the descent** | 8 | **1.1** | Whole bundle, now phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain gates everything** |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
-| Q | The deep Hollows | 3 | 1.01 core; caves absorbed | Only the ROTATION CHART survives as a 1.01 utility. Laennec/AUSCULTATION move into Act Two; **the three caves are absorbed by Act Two and 1.2 is cancelled** |
+| Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
-**No owner decision is currently open.** (V11 — whether to surface the decoy
+**One owner decision is open: the name of Act Two** (and with it the 1.1
+What's-New line that does the price-move work in the store). The owner's steer
+is that it comes out of the work, so it is written last — see
+[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §15. (V11 — whether to surface the decoy
 MERCY earlier — was resolved with Bundle V: leave it as a deep secret, no code
 change.)
 
@@ -436,26 +439,110 @@ release plan: **[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md)**;
 
 **Priority: the 1.1 release, entire. Dependencies: 1.01 must ship first and is
 a hard commercial dependency, not housekeeping** — Act Two is gated behind
-finishing the campaign, and Bundle X exists because new players don't. Device
-tuning is available now (1.0 in review ⇒ Mac + TestFlight exist).
+finishing the campaign, and Bundle X exists because new players don't. That is
+a constraint on *release order, not build order*: 1.0 is still in App Review and
+1.01 is not live, so Act Two is built and refined now and held until 1.01 has
+shipped. **Device tuning is confirmed available** (owner, July 2026 — Mac,
+Xcode and TestFlight all in hand), which closes ACT_TWO_SPEC §15 q1 and means
+every feel-critical item below is tuned on hardware rather than in a browser.
 
+**Phased (owner round, July 2026).** The bundle is too large for one branch, so
+it runs as a sequence of PRs against a long-lived integration branch, everything
+behind a feature flag until P·slice signs off — `main` stays releasable for a
+1.01 hotfix throughout. The order below is a dependency chain, not a preference:
+**P·terrain gates P·slice, and P·slice gates everything after it.**
+
+- [ ] **P·terrain. Span terrain, and the chamber authoring format.** *(Owner
+  decision, July 2026: spans, not heightmaps.)* **The shipped terrain model
+  cannot express an overhang.** Terrain is a heightmap — `heights[]` sampled
+  every `STEP` (16px), one value per column — and caves add a single parallel
+  `roof[]`, clamped by `roof[i] = Math.min(roof[i], heights[i] - 175)`
+  (`genCave`, `js/world.js`). So every cave is a tube with a guaranteed 175px
+  gap: no overhangs, no re-entrant geometry, no pinch points. Act Two's chambers
+  are specified as **larger than any surface sector, with overhangs and tight
+  spaces, authored for a tether** (owner, July 2026), so the representation has
+  to change first.
+  **Generalise `roof[]` to N floor/ceiling pairs per column** ("columns of
+  spans"). It is a strict superset of what ships: collision stays an O(1) column
+  lookup, `STEP` survives, the terrain tile cache survives, and
+  `groundAt`/`roofAt` keep their shape with a "which span" argument. It
+  expresses overhangs, shelves, pillars, tight passages and pinch points.
+  **What it cannot express is a true re-entrant hook** (fly under it and back up
+  into it) — accepted, rather than paying for polygon terrain, which would
+  invalidate every terrain helper, the tile renderer, the landing-slope maths,
+  the M1 checksum and the V2 fairness passes. Revisit only if P·slice proves
+  spans can't carry the level design.
+  Also here, because ten large chambers cannot be hand-typed heightmaps: **a
+  compact authoring representation** (a coarse room/span grammar compiled to
+  spans at load), built before the content rather than after two levels of it.
+  Act One's surface generation must be untouched — the M1 golden checksum is the
+  proof.
 - [ ] **P·slice. Vertical slice before content.** One chamber, one rack, the
   trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
   end and tuned on a phone, **before a single additional level is authored.**
   If hurry-versus-care doesn't feel good in one room, no amount of level
   design saves it. Gates everything below.
-- [ ] **P·impl. Implement per ACT_TWO_SPEC.md** — the spec still needs its
-  scoring table, copy-deck entries and an implementation checklist in the
-  shape of PENDULUM_SPEC §7; write those from what the slice proves, then work
-  through them there (one source of truth; don't mirror the list here).
-  *(The in-app rating prompt that used to sit here as **P·review** has shipped
-  already — it moved to Bundle X as X6 once 1.01 became the first post-launch
-  build, and is live in `js/platform.js` + `app/plugins/rating`.)*
+  **The slice chamber must contain an overhang and a pinch point** — a slice
+  tuned against tube geometry proves the tether against terrain the real
+  chambers won't have, which is the one failure mode the slice exists to
+  prevent. Expose the new state through `__doids.get()` from day one so the
+  slice is testable headlessly while it is being felt by hand.
+- [ ] **P·persist. Persistence and save schema.** Promoted out of
+  ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
+  than after it. Act Two is a second campaign, not a run mode: per-chamber
+  checkpointing (spec §11.1) on top of Act One's A1 resume snapshot means a
+  schema bump plus a migration that **must not wipe an existing player's save**
+  — `doids_run` is a shipped format and the `doids_` prefix stays. Needs the
+  E4 iCloud mirror considered in the same pass (`cloud.set`/`cloud.get`), a
+  forward-compatible version field, and a test that an Act One 1.01 save still
+  loads.
+- [ ] **P·systems. The rest of the mechanics**, in the spec's order and only
+  after the slice signs off: pulse-reading with the honest-versus-metronomic
+  layer, the deception hazards on the **revised** tell (see below), deep
+  readers, the well deepening per chamber, the ward's four readability channels
+  under `PAL()`/`reducedFlash`, anomaly geology reusing Bundle Z's gravity
+  scale, handling machinery and unfinished husks, and Act Two's own score and
+  rank ladder.
+  **§8's tell has changed and the spec is now authoritative:** "a projected
+  ledge is perfectly flat and perfectly level" was **false against the code** —
+  `flatten()` sets every sample in a span to exactly one height, so every
+  landing pad, lift pad and V2 scan shelf in the shipped game is mathematically
+  level, and level floors are legitimately everywhere inside a plant. The tell
+  is now **"the world doesn't respond to you"**: thruster wash raises grit off
+  real rock and nothing off a projection, and your lamp throws no shadow on a
+  lie. See ACT_TWO_SPEC §8.
+- [ ] **P·scions. Ten new famous minds, one per Act Two system.** The full list
+  and benefits are in ACT_TWO_SPEC §9.1 — Laennec, Snow, Harvey, Paré,
+  Röntgen, Landsteiner, Morton, Forssmann, Apgar and Saunders. Each is tied to
+  a mechanic so no upgrade is flavour-only, and none duplicates a shipped
+  benefit (Curie's RADIOSENSE is a compass, Röntgen is imaging; Nightingale's
+  LAMP is reach, Apgar is readout). **RADIOGRAPH must stay limited to one sweep
+  per chamber or it disables the deception layer entirely.** Note the
+  interaction with V1: Mary Seacole is a *1.01* addition and the twelfth entry,
+  so Act Two's ten start from 13 — check the codex pagination
+  (`MINDS_PER_PAGE`, `js/render.js`) still lays out cleanly at 22.
+- [ ] **P·content. The ten chambers**, authored against proven systems, never
+  before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
+  the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The
+  no-trolley-problem pillar is a generation invariant here exactly as V2's scan
+  fairness is on the surface: **every chamber must be clearable with everyone
+  alive**, and that wants an assertion, not a playtest opinion.
+- [ ] **P·guard. Regression gate.** The full smoke suite green, the M1 golden
+  heightmap checksum unchanged (P·terrain must not perturb surface generation),
+  a new `tests/acttwo.spec.js` for the tether, reserve, transfusion floor and
+  chamber checkpointing, and the save-migration test from P·persist. Act One's
+  `runLost`, ranks and achievements must keep their exact meaning — Act Two's
+  losses are tracked separately (spec §7.3).
 - [ ] **P·ship. Release 1.1** — What's-New copy per the E7 trademark
   tiers (generic in-store, named homage on the site), review-refresh
   prompt consideration, and the **£2.99 → £4.99 price move** (owner decision,
   July 2026: launch low, move on Act Two). The act's name comes out of the
-  work, so the What's-New line is written last.
+  work, so the What's-New line is written last. New Game Center achievements
+  (EVERY HOLLOW HEARD, GENTLE HANDS) land here, not in the cancelled 1.2 —
+  GAMECENTER_ACHIEVEMENTS.md updated in the same PR.
+  *(The in-app rating prompt that used to sit in this bundle as **P·review** has
+  shipped already — it moved to Bundle X as X6 once 1.01 became the first
+  post-launch build, and is live in `js/platform.js` + `app/plugins/rating`.)*
 
 ---
 
@@ -472,7 +559,13 @@ tuning is available now (1.0 in review ⇒ Mac + TestFlight exist).
 >   always the weaker use.
 > - **The ROTATION CHART** (fly-back to cleared sectors, cached as-left) stays,
 >   and moves to **1.01** — it answers V1 and no longer needs to wait on the
->   pendulum, since Act Two doesn't touch the surface level cache.
+>   pendulum, since Act Two doesn't touch the surface level cache. **Its unlock
+>   is now Mary Seacole, a twelfth famous Scion placed in THE NULLWAVE, behind
+>   the finale's existing black-box gate** (owner decision, July 2026) — see V1
+>   for the placement, pinning and achievement consequences.
+>
+> **Nothing in this bundle is open.** Every item below is struck; the section is
+> kept for the reasoning trail, per the status key. Don't schedule from it.
 >
 > The rest of this section is the pre-review record. Read
 > HOLLOWS_EXPANSION_SPEC.md for the ROTATION CHART's design; treat its cave
@@ -490,27 +583,32 @@ MINT, THE LISTENING POST). Full spec:
 **Split by release (owner decision, July 2026).** The owner asked for fly-back
 sooner (originally raised as a "1.01 fix"; see V1). Rather than break Q's
 in-game unlock, Bundle Q is split across two releases:
-- **Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
-  **ROTATION CHART** (fly-back to cleared sectors, cached as-left) — sequenced
-  *after* the pendulum work so the level cache lands on a settled base.
-- **Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
-  MINT, THE LISTENING POST) and their discoveries.
+- ~~**Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
+  **ROTATION CHART**, sequenced after the pendulum work.~~ → the chart ships in
+  **1.01** (V1, unlocked by Mary Seacole); Laennec is an Act Two upgrade.
+- ~~**Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
+  MINT, THE LISTENING POST) and their discoveries.~~ → **no 1.2**; absorbed into
+  Act Two's ten chambers.
 
-**Priority: the 1.1 core rides with P; the caves are second post-launch (1.2).
-Dependencies: P shipped/stable before the ROTATION CHART cache (still true even
-within 1.1); J, K, I, M, A all shipped.**
+~~**Priority: the 1.1 core rides with P; the caves are second post-launch
+(1.2). Dependencies: P shipped/stable before the ROTATION CHART cache; J, K, I,
+M, A all shipped.**~~ **Superseded — pre-review record.** The chart ships in
+**1.01** ahead of Bundle P (V1), and there is no 1.2. Schedule from V1 and
+Bundle P, never from this paragraph.
 
-- [ ] **Q·impl. Implement per the spec checklist** — work through
-  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there. **Tag each
-  item to its release per the split above (Laennec/AUSCULTATION/ROTATION CHART
-  core → 1.1; the three caves → 1.2) when scheduling.**
-- [ ] **Q·guard. Regression gate** — the Q5 level cache touches
-  `toBriefing`; the full smoke suite plus the M1 heightmap checksum must
-  stay green, and remix/daily must never draw Laennec onto a surface
-  sector (Q10 assertions).
-- [ ] **Q·ship. Release 1.2** — What's-New copy, same trademark tiers;
-  add EVERY HOLLOW HEARD and GENTLE HANDS (P) to the live G3 achievement
-  set if Game Center shipped.
+- ~~**Q·impl. Implement per the spec checklist** — work through
+  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10.~~ **Dispositioned, July 2026.**
+  The three caves are absorbed by Act Two (P·content); Laennec and AUSCULTATION
+  are Act Two upgrades (P·scions); the ROTATION CHART is V1. Nothing is left to
+  implement under a Q heading.
+- ~~**Q·guard. Regression gate** — the Q5 level cache touches `toBriefing`.~~
+  **Moved, not dropped.** The level-cache regression gate rides with V1; the
+  "remix/daily must never draw them onto a surface sector" assertion survives
+  intact and now applies to **Mary Seacole on the Nullwave** (see V1) rather
+  than to Laennec.
+- ~~**Q·ship. Release 1.2** — What's-New copy; add EVERY HOLLOW HEARD and
+  GENTLE HANDS to the live G3 achievement set.~~ **There is no 1.2.** The two
+  achievements move to **P·ship** with 1.1.
 
 ---
 
@@ -537,18 +635,66 @@ narrative beats; no shared dependency between them or with V1–V14.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
-- [ ] **V1. Fly back to previous zones (rescue those left behind) — now a 1.01
-  item.** The owner's request is the **ROTATION CHART**: return travel to
-  cleared sectors (cached as-left). **Re-decided by the Act Two design round
-  (July 2026):** Laennec and AUSCULTATION move into Act Two, so the chart can
-  no longer hang off his rescue — it needs a new unlock (simplest honest
-  option: any resolved ending, the `doids_veteran` gate the game already uses).
-  With that decoupling it stops waiting on the pendulum and **lands in 1.01**,
-  which is where the owner wanted it in the first place. Act Two doesn't touch
-  the surface level cache, so there's no sequencing risk. See Bundle Q's
-  re-scope note and ACT_TWO_SPEC.md §13.
-  Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
-  checkpoint serialization (`doids_run`, `__doids.go(n)`).
+- [ ] **V1. Fly back to previous zones (rescue those left behind) — the
+  ROTATION CHART, unlocked by Mary Seacole on the Nullwave.** The owner's
+  request is return travel to cleared sectors, cached as-left. **Re-decided
+  twice:** the July 2026 Act Two round moved Laennec and AUSCULTATION into
+  Bundle P, so the chart lost its unlock; the owner's answer (July 2026) is a
+  **twelfth famous Scion, placed in THE NULLWAVE** — and the chart stays
+  **behind the finale's existing gate**, i.e. it is a deep-completionist
+  reward, not a given. Act Two doesn't touch the surface level cache, so
+  there's no sequencing risk against Bundle P.
+
+  **Who: MARY SEACOLE (1805–1881).** Refused by the War Office, she paid her
+  own passage to the Crimea and went back onto the field again and again for
+  wounded men others had left behind. "Rescue those left behind" is her
+  biography rather than a metaphor for it, and she answers Nightingale, already
+  waiting in sector 2. Placing her in the last and darkest sector — the place
+  everyone else abandoned — is the point. *(Fallback if the Nightingale echo is
+  unwanted: Nikolai Pirogov, battlefield triage.)*
+
+  **The unlock is persistent, and that is the design, not a workaround.**
+  Sector 7 is the last level before the endgame, so the chart does nothing in
+  the run you find her in. It keys off `codex`, which already survives across
+  runs (`doids_codex`, the same mechanism as the `CANON_FAMOUS_ID` hint gate),
+  so every *subsequent* rotation starts with the chart armed — drop back from
+  sector 3 to sector 1 for the Scions you left behind. That makes it the
+  veteran's tool and stacks with the existing `doids_veteran` gate and the
+  "Something's still down there" title tease (V7).
+
+  Implementation notes, all load-bearing:
+  - **The Nullwave has no famous slot today.** `genLevel` guards placement with
+    `if (n < FINALE_IDX && lvl.oids.length)` (`js/world.js`), so sector 7 needs
+    a new path. **It must not consume RNG:** sectors 0–6 assign the role by
+    deterministically picking the oid nearest mid-map, no draws — do the same,
+    or the finale layout shifts. Terrain is untouched (a role flag, not a
+    heightmap change), so the M1 golden checksum is safe.
+  - **Pin her, and exclude her from the shuffle.** `buildFamousMap` shuffles all
+    of `FAMOUS` and slices `FINALE_IDX` entries for sectors 0–6, so without an
+    exclusion REMIX/DAILY can draw her onto a surface sector — exactly what the
+    old Q·guard was written to prevent. Needs a test asserting she is only ever
+    the Nullwave's famous Scion, in every run mode.
+  - **THE FULL CODEX becomes 12 for free.** The threshold is derived —
+    `codex.size >= FAMOUS.length` (`js/update.js`) — and the codex counter reads
+    `codex.size + "/" + FAMOUS.length`. Nothing in code, tests, COPY_DECK.md or
+    STORE_LISTING.md pins the number; the Game Center description
+    (*"Recovered every famous mind, across all your rotations"*) is count-free
+    by GAMECENTER_ACHIEVEMENTS.md's own copy rule. **Owner decision (July
+    2026): she lands in 1.01, not in the 1.0 build now in review** — a new
+    binary would restart App Review, and completing the codex takes multiple
+    REMIX rotations (the campaign awards only 7 of the pool), so effectively
+    nobody can reach 11/11 before 1.01 ships. Note it in the 1.01 What's-New so
+    the counter's move to `/12` reads as new content, not a bug.
+  - **One asset is now wrong:** `the_full_codex.png` is specified as *"the open
+    codex under a constellation of eleven famous minds"* — it needs a twelfth
+    star. Regenerable from `assets/gamecenter/achievements/svg/` via
+    `generate.py` (headless Chromium at 1024×1024). The achievement functions
+    correctly either way, so if editing Game Center metadata mid-review is
+    awkward, ship the eleven-star art and swap the image with 1.01.
+
+  Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5 for the chart's cache design; the
+  round-trip must reuse the checkpoint serialization (`doids_run`,
+  `__doids.go(n)`); `FAMOUS`, `famousIdFor`, `buildFamousMap` in `js/world.js`.
 - [x] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
   cheat).** *(Shipped — generation invariant. `scanSpotOK(heights,W,cx)`
   (`js/world.js`) derives, from the scan/creep constants, the band of landable
@@ -1073,9 +1219,15 @@ D ──┴────────────────┘                 �
            + Y3–Y7 (wreck occlusion, counterfeit tell, lift pad, copy fixes)
            + V (Solace reveal; scan fairness; heard-scan parry; V12 fake-MERCY reveal)
            + Z (REMIX variable gravity — after the Z2 fairness re-tune)
-      then the feature updates (all free):
-      1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge)
-      1.2 = Q-caves (THE DEEP HOLLOWS: Ward / Mint / Listening Post)
+           + V1 (ROTATION CHART / fly-back, unlocked by Mary Seacole on the
+             Nullwave — the twelfth famous Scion; THE FULL CODEX becomes 12)
+      then the feature update (PAID — the price move):
+      1.1 = P (Act Two, the descent) at £4.99, phased:
+            P·terrain (span terrain + chamber authoring) → P·slice (one chamber,
+            on device) → P·persist / P·systems / P·scions → P·content (ten
+            chambers) → P·guard → P·ship
+      1.2 = CANCELLED (Q's caves absorbed into Act Two; see ACT_TWO_SPEC §13)
+      W   = optional polish, no longer load-bearing
 ```
 
 **Status (July 2026, updated):** A–D and **H–N are all shipped** on the web
@@ -1103,20 +1255,28 @@ staged nightfall on the Basin) are owner-requested for the launch build. T4
 (destructible scenery) and T5 (weather) are launch-stretch with a
 pre-approved slip to 1.1. All player-facing copy is now mirrored for owner
 review in [COPY_DECK.md](COPY_DECK.md) (R10).
-**P and Q are specced and locked** (owner decision, July 2026) as the free
-1.1 and 1.2 post-launch updates — see their bundle sections above and
-[PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
-[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+**P is specced, phased and locked; Q is fully dispositioned** (owner rounds,
+July 2026). Act Two is the **paid** 1.1 update (£2.99 → £4.99), planned in
+[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) with [PENDULUM_SPEC.md](PENDULUM_SPEC.md) as
+the tether-physics reference; **1.2 is cancelled** and Bundle Q's caves are
+absorbed into Act Two's ten chambers, leaving
+[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) as the ROTATION CHART's
+design reference only. The July 2026 planning round added: **span terrain**
+(the shipped heightmap cannot express the overhangs Act Two's chambers need),
+a **replaced deception tell** (the old "perfectly level" rule was false against
+`flatten()`), **ten new famous minds** each tied to an Act Two system, and
+**Mary Seacole** as V1's ROTATION CHART unlock in 1.01.
 **Bundle V is the 1.01 plan**, captured while 1.0 is in App Review: the
 Solace sister-ship reveal (named ship, sonar hull pulse on the 41-s clock),
 Scion scan-jeopardy fairness, a playable "heard" sonic-wave parry,
 post-completion title/intro/campaign variants, and the record that **tilt is
 dropped from the forward plan** (dormant scaffolding only). Fly-back to cleared
-sectors (the owner's other "1.01" ask) was **resolved to 1.1**: keep Bundle Q's
-in-game Laennec unlock and split its **ROTATION CHART** core forward to ship
-with Bundle P (after the pendulum), leaving Q's three caves in 1.2. **Bundle W**
-(landscape challenge) also **ships in 1.1 with P** (owner decision). One owner
-decision remains open — whether to surface the decoy MERCY earlier (V11).
+sectors (the owner's other "1.01" ask) is **back in 1.01 where he wanted it**
+(July 2026): the **ROTATION CHART**, unlocked by **Mary Seacole** as a twelfth
+famous Scion in THE NULLWAVE and left behind the finale's existing black-box
+gate — a deep-completionist reward, persistent across runs. **Bundle W**
+(landscape challenge) is now optional polish, not part of 1.1. V11 (whether to
+surface the decoy MERCY earlier) was resolved: leave it a deep secret.
 **The late-July 2026 owner-playtest round adds two more 1.01 bundles: X**
 (onboarding — an optional beginner's guide, a guided trainee "Level 0", a
 first-play "played thrust games?" fork, and a post-death hint-card bank; the top
@@ -1156,11 +1316,11 @@ seed and replay a friend's ghost alongside you; (b) **head-to-head on the seed**
 seed + score" challenge you can send a friend; (c) an **async rescue relay** —
 your end-state seeds the next player's run. All three lean on G + M with **no
 server of our own** (Game Center carries the data). Recommendation: scope (a) +
-(b) as a possible **1.2+** feature; real-time stays parked unless the
+(b) as a possible **post-1.1** feature; real-time stays parked unless the
 no-backend constraint is deliberately reopened.
 Formerly-listed candidates now promoted to locked bundles: ~~the pendulum
-sling~~ → **Bundle P (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
-**Bundle Q (1.2)**.
+sling~~ → **Bundle P / Act Two (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
+absorbed into **Act Two's ten chambers** (Bundle Q dispositioned, 1.2 cancelled).
 - ~~**the transfusion line**~~ — **shipped (July 2026), ahead of schedule**:
   field refuelling is now an active hover minigame — hold station on the
   drone's fuel line, choose when to detach (CLEAN LINE +250 for a full tank

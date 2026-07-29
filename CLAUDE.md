@@ -65,6 +65,30 @@ Load order is the order below; it is significant (see "no build step").
 | `js/render.js`   | ~4400 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
 | `js/main.js`     | ~40   | Bootstrap (`genLevel(0)`, `spawnShip`, …) + the `frame()`/`requestAnimationFrame` loop — must load last |
 
+### Bundle P / Act Two gets new files — an approved exception
+
+**Owner decision, July 2026.** The "keep new code inside the existing files"
+convention below is **explicitly lifted for Act Two** (Bundle P — span terrain,
+the tether, racks, the ten chambers, a second rank ladder). Folding that much new
+code into `js/world.js`, `js/update.js` and `js/render.js` would make every future
+session more expensive to run, which is the exact cost the July 2026 split was
+done to avoid. **Do not "tidy" these files back into the originals.**
+
+Planned files and their load position (insert **after `js/world.js`** so the token
+layer, constants and utils exist, and **before `js/update.js`**):
+
+| File | Covers |
+|------|--------|
+| `js/acttwo-data.js`   | The ten authored chambers in the room/span grammar, plus Act Two's story tables and its own rank ladder |
+| `js/acttwo-update.js` | Tether physics, racks and reserves, trunk-cut pulse reading, the well, the transfusion inversion, chamber checkpointing |
+| `js/acttwo-render.js` | Span terrain drawing, the ward's pulsing light and edge bleed, the sling, Act Two screens |
+
+The constraints that are *not* lifted, because they are technical rather than
+stylistic: scripts stay **non-module** sharing one global scope, **load order
+stays significant**, `index.html`'s `<script>` list must be updated in the same
+PR, and `app/sync.sh` copies `js/` wholesale so new files inside `js/` need no
+sync change. Update this table when the files actually land.
+
 ## localStorage keys (all prefixed `doids_`)
 
 `doids_run` (resume snapshot), `doids_hi` (hiscore), `doids_codex`, `doids_logs`,
@@ -97,14 +121,19 @@ doc only when the task touches it:
   authored underground rescue campaign beneath SOLACE, where the pendulum
   debuts. Read this for *what to build*; §14 records what was rejected and why,
   and §15 what's still open. Supersedes PENDULUM_SPEC.md and absorbs Bundle Q's
-  caves. Nothing is implemented yet — the next step is the vertical slice
-  (roadmap item P·slice).
+  caves. Nothing is implemented yet. **Next step is `P·terrain`, not `P·slice`:**
+  the shipped heightmap can't express an overhang, so span terrain (§11.0) lands
+  before the vertical slice can prove anything. Key July 2026 sections: §5.1a
+  (the beacon is a relay), §8.1 (the deception tell, reversed — the old
+  "perfectly level" rule was false against `flatten()`), §9.1 (ten new famous
+  minds), §11.0 (span terrain), §11.2 (persistence).
 - `docs/PENDULUM_SPEC.md` — superseded as a plan, but still the **tether-physics
   reference**: the sling model, damage model and tow conventions, which carry
   into Act Two unchanged. Read this for *how the sling works*.
-- `docs/HOLLOWS_EXPANSION_SPEC.md` — Bundle Q. Its caves are absorbed into Act
-  Two; what survives is the ROTATION CHART (now a 1.01 item, and it needs a new
-  unlock — see roadmap V1).
+- `docs/HOLLOWS_EXPANSION_SPEC.md` — Bundle Q, now fully dispositioned. Its caves
+  are absorbed into Act Two; what survives is the ROTATION CHART's cache design
+  (§Q5), a **1.01** item unlocked by Mary Seacole on the Nullwave — see roadmap
+  V1. There is no 1.2.
 - `docs/GAMECENTER_ACHIEVEMENTS.md` — achievement/rank list.
 - `docs/STORE_LISTING.md` — App Store Connect metadata (pricing, description, URLs).
 - `docs/TESTER_KIT.md`, `docs/TESTER_LOG.md` — TestFlight round: invite/survey copy, and who's testing.
@@ -114,7 +143,7 @@ doc only when the task touches it:
 ## Workflow
 
 - **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. `main` is not auto-published anywhere (see Bundle O7 above) — a merge is the source for the *next* TestFlight/App Store build, not an instant live release; it only reaches players once someone runs the manual archive/upload step (`app/MAC_SETUP.md`). Still treat a merge as consequential — it's what ships next.
-- **Tests:** Playwright smoke suite in `tests/` — 92 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
+- **Tests:** Playwright smoke suite in `tests/` — 121 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
 - **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it.
 - **Assets:** icons/manifest at root (`icon-*.png`, `manifest.webmanifest`, `apple-touch-icon.png`); art in `assets/`.
@@ -123,6 +152,6 @@ doc only when the task touches it:
 
 - Match the surrounding style: terse vanilla JS, single global scope, comment banners like `/* ===== render ===== */` and `/* Bundle X — ... */` tying code to roadmap bundles.
 - **Colour and type come from the token layer, never a literal** (Bundle DS). In JS: `PAL().SAFE|WARN|DANGER|REVEAL` for anything encoding state (it swaps for colourblind mode), `shade(PAL().WARN, .55)` for a translucent variant, `TOK.*` for fixed chrome/flavour, and `body()`/`mono()`/`display()` for type — all in `js/world.js`. In `css/game.css`: `rgba(var(--ho-safe-rgb), a)`. On the marketing pages: `var(--ho-safe)`. A hardcoded `#69f0ae` or `rgba(105,240,174,.7)` fails the guards in `tests/settings.spec.js`. See `docs/DESIGN_SYSTEM_STARTER.md` §8 for which layer to reach for.
-- Keep new code inside the existing `js/*.js` concern boundaries (and `css/game.css`); don't add source files or restructure the split unless asked. `index.html` stays a thin shell.
+- Keep new code inside the existing `js/*.js` concern boundaries (and `css/game.css`); don't add source files or restructure the split unless asked. `index.html` stays a thin shell. **Exception: Act Two / Bundle P has approved new files** — see "Bundle P / Act Two gets new files" above. The rule exists to stop *unasked* drift back toward the old 5,400-line sprawl, not because adding a file is technically risky; adding one is fine when it's asked for, ordered correctly and recorded in the file map.
 - Keep the docs honest: `docs/README.md` lists every file in `docs/`, and there is one forward plan (`docs/APP_STORE_ROADMAP.md`). Don't add a second plan doc or a per-branch handover — record the decision in the roadmap bundle it belongs to.
 - The game targets iPhone Safari first; test touch/gyro/safe-area behavior, not just desktop.
