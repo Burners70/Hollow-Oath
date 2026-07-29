@@ -83,7 +83,7 @@ bundles toward the paid iOS release, holding **open work only**. To "follow the
 roadmap," read its *Open work at a glance* table (top of file) to pick the
 bundle, then read only that bundle's section — never the whole file. It is the
 *only* forward plan; anything else that reads like a plan is history. Shipped
-bundles (A–N, R, S, U, QA, Y, DS) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
+bundles (A–N, R, S, U, QA, Y, DS, X, Z) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
 an item ID (R10, M1, Y5, …) the plan no longer mentions, and move a bundle there
 yourself once its last `[ ]` is checked.
 
@@ -93,7 +93,18 @@ doc only when the task touches it:
 - `docs/GAME_DESIGN.md` — canonical design & narrative (the Static, Glycon, mechanics, scoring). Read when changing game rules or story.
 - `docs/COPY_DECK.md` — user-facing text. Read when editing wording (and update it in the same PR).
 - `docs/DESIGN_SYSTEM_STARTER.md` — shipped UI tokens (colour/type/spacing/glow) and, in §8, which layer to reach for. Read when adding or restyling a HUD/panel element.
-- `docs/PENDULUM_SPEC.md`, `docs/HOLLOWS_EXPANSION_SPEC.md` — feature specs (Bundle P, Bundle Q).
+- `docs/ACT_TWO_SPEC.md` — **Bundle P / the 1.1 plan.** Act Two: a ten-level
+  authored underground rescue campaign beneath SOLACE, where the pendulum
+  debuts. Read this for *what to build*; §14 records what was rejected and why,
+  and §15 what's still open. Supersedes PENDULUM_SPEC.md and absorbs Bundle Q's
+  caves. Nothing is implemented yet — the next step is the vertical slice
+  (roadmap item P·slice).
+- `docs/PENDULUM_SPEC.md` — superseded as a plan, but still the **tether-physics
+  reference**: the sling model, damage model and tow conventions, which carry
+  into Act Two unchanged. Read this for *how the sling works*.
+- `docs/HOLLOWS_EXPANSION_SPEC.md` — Bundle Q. Its caves are absorbed into Act
+  Two; what survives is the ROTATION CHART (now a 1.01 item, and it needs a new
+  unlock — see roadmap V1).
 - `docs/GAMECENTER_ACHIEVEMENTS.md` — achievement/rank list.
 - `docs/STORE_LISTING.md` — App Store Connect metadata (pricing, description, URLs).
 - `docs/TESTER_KIT.md`, `docs/TESTER_LOG.md` — TestFlight round: invite/survey copy, and who's testing.

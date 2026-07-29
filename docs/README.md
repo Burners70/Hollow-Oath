@@ -16,8 +16,9 @@ shouldn't be in the folder.
 | [GAME_DESIGN.md](GAME_DESIGN.md) | Changing game rules, mechanics, scoring, or narrative canon (the Static, Glycon). The canonical design doc. |
 | [COPY_DECK.md](COPY_DECK.md) | Editing any user-facing text/wording. Any PR that changes a player-facing string updates this deck too. |
 | [DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) | Adding UI/HUD: the colour, type, spacing and glow tokens as actually shipped in `css/game.css` / `js/render.js`. |
-| [PENDULUM_SPEC.md](PENDULUM_SPEC.md) | Working on Bundle P (the Pendulum Sling — update 1.1). |
-| [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Working on Bundle Q (the Listening Post / deep Hollows — 1.1 core, 1.2 caves). |
+| [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) | **The 1.1 plan.** Act Two — the ten-level underground rescue campaign beneath SOLACE, where the pendulum debuts. Supersedes PENDULUM_SPEC.md and absorbs Bundle Q's caves. Read this for *what to build*. |
+| [PENDULUM_SPEC.md](PENDULUM_SPEC.md) | **Superseded as a plan; still the physics reference.** The tether model, damage model and tow conventions, which carry over into Act Two unchanged. Read this for *how the sling works*. |
+| [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Bundle Q. Its three new caves are absorbed into Act Two; what survives is the core (Laennec/AUSCULTATION, now an Act Two upgrade, and the ROTATION CHART as a 1.01 utility). |
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
 | [STORE_LISTING.md](STORE_LISTING.md) | App Store Connect metadata: pricing, description, keywords, support/privacy URLs. |
 | [PRESS_KIT.md](PRESS_KIT.md) | Sending something to press: a ready-to-copy fact sheet, pitch and boilerplate (UK English, no house jargon), plus an internal-only note on where the asset files live. |

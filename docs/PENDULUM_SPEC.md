@@ -1,5 +1,21 @@
 # Bundle P — The Pendulum Sling (the Hollows' recoveries)
 
+> **SUPERSEDED (owner review, July 2026) by
+> [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md).** The pendulum no longer ships as three
+> towable relics in Act One's Hollows; it debuts in Act Two, the ten-level
+> underground rescue campaign, and nowhere earlier. **What survives from this
+> document — and it is the majority of it — is the engineering:** the tether
+> physics (§4.1), the cradle/release/deliver conventions (§4.2), the
+> damage-proportional-to-rough-flying model (§4.3), the readability rules
+> (§4.4) and the FIELD MEDIC contract all carry over intact. They were always
+> about towing rather than about relics.
+>
+> What changed is placement and payload. See ACT_TWO_SPEC.md §12 for the
+> relic-by-relic disposition (THE FIRST CALL cut and repurposed as a
+> foreshadow; THE LAST HEART and THE MASK promoted into Act Two), and §14 for
+> the reasoning. **Read this file for the physics; read ACT_TWO_SPEC.md for
+> what to build.**
+
 *Design + implementation spec. Proposed, not built — no code has changed.
 Companion to [GAME_DESIGN.md](GAME_DESIGN.md) (read that first) and
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (where this slots in as Bundle P).
