@@ -89,7 +89,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V·ship (the release action itself — code side is done) |
+| V | 1.01 maintenance & narrative | 3 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V21 unreproduced "floating gun" (needs a retest against merged `main`), V·ship (the release action itself — code side is otherwise done) |
 | P | **Act Two — the descent** | 3 | **1.1** | Whole bundle — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 3 | 1.01 core; caves absorbed | Only the ROTATION CHART survives as a 1.01 utility. Laennec/AUSCULTATION move into Act Two; **the three caves are absorbed by Act Two and 1.2 is cancelled** |
@@ -992,6 +992,20 @@ narrative beats; no shared dependency between them or with V1–V14.
   fix. Code anchors: `deco("dune", …)` (`js/world.js:1270`), `drawDune`
   (`js/render.js:1191`), the ground-anchored-entity reseat V2 already does
   for other scenery (`js/world.js`, `scanSpotOK`/pad-widening section).
+- [ ] **V21. "A floating gun remained" — unreproduced.** Owner playtest report
+  (July 2026), carried over from the second feedback round. V16 already kills any
+  alive turret within 240px of the beacon x when the Solace detonates, and that
+  radius matches `crushCrater`'s own deformation radius exactly, so a simple
+  off-by-range theory doesn't survive inspection — investigated twice without
+  finding a cause. The owner's follow-up was that they may have been testing an
+  older branch, which is part of why Bundles V, X and Z were integrated onto
+  `main`. **Next step: retest against merged `main` and, if it still happens,
+  capture which turret (beside the Solace crater or elsewhere), before or after
+  the detonation, and in which run mode.** Related but distinct and already
+  fixed: V20's dune overspill above, and the X/Z gravity leak found during
+  integration. Code anchors: the V16 sweep (`js/update.js`, grep `V16`),
+  `crushCrater` (`js/world.js`), turret placement/reseat
+  (`js/world.js`, the pad-widening/`flatten()` section).
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md). *(This bundle's code changes add no new
