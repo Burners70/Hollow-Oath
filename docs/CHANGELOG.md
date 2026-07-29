@@ -126,9 +126,20 @@ the post-completion flow.
   `doids_solace` and `doids_lastrun_tally`; the latter meant a freshly-reset
   save could still be told it "brought them all home" by the VET_INTRO recap,
   on the strength of a run that no longer existed.
+- **A wipe now takes the live run with it** (owner: "the reset didn't fully
+  clear"). SETTINGS is reachable from the pause menu, so `RESET PROGRESS` can be
+  triggered mid-flight — and it cleared every save and flag while leaving the run
+  itself completely untouched, then tapping out of settings returned you to that
+  same pause screen. You resumed a run belonging to the save you had just
+  deleted, still carrying the veteran-only Glycon layer, because the counterfeit
+  MERCY twin and the Hollows lift are gated on `veteran` at `genLevel` time and
+  the sector had been generated before the wipe. `resetProgress()` now rebuilds
+  boot-fresh state (`resetRun`, `genLevel(0)`, `spawnShip`, camera/particles) and
+  lands on the title, which also makes the wipe visible: hi score 0, empty codex,
+  no REMIX/DAILY pills.
 
-Three new smoke tests (both routing branches + the hull gate and the wipe);
-full suite green at 99.
+Four new smoke tests (both routing branches, the hull gate, and the mid-run
+wipe); full suite green at 100.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 

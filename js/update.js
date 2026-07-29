@@ -883,6 +883,22 @@ function resetProgress() {
   unresolvedHaunt = false;
   solaceSeen = false;
   lastRunSaved = 0; lastRunLost = 0;
+  /* (owner feedback, July 2026 — "the reset didn't fully clear") — a wipe has to
+     take the LIVE RUN with it. SETTINGS is reachable from the pause menu, so the
+     wipe could be triggered mid-flight; it cleared the saves and every persisted
+     flag but left the run in progress completely untouched, and tapping out of
+     settings returned you to that same pause screen. You then resumed a run
+     belonging to the save you had just deleted — its score, sector and already-
+     generated content intact, including the veteran-only Glycon layer (the
+     counterfeit MERCY twin and the Hollows lift are gated on `veteran` at
+     genLevel time, so a sector generated before the wipe still carries them even
+     though `veteran` is now false). Go home to a boot-fresh title instead. */
+  resetRun();
+  levelIdx = 0; level = genLevel(0); spawnShip();
+  camera = { x: ship.x, y: ship.y, shake: 0 };
+  particles = []; texts = [];
+  settingsReturnState = "title";   // so tapping out of settings lands home, not on a stale pause
+  state = "title"; stateT = 0;
 }
 let settingsReturnState = "title";
 function updateSettings() {
