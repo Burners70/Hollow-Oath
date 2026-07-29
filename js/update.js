@@ -1237,7 +1237,21 @@ function updatePlay(dt) {
     }
   }
 
-  // gravity anomalies pull the ship toward their centres
+  /* gravity anomalies pull the ship toward their centres. The pull is strongest at
+     the CORE (str * (1 - d/r), growing as you close in), and nothing here damps
+     velocity, so a fuel-dry ship taken into one can orbit indefinitely without ever
+     touching ground.
+     OWNER DECISION (July 2026): that is deliberate and stays. `str` is 80–120
+     (js/world.js, genLevel) against THRUST 138, so escaping a core under power is
+     possible but tight — and tighter still in a heavy Bundle Z sector, where a
+     strong anomaly may be inescapable even with a full tank. The owner was asked
+     directly and wants the risk: "Happy with the chance of being stuck in an
+     anomaly. Like that risk."
+     So do NOT cap `str` relative to THRUST or scale it against gravScale. It reads
+     like a fairness bug and isn't one — the out is the SCUTTLE CHARGE, which is
+     reachable on any empty tank whether the ship is landed or held aloft (see
+     updateResupplySignal). Losing the ship to an anomaly is a real outcome; being
+     unable to act at all was the bug, and that is what got fixed. */
   for (const a of level.anomalies) {
     const dx = a.x - s.x, dy = a.y - s.y, d = Math.hypot(dx, dy);
     if (d < a.r && d > 1 && !s.landed) {

@@ -100,9 +100,17 @@ first attempt at a terrain reading has been rolled back.
   airborne, since the drone genuinely does need a touchdown. Allowing it mid-air
   everywhere else costs nothing — a dry ship anywhere but an anomaly is simply
   falling, and it still takes a deliberate 2.4s hold.
-  Worth noting for tuning: `THRUST` is 138 against an anomaly `str` of 80–120, so
-  escaping a core *with* fuel is possible but tight, and that margin has never been
-  re-checked against Bundle Z's heavier gravity.
+
+**Owner decision, no code change: the anomaly stays dangerous.** `str` is 80–120
+against `THRUST` 138, so escaping a core under power is possible but tight — and
+tighter still in a heavy Bundle Z sector, where a strong anomaly may be inescapable
+even with a full tank. Asked directly, the owner wants that risk kept: *"Happy with
+the chance of being stuck in an anomaly. Like that risk."* So `str` is deliberately
+**not** capped against `THRUST` and **not** scaled against `gravScale`. It reads like
+a fairness bug and isn't one: losing the ship to an anomaly is a legitimate outcome,
+and the out is the scuttle. Being unable to *act at all* was the bug. Recorded at the
+force calculation in `updatePlay` as well as here, since that's where a future
+session would go looking to "fix" it.
 
 New copy in [COPY_DECK.md](COPY_DECK.md) §8/§8b: the surface prompt gains
 `OR HOLD SHIELD TO SCUTTLE`, and the scuttle banner no longer claims the Hollows
