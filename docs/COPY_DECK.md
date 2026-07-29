@@ -52,6 +52,7 @@ Landed (July 2026, Bundle S):
 | Hook, haunted variant (violet, after an unresolved ending) | `the Static answers still — every 41 seconds` |
 | Warning (yellow) | `not every Scion you rescue is what it seems` |
 | Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5). After a first completion (veteran) it becomes `▼ SOMETHING'S STILL DOWN THERE`, teasing the Hollows — V7 |
+| Rotation nudge (gold; shown once, on returning here from a *repeat* completion) | `the sector still turns — try a REMIX ROTATION or the DAILY FLIGHT below` |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
 | Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `◎ HUD GUIDE` (U3) · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |
@@ -163,9 +164,71 @@ so it never shows again (a RESET PROGRESS in Settings brings it back).
 > footnote `you can reopen HOW TO FLY any time from HELP`
 
 **YES** launches straight in (the veteran path — story intro then Level 1).
-**NO** opens the HOW TO FLY guide above; finishing its last page (`tap to fly`)
-drops into the same run. _(In 1.01, "No" will route into the X2 trainee sector
-instead of the guide.)_
+**NO** routes into the X2 trainee sector below (1.01 — before X2 shipped, "No"
+opened the HOW TO FLY guide above instead; the guide is still reachable any
+time from HELP).
+
+### 3·X2. Trainee sector guided-pause script (`TRAINING_CARDS`)
+
+A bespoke, always-identical "Level 0": gentle wide terrain, two Scions (the
+second added past the turret, owner refinement), one distant avoidable
+turret, three fuel pods. Never scored, never ends on its own — the player
+leaves via the pause menu's `END TRAINING` row (§12). Reached from the X3
+fork's "No" answer, or any time from HELP (`◆ TRAINEE SECTOR`). Each line
+below shows as its own tap-to-continue guided-pause card (X4), one-shot and
+event-driven rather than purely sequential — the THRUST/drift cards need
+real held-thrust time (1.5s) to fire, not just a tap, and FIRE/rescue/low-fuel/
+return/refuel each wait for the real on-screen event they teach (a gun in
+view, a Scion in view, the tank under a third, a passenger aboard, a
+delivery made):
+
+> `Hold THRUST to fight gravity, Captain. The longer you hold it, the faster and further you'll go.`
+> `Now add RIGHT while you thrust — keep the UP thrust going too, or you'll sink.`
+> `Speed costs fuel to shed. The faster you're moving, the more thrust it takes to stop — watch that tank.`
+> `That's a gun. FIRE will drop it — but firing's malpractice, and it costs your rank. Every Scion can come home without a shot.`
+> `See that Scion? Set down close and gentle, and it'll climb aboard on its own.`
+> `Raise SHIELD the instant before impact. It'll save the ship — but it drinks fuel fast, so don't hold it a second longer than you need.`
+> `Tank's getting low. Find a fuel barrel — the yellow ones — and top up before you're stranded.`
+> `Good — you've got one aboard. Now fly it home: MERCY's blue recovery bay is where it gets delivered.`
+> `While you're docked in the bay, hold there a moment — that tops off your tank too.`
+
+The old "other ways to put a gun down" tease moved out of this script — see
+§3·X5 below — since it gated on a parry the trainee sector never teaches.
+
+### 3·X5. Post-death hint-card bank (`HINTS_ALWAYS` / `HINTS_GATED`)
+
+One hint shown on the game-over screen — quoted and attributed to FLIGHT OPS,
+in the clear space above `FLATLINE` (owner note: it read squashed wedged
+between the tally and the buttons below) — rotating with no repeats until the
+bank cycles. Seven are always eligible; five more unlock once the player has
+met the system they describe (a parry landed, a scan finished, a counterfeit
+pod taken, a Hollow lift found while veteran, AVICENNA's `CANON OF TRUTH`
+earned).
+
+> always: `“Thrust is momentum, not a throttle. To stop, thrust the other way.” — FLIGHT OPS`
+> always: `“Raise SHIELD right before you hit rock. It'll save the ship — but it drinks fuel fast.” — FLIGHT OPS`
+> always: `“Fuel's scarce out here. Once a pod's gone, it's gone.” — FLIGHT OPS`
+> always: `“You don't have to fight. Any Scion can come home without a shot fired.” — FLIGHT OPS`
+> always: `“A long fall needs a long burn to arrest. Start slowing early, not late.” — FLIGHT OPS`
+> always: `“When you only need a nudge, tap. Don't hold.” — FLIGHT OPS`
+> always: `“There's more than one way to put a gun down. Shooting it isn't the only one.” — FLIGHT OPS` *(moved here from the X2 training script — it gated on a parry a trainee hasn't been taught yet)*
+> after a parry: `“A shield raised at just the right moment turns a shot back on whoever sent it.” — FLIGHT OPS`
+> after a scan: `“Land beside a thing and read it. It'll tell you what firing never will.” — FLIGHT OPS`
+> after a counterfeit pod: `“Not every fuel pod's a friend. The honest ones flicker like fire — the fakes keep to the Static's beat.” — FLIGHT OPS`
+> after a lift (veteran): `“The ground rings hollow in places. There's a way down, if you're listening.” — FLIGHT OPS`
+> after Avicenna: `“Your CANON OF TRUTH marks the fakes now. Trust the mark.” — FLIGHT OPS`
+
+### 3·X6. In-app rating prompt — contextual line (`askForRating`)
+
+Apple's native review sheet (`SKStoreReviewController.requestReview`) has its
+own fixed OS text that cannot be customized. "Contextual wording" is this
+line, shown inside the WIN/GAME OVER panel itself just before the native
+prompt fires 1.8s later, in priority order — a new hiscore beats a clean
+sweep beats the 5-completed-runs milestone beats a plain answered ending:
+
+> hiscore: `New personal best — enjoying it?`
+> clean sweep (an answered ending, no Scion lost): `Every Scion came home. Want others to share your success?`
+> 5th completed run (any ending): `Five flights and counting — enjoying it?`
 
 ### 3a. WHAT YOU'RE LOOKING AT card (`LEGEND_CARD`, U3)
 
@@ -191,7 +254,8 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
 > firing is malpractice and costs you; hold SHIELD for a force field.
 >
 > LANDING GUIDE — the chevrons under the ship on approach: ↓ is your descent
-> rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe.
+> rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe. Only
+> shown with ASSIST on (toggle in SETTINGS).
 >
 > THE STATIC CLOCK — from the deep sectors on, a countdown to the 41-second
 > surge: the ECG jumps, the sector name corrupts, a caught fuel line rocks.
@@ -244,7 +308,16 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
 
 Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 `REMIX ROTATION // seed <n>` · `DAILY FLIGHT // <n> · yesterday-you: <score>` ·
-`TAP TO LAUNCH`.
+`TAP TO LAUNCH`. **Z1** appends a gravity label to either mode-line, re-rolled
+every sector (owner steer, July 2026 — was one roll for the whole run, and the
+~0.7x-1.4x range read as barely different from 1x; now ~0.4x-2.2x): `· crushing
+gravity` (gravScale ≥ 1.7), `· heavy world` (≥ 1.05), `· near-weightless`
+(≤ 0.5), `· thin gravity` (≤ 0.95) — silent (no label) for a near-1x roll.
+**Owner feature:** a per-sector crosswind label can share the line, e.g.
+`REMIX ROTATION // seed 12345 · heavy world · → wind` — `· → wind` (pulls
+right) or `· ← wind` (pulls left) when the roll's tilt is meaningful, silent
+otherwise. The same `→`/`← WIND` glyph appears on the in-flight score line
+(`drawHUD`) for the whole sector, not just the one-time briefing.
 
 ## 5. Log fragments (`FRAGMENTS[0..13]`; logs 1–10 the Static, 11–14 Glycon)
 
@@ -337,7 +410,7 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | Famous Scion boards | `SOMEONE EXTRAORDINARY IS ABOARD…` |
 | Transfusion line snaps | `LINE SEVERED — REMAINDER LOST  -50 / SIGNAL AGAIN IF YOU NEED IT` |
 | Transfusion window closes | `TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED` |
-| Counterfeit MERCY trap | `COUNTERFEIT — THE BAY IS A MOUTH  -200` |
+| First field resupply (V18, one-time) | `YOU'RE NOT ALONE. HELP IS ON THE WAY. BUT THERE IS A PRICE.` |
 
 ## 9. Floating texts (`addText()` call sites)
 
@@ -346,6 +419,9 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 `COUNTERFEIT — SOMEBODY'S LURE  -100` · `FUEL DRAINED -18` ·
 `LURE-TREE DESTROYED` / `LURE-TREE READ FOR WHAT IT IS — COUNTERFEIT
 TRANSMITTER +500` ·
+`COUNTERFEIT POD DESTROYED` / `COUNTERFEIT POD READ FOR WHAT IT IS +200`
+(owner feature: once CANON OF TRUTH marks a fake pod, scanning or shooting it
+resolves it cleanly instead of only finding out by touching it) ·
 `HIDDEN CACHE +400 — someone didn't want this found` · `SHIELD BOUNCE` ·
 `SHIELD HELD` · `HARD LANDING -<n>` · `-40` / `-26` (hit damage) ·
 `+250` / `+150` (turret / drone) · `FUEL LINE CUT` [S7 promotes] ·
@@ -373,10 +449,13 @@ shield to catalogue it, no shot)
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at
   least 3 of 7 to triangulate the source."
 - **Log fragment (sector clear)** — kicker `LOG FRAGMENT RECOVERED`.
-- **Counterfeit MERCY, docked (the trap)** — kicker `THE THIRD ACT ·
-  -200`, title `THE BAY IS A MOUTH`: "No healing. No fuel. A hull with
-  nothing inside but appetite — wearing the one shape you stopped checking. /
-  He built a better lure this time. He built the thing you trust."
+- **Counterfeit MERCY, docked (the trap)** *(V15 — a tap-gated panel, not the
+  transient banner it used to be; holds until dismissed, then `shipDie()`
+  runs)* — kicker `THE THIRD ACT`, title `THE BAY IS A MOUTH`: "No healing.
+  No fuel. A hull with nothing inside but appetite — wearing the one shape
+  you stopped checking. / He built a better lure this time. He built the
+  thing you trust." A new `swallow()` SFX (a lower, wetter `hydraulic()`)
+  fires the instant the trap closes, before the panel appears.
 - **Counterfeit MERCY, identified without docking** — kicker `COUNTERFEIT
   IDENTIFIED · +800`, title `MACHINE TIME`: "Her emblem pulses like a pulse.
   Its emblem keeps perfect time. / You counted the beats. He never learned a
@@ -385,9 +464,11 @@ shield to catalogue it, no shot)
 ## 11. Sector clear, endings, epilogue, ranks
 
 - **Sector clear** (`drawClear`): `<SECTOR> CLEAR` · optional
-  `PRIMUM NON NOCERE — Hippocratic bonus +2000` · `⏱ STOPWATCH BEAT +500` ·
-  `saved <n>/<n> · ✝ lost <n>` · `(a signal source went unfound in this
-  sector)` · `tap to continue`.
+  `PRIMUM NON NOCERE — Hippocratic bonus +2000` · optional `EVERY TRIP COUNTED
+  — efficiency bonus +1000` (owner feature: every rescued Scion delivered in
+  the minimum possible number of MERCY-bay trips for the sector's Scion count)
+  · `⏱ STOPWATCH BEAT +500` · `saved <n>/<n> · ✝ lost <n>` · `(a signal source
+  went unfound in this sector)` · `tap to continue`.
 - **Epilogue** (`EPILOGUE_LINE`): `AMS SOLACE · crew manifest 214 · status:
   HEARD.`
 - **THE ANSWERED CALL** — "You landed beside it and listened. / The beacon was
@@ -431,7 +512,12 @@ shield to catalogue it, no shot)
 
 - **Pause** (`drawPause`): `PAUSED` · `RESUME` · `RESTART SECTOR` ·
   `SETTINGS` · `QUIT TO TITLE` · `◎ WHAT YOU'RE LOOKING AT` (link into the HUD
-  legend, U3).
+  legend, U3). In the X2 trainee sector, the two run-scoped rows relabel to
+  `RESTART TRAINING` and `END TRAINING` — the plain way to leave.
+- **HELP submenu** (`drawHelpMenu`): `HELP` · rows `✦ HOW TO FLY` "controls &
+  the basics" · `◎ HUD GUIDE` "what every readout means" · `▸ REPLAY STORY`
+  "watch the opening again" · `◆ TRAINEE SECTOR` "one gentle, unscored rescue"
+  (X2) · footer "tap outside to go back".
 - **Settings** (`drawSettings`): `SETTINGS` · rows `SOUND / MUSIC / HAPTICS /
   ASSIST / COLORBLIND / FIELD MEDIC / BIG TEXT / REDUCED FLASH · ON|OFF`
   (TILT pulled for now — see APP_STORE_ROADMAP.md; re-add once a native

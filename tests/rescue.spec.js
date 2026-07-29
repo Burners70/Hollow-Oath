@@ -235,6 +235,84 @@ test("S4: manifest close opens the ventral hangar; bays go inert; the hover-hold
   await page.evaluate(() => clearInterval(window.__hangarPin));
 });
 
+test("owner feature: minimum-journeys efficiency bonus — delivered in one trip", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  // three Scions, well within CAPACITY (6) — the true minimum is ONE journey
+  await page.evaluate(() => {
+    level.heights.fill(1000);
+    level.oids = [0, 1, 2].map(i => ({ role: "normal", state: "wait", x: 700 + i * 40, y: 1000,
+      home: 700 + i * 40, wave: 0, persona: "sit", scale: 1, panicT: 0, sabT: 0 }));
+    level.total = 3; level.delivered = 0; level.lost = 0; level.contained = 0; level.journeys = 0;
+    ship.passengers = [];
+  });
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(i => {
+      ship.x = level.oids[i].x; ship.y = 1000 - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false;
+    }, i);
+    await page.waitForFunction(i => level.oids[i].state === "aboard", i, { timeout: 8000 });
+  }
+  expect(await page.evaluate(() => ship.passengers.length)).toBe(3);
+  // one trip to the med bay delivers all three — one journey, not three
+  await page.evaluate(() => {
+    const b = bayRects().med;
+    window.__dockPin = setInterval(() => {
+      ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2; ship.vx = 0; ship.vy = 0; ship.landed = false; ship.dead = false;
+    }, 20);
+  });
+  await page.waitForFunction(() => level.delivered === 3, null, { timeout: 6000 });
+  await page.evaluate(() => clearInterval(window.__dockPin));
+  expect(await page.evaluate(() => level.journeys)).toBe(1);
+  await page.evaluate(() => { ship.x = 200; ship.y = 100; });
+  await page.waitForFunction(() => !!level.extraction, null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__hangarPin = setInterval(() => {
+      if (!level.extraction || level.extraction.done) return;
+      const h = hangarRect();
+      ship.x = h.cx; ship.y = h.cy; ship.vx = 0; ship.vy = 0; ship.landed = false; ship.dead = false;
+    }, 20);
+  });
+  await page.waitForFunction(() => __doids.get().state === "clear", null, { timeout: 6000 });
+  await page.evaluate(() => clearInterval(window.__hangarPin));
+  expect(await page.evaluate(() => level.journeyBonus)).toBe(true);
+});
+
+test("owner feature: no efficiency bonus when the minimum journeys is exceeded", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  // same three Scions, but delivered across two SEPARATE bay visits instead
+  // of the one trip that would have covered all three — no bonus
+  await page.evaluate(() => {
+    level.heights.fill(1000);
+    level.oids = [0, 1, 2].map(i => ({ role: "normal", state: "wait", x: 700 + i * 40, y: 1000,
+      home: 700 + i * 40, wave: 0, persona: "sit", scale: 1, panicT: 0, sabT: 0 }));
+    level.total = 3; level.delivered = 0; level.lost = 0; level.contained = 0; level.journeys = 0;
+    ship.passengers = [];
+  });
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(i => {
+      ship.x = level.oids[i].x; ship.y = 1000 - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false;
+    }, i);
+    await page.waitForFunction(i => level.oids[i].state === "aboard", i, { timeout: 8000 });
+    // dock and undock after EACH pickup — three separate trips for three Scions
+    const b = await page.evaluate(() => bayRects().med);
+    await page.evaluate((b) => { ship.x = (b.x0 + b.x1) / 2; ship.y = (b.y0 + b.y1) / 2; ship.vx = 0; ship.vy = 0; ship.landed = false; ship.dead = false; }, b);
+    await page.waitForFunction(i => level.delivered === i + 1, i, { timeout: 4000 });
+    await page.evaluate(() => { ship.x = 200; ship.y = 100; });
+    await page.waitForTimeout(50);
+  }
+  expect(await page.evaluate(() => level.journeys)).toBe(3);
+  await page.waitForFunction(() => !!level.extraction, null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__hangarPin = setInterval(() => {
+      if (!level.extraction || level.extraction.done) return;
+      const h = hangarRect();
+      ship.x = h.cx; ship.y = h.cy; ship.vx = 0; ship.vy = 0; ship.landed = false; ship.dead = false;
+    }, 20);
+  });
+  await page.waitForFunction(() => __doids.get().state === "clear", null, { timeout: 6000 });
+  await page.evaluate(() => clearInterval(window.__hangarPin));
+  expect(await page.evaluate(() => !!level.journeyBonus)).toBe(false);
+});
+
 test("S4.5: triage retreat — the hangar offers early extraction and logs the abandoned as lost", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); });
   await page.evaluate(() => {
@@ -434,6 +512,40 @@ test("Y4: counterfeit pods only blink loud with Avicenna; a subtle Static-beat d
   expect(quiet).toBeCloseTo(0.82, 2);          // steady between beats
   expect(onBeat).toBeLessThan(quiet);          // a dip lands on Glycon's clock
   expect(onBeat).toBeGreaterThan(0.4);         // subtle, never the loud 0.38 strobe
+});
+
+test("owner feature: once CANON OF TRUTH marks a fake pod, it can be destroyed by fire", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });
+  await page.evaluate(() => { upgrades.canon = true; });
+  const before = await page.evaluate(() => score);
+  await page.evaluate(() => {
+    const p = level.fakePods[0];
+    level.shots.push({ x: p.x, y: p.y - 8, vx: 0, vy: 0, t: 1 });
+  });
+  await page.waitForTimeout(150);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.level.fakePods[0].taken).toBe(true);
+  expect(s.ship.fuel).toBeGreaterThan(0);   // destroyed, not the blind-touch fuel drain
+  expect(s.score).toBe(before + 200);
+});
+
+test("owner feature: once CANON OF TRUTH marks a fake pod, landing beside it and holding scans it safely", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(5); __doids.launch(); });
+  await page.evaluate(() => { upgrades.canon = true; });
+  const before = await page.evaluate(() => score);
+  await page.evaluate(() => {
+    const p = level.fakePods[0];
+    ship.x = p.x; ship.y = __doids.ground(p.x) - 11; ship.vx = 0; ship.vy = 0; ship.landed = true; ship.dead = false;
+  });
+  // parking beside it must NOT trigger the blind-touch drain now that it's known
+  await page.waitForTimeout(150);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.level.fakePods[0].taken).toBe(false);
+  expect(s.ship.fuel).toBe(await page.evaluate(() => maxFuel()));
+  // hold there long enough (POD_SCAN_T) and it scans clean instead
+  await page.waitForFunction(() => level.fakePods[0].taken === true, null, { timeout: 6000 });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.score).toBe(before + 200);
 });
 
 test("V6: parrying a Vector's sonic wave flattens it and catalogues the Vector; a mid-game miss costs half", async ({ page }) => {

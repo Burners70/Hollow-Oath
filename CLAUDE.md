@@ -71,7 +71,9 @@ Load order is the order below; it is significant (see "no build step").
 `doids_shrines_seen`, `doids_daily`, `doids_intro`, `doids_a2hs`, `doids_tilt`,
 `doids_snd`, `doids_mus`, `doids_assist`, `doids_hapt`, `doids_cb` (colorblind),
 `doids_easy` (Field Medic), `doids_bigtext`, `doids_flash` (reduced flash),
-`doids_unres` (unresolved haunt), `doids_veteran`. Keep the `doids_` prefix on new
+`doids_unres` (unresolved haunt), `doids_veteran`, `doids_plays` (completed-run
+counter, for the review-prompt milestone), `doids_solace` (has the Solace actually
+been met — gates her hull on the title). Keep the `doids_` prefix on new
 keys for consistency with the shipped save format.
 
 ## Documentation guide — what to read for what
@@ -81,7 +83,7 @@ bundles toward the paid iOS release, holding **open work only**. To "follow the
 roadmap," read its *Open work at a glance* table (top of file) to pick the
 bundle, then read only that bundle's section — never the whole file. It is the
 *only* forward plan; anything else that reads like a plan is history. Shipped
-bundles (A–N, R, S, U, QA, Y, DS) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
+bundles (A–N, R, S, U, QA, Y, DS, X, Z) moved to `docs/ROADMAP_ARCHIVE.md` — grep there for
 an item ID (R10, M1, Y5, …) the plan no longer mentions, and move a bundle there
 yourself once its last `[ ]` is checked.
 

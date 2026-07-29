@@ -7,8 +7,8 @@ in a bundle is checked, move the whole section to
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) and leave a row in the shipped table
 below — that's what keeps this file cheap to read.*
 
-**This file holds only what is still open.** The 19 fully shipped bundles (A–N,
-R, S, U, QA, Y) live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) with their
+**This file holds only what is still open.** The 22 fully shipped bundles (A–N,
+R, S, U, QA, Y, DS, X, Z) live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) with their
 acceptance notes and code anchors intact — go there when you need the record of
 *how* something was built, not to decide what to build.
 
@@ -89,16 +89,14 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 11 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, **V15–V20 owner-playtest defects (bay-is-a-mouth beat, Solace-adjacent turret, Solace-answer reveal, first-resupply beat, landing spin, dune overspill)**, V·ship |
-| X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
-| Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
-| P | **Act Two — the descent** | 4 | **1.1** | Whole bundle — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only |
+| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V·ship (the release action itself — code side is done) |
+| P | **Act Two — the descent** | 3 | **1.1** | Whole bundle — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 3 | 1.01 core; caves absorbed | Only the ROTATION CHART survives as a 1.01 utility. Laennec/AUSCULTATION move into Act Two; **the three caves are absorbed by Act Two and 1.2 is cancelled** |
 
-**One owner decision is open:** V11 — whether to surface the decoy MERCY earlier
-(today it needs a completed run + the secret finale + enough black boxes, so most
-players never see it).
+**No owner decision is currently open.** (V11 — whether to surface the decoy
+MERCY earlier — was resolved with Bundle V: leave it as a deep secret, no code
+change.)
 
 Unscheduled ideas are parked at the bottom of this file, under *Suggested
 sequencing* — that's the only backlog; don't start a new one.
@@ -115,8 +113,9 @@ Item-level anchors cited elsewhere in the docs (R10, S6, M1, M4, H3, H5, Y5,
 E7…) are searchable in the archive — if you grep this file for a bundle ID and
 find nothing, it shipped: grep [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) instead.
 Bundles with *any* item still open stay in this file whole, shipped items
-included (T, O, V and X are all partly done), so their anchors — T1, T6, O2,
-V3, X1 — are still here.
+included (T, O and V are all partly done), so their anchors — T1, T6, O2,
+V3 — are still here. Bundle X is fully shipped (X1–X6 + X·guard) and moved
+to the archive in full, including its already-shipped X1/X3 slices.
 
 | # | Bundle | Theme |
 |---|--------|-------|
@@ -140,6 +139,8 @@ V3, X1 — are still here.
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness |
 | Y | 1.01 release-fix defects | Stability + render/telegraphing fixes |
 | DS | Design-system conformance | Token layer; colourblind mode made real (**1.0**) |
+| X | Onboarding & new-player experience | Trainee sector, guided pauses, hint bank, in-app rating (**1.01**) |
+| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.01**) |
 
 ---
 
@@ -447,15 +448,9 @@ tuning is available now (1.0 in review ⇒ Mac + TestFlight exist).
   scoring table, copy-deck entries and an implementation checklist in the
   shape of PENDULUM_SPEC §7; write those from what the slice proves, then work
   through them there (one source of truth; don't mirror the list here).
-- [ ] **P·review. Wire in the StoreKit in-app rating prompt.** Flagged while
-  drafting launch marketing (`LAUNCH_PLAN.md` Phase 0) — `requestReview()`
-  isn't called anywhere in the codebase today, and 1.0 is already in App
-  Review so it can't be added to that build; 1.1 is the first opportunity.
-  Call Apple's native prompt (`SKStoreReviewController.requestReview`, via a
-  small Capacitor plugin — no existing dependency covers this) at a natural
-  high-signal moment, e.g. after a clean ending or a new high score. Apple's
-  own OS-level throttling (roughly once per year per user) means the call
-  can be made freely on those triggers without adding throttling logic here.
+  *(The in-app rating prompt that used to sit here as **P·review** has shipped
+  already — it moved to Bundle X as X6 once 1.01 became the first post-launch
+  build, and is live in `js/platform.js` + `app/plugins/rating`.)*
 - [ ] **P·ship. Release 1.1** — What's-New copy per the E7 trademark
   tiers (generic in-store, named homage on the site), review-refresh
   prompt consideration, and the **£2.99 → £4.99 price move** (owner decision,
@@ -701,14 +696,18 @@ narrative beats; no shared dependency between them or with V1–V14.
   MERCY only for `veteran`, `js/world.js:829`). Code anchors: `genLevel` in
   `js/world.js` (placement + `RECIPE`), gated on `veteran`; reconcile with the
   existing REMIX rotation (M) so the two return modes don't fight.
-- [ ] **V11. (Candidate) Decoy MERCY reachability.** Owner question, July
+- [x] **V11. (Candidate) Decoy MERCY reachability.** *(Resolved (owner, 1.01
+  round): leave it as a deep secret — no code change. Matches the game's
+  existing design pillar of rewarding deep exploration rather than surfacing
+  every secret to every player.)* Owner question, July
   2026: the counterfeit MERCY is currently gated behind **`veteran` +
   reaching the secret finale + `blackboxCount >= TRIANGULATE_N`**
   (`js/world.js:829`, `js/update.js:695`), so most players never see it.
   Decide whether 1.01 should surface it earlier / more reliably, or leave it as
   a deep secret. Owner decision — logged so it isn't lost.
-- [ ] **V12. The counterfeit MERCY should be a *surprise*, not a signposted
-  quiz (owner playtest, late July 2026).** Today the finale over-explains the
+- [x] **V12. The counterfeit MERCY should be a *surprise*, not a signposted
+  quiz (owner playtest, late July 2026).** *(V12a–c all shipped — see the
+  parenthetical below; checkbox was stale.)* Today the finale over-explains the
   twin: the veteran warning spells out *"Two ships will answer as MERCY … tell
   them apart by the emblem … count the beats before you dock"* (`js/update.js:671`),
   and the decoy gives itself away by **position** — it spawns at `W*0.45`
@@ -830,7 +829,24 @@ narrative beats; no shared dependency between them or with V1–V14.
     call sites in `js/update.js` (the S5 landed-scan catalogue text + the
     "dying" kill resolution) and the boarding-exemption change in the oid
     update loop.
-- [ ] **V14. The V2 scan-landing invariant does not hold for every REMIX seed.**
+- [x] **V14. The V2 scan-landing invariant does not hold for every REMIX seed.**
+  *(Shipped. `startRemix(seed)` (`js/world.js`) now takes an optional explicit
+  seed — `__doids.remix(seed)` — so a failure is reproducible. A brute-force
+  sweep (4000 seeds × 7 sectors, then confirmed clean across 30000 seeds ×
+  7 sectors) found two real domino effects the original single-pass fix
+  never re-checked for: (1) the lift-flat reassert's own scanSpotOK-driven
+  repair can carve its replacement shelf on top of a THIRD, unrelated
+  Scion's already-fair band; (2) two scannable neighbours ~260px apart
+  (pick()'s own minimum) can mutually nick each other's checked BAND even
+  though their pads never overlap — the band reaches ~195px out, further
+  than either pad's ~122px cap. Fixed with `enforceScanFairness()` (the
+  original widen+shelf logic, pulled into a function) called a second time
+  after the lift reassert, plus a final verify-as-you-go backstop that tries
+  candidate spots inside the actual checked band and confirms each one
+  before moving on, rather than predicting a position. M1 golden checksum
+  unchanged (1090254029) — the campaign seed was never affected. Smoke:
+  "V14 the V2 fairness invariant holds across a broad REMIX seed sweep"
+  (fixed known-failing seeds + an in-process 5000-seed sweep).)*
   Found while verifying Bundle DS (July 2026), and **pre-existing — not caused by
   that work**: the V2 fairness guard
   (`worldgen.spec.js:241`, "every scannable Scion has a fair scan-landing spot")
@@ -862,8 +878,16 @@ narrative beats; no shared dependency between them or with V1–V14.
   seed.** Both flakes were misattributed to unrelated changes before being
   measured — check the failure rate on a clean worktree before believing a diff
   caused it.
-- [ ] **V15. "The bay is a mouth" needs to land as a beat, not a banner
-  (owner note, July 2026).** The decoy's reveal — that the counterfeit
+- [x] **V15. "The bay is a mouth" needs to land as a beat, not a banner
+  (owner note, July 2026).** *(Shipped. A new `"trapcard"` state
+  (`updateDecoy`'s trap branch, `js/update.js`) holds a tap-gated panel —
+  reusing `drawCardPanel`, kicker `THE THIRD ACT`, title `THE BAY IS A
+  MOUTH` — until the player dismisses it; only then does `shipDie()` (and
+  the life it costs) run. A new `swallow()` SFX (`js/audio.js`, a lower/
+  wetter `hydraulic()`) fires the instant the trap closes, timed to the ship
+  visibly getting pulled in, before the panel appears. Copy in COPY_DECK.md
+  §10. Smoke: the docking-trap test in `finale.spec.js` now dismisses the
+  card before asserting the life loss.)* The decoy's reveal — that the counterfeit
   MERCY's bay has no healing, no fuel, only appetite — is today just the
   standard 4.2s `banner()` (`function banner`, `js/update.js:92`) fired from
   `updateDecoy` when the trap closes (`js/update.js:2426`), and it races the
@@ -879,8 +903,12 @@ narrative beats; no shared dependency between them or with V1–V14.
   `updateDecoy` (`js/update.js:2410`), `shipDie` (`js/update.js:161`), the
   tap-gated card pattern (`showCard`, `drawWin`/`drawFireEnding` in
   `js/render.js`), `js/audio.js` for the new SFX.
-- [ ] **V16. Shooting the Solace should take a beside-her turret down with
-  her.** Firing on the Solace sinks the ridge over her buried hull into a
+- [x] **V16. Shooting the Solace should take a beside-her turret down with
+  her.** *(Shipped. `updateDestruct`'s detonation branch (`js/update.js`)
+  now kills/explodes any `level.turrets` entry within the crater radius
+  right alongside `crushCrater`, instead of leaving it hanging over the
+  hole. Smoke: "V16 shooting the Solace takes a beside-her turret down with
+  the crater".)* Firing on the Solace sinks the ridge over her buried hull into a
   real crater (`crushCrater`, `js/world.js:779`, called from `updateDestruct`,
   `js/update.js:2566`) — but any `level.turrets` entry planted near her at
   generation keeps its own static `t.x`/`t.y` set once in `genLevel`, and is
@@ -891,8 +919,10 @@ narrative beats; no shared dependency between them or with V1–V14.
   instead of leaving it floating. Code anchors: `crushCrater`/
   `invalidateTiles` (`js/world.js:779`; `js/update.js:2566`-`2567`), the
   existing turret hit-test to mirror (`js/update.js:1409`-`1416`).
-- [ ] **V17. Returning the Solace's pulse should re-trigger the full hull
-  reveal.** V3's sonar sweep (`beacon.sonarT = SONAR_DUR`, `SONAR_DUR` at
+- [x] **V17. Returning the Solace's pulse should re-trigger the full hull
+  reveal.** *(Shipped — one line, `resolveBeacon`'s answered branch now sets
+  `b.sonarT = SONAR_DUR`. Smoke: added to the existing answered-ending
+  test.)* V3's sonar sweep (`beacon.sonarT = SONAR_DUR`, `SONAR_DUR` at
   `js/update.js:31`) currently fires on the first landing-beside reveal
   (`js/update.js:2460`) and on every 41-second Static beat
   (`js/update.js:80`), but **not** at the moment the player actually answers
@@ -902,7 +932,10 @@ narrative beats; no shared dependency between them or with V1–V14.
   bigger, one-off flash variant) to that branch so the whole submerged hull
   lights up the instant her pulse is returned — the payoff moment, not just
   the ambient tell. Code anchor: `resolveBeacon` (`js/update.js:2487`).
-- [ ] **V18. First field resupply deserves a beat, not just a fuel bar.** The
+- [x] **V18. First field resupply deserves a beat, not just a fuel bar.**
+  *(Shipped verbatim, gated on `runRefuels === 0` at the drone-spawn point.
+  Copy in COPY_DECK.md §8. Smoke: "V18 the very first field resupply gets a
+  one-time acknowledgement banner".)* The
   resupply drone (`updateResupplySignal`, `js/update.js:2124`) launches
   silently the first time a stranded player holds THRUST long enough to
   signal — nothing acknowledges that help exists at all, let alone that it
@@ -914,7 +947,12 @@ narrative beats; no shared dependency between them or with V1–V14.
   drone-spawn block (`js/update.js:2148`-`2156`), `runRefuels`
   (`js/update.js:2205`), `banner()`/`showCard()` for how to present it;
   mirror the new line into COPY_DECK.md (R10).
-- [ ] **V19. Occasional weird ship spin on landing (assist mode).** Reported:
+- [x] **V19. Occasional weird ship spin on landing (assist mode).** *(Shipped
+  exactly as diagnosed — a new `normAngle()` helper (`js/update.js`, the
+  existing modulo pattern factored out of `landingEval`'s `tilt`) applied at
+  both landing snaps: `s.ang = assist ? normAngle(s.ang) : 0`. Smoke: "V19 a
+  long flight's accumulated rotation doesn't survive into a landing spin".)*
+  Reported:
   the dart sometimes visibly spins on touchdown, possibly tied to shield use.
   Likely cause: `s.ang` accumulates unbounded while flying — `steer` adds to
   it every tick with no wraparound (`js/update.js:947`) — so after a long or
@@ -931,7 +969,16 @@ narrative beats; no shared dependency between them or with V1–V14.
   modulo pattern to reuse. Code anchors: `js/update.js:947` (accumulation),
   `:958`-`960` (assist ease), `:1041`/`:1068` (landing snap), `:142`
   (existing normalize pattern).
-- [ ] **V20. Dune scenery overspills unnaturally on one level.** Owner
+- [x] **V20. Dune scenery overspills unnaturally on one level.** *(Root cause
+  found by code comparison, not a live repro: every OTHER wide ground-
+  anchored decoration (`drawHedge`, `drawSpire`, `drawRuin`, …) rotates to
+  `sc.tilt` right after translating; `drawDune` never did, so its flat base
+  held level in screen space regardless of slope — on a sloped patch it
+  visibly floats clear of the ground on one side and digs into it on the
+  other. Fixed with `ctx.rotate(sc.tilt * 0.4)`, matching `drawHedge`'s
+  damping for the same kind of organic mound. Confirmed with a REMIX seed
+  whose dune actually sits on a slope (campaign seed 0's Avicenna dunes all
+  happen to land on flat ground, so this never reproduced there).)* Owner
   screenshot, July 2026: on one surface sector a hillside/dune reads as
   spilling past its own terrain in a way that looks broken rather than
   windswept. Avicenna's banded dunes are placed once at generation
@@ -947,7 +994,11 @@ narrative beats; no shared dependency between them or with V1–V14.
   for other scenery (`js/world.js`, `scanSpotOK`/pad-widening section).
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
-  [CHANGELOG.md](CHANGELOG.md).
+  [CHANGELOG.md](CHANGELOG.md). *(This bundle's code changes add no new
+  entitlements, permissions, or data collection — confirmed while landing
+  V11/V14–V20 above; CHANGELOG.md updated in the same PR. The actual
+  release (What's-New copy finalized, submitted in App Store Connect)
+  remains an owner action, same as O9.)*
 
 ## Bundle W — Landscape challenge escalation (optional polish)
 
@@ -985,178 +1036,6 @@ generators.**
   checksum stay green; add fairness-invariant assertions for the new terrain
   shapes across every seed the campaign and REMIX/DAILY can produce.
 
-## Bundle X — Onboarding & the new-player experience (1.01)
-
-**Why:** The loudest note from the July 2026 external TestFlight round — the
-**learning curve is too steep for players who have never played a
-thrust/gravity game**. Newton's-cradle momentum that feels obvious to a
-Gravitar/Lunar-Lander veteran reads as "the ship won't do what I tell it" to
-everyone else, and they bounce off before the game gets good. This bundle is the
-fix: an **optional, opt-in** learning path that never gets in an experienced
-player's way — an illustrated guide, a guided trainee sector, a first-play fork
-that routes each player to the right starting point, and a post-death hint-card
-bank. **Priority: highest-value retention work — do it first.
-Dependencies: X2 depends on X4's guided-pause overlay; X1 and X5 are
-independent.**
-
-> **Design pillar: opt-in, never mandatory.** An experienced player must be able
-> to start Level 1 on first launch and never see a tutorial pause, a training
-> sector, or a "how to thrust" card. Everything here sits behind the X3 fork or
-> a home-screen button — the same opt-in stance as ASSIST / Field Medic
-> (Bundle H).
-
-> **Launch split (owner decision, late July 2026).** The low-risk, high-impact
-> slices ship in the **1.0 launch build**: **X1** (beginner's guide) and **X3**
-> (first-play fork). The heavier new subsystems — **X2** (trainee sector), **X4**
-> (guided-pause overlay), **X5** (hint-card bank) — stay **1.01**, so the trainee
-> level never gates App-Completeness review of the launch binary. Consequence for
-> X3: with X2 not in 1.0, the fork's **"No" branch routes into the X1 guide** at
-> launch, and upgrades to route into the trainee sector once X2 ships in 1.01.
-
-- [x] **X1. The beginner's guide — an optional home-screen button. [→1.0 launch]** *(Shipped.
-  The `✦ HOW TO FLY` HELP-submenu entry now opens an illustrated, paged guide
-  — `GUIDE` / `GUIDE_PAGES` in `js/world.js`, `drawGuide` / `drawGuideArt` /
-  `guideShip` / `guideButton` in `js/render.js`, paged via the `help` state in
-  `js/update.js`. Eight diagram pages — TURN, THRUST, SLOW DOWN, SHIELD, FUEL,
-  FIRE, LAND & RESCUE, OTHER CONTROLS — reusing the real hull path and the
-  on-screen button art. Respects `bigText` / `reducedFlash` / `colorblind`;
-  fits a 320-high phone (R1 contract). Copy mirrored to COPY_DECK.md §3. Smoke:
-  "R1/X1 illustrated guide paginates".)* A **HOW TO
-  FLY** button on the title screen (`drawTitle` in `js/render.js`, alongside the
-  existing REMIX / settings pills) opens a paged, **illustrated** guide with
-  literal step-by-step visuals, not walls of text: rotate, thrust (hold = more
-  speed / distance), counter-thrust to slow, shield on impact, fuel management,
-  fire. Each page is a labelled diagram of the ship + the on-screen buttons —
-  reuse the FIRE / THRUST / SHIELD control art already drawn in `js/input.js` /
-  `js/render.js` so the guide matches what the player actually sees. Reachable
-  any time, not only first-run. Copy authored for owner review in
-  [COPY_DECK.md](COPY_DECK.md) (R10); respect `bigText` / reduced-flash /
-  colorblind.
-- [ ] **X2. Trainee sector — "Level 0" (owner: signed off, July 2026).** A new, very simple guided rescue
-  **before** the scored campaign: gentle wide terrain, **one Scion**, **one
-  optional turret placed far from the Scion** (avoidable — it introduces the
-  threat, it doesn't punish). It runs as its **own mode / flow, not a renumber
-  of the scored campaign** — the campaign stays Sector 0–10 with its seeds,
-  scores, ranks and `veteran` logic untouched, and training **never writes a
-  hiscore**. Code anchors: a bespoke trainee layout in `genLevel` / `RECIPE`
-  (`js/world.js`), the `resetRun` / `toBriefing` flow and mode plumbing
-  (`js/world.js` / `js/update.js`).
-  - **X2a. Guided proactive pauses.** Step the player through the ship using the
-    X4 overlay. Authored sequence (draft — final copy to COPY_DECK.md):
-    1. *"Press THRUST to fight gravity. The longer you hold, the faster and
-       further you go."*
-    2. *"Press RIGHT and tap THRUST to start drifting right — keep thrusting UP
-       at the same time so you don't sink."*
-    3. *"The faster you're moving one way, the more thrust it takes to stop.
-       Watch your FUEL."*
-    4. Introduce **FIRE** (and that shots count against the pacifist ranks).
-    5. Introduce **SHIELD** for impacts — **and warn that holding it burns
-       fuel.**
-    6. **Tease the parry without teaching it:** *"There are other ways to put a
-       gun down than shooting it."* (No explicit parry tutorial — X5 has a
-       discovery-gated card for when they find it.)
-  - **X2b. Free-play after the rescue.** Once the Scion is aboard, **do not end
-    the level.** Disable the 41-second Static clock and the extraction / signal
-    pulse for the trainee sector so the player keeps flying, refuelling and
-    experimenting, and **leaves only when they choose to** (a plain "END
-    TRAINING" affordance). Code anchors: the Static clock (`updateStaticClock`)
-    and extraction / MERCY logic in `js/update.js`, both gated off in training
-    mode.
-- [x] **X3. First-play fork. [→1.0 launch]** *(Shipped. A first-ever `▶ START NEW
-  FLIGHT` on an untrained install (`doids_trained` absent) opens a one-time
-  `"fork"` screen — `updateFork` / `drawFork` / `forkRowRect`, the `trained`
-  flag + `markTrained()` in `js/world.js`. **YES** flies straight in (veteran
-  path); **NO** opens the X1 guide (`guideReturn = "start"`) and finishing it
-  drops into the run. Answering sets `doids_trained` so it never shows again; a
-  RESET PROGRESS clears the key so it re-shows (the "from Settings" path). Copy
-  in COPY_DECK.md §3·X3. Smoke: "X3 first START opens the fork" + "fork NO opens
-  the guide". In 1.01 the "No" branch re-routes to the X2 trainee sector.)* On a
-  first launch (no `doids_intro`,
-  or a new `doids_trained` flag), ask once: **"Played thrust / gravity games
-  before?"** — **Yes → straight to Level 1** (current behaviour); **No →** the
-  onboarding path. **In 1.0** (X2 not yet built) **"No" opens the X1 guide**, then
-  drops into Level 1; **in 1.01** "No" routes into the **trainee sector** (X2).
-  Never shown again once answered; re-runnable from the X1 guide or Settings. Code
-  anchors: the intro gate (`doids_intro`) in `js/world.js`, the title / intro flow
-  in `js/render.js`; add a `doids_trained` key (keep the `doids_` prefix).
-- [ ] **X4. Reusable "guided pause" overlay.** A small system to **pause the sim
-  and show a step card** (dim the world, instruction + a CONTINUE tap), fired by
-  game conditions (entered training, first thrust, first rightward drift, fuel
-  below a threshold, …). Built once here, reused by X2a. Code anchors: the pause
-  machinery from Bundle A (`enterPause` / `PAUSABLE`, `js/update.js`); a
-  lightweight "coach" state that does **not** snapshot / exit like the real
-  pause.
-- [ ] **X5. Post-death hint-card bank.** After each death, show **one** short
-  hint card (rotating, no repeats until the bank is exhausted). **Some cards are
-  discovery-gated** — they enter the pool only once the player has met the
-  relevant system (a parry landed, a Scion scanned, a counterfeit met, a Hollow
-  lift found), tracked via existing flags (`upgrades.*`, `veteran`, codex /
-  `doids_codex` discovery state) plus any new discovery bits (keep the `doids_`
-  prefix). Code anchors: the `gameover` screen (`js/render.js` / `js/update.js`);
-  a new hint-selection helper. **Starter bank below — for owner review and
-  approval; mirror into COPY_DECK.md when built (R10).**
-
-  *Always available:*
-  - Thrust is momentum, not a throttle — to stop, thrust the opposite way.
-  - Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.
-  - Fuel can be scarce. A pod picked up is a pod gone.
-  - You don't have to fight — any Scion can come home without a shot fired.
-  - A long fall needs a long burn to arrest. Start slowing early.
-  - When you only need a nudge — tap, don't hold.
-
-  *Discovery-gated (enter the pool once the thing is seen):*
-  - *(after a parry)* A shield raised at the right moment turns a shot back on its sender.
-  - *(after first scan)* Land beside a thing and read it — it can tell you what firing never will.
-  - *(after meeting a counterfeit)* Not every fuel pod is a friend. The honest ones flicker like fire; the fakes keep to the Static's beat.
-  - *(after finding a lift — veteran)* The ground rings hollow in places. There is a way down.
-  - *(after Avicenna)* Your CANON OF TRUTH marks the fakes now. Trust the mark.
-
-  (Owner-reviewed July 2026: Always cards 3 / 4 / 6 reworded; the counterfeit card
-  now names *both* tells and tracks Y4; the Avicenna card uses the full upgrade
-  name **CANON OF TRUTH** — the term the player actually sees on pickup
-  (`js/world.js:122`), not a bare "Canon." **Watch the "any Scion" card:** it
-  promises the pacifist route works for *every* Scion, which is exactly the
-  invariant **V2** must guarantee generation-side — ship this card *with* V2, not
-  before it. Still a starting point; owner to add / cut / reword, one sentence
-  each in the game's clinical-poetic register.)
-- [ ] **X·guard. Regression gate.** Smoke suite green; extend `__doids.get()`
-  to expose training mode, the fork flag, guided-pause state and hint-card
-  discovery bits; add a test that an experienced-path first launch (X3 "Yes")
-  reaches Level 1 with **no** training state set, and that training never writes
-  a hiscore. *(1.0-launch slice done: `__doids.get()` now exposes `trained`,
-  `guideReturn` and `guide` {page,pages,footY}; smoke covers the X3 "Yes"→run
-  and "No"→guide→run paths and the illustrated-guide pagination/on-screen fit.
-  The trainee-sector / guided-pause / hint-card assertions land with X2/X4/X5 in
-  1.01.)*
-
-## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
-
-**Why:** Owner idea (late July 2026) — add **variable gravity to REMIX** for
-replay variety. Gravity is a single global (`GRAV = 46`, `js/world.js:149`), so a
-per-run scale is cheap to *apply*; the real work is **fairness tuning**, not
-plumbing. **Priority: pulled forward to 1.01 (owner decision, late July 2026; was
-1.1). The Z2 fairness re-tune gates it — this is *not* a lean-1.0 "low-risk win,"
-so it rides 1.01, not the launch binary, unless the re-tune proves trivial.
-Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
-
-- [ ] **Z1. Variable-gravity modifier.** Scale `GRAV` by a per-run factor drawn
-  from `runSeed` (e.g. ~0.7×–1.4×), **REMIX / DAILY only — never seed 0**, so the
-  M1 golden heightmap and the authored campaign feel stay untouched. Surface it
-  in the briefing prefix ("REMIX ROTATION // heavy world" / "thin gravity"). Code
-  anchors: `GRAV` (`js/world.js:149`) → a scaled read; the remix/daily plumbing
-  (Bundle M, `doids_daily`); the briefing prefix in `BRIEFS`.
-- [ ] **Z2. Fairness re-tune under changed gravity.** Gravity touches more than
-  the ship — safe-landing descent thresholds, fuel economy, oid fall
-  (`js/update.js:1048`), particles (`:433`), the resupply-drone airframe
-  (`:1909`). Landing-safe speed and the ASSIST bands must scale with `GRAV` or
-  heavy runs are unfair. **Design + playtest pass**, plus a smoke assertion that a
-  landing safe at 1× stays classifiable across the whole gravity range. Respects
-  the V2 scan-landing fairness invariant.
-- [ ] **Z·guard. Regression gate.** M1 checksum + full smoke green (**seed 0
-  unaffected**); add coverage for the gravity-scale bounds and the landing-safety
-  re-tune.
-
----
 
 ## Suggested sequencing
 
@@ -1176,7 +1055,9 @@ D ──┴────────────────┘                 �
       pulled into the 1.0 launch build (owner decision, late July 2026):
       Y1, Y2 (stability) + X1 (beginner's guide) + X3 (first-play fork → guide)
       after 1.0 approval:
-      1.01 = X2/X4/X5 (trainee level, guided-pause overlay, hint-card bank)
+      1.01 = X2/X4/X5/X6 (trainee level, guided-pause overlay, hint-card bank,
+             StoreKit in-app rating prompt — moved up from 1.1 since 1.01 is
+             now the first post-launch build)
            + Y3–Y7 (wreck occlusion, counterfeit tell, lift pad, copy fixes)
            + V (Solace reveal; scan fairness; heard-scan parry; V12 fake-MERCY reveal)
            + Z (REMIX variable gravity — after the Z2 fairness re-tune)

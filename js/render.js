@@ -88,7 +88,8 @@ function render() {
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
-      state === "pause" || state === "confirm") drawHUD(now);
+      state === "pause" || state === "confirm" || state === "coach" ||
+      state === "trapcard") drawHUD(now);
 
   if (state === "title") drawTitle(now);
   if (state === "fork") drawFork(now);
@@ -97,6 +98,8 @@ function render() {
   if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
+  if (state === "coach") drawCoach(now);   // X4
+  if (state === "trapcard" && trapCard) drawCardPanel(trapCard, now);   // V15
   if (state === "clear") drawClear(now);
   if (state === "pause") drawPause(now);
   if (state === "confirm") drawConfirm(now);
@@ -434,6 +437,21 @@ function drawWorld(now) {
       ctx.fillText("?", 0, -16);
     }
     ctx.restore();
+    // owner feature — an in-progress landed scan on a known-fake pod, same
+    // ring language as a lure-tree's scan (Bundle J)
+    if (p.scanT > 0) {
+      ctx.save();
+      ctx.strokeStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK; ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 30, 16, -Math.PI / 2, -Math.PI / 2 + (p.scanT / POD_SCAN_T) * Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = mono(10); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.CYAN_INK;
+      ctx.fillText("SCANNING… hold position", p.x, p.y - 56);
+      ctx.restore();
+    }
   }
 
   // black box: half-buried, blinking faintly when you're near
@@ -542,7 +560,7 @@ function drawWorld(now) {
   }
   // S4 — the bay doors slide shut over the captured ship before she jumps
   if (level.extraction && level.extraction.done) drawBayDoors(now);
-  if (!ship.dead && !ship.landed && state === "play" && !(level.extraction && level.extraction.done)) drawLandingGuide();
+  if (landingGuideVisible()) drawLandingGuide();
   if (resupplyDrone) drawResupplyDrone(now);
 
   ctx.textAlign = "center";
@@ -904,6 +922,12 @@ function drawResupplyDrone(now) {
   }
 }
 
+// owner note (July 2026) — ASSIST off means judging a landing unaided: no
+// dashed line, no SAFE/WARN/DANGER colour or glyph, no reason text.
+function landingGuideVisible() {
+  return assist && !ship.dead && !ship.landed && state === "play" &&
+    !(level.extraction && level.extraction.done);
+}
 function drawLandingGuide() {
   const s = ship;
   const g = groundAt(s.x);
@@ -1191,6 +1215,13 @@ function drawSpire(sc, now) {
 function drawDune(sc, now) {
   ctx.save();
   ctx.translate(sc.x, sc.y);
+  // V20 — every other wide ground-anchored decoration (drawHedge, drawSpire,
+  // drawRuin…) rotates to the local ground tilt; this one didn't, so a dune's
+  // flat base held level in screen space regardless of slope — on a sloped
+  // patch it visibly floated clear of the ground on one side and dug into it
+  // on the other, reading as "spilling past its own terrain." Same damping as
+  // drawHedge's organic mound (0.4) rather than the sharper spire/ruin rotate.
+  ctx.rotate(sc.tilt * 0.4);
   const w = sc.dw;
   ctx.beginPath();
   ctx.moveTo(-w / 2, 0);
@@ -2321,17 +2352,14 @@ function drawDecoyMercy(now) {
   }
 }
 
-// AMS SOLACE's full drowned hull — a big broken lozenge under the ridge line.
-// Shared by the V3 sonar reveal and the bad-ending destruction reveal so both
-// draw the SAME ship. Centred on the beacon origin; caller fills/strokes.
-const SOLACE_HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
-                     [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
-function solaceHullPath() {
-  ctx.beginPath();
-  ctx.moveTo(SOLACE_HULL[0][0], SOLACE_HULL[0][1]);
-  for (let i = 1; i < SOLACE_HULL.length; i++) ctx.lineTo(SOLACE_HULL[i][0], SOLACE_HULL[i][1]);
-  ctx.closePath();
-}
+// owner bug fix (July 2026) — the V3 sonar reveal and the bad-ending
+// destruction reveal were supposed to draw the SAME ship (per the comment
+// that used to sit here) but didn't: the sonar sweep drew this file's own
+// SOLACE_HULL point array — an unrelated, asymmetric blob nothing like her
+// actual silhouette — while drawSolaceDeath drew the real one
+// (solaceMercyPath, below). Retired the stray shape; both now share
+// solaceMercyPath and this one transform, so they can't drift apart again.
+const SOLACE_MS = 1.3, SOLACE_HY = 28;   // scale + offset: tower peak lands at world y≈-50
 
 /* AMS SOLACE's own silhouette — the SAME MERCY-class family (dorsal command
    tower rising out of a lozenge hull, with the signature mast), but a sister,
@@ -2363,7 +2391,7 @@ function solaceMercyPath() {
    Respects reducedFlash. */
 function drawSolaceDeath(b, now) {
   const t = b.death || 0;
-  const MS = 1.3, HY = 28;                       // scale + offset: tower peak lands at world y≈-50
+  const MS = SOLACE_MS, HY = SOLACE_HY;
   const topY = -112, botY = 72;                  // antenna tip → below the buried belly
   const revP = clamp((t - SOL_IGNITE) / (SOL_REVEAL - SOL_IGNITE), 0, 1);
   const front = topY + (botY - topY) * revP;     // the descending heat front
@@ -2469,15 +2497,21 @@ function drawBeacon(now) {
     const sweepR = 30 + p * 340;
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
-    solaceHullPath();
-    const g = ctx.createLinearGradient(0, -50, 0, 190);
+    // owner bug fix — draw the SAME hull the destruction reveal does
+    // (solaceMercyPath, shared SOLACE_MS/SOLACE_HY transform), not the
+    // stray, unrelated shape this used to draw
+    ctx.save();
+    ctx.translate(0, SOLACE_HY); ctx.scale(SOLACE_MS, SOLACE_MS);
+    solaceMercyPath();
+    const g = ctx.createLinearGradient(0, -60, 0, 26);
     g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
     g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
     g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
-    ctx.strokeStyle = g; ctx.lineWidth = 2;
-    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
+    ctx.strokeStyle = g; ctx.lineWidth = 2 / SOLACE_MS;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls / SOLACE_MS;
     ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
     ctx.stroke();
+    ctx.restore();
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = puls * 0.55;
@@ -2531,28 +2565,18 @@ function drawBeacon(now) {
     ctx.fillText("A M S · S O L A C E", 0, 26);
     ctx.shadowBlur = 0;
   }
-  if (!b.resolved) {
-    if (b.revealed) {
-      // owner steer — once examined, just her name, quietly. The clue card and
-      // her own pulse do the teaching; no on-screen "parry" instruction.
-      ctx.font = mono(10); ctx.textAlign = "center";
-      if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "rgba(155,234,249,.6)";
-      ctx.fillText("A M S · S O L A C E", 0, -128);
-      ctx.shadowBlur = 0;
-    } else {
-      // V4 — the legible pre-scan signal-source label on its dark plate
-      const lp = bodyFontPx(10);
-      ctx.font = mono(lp); ctx.textAlign = "center";
-      const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
-      const tw = ctx.measureText(txt).width, ly = -128;
-      ctx.fillStyle = "rgba(6,4,16,.72)";
-      ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
-      if (!reducedFlash) { ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "#d9ccff";
-      ctx.fillText(txt, 0, ly);
-      ctx.shadowBlur = 0;
-    }
+  if (!b.resolved && b.revealed) {
+    // owner steer — once examined, just her name, quietly. The clue card and
+    // her own pulse do the teaching; no on-screen "parry" instruction.
+    // Owner follow-up: the pre-reveal "land beside it, or open fire" label
+    // is gone entirely — too much of a handhold; every other secret in the
+    // game (a lure-tree, a shrine) gives you nothing until you've actually
+    // examined it, and the signal source should read the same way.
+    ctx.font = mono(10); ctx.textAlign = "center";
+    if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
+    ctx.fillStyle = "rgba(155,234,249,.6)";
+    ctx.fillText("A M S · S O L A C E", 0, -128);
+    ctx.shadowBlur = 0;
   }
   ctx.restore();
 }
@@ -2622,11 +2646,16 @@ function drawHUD(now) {
   ctx.fillText(String(score).padStart(6, "0"), vw / 2, topPad + 10);
   ctx.font = mono(9, 600);
   ctx.fillStyle = "rgba(155,234,249,.7)";
-  let mid = SECTOR_NAMES[levelIdx] + (level.isCave ? " · THE HOLLOWS" : "") +
+  // X2 — training has no SECTOR_NAMES entry (its levelIdx is a sentinel, -1)
+  let mid = (runMode === "training" ? "TRAINEE FLIGHT" : SECTOR_NAMES[levelIdx]) +
+    (level.isCave ? " · THE HOLLOWS" : "") +
     "  ·  ♥ " + lives + (assist ? "  ·  ASSIST" : "");
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
   if (dailyMod("stopwatch") && !level.isCave)
     mid += "  ·  ⏱ " + (sectorT < 90 ? Math.ceil(90 - sectorT) : "—");
+  // owner feature — a persistent reminder while airborne, not just a line
+  // in the briefing you can forget: which way the crosswind pushes.
+  if (Math.abs(gravTilt) > 0.15) mid += "  ·  " + (gravTilt > 0 ? "→" : "←") + " WIND";
   // the sector label itself glitches for a beat when the Static fires (I2);
   // REDUCED FLASH keeps the corruption sparse instead of a full scramble
   if (staticGlitchT > 0)
@@ -2825,7 +2854,7 @@ function drawHudGuide(now) {
   ctx.beginPath(); ctx.moveTo(sx - 12, sy + 22); ctx.lineTo(sx + 12, sy + 22); ctx.stroke(); ctx.shadowBlur = 0;
   ctx.fillStyle = PAL().SAFE; ctx.font = F(9); ctx.textAlign = "left"; ctx.fillText("✓ ↓2  ↔1", sx + 20, sy + 2);
   lab(sx, sy + 42, "center", "LANDING GUIDE",
-    "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down.", 240);
+    "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down. Only shown with ASSIST on (toggle in SETTINGS).", 240);
 
   // ---- bottom controls: clean rows (left = turn, right = act), each labelled
   //      above so nothing overlaps on a short landscape viewport ----
@@ -2866,8 +2895,9 @@ function drawHelpMenu(now) {
   ctx.shadowBlur = 0;
   const rows = [["✦ HOW TO FLY", "controls & the basics"],
                 ["◎ HUD GUIDE", "what every readout means"],
-                ["▸ REPLAY STORY", "watch the opening again"]];
-  for (let i = 0; i < 3; i++) {
+                ["▸ REPLAY STORY", "watch the opening again"],
+                ["◆ TRAINEE SECTOR", "one gentle, unscored rescue"]];   // X2
+  for (let i = 0; i < rows.length; i++) {
     const r = helpMenuRowRect(i);
     ctx.strokeStyle = "rgba(0,229,255,.7)"; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 8;
     ctx.lineWidth = 1.5;
@@ -2878,8 +2908,9 @@ function drawHelpMenu(now) {
     ctx.fillStyle = "rgba(155,234,249,.5)"; ctx.font = mono(10, 600);
     ctx.fillText(rows[i][1], r.x + r.w / 2, r.y + r.h / 2 + 14);
   }
+  const lastRow = helpMenuRowRect(rows.length - 1);
   ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.font = mono(11, 600);
-  ctx.fillText("tap outside to go back", vw / 2, helpMenuRowRect(2).y + helpMenuRowRect(2).h + 26);
+  ctx.fillText("tap outside to go back", vw / 2, lastRow.y + lastRow.h + 26);
 }
 
 function drawTitle(now) {
@@ -2888,6 +2919,24 @@ function drawTitle(now) {
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
   const pulse = 0.7 + 0.3 * Math.sin(now * 2);
+  // (owner feedback, July 2026) — once the Solace has actually been found
+  // (solaceSeen, set only by resolveBeacon), her hull sits under the wordmark:
+  // an outline-only ghost, drawn BEFORE the title text so the wordmark's own
+  // fill and glow stay fully legible over it. Deliberately a watermark rather
+  // than a framed illustration — it can't collide with the corner pills on a
+  // narrow phone, and it reads as the thing still down there rather than a
+  // trophy. Breathes on the same slow pulse as the wordmark.
+  if (solaceSeen) {
+    ctx.save();
+    ctx.translate(vw / 2, vh * 0.30);
+    const hs = Math.min(1, vw * 0.7 / 304);   // solaceMercyPath spans 304 wide
+    ctx.scale(hs, hs);
+    solaceMercyPath();
+    ctx.strokeStyle = shade(TOK.CYAN, .18 + .07 * pulse);
+    ctx.lineWidth = 2 / hs;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 30 * pulse;
   ctx.fillStyle = TOK.CYAN_INK;
   // narrow screens shrink the wordmark so it clears the corner pills
@@ -2982,6 +3031,22 @@ function drawTitle(now) {
     ctx.font = mono(13);
     ctx.fillStyle = TOK.GOLD;
     ctx.fillText("▶ RESUME — " + SECTOR_NAMES[savedRun.levelIdx], rr.x + rr.w / 2, rr.y + 22);
+    ctx.shadowBlur = 0;
+  }
+
+  // (owner feedback, July 2026) — the one-off nudge shown when a REPEAT
+  // completion has just sent the player home here (titleNudge, cleared by
+  // resetRun). Points at the REMIX/DAILY pills, which are the actual loop once
+  // the campaign is done. Positioned in the gap between the START stack and the
+  // bottom pill row and auto-fitted, so it can't crowd either on a short phone.
+  if (titleNudge && veteran) {
+    const gapTop = startRect().y + startRect().h, gapBot = remixRect().y;
+    const nudge = "the sector still turns — try a REMIX ROTATION or the DAILY FLIGHT below";
+    let nf = 12;
+    ctx.font = mono(nf, 600);
+    while (nf > 8 && ctx.measureText(nudge).width > vw - 32) { nf -= 1; ctx.font = mono(nf, 600); }
+    ctx.fillStyle = shade(TOK.GOLD, .8); ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 8;
+    ctx.fillText(nudge, vw / 2, (gapTop + gapBot) / 2 + nf / 2);
     ctx.shadowBlur = 0;
   }
 
@@ -3626,9 +3691,10 @@ function drawBrief(now) {
     ctx.font = mono(11);
     ctx.fillStyle = runMode === "remix" ? PAL().SAFE : PAL().WARN;
     const prev = runMode === "daily" ? dailyPrevScore() : 0;
+    const gl = gravLabel();   // Z1 — "" for a near-1x roll
     afterHeaderY = kickerY + 24;
-    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed
-      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : ""),
+    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed + (gl ? " · " + gl : "")
+      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : "") + (gl ? " · " + gl : ""),
       vw / 2, afterHeaderY);
   }
   ctx.font = display(24);
@@ -3968,6 +4034,13 @@ function drawCardPanel(card, now) {
   ctx.shadowBlur = 0;
 }
 
+/* X4 — the reusable guided-pause overlay: one short instruction over the
+   dimmed, frozen world, using the same tap-to-continue card chrome as a
+   narrative "reveal" (drawCardPanel) rather than a bespoke look. */
+function drawCoach(now) {
+  drawCardPanel({ kicker: "GUIDED", body: coachText, color: TOK.CYAN }, now);
+}
+
 function tallyLine() {
   return "saved " + runSaved + (runLost > 0 ? "  ·  ✝ lost " + runLost : "");
 }
@@ -3975,6 +4048,7 @@ function tallyLine() {
 function drawClear(now) {
   if (clearCards.length > 0) { drawCardPanel(clearCards[0], now); return; }
   const hip = (level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "") +
+    (level.journeyBonus ? "EVERY TRIP COUNTED — efficiency bonus +1000\n" : "") +
     (level.stopwatchBeat ? "⏱ STOPWATCH BEAT +500\n" : "");
   const boxNote = level.blackbox && !level.blackbox.found ? "\n(a signal source went unfound in this sector)" : "";
   drawCenter(SECTOR_NAMES[levelIdx] + " CLEAR",
@@ -3997,7 +4071,10 @@ function drawPause(now) {
   ctx.font = display(Math.min(38, vw * 0.08, (topRow.y - 10) * 0.9), 900);
   ctx.fillText("PAUSED", vw / 2, headY);
   ctx.shadowBlur = 0;
-  const labels = ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
+  // X2 — training reframes the two run-scoped rows in its own language
+  const labels = runMode === "training"
+    ? ["RESUME", "RESTART TRAINING", "SETTINGS", "END TRAINING"]
+    : ["RESUME", "RESTART SECTOR", "SETTINGS", "QUIT TO TITLE"];
   // a controller has no pointer to hover, so its current row gets its own
   // cursor — a brighter stroke plus a leading marker — instead of relying on
   // a hover state that only touch/mouse can produce
@@ -4134,8 +4211,22 @@ function drawSettings(now) {
 }
 
 function drawGameOver(now) {
-  drawCenter("FLATLINE", "GAME OVER — " + tallyLine(), PAL().DANGER);
+  drawCenter("FLATLINE", "GAME OVER — " + tallyLine() + (ratingAskMsg ? "\n\n" + ratingAskMsg : ""), PAL().DANGER);   // X6
   ctx.textAlign = "center";
+  // X5 — one rotating hint, quoted and attributed like something an in-game
+  // training officer would actually say, in the clear space above FLATLINE
+  // (owner note, July 2026 — it read squashed wedged between the tally and
+  // the buttons below).
+  if (currentHint) {
+    ctx.font = mono(11, 600);
+    const lines = wrapText("“" + currentHint + "”", Math.min(340, vw - 70));
+    const lh = 14, topY = vh * 0.08;
+    ctx.fillStyle = "rgba(217,232,255,.8)";
+    lines.forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * lh));
+    ctx.font = mono(10, 600);
+    ctx.fillStyle = "rgba(217,232,255,.45)";
+    ctx.fillText("— FLIGHT OPS", vw / 2, topY + lines.length * lh + 6);
+  }
   if (checkpoint) {
     const cr = continueRect(), nr = { x: cr.x, y: cr.y + cr.h + 14, w: cr.w, h: 40 };
     ctx.strokeStyle = shade(PAL().SAFE, .8); ctx.shadowColor = PAL().SAFE; ctx.shadowBlur = 10; ctx.lineWidth = 1.5;
@@ -4187,7 +4278,7 @@ function drawEnding(now) {
     color = TOK.CYAN_INK;
     body = "You landed beside it and listened.\n\nThe source was the top of a ship — AMS SOLACE, MERCY's sister, lost with all hands, her distress call looping on their shared frequency for years. Every Scion that answered it honestly was rewritten by the echo.\n\nSo you answered it properly: you matched her own rhythm and sent it back — the one acknowledgement her signal had spent years repeating to hear. Told that she was heard, she could finally stop.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
-    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
+    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou defeated his ultimate lie.\nBut it cost your oath to do it.";
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
     color = PAL().WARN;
@@ -4230,10 +4321,11 @@ function drawWin() {
   }
   const spotless = runLost === 0 ? "\nspotless record — no Scion lost" : "";
   const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
+  const ask = ratingAskMsg ? "\n\n" + ratingAskMsg : "";   // X6
   drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
     "score " + score + "  ·  hi " + hiscore + "\n" + tallyLine() +
     "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
-    spotless + serpent +
+    spotless + serpent + ask +
     "\nrank: " + rank + "\ntap to play again", PAL().SAFE);
 }
 
@@ -4296,6 +4388,8 @@ window.__doids = {
     trained, guideReturn,
     // V8 — veteran-opening introspection
     vetIntroSeen, introLen: activeIntro.length,
+    // (owner feedback, July 2026) — the post-completion title flow
+    solaceSeen, titleNudge, endingFirstRun,
     guide: { page: GUIDE.page, pages: GUIDE.pages, footY: GUIDE._footY },
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
@@ -4311,12 +4405,20 @@ window.__doids = {
     codexCardOpen: !!codexCard,
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
+    gravScale, grav: grav(), gravLabel: gravLabel(),   // Z1
+    gravTilt, gravSide: gravSide(),   // owner feature — the crosswind
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
     rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect(),
       help: helpRect(), legend: legendRect(), pauseLegend: pauseLegendRect() },
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     darkAlpha: level && level.darkAlpha, nightFell: level && !!level.nightFell,   // T6
-    gcReports: gc.reports.slice(), cloudNative: cloud.native() }),
+    gcReports: gc.reports.slice(), cloudNative: cloud.native(),
+    ratingReports: rating.reports.slice(), runsPlayed, ratingAskMsg,   // X6
+    // X2/X4/X5 — onboarding-bundle introspection for the guard tests
+    training: runMode === "training", trainingShown: Object.assign({}, trainingShown),
+    coach: { active: state === "coach", text: coachText },
+    currentHint, codex: [...codex],
+    everParried, everScanned, metFake }),
   go: toBriefing,
   // Y1 — the foreground tile-cache invalidation, plus a peek at the current
   // cache sizes so a test can assert the caches drop and then repaint.
@@ -4353,6 +4455,9 @@ window.__doids = {
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),
+  // (owner feedback, July 2026) — the Solace-hull title watermark's gate, so a
+  // test can assert it stays hidden until she's actually been met
+  setSolaceSeen: () => markSolaceSeen(),
   // V13 — the "husks" reveal gate (WORKSHOP shrine): before it, a disguised
   // unit is CORRUPTED not COUNTERFEIT, and there's no clean kill. Exposed so
   // tests can assert both sides without actually visiting the Hollows.
@@ -4364,11 +4469,13 @@ window.__doids = {
   introCaption: () => resolveCaption(activeIntro[Math.min(introIdx, activeIntro.length - 1)]),
   remix: startRemix,
   daily: startDaily,
+  training: startTraining,   // X2
   // M1 regression anchor: seed 0 must always produce today's exact levels
   heightChecksum: () => level.heights.reduce((a, h) => (a * 31 + Math.round(h)) | 0, 0),
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
+  landingGuideVisible,   // owner fix: ASSIST off hides the landing-guide visuals
   logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body
   btnHit: (x, y) => buttonsAt(x, y),              // C1 — touch-button hit test
   give: k => { upgrades[k] = true; },

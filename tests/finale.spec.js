@@ -23,6 +23,16 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   s = await page.evaluate(() => __doids.get());
   expect(s.endingType).toBe("answered");
   expect(s.unresolvedHaunt).toBe(false);   // the Static is heard; the title rests
+  // V17 — the payoff moment: the whole submerged hull lights up the instant
+  // her pulse is actually returned, not just on the ambient 41s-beat tell.
+  // Owner playtest follow-up: the original fix only set sonarT once, and
+  // since nothing decremented it during "epilogue" it sat frozen at exactly
+  // SONAR_DUR — which is puls=0 (fully transparent) the whole scene, so the
+  // hull never actually looked lit. updateEpilogue now ticks it down and
+  // re-arms it, so the sweep plays and repeats through the whole scene.
+  expect(s.level.beacon.sonarT).toBeGreaterThan(0);
+  await page.waitForTimeout(2200);   // past one SONAR_DUR (1.8s) — must have re-armed
+  expect(await page.evaluate(() => level.beacon.sonarT)).toBeGreaterThan(0);
   // the typed line arrives, then a tap advances to the ending card
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
@@ -43,8 +53,15 @@ test("the counterfeit MERCY: docking springs the trap — a full life lost; the 
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 5000 });
   s = await page.evaluate(() => __doids.get());
   expect(s.decoyOutcome).toBe("trapped");
+  // V15 — the reveal now holds as a tap-gated panel; shipDie() (and the life
+  // it costs) only fires once the player dismisses it, not in the same tick
+  expect(s.state).toBe("trapcard");
+  expect(s.lives).toBe(livesBefore);
+  await page.waitForTimeout(450);   // clear the trapcard's stateT > 0.4 tap guard
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "dead", null, { timeout: 3000 });
+  s = await page.evaluate(() => __doids.get());
   // V13 (owner steer) — the trap costs a full life, not a score ding
-  expect(s.state).toBe("dead");
   expect(s.lives).toBe(livesBefore - 1);
   // the real MERCY's bay is untouched by the decoy machinery
   const realBayOk = await page.evaluate(() => {
@@ -54,7 +71,7 @@ test("the counterfeit MERCY: docking springs the trap — a full life lost; the 
   expect(realBayOk).toBe(true);
 });
 
-test("the counterfeit MERCY yields to observation: landed scan powers it down for +800 (Bundle N3)", async ({ page }) => {
+test("the counterfeit MERCY yields to observation: landed scan powers it down for +2000 (Bundle N3)", async ({ page }) => {
   // V13 — the twin's position (and so the ship's midpoint spawn) now varies
   // run to run; go/launch and parking the stranded Scions must land in the
   // SAME evaluate() call, with no round trip between them, or an oid placed
@@ -82,7 +99,7 @@ test("the counterfeit MERCY yields to observation: landed scan powers it down fo
   await page.waitForFunction(() => level.fakeMercy.dead, null, { timeout: 9000 });
   const s = await page.evaluate(() => __doids.get());
   expect(s.decoyOutcome).toBe("observed");
-  expect(s.score).toBe(before + 800);
+  expect(s.score).toBe(before + 2000);   // owner steer: raised from +800
   expect(s.scannedSecret).toBe(true);
   expect(s.firedAtSecret).toBe(false);   // observed, not shot — the oath holds
   // the beacon is still there: both endings remain reachable
@@ -115,7 +132,7 @@ test("V13: three rounds bring the counterfeit MERCY down, not one — a stray sh
   s = await page.evaluate(() => __doids.get());
   expect(s.fakeMercy.dead).toBe(true);
   expect(s.decoyOutcome).toBe("observed");
-  expect(s.score).toBe(before + 800);
+  expect(s.score).toBe(before + 2000);   // owner steer: raised from +800
   expect(s.firedAtSecret).toBe(true);
 });
 
@@ -283,4 +300,154 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
   expect(await page.evaluate(() => __doids.get().endingType)).toBe("fire");
   expect(await page.evaluate(() => __doids.lastRunTally())).toEqual(
     await page.evaluate(() => ({ saved: __doids.get().runSaved, lost: __doids.get().runLost })));
+});
+
+/* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to pulse
+   only AFTER being revealed by a landing within 120px, so hovering beside her gave
+   nothing back at all and the beat had no tell once the hint label was removed. */
+test("the Solace transmits on approach, before she is revealed — but a pre-reveal wash is free and can't answer her", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.setVeteran(); __doids.go(7); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    level.waves = [];
+    // sit parked 200px away: outside the 120px reveal band, inside the 300px
+    // pulse radius. Landed rather than hovering so gravity can't drop the ship
+    // into the reveal (or into a crash) while we wait out ANSWER_GAP.
+    const b = level.beacon;
+    ship.x = b.x - 200; ship.y = groundAt(ship.x) - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;
+  });
+  const d = await page.evaluate(() => Math.hypot(ship.x - level.beacon.x, ship.y - level.beacon.y));
+  expect(d, "parked inside her pulse radius").toBeLessThan(300);
+  expect(await page.evaluate(() => level.beacon.revealed), "too far to have named her").toBeFalsy();
+  // she casts anyway, and the wave is marked pre-reveal
+  await page.waitForFunction(() => (level.waves || []).some(w => w.finale), null, { timeout: 8000 });
+  expect(await page.evaluate(() => level.waves.find(w => w.finale).preReveal)).toBe(true);
+  // letting it wash over costs no vitals (it's a tell, not a punishment)
+  const v0 = await page.evaluate(() => { ship.vitals = 90; return ship.vitals; });
+  await page.evaluate(() => {
+    ship.shield = false; ship.parryT = 0;
+    level.waves = [{ src: level.beacon, ox: level.beacon.x, oy: level.beacon.y - 40,
+      t: WAVE_ARRIVE - 0.01, done: false, hit: false, finale: true, preReveal: true }];
+  });
+  await page.waitForFunction(() => (level.waves[0] || {}).done === true, null, { timeout: 3000 });
+  expect(await page.evaluate(() => ship.vitals), "a pre-reveal wash is free").toBe(v0);
+  // and a lucky pre-reveal parry does NOT resolve her — she isn't named yet
+  await page.evaluate(() => {
+    level.beacon.heardParry = true;
+  });
+  await page.waitForTimeout(120);
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.state, "still flying — a pre-reveal parry can't answer her").toBe("play");
+  expect(await page.evaluate(() => level.beacon.resolved)).toBeFalsy();
+  expect(await page.evaluate(() => level.beacon.heardParry), "discarded, not banked").toBe(false);
+  // land beside her → she gives up her name (the STILL TRANSMITTING card)
+  await page.evaluate(() => { __doids.warpBeacon(); });
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 3000 });
+  expect(await page.evaluate(() => __doids.get().state), "the reveal card holds").toBe("reveal");
+  expect(await page.evaluate(() => __doids.get().revealCard.kicker)).toContain("AMS SOLACE");
+  // dismiss it, and NOW a parry answers her
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 3000 });
+  // her pulses cost full vitals from here — she's named and the card has said
+  // the signal seeks a response
+  expect(await page.evaluate(() => {
+    level.waves = [];
+    return null;
+  })).toBeNull();
+  await page.waitForFunction(() => (level.waves || []).some(w => w.finale), null, { timeout: 8000 });
+  expect(await page.evaluate(() => level.waves.find(w => w.finale).preReveal)).toBe(false);
+  await page.evaluate(() => { level.beacon.heardParry = true; });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 3000 });
+  expect(await page.evaluate(() => __doids.get().endingType)).toBe("answered");
+});
+
+/* (owner feedback, July 2026) — the post-completion flow. A FIRST completion
+   still flows straight on from the win screen (that tap is what plays the
+   once-only VET_INTRO); a REPEAT completion goes home to the title with the
+   rotation nudge, instead of silently launching sector 1 of another campaign. */
+test("a repeat completion returns to the title with the rotation nudge, not straight into a new campaign", async ({ page }) => {
+  // already a veteran (and the veteran opening already seen) before this run —
+  // exactly the state the owner was in when the flow dumped them into sector 1
+  await page.evaluate(() => {
+    localStorage.setItem("doids_veteran", "1");
+    localStorage.setItem("doids_vetintro", "1");
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  expect((await page.evaluate(() => __doids.get())).vetIntroSeen).toBe(true);
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  // this run was NOT the first completion
+  expect((await page.evaluate(() => __doids.get())).endingFirstRun).toBe(false);
+  await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 3000 });
+  await page.waitForTimeout(1100);   // the ending's stateT > 1 guard
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "win", null, { timeout: 3000 });
+  await page.waitForTimeout(700);    // the win screen's stateT > 0.6 tap guard
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "title", null, { timeout: 3000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.titleNudge, "the title carries the REMIX/DAILY nudge").toBe(true);
+  expect(s.levelIdx, "no new campaign was launched behind the title").not.toBe(0);
+  // and the nudge is spent the moment a rotation actually starts
+  await page.evaluate(() => __doids.remix(7));
+  expect((await page.evaluate(() => __doids.get())).titleNudge).toBe(false);
+});
+
+test("a first completion still flows straight on from the win screen into the veteran opening", async ({ page }) => {
+  // a clean save: not a veteran, so this completion IS the first one
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.warpBeacon(); __doids.answerBeacon(); });
+  await page.waitForFunction(() => __doids.get().state === "epilogue", null, { timeout: 9000 });
+  expect((await page.evaluate(() => __doids.get())).endingFirstRun).toBe(true);
+  await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "ending", null, { timeout: 3000 });
+  await page.waitForTimeout(1100);
+  await page.evaluate(() => { input.tap = true; });
+  await page.waitForFunction(() => __doids.get().state === "win", null, { timeout: 3000 });
+  await page.waitForTimeout(700);
+  await page.evaluate(() => { input.tap = true; });
+  // V8's once-only veteran opening, not the title
+  await page.waitForFunction(() => __doids.get().state === "intro", null, { timeout: 3000 });
+  expect((await page.evaluate(() => __doids.get())).titleNudge).toBe(false);
+});
+
+test("the Solace's hull only watermarks the title once she has actually been met", async ({ page }) => {
+  // a veteran who never reached her (an unresolved run) must not have the
+  // finale's biggest reveal spoiled on the menu
+  await page.evaluate(() => { __doids.setVeteran(); state = "title"; });
+  expect((await page.evaluate(() => __doids.get())).solaceSeen).toBe(false);
+  // resolving her (either way) is what lights it, and it survives a reload
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); __doids.fireSolace(); });
+  expect((await page.evaluate(() => __doids.get())).solaceSeen).toBe(true);
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  expect((await page.evaluate(() => __doids.get())).solaceSeen).toBe(true);
+  // ...and a full RESET PROGRESS takes it back off, along with the stale
+  // veteran-intro recap tally
+  await page.evaluate(() => { resetProgress(); });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.solaceSeen).toBe(false);
+  expect(s.veteran).toBe(false);
+  expect(await page.evaluate(() => __doids.lastRunTally())).toEqual({ saved: 0, lost: 0 });
+});
+
+test("V16: shooting the Solace takes a beside-her turret down with the crater", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(7); __doids.launch();
+    level.drones.forEach(d => d.alive = false);
+    // plant one turret well inside the crater radius (240), the rest well clear
+    level.turrets.forEach(t => t.alive = false);
+    level.turrets.push({ x: level.beacon.x + 60, y: level.beacon.y, cd: 99, alive: true, ang: 0, _mine: true });
+  });
+  await page.evaluate(() => __doids.fireSolace());
+  await page.waitForFunction(() => __doids.get().state === "destruct", null, { timeout: 3000 });
+  // before the boom, a turret inside the eventual crater is still standing
+  expect(await page.evaluate(() => level.turrets.find(t => t._mine).alive)).toBe(true);
+  await page.waitForTimeout(3200);   // SOL_BOOM (2.7s) — the crater carve fires
+  expect(await page.evaluate(() => level.turrets.find(t => t._mine).alive), "left hanging over the crater").toBe(false);
 });
