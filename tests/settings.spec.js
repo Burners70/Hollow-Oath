@@ -175,6 +175,42 @@ test("REDUCED FLASH persists and RESET PROGRESS double-tap wipes progress but ke
   expect(s.reducedFlash).toBe(true);
 });
 
+/* (owner feedback, July 2026 — "the reset didn't fully clear") — SETTINGS is
+   reachable from the pause menu, so a wipe can be triggered mid-flight. It used
+   to clear every save and flag but leave the run itself running, and tapping out
+   of settings returned you to that same pause screen: you resumed a run
+   belonging to the save you had just deleted, still carrying the veteran-only
+   Glycon layer that was baked in at genLevel time. */
+test("RESET PROGRESS mid-run takes the live run with it, not just the saves", async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem("doids_veteran", "1");
+    localStorage.setItem("doids_hi", "9999");
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__doids !== undefined);
+  // fly the veteran finale, bank some score, then pause
+  await page.evaluate(() => { __doids.go(7); __doids.launch(); score = 4321; });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.veteran).toBe(true);
+  expect(s.levelIdx).toBe(7);
+  expect(s.fakeMercy, "the veteran-only twin is baked into this sector").toBeTruthy();
+  // wipe from the pause path
+  await page.evaluate(() => { state = "settings"; settingsReturnState = "pause"; stateT = 1; resetProgress(); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.state, "a wipe lands on a boot-fresh title, not back on the pause screen").toBe("title");
+  expect(s.levelIdx).toBe(0);
+  expect(s.score).toBe(0);
+  expect(s.veteran).toBe(false);
+  expect(s.hasSave).toBe(false);
+  expect(s.fakeMercy, "sector 0 of a non-veteran save has no Glycon layer").toBeFalsy();
+  // and the run really is gone — no stale pause to fall back into
+  expect(await page.evaluate(() => __doids.get().paused)).toBe(false);
+  expect(await page.evaluate(() => settingsReturnState)).toBe("title");
+  // one frame must render the fresh title without throwing
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => __doids.frameErrors)).toBe(0);
+});
+
 test("settings rows fit inside a 320-high landscape viewport", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 568, height: 320 } });
   const page = await ctx.newPage();

@@ -88,7 +88,7 @@ function render() {
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
-      state === "pause" || state === "confirm") drawHUD(now);
+      state === "pause" || state === "confirm" || state === "trapcard") drawHUD(now);
 
   if (state === "title") drawTitle(now);
   if (state === "fork") drawFork(now);
@@ -97,6 +97,7 @@ function render() {
   if (state === "legend") drawHudGuide(now);
   if (state === "codex") drawCodex(now);
   if (state === "reveal" && revealCard) drawCardPanel(revealCard, now);
+  if (state === "trapcard" && trapCard) drawCardPanel(trapCard, now);   // V15
   if (state === "clear") drawClear(now);
   if (state === "pause") drawPause(now);
   if (state === "confirm") drawConfirm(now);
@@ -1191,6 +1192,13 @@ function drawSpire(sc, now) {
 function drawDune(sc, now) {
   ctx.save();
   ctx.translate(sc.x, sc.y);
+  // V20 — every other wide ground-anchored decoration (drawHedge, drawSpire,
+  // drawRuin…) rotates to the local ground tilt; this one didn't, so a dune's
+  // flat base held level in screen space regardless of slope — on a sloped
+  // patch it visibly floated clear of the ground on one side and dug into it
+  // on the other, reading as "spilling past its own terrain." Same damping as
+  // drawHedge's organic mound (0.4) rather than the sharper spire/ruin rotate.
+  ctx.rotate(sc.tilt * 0.4);
   const w = sc.dw;
   ctx.beginPath();
   ctx.moveTo(-w / 2, 0);
@@ -2321,17 +2329,14 @@ function drawDecoyMercy(now) {
   }
 }
 
-// AMS SOLACE's full drowned hull — a big broken lozenge under the ridge line.
-// Shared by the V3 sonar reveal and the bad-ending destruction reveal so both
-// draw the SAME ship. Centred on the beacon origin; caller fills/strokes.
-const SOLACE_HULL = [[-150, 4], [-96, -30], [-40, -46], [40, -50], [120, -34], [168, 6],
-                     [150, 70], [70, 150], [-20, 190], [-110, 150], [-160, 64]];
-function solaceHullPath() {
-  ctx.beginPath();
-  ctx.moveTo(SOLACE_HULL[0][0], SOLACE_HULL[0][1]);
-  for (let i = 1; i < SOLACE_HULL.length; i++) ctx.lineTo(SOLACE_HULL[i][0], SOLACE_HULL[i][1]);
-  ctx.closePath();
-}
+// owner bug fix (July 2026) — the V3 sonar reveal and the bad-ending
+// destruction reveal were supposed to draw the SAME ship (per the comment
+// that used to sit here) but didn't: the sonar sweep drew this file's own
+// SOLACE_HULL point array — an unrelated, asymmetric blob nothing like her
+// actual silhouette — while drawSolaceDeath drew the real one
+// (solaceMercyPath, below). Retired the stray shape; both now share
+// solaceMercyPath and this one transform, so they can't drift apart again.
+const SOLACE_MS = 1.3, SOLACE_HY = 28;   // scale + offset: tower peak lands at world y≈-50
 
 /* AMS SOLACE's own silhouette — the SAME MERCY-class family (dorsal command
    tower rising out of a lozenge hull, with the signature mast), but a sister,
@@ -2363,7 +2368,7 @@ function solaceMercyPath() {
    Respects reducedFlash. */
 function drawSolaceDeath(b, now) {
   const t = b.death || 0;
-  const MS = 1.3, HY = 28;                       // scale + offset: tower peak lands at world y≈-50
+  const MS = SOLACE_MS, HY = SOLACE_HY;
   const topY = -112, botY = 72;                  // antenna tip → below the buried belly
   const revP = clamp((t - SOL_IGNITE) / (SOL_REVEAL - SOL_IGNITE), 0, 1);
   const front = topY + (botY - topY) * revP;     // the descending heat front
@@ -2469,15 +2474,21 @@ function drawBeacon(now) {
     const sweepR = 30 + p * 340;
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -20, sweepR, 0, 7); ctx.clip();
-    solaceHullPath();
-    const g = ctx.createLinearGradient(0, -50, 0, 190);
+    // owner bug fix — draw the SAME hull the destruction reveal does
+    // (solaceMercyPath, shared SOLACE_MS/SOLACE_HY transform), not the
+    // stray, unrelated shape this used to draw
+    ctx.save();
+    ctx.translate(0, SOLACE_HY); ctx.scale(SOLACE_MS, SOLACE_MS);
+    solaceMercyPath();
+    const g = ctx.createLinearGradient(0, -60, 0, 26);
     g.addColorStop(0, "rgba(155,234,249," + (0.8 * puls).toFixed(2) + ")");
     g.addColorStop(0.35, "rgba(0,229,255," + (0.5 * puls).toFixed(2) + ")");
     g.addColorStop(1, "rgba(0,229,255," + (0.12 * puls).toFixed(2) + ")");   // submerged = dull
-    ctx.strokeStyle = g; ctx.lineWidth = 2;
-    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls;
+    ctx.strokeStyle = g; ctx.lineWidth = 2 / SOLACE_MS;
+    ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = (reducedFlash ? 3 : 8) * puls / SOLACE_MS;
     ctx.fillStyle = "rgba(0,60,90," + (0.16 * puls).toFixed(2) + ")"; ctx.fill();
     ctx.stroke();
+    ctx.restore();
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = puls * 0.55;
@@ -2531,28 +2542,18 @@ function drawBeacon(now) {
     ctx.fillText("A M S · S O L A C E", 0, 26);
     ctx.shadowBlur = 0;
   }
-  if (!b.resolved) {
-    if (b.revealed) {
-      // owner steer — once examined, just her name, quietly. The clue card and
-      // her own pulse do the teaching; no on-screen "parry" instruction.
-      ctx.font = mono(10); ctx.textAlign = "center";
-      if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "rgba(155,234,249,.6)";
-      ctx.fillText("A M S · S O L A C E", 0, -128);
-      ctx.shadowBlur = 0;
-    } else {
-      // V4 — the legible pre-scan signal-source label on its dark plate
-      const lp = bodyFontPx(10);
-      ctx.font = mono(lp); ctx.textAlign = "center";
-      const txt = "THE SIGNAL SOURCE — land beside it, or open fire";
-      const tw = ctx.measureText(txt).width, ly = -128;
-      ctx.fillStyle = "rgba(6,4,16,.72)";
-      ctx.fillRect(-tw / 2 - 8, ly - lp, tw + 16, lp + 8);
-      if (!reducedFlash) { ctx.shadowColor = TOK.VIOLET; ctx.shadowBlur = 6; }
-      ctx.fillStyle = "#d9ccff";
-      ctx.fillText(txt, 0, ly);
-      ctx.shadowBlur = 0;
-    }
+  if (!b.resolved && b.revealed) {
+    // owner steer — once examined, just her name, quietly. The clue card and
+    // her own pulse do the teaching; no on-screen "parry" instruction.
+    // Owner follow-up: the pre-reveal "land beside it, or open fire" label
+    // is gone entirely — too much of a handhold; every other secret in the
+    // game (a lure-tree, a shrine) gives you nothing until you've actually
+    // examined it, and the signal source should read the same way.
+    ctx.font = mono(10); ctx.textAlign = "center";
+    if (!reducedFlash) { ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 6; }
+    ctx.fillStyle = "rgba(155,234,249,.6)";
+    ctx.fillText("A M S · S O L A C E", 0, -128);
+    ctx.shadowBlur = 0;
   }
   ctx.restore();
 }
@@ -2891,6 +2892,24 @@ function drawTitle(now) {
   ctx.fillRect(0, 0, vw, vh);
   ctx.textAlign = "center";
   const pulse = 0.7 + 0.3 * Math.sin(now * 2);
+  // (owner feedback, July 2026) — once the Solace has actually been found
+  // (solaceSeen, set only by resolveBeacon), her hull sits under the wordmark:
+  // an outline-only ghost, drawn BEFORE the title text so the wordmark's own
+  // fill and glow stay fully legible over it. Deliberately a watermark rather
+  // than a framed illustration — it can't collide with the corner pills on a
+  // narrow phone, and it reads as the thing still down there rather than a
+  // trophy. Breathes on the same slow pulse as the wordmark.
+  if (solaceSeen) {
+    ctx.save();
+    ctx.translate(vw / 2, vh * 0.30);
+    const hs = Math.min(1, vw * 0.7 / 304);   // solaceMercyPath spans 304 wide
+    ctx.scale(hs, hs);
+    solaceMercyPath();
+    ctx.strokeStyle = shade(TOK.CYAN, .18 + .07 * pulse);
+    ctx.lineWidth = 2 / hs;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 30 * pulse;
   ctx.fillStyle = TOK.CYAN_INK;
   // narrow screens shrink the wordmark so it clears the corner pills
@@ -2985,6 +3004,22 @@ function drawTitle(now) {
     ctx.font = mono(13);
     ctx.fillStyle = TOK.GOLD;
     ctx.fillText("▶ RESUME — " + SECTOR_NAMES[savedRun.levelIdx], rr.x + rr.w / 2, rr.y + 22);
+    ctx.shadowBlur = 0;
+  }
+
+  // (owner feedback, July 2026) — the one-off nudge shown when a REPEAT
+  // completion has just sent the player home here (titleNudge, cleared by
+  // resetRun). Points at the REMIX/DAILY pills, which are the actual loop once
+  // the campaign is done. Positioned in the gap between the START stack and the
+  // bottom pill row and auto-fitted, so it can't crowd either on a short phone.
+  if (titleNudge && veteran) {
+    const gapTop = startRect().y + startRect().h, gapBot = remixRect().y;
+    const nudge = "the sector still turns — try a REMIX ROTATION or the DAILY FLIGHT below";
+    let nf = 12;
+    ctx.font = mono(nf, 600);
+    while (nf > 8 && ctx.measureText(nudge).width > vw - 32) { nf -= 1; ctx.font = mono(nf, 600); }
+    ctx.fillStyle = shade(TOK.GOLD, .8); ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 8;
+    ctx.fillText(nudge, vw / 2, (gapTop + gapBot) / 2 + nf / 2);
     ctx.shadowBlur = 0;
   }
 
@@ -4191,7 +4226,7 @@ function drawEnding(now) {
     color = TOK.CYAN_INK;
     body = "You landed beside it and listened.\n\nThe source was the top of a ship — AMS SOLACE, MERCY's sister, lost with all hands, her distress call looping on their shared frequency for years. Every Scion that answered it honestly was rewritten by the echo.\n\nSo you answered it properly: you matched her own rhythm and sent it back — the one acknowledgement her signal had spent years repeating to hear. Told that she was heard, she could finally stop.\n\nThe Static faded like a fever breaking.\n\n+6000" + (runFired === 0 ? "  ·  OATH KEPT +2000" : "");
     if (runFired === 0) body += "\n\nThe oath, kept whole.";
-    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou found what he hid. It cost you the oath to do it.";
+    else if (firedAtSecret && !firedAtCombat) body += "\n\nYou defeated his ultimate lie.\nBut it cost your oath to do it.";
   } else if (endingType === "fire") {
     title = "SILENCE BY FIRE";
     color = PAL().WARN;
@@ -4300,6 +4335,8 @@ window.__doids = {
     trained, guideReturn,
     // V8 — veteran-opening introspection
     vetIntroSeen, introLen: activeIntro.length,
+    // (owner feedback, July 2026) — the post-completion title flow
+    solaceSeen, titleNudge, endingFirstRun,
     guide: { page: GUIDE.page, pages: GUIDE.pages, footY: GUIDE._footY },
     hasSave: !!savedRun, paused: state === "pause",
     sound, music, haptics, assist, tilt, colorblind, easyMode, bigText, reducedFlash,
@@ -4359,6 +4396,9 @@ window.__doids = {
   // the Glycon layer (Hollows lifts, shrines, counterfeit MERCY, logs 11–14) is
   // sealed until a run is finished — flip veteran on so a test can reach it
   setVeteran: () => markVeteran(),
+  // (owner feedback, July 2026) — the Solace-hull title watermark's gate, so a
+  // test can assert it stays hidden until she's actually been met
+  setSolaceSeen: () => markSolaceSeen(),
   // V13 — the "husks" reveal gate (WORKSHOP shrine): before it, a disguised
   // unit is CORRUPTED not COUNTERFEIT, and there's no clean kill. Exposed so
   // tests can assert both sides without actually visiting the Hollows.

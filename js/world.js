@@ -248,6 +248,7 @@ let pendingBreach = null;   // a sleeper has slipped into MERCY; the alarm is ar
 let endingType = null;
 let endingFirstRun = false;   // was the Glycon layer still sealed this run? (drives the replay tease)
 let clearCards = [], revealCard = null;
+let trapCard = null;   // V15 — the decoy-trap reveal, held until dismissed
 let confirmCard = null;            // S4 — a two-choice confirm (early extraction)
 let leftBehindNote = null;         // S4 — grim next-briefing line after a triage retreat
 let briefChars = 0;
@@ -461,6 +462,26 @@ function markVeteran() {
   try { localStorage.setItem("doids_veteran", "1"); } catch (e) {}
   cloud.set("doids_veteran", "1");   // E4 mirror
 }
+/* (owner feedback, July 2026) — has this pilot actually MET the Solace? Set only
+   by resolveBeacon (answered or fire), i.e. only once she's been found and dealt
+   with. Deliberately NOT set by the "unresolved" ending: that one fires when the
+   blackbox count never reached TRIANGULATE_N, so the player never entered the
+   finale sector and never saw her — and this repo's rule is that a secret gives
+   nothing away until it's actually been examined (same reason the pre-reveal
+   "THE SIGNAL SOURCE" label came off the beacon). Gates her hull on the title. */
+let solaceSeen = false;
+try { solaceSeen = localStorage.getItem("doids_solace") === "1"; } catch (e) {}
+function markSolaceSeen() {
+  solaceSeen = true;
+  try { localStorage.setItem("doids_solace", "1"); } catch (e) {}
+  cloud.set("doids_solace", "1");   // E4 mirror
+}
+/* (owner feedback, July 2026) — transient, not persisted: a REPEAT completion
+   (a run that was already a veteran run) now lands back on the title instead of
+   launching straight into another full campaign, and the title carries a one-off
+   nudge toward the rotations. Cleared by resetRun, so it shows until the player
+   actually starts something. */
+let titleNudge = false;
 // V13 — the veteran-intro recap ("SOMETHING DOESN'T SIT RIGHT") needs to know
 // whether the finished campaign actually brought everyone home, so its line
 // isn't a blanket claim when it often wasn't. Snapshotted once, at the ending
@@ -485,9 +506,10 @@ function saveLastRunTally() {
 async function syncFromCloud() {
   if (!cloud.native()) return;
   try {
-    const [cHi, cCodex, cLogs, cShrines, cVet, cRun] = await Promise.all([
+    const [cHi, cCodex, cLogs, cShrines, cVet, cRun, cSol] = await Promise.all([
       cloud.get("doids_hi"), cloud.get("doids_codex"), cloud.get("doids_logs"),
-      cloud.get("doids_shrines_seen"), cloud.get("doids_veteran"), cloud.get("doids_run")]);
+      cloud.get("doids_shrines_seen"), cloud.get("doids_veteran"), cloud.get("doids_run"),
+      cloud.get("doids_solace")]);
     if (cHi && +cHi > hiscore) {
       hiscore = +cHi;
       try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
@@ -504,6 +526,7 @@ async function syncFromCloud() {
     union(logsSeen, cLogs, saveLogs);
     union(shrinesSeen, cShrines, saveShrinesSeen);
     if (cVet === "1" && !veteran) markVeteran();
+    if (cSol === "1" && !solaceSeen) markSolaceSeen();
     if (cRun && !savedRun) {
       try {
         const parsed = JSON.parse(cRun);
@@ -566,8 +589,9 @@ function rollDailyMods() {
 }
 const dailyMod = id => dailyMods.some(m => m.id === id);
 
-// an optional explicit seed makes a REMIX generation (and now its gravity
-// roll, Z1) reproducible from a test instead of a one-shot Math.random() roll
+// V14 — an optional explicit seed makes a failing REMIX generation (and, since
+// Z1, its gravity roll) reproducible from a test instead of a one-shot
+// Math.random() roll.
 function startRemix(seed) {
   goFullscreen();
   if (window.hideA2HS) window.hideA2HS();
@@ -1166,31 +1190,42 @@ function genLevel(n) {
   // lower edge, so the pad itself always yields a valid touchdown.
   const scannableOid = o => o.role === "normal" || o.role === "saboteur" || o.role === "famous";
   const PAD_CAP = 122;
-  for (let pass = 0; pass < 3; pass++) {
-    let changed = false;
-    for (const o of lvl.oids) {
-      if (!scannableOid(o)) continue;
-      let hw = 80;
-      while (hw < PAD_CAP && !scanSpotOK(heights, W, o.x)) {
-        hw = Math.min(hw + 14, PAD_CAP); flatten(heights, o.x, hw); changed = true;
+  // V14 — pulled into a function so it can run a SECOND time, after the
+  // lift-flat reassert below: that block's own scanSpotOK-driven repair
+  // (flattenTo for whichever Scion the lift's re-flatten disturbed) was found
+  // to occasionally carve its replacement shelf on top of a THIRD, unrelated
+  // Scion's already-fair band elsewhere in the level — a domino this pass
+  // never re-checked for. Idempotent (a no-op once every Scion is already
+  // fair), so calling it twice is free on every seed where nothing dominoes.
+  function enforceScanFairness() {
+    for (let pass = 0; pass < 3; pass++) {
+      let changed = false;
+      for (const o of lvl.oids) {
+        if (!scannableOid(o)) continue;
+        let hw = 80;
+        while (hw < PAD_CAP && !scanSpotOK(heights, W, o.x)) {
+          hw = Math.min(hw + 14, PAD_CAP); flatten(heights, o.x, hw); changed = true;
+        }
       }
+      if (!changed) break;
     }
-    if (!changed) break;
+    // Last resort for the rare crowded map where pick() had to place two
+    // Scions closer than 260 and their pads still can't both hold: carve a
+    // small landing shelf at the Scion's own height, on the side away from
+    // its nearest scannable neighbour (so two such shelves point apart and
+    // never collide).
+    for (const o of lvl.oids) {
+      if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
+      let nearest = Infinity, dir = 1;
+      for (const q of lvl.oids)
+        if (q !== o && scannableOid(q) && Math.abs(q.x - o.x) < nearest) {
+          nearest = Math.abs(q.x - o.x); dir = q.x >= o.x ? -1 : 1;
+        }
+      const sx = clamp(o.x + dir * 140, 60, W - 60);
+      flattenTo(heights, sx, 26, groundOf(heights, o.x));
+    }
   }
-  // Last resort for the rare crowded map where pick() had to place two Scions
-  // closer than 260 and their pads still can't both hold: carve a small landing
-  // shelf at the Scion's own height, on the side away from its nearest
-  // scannable neighbour (so two such shelves point apart and never collide).
-  for (const o of lvl.oids) {
-    if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
-    let nearest = Infinity, dir = 1;
-    for (const q of lvl.oids)
-      if (q !== o && scannableOid(q) && Math.abs(q.x - o.x) < nearest) {
-        nearest = Math.abs(q.x - o.x); dir = q.x >= o.x ? -1 : 1;
-      }
-    const sx = clamp(o.x + dir * 140, 60, W - 60);
-    flattenTo(heights, sx, 26, groundOf(heights, o.x));
-  }
+  enforceScanFairness();
   // re-seat ground-anchored entities in case a widened pad moved the ground
   // under them (turrets are re-seated with the scenery pass below)
   for (const o of lvl.oids) o.y = groundOf(heights, o.x);
@@ -1229,6 +1264,33 @@ function genLevel(n) {
     } else {
       lvl.liftPad.y = groundOf(heights, lx);
       if (lvl.lift) lvl.lift.y = groundOf(heights, lx);
+    }
+  }
+  // V14 — the final word: re-verify the whole invariant once more now that
+  // nothing else downstream can move the heightmap (scenery never calls
+  // flatten). Catches the domino case above and any other interaction between
+  // the passes above it, regardless of which one caused it.
+  enforceScanFairness();
+  // V14 — the rare residual: two scannable neighbours ~260px apart (pick()'s
+  // own minimum) can nick each other's checked BAND even though their pads
+  // never overlap (the band reaches out to ~195px, further than either pad's
+  // ~122px cap) — an oscillation the 3-pass loop above can converge out of
+  // for either one alone, but not for a mutual back-and-forth between two. No
+  // more geometry: carve a shelf at the first still-untried distance inside
+  // the actual checked band and CONFIRM it worked before moving on, instead
+  // of predicting a position and hoping. Vanishingly rare to even reach this
+  // point (measured 1/28000 generated sectors before this pass existed).
+  for (const o of lvl.oids) {
+    if (!scannableOid(o) || scanSpotOK(heights, W, o.x)) continue;
+    const LO = 15 + SCAN_CREEP * SCION_SCAN_T + 7, HI = SCION_SCAN_RANGE - 5;
+    for (const side of [-1, 1]) {
+      for (let d = LO; d <= HI; d += 3) {
+        const x = o.x + side * d;
+        if (x < 70 || x > W - 70) continue;
+        flattenTo(heights, x, 30, groundOf(heights, o.x));
+        if (scanSpotOK(heights, W, o.x)) break;
+      }
+      if (scanSpotOK(heights, W, o.x)) break;
     }
   }
 
@@ -1489,11 +1551,12 @@ function resetRun() {
   firedAtSecret = false; firedAtCombat = false; scannedSecret = false;
   runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
-  clearCards = []; revealCard = null; confirmCard = null; leftBehindNote = null; surfaceCtx = null;
+  clearCards = []; revealCard = null; trapCard = null; confirmCard = null; leftBehindNote = null; surfaceCtx = null;
   checkpoint = null;
   runSeed = 0; runMode = "campaign"; famousMap = null;
   gravScale = 1;    // Z1 — campaign always plays at 1x, regardless of the last roll
   runRefuels = 0;   // U2 — the diminishing field-resupply allowance resets each run
+  titleNudge = false;   // the post-completion rotation nudge is spent once a run starts
   rollDailyMods();
   clearRun();
 }

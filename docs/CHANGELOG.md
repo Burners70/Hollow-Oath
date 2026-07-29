@@ -17,6 +17,7 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
 - [Bundle Z — REMIX variable gravity](#bundle-z--remix-variable-gravity) — a per-sector gravity scale and crosswind, plus the landing-fairness re-tune both required
+- [Bundle V — fairness fixes and owner-playtest defects](#bundle-v--fairness-fixes-and-owner-playtest-defects) — the V14 REMIX scan-fairness domino, V15's tap-gated trap reveal, V16–V20's smaller playtest fixes
 
 **Design system & accessibility**
 - [Bundle DS — the design system made enforceable, and colourblind mode made real](#bundle-ds--the-design-system-made-enforceable-and-colourblind-mode-made-real) — token layer, 130 hardcoded semantic colours routed through `PAL()`, the flight controls made swappable
@@ -112,6 +113,116 @@ orientation and the HUD for those sectors — closer to a new game mode).
 
 New Z3 smoke test covers the tilt roll's determinism/bounds, that it
 actually pushes the ship, and the widened drift tolerance. Full suite green.
+## Bundle V — fairness fixes and owner-playtest defects
+
+**Release:** 1.01
+
+Closes out Bundle V's remaining open items: a real generation-fairness bug
+(V14), a story-climax reveal that used to race the death screen (V15), and
+five smaller owner-playtest defects (V16–V20). V11 was an owner decision
+(resolved: leave the decoy MERCY as a deep secret, no code change) and V12's
+checkbox was stale (its sub-items had already shipped).
+
+- **V14 — the V2 scan-landing fairness invariant now holds across the whole
+  REMIX seed space**, not just the deterministic campaign. `startRemix(seed)`
+  takes an optional explicit seed (`__doids.remix(seed)`), so a failure is
+  reproducible instead of a one-shot. A brute-force sweep (30,000 seeds × 7
+  sectors) found two real domino effects the original single-pass fix never
+  re-checked for — the lift-flat reassert's own repair overwriting a third,
+  unrelated Scion's already-fair band, and a mutual ping-pong between two
+  neighbours whose pads never overlap but whose checked scan-bands do. Fixed
+  by re-running the fairness pass a second time after the lift reassert, plus
+  a final verify-as-you-go backstop. M1 golden checksum unchanged.
+- **V15 — the counterfeit MERCY's trap is a held beat, not a banner that
+  raced the death screen.** A new `swallow()` SFX (a lower, wetter
+  `hydraulic()`) fires the instant the trap closes; a tap-gated panel then
+  holds until dismissed, and only then does the ship go down.
+- **V16 — a turret beside the Solace no longer floats over her crater** once
+  the ridge collapses; it goes down with the blast.
+- **V17 — answering the Solace's pulse re-lights her whole hull**, the same
+  reveal the ambient 41-second tell gives, instead of only spawning
+  particles.
+  **Owner playtest follow-up:** the fix only set `sonarT` once in
+  `resolveBeacon`, and nothing decremented it during the "epilogue" state —
+  so it sat frozen at exactly `SONAR_DUR`, which is the sweep animation's
+  `puls = 0` (fully transparent) for the whole 6.5s scene. The hull never
+  actually looked lit. `updateEpilogue` now ticks it down and re-arms it, so
+  the sweep plays and repeats through the whole scene, not just a
+  never-visible freeze-frame.
+- **V18 — the first field resupply gets a one-time acknowledgement** ("You're
+  not alone. Help is on the way. But there is a price."), instead of a drone
+  appearing with no context.
+- **V19 — the occasional landing spin is gone.** `s.ang` could sit several
+  full turns past zero after a long flight; a new `normAngle()` helper
+  normalizes it to `(-π, π]` before the assist ease, instead of visibly
+  spinning through every accumulated turn.
+- **V20 — Avicenna's dunes no longer spill past their own terrain on a
+  slope.** Every other wide ground-anchored decoration rotates to the local
+  ground tilt; `drawDune` was the one that didn't.
+
+Copy for V15/V18 mirrored in [COPY_DECK.md](COPY_DECK.md). Five new/updated
+smoke tests; full suite green.
+
+### Owner playtest round 2
+
+A second live round on the same branch. Earlier items in this round (the
+pre-reveal Solace hint removed, the sonar hull-shape bug, the COUNTERFEIT TIME
+card, the veteran ending line) are described in the commits; this entry covers
+the post-completion flow.
+
+- **A repeat completion goes home to the title, not into another campaign.**
+  Finishing a run that was *already* a veteran run used to tap straight through
+  the win screen into `startFreshRun()` — and because `vetIntroSeen` was set,
+  that meant no menu and no acknowledgement, just sector 1 of a fresh campaign.
+  A **first** completion still flows on unbroken (that tap is what plays V8's
+  once-only VET_INTRO); a repeat now lands on the title with a one-off gold
+  nudge toward the rotations, which are the actual loop once the campaign is
+  done. `endingFirstRun` is now also stamped on the "unresolved" ending path,
+  where it previously kept a stale value from a previous run.
+- **AMS Solace's hull watermarks the title** — an outline-only ghost under the
+  wordmark, drawn from the same `solaceMercyPath()` the destruction reveal and
+  the bad-ending card use. Gated on a new persisted `solaceSeen`
+  (`doids_solace`), set only by `resolveBeacon` — so a player who never reached
+  her doesn't get the finale's biggest reveal spoiled on the menu. Deliberately
+  *not* set by the "unresolved" ending, which fires before the finale sector is
+  ever entered.
+- **Two save-wipe gaps closed.** `RESET PROGRESS` now also clears
+  `doids_solace` and `doids_lastrun_tally`; the latter meant a freshly-reset
+  save could still be told it "brought them all home" by the VET_INTRO recap,
+  on the strength of a run that no longer existed.
+- **A wipe now takes the live run with it** (owner: "the reset didn't fully
+  clear"). SETTINGS is reachable from the pause menu, so `RESET PROGRESS` can be
+  triggered mid-flight — and it cleared every save and flag while leaving the run
+  itself completely untouched, then tapping out of settings returned you to that
+  same pause screen. You resumed a run belonging to the save you had just
+  deleted, still carrying the veteran-only Glycon layer, because the counterfeit
+  MERCY twin and the Hollows lift are gated on `veteran` at `genLevel` time and
+  the sector had been generated before the wipe. `resetProgress()` now rebuilds
+  boot-fresh state (`resetRun`, `genLevel(0)`, `spawnShip`, camera/particles) and
+  lands on the title, which also makes the wipe visible: hi score 0, empty codex,
+  no REMIX/DAILY pills.
+
+- **The Solace transmits on approach** (owner: "the beacon wouldn't respond").
+  She used to pulse only once `revealed` — and `revealed` requires you *landed*
+  within 120px of her. Until then she was completely inert: you could hover right
+  beside her, well inside the 300px `ANSWER_RANGE`, and get nothing back at all.
+  The pre-reveal "land beside it, or open fire" label removed earlier in this same
+  round was the only thing carrying that requirement, so the beat was left with no
+  tell whatsoever. She now casts her looping distress wave as soon as you are near,
+  revealed or not — she *is* "still transmitting", and that is the clue, wordlessly.
+  Landing still names her; only a post-reveal parry answers her (a lucky early
+  parry is discarded rather than banked). A **pre-reveal wash costs no vitals** —
+  being docked 12 vitals every 4.5s for approaching a mystery you haven't been told
+  how to answer would just relocate the unfairness — but it keeps the surge, shake
+  and flash. Full stakes resume once she's named.
+
+Owner decision, no code change: arriving at the finale with no fuel makes the
+Solace unanswerable (the shield, and so the parry, needs `fuel > 0`) while her
+pulses keep draining vitals. Reviewed and **left as-is** — flying in dry is a
+planning failure and losing the run to it is fair.
+
+Five new smoke tests (both routing branches, the hull gate, the mid-run wipe, and
+the pre-reveal pulse); full suite green at 101.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 
