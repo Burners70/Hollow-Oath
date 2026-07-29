@@ -298,11 +298,22 @@ test("X2a/X4: the trainee sector opens with a guided-pause card; sustained thrus
 test("X6: a new high score requests the native rating prompt", async ({ page }) => {
   await page.evaluate(() => { __doids.go(0); __doids.launch(); });
   await page.evaluate(() => { hiscore = 0; score = 500; saveHi(); });
-  // owner refinement (X6) — the ask is a custom banner shown first, then the
-  // native prompt a beat later (Apple's own dialog text can't be customized).
+  // owner refinement (X6) — on native, the custom banner shows first, then
+  // the real prompt a beat later (Apple's own dialog text can't be
+  // customized). The web build (this test) is never native, so the request
+  // still records to the trace immediately, with no banner line.
   await page.waitForFunction(
     () => __doids.get().ratingReports.some(r => r.reason === "hiscore"),
     null, { timeout: 3000 });
+});
+
+test("owner follow-up: no standalone banner line on a non-native build — it reads as a needy non sequitur with no prompt to follow", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  await page.evaluate(() => { hiscore = 0; score = 500; saveHi(); });
+  await page.waitForTimeout(2200);   // past the native-path 1800ms delay, if any
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.ratingAskMsg).toBeFalsy();
+  expect(s.ratingReports.some(r => r.reason === "hiscore")).toBe(true);
 });
 
 test("X6 (owner refinement): the 5th completed run requests a milestone rating prompt", async ({ page }) => {

@@ -699,9 +699,18 @@ function reportRunAchievements() {
 // OS-controlled: its own text can't be customized. "Contextual wording" is
 // this line, drawn into the win/gameover panel itself (drawWin/drawGameOver)
 // just before the system prompt fires — not the prompt's own text.
+// Owner follow-up: on the web build (rating.native() false), no system
+// prompt ever follows, so the line was appearing on its own with nothing
+// to contextualize — reading as a needy non sequitur. It's a lead-in to the
+// review ask, not a standalone comment, so it only shows when a real one is
+// coming; still records the trace either way, for the smoke tests.
 function askForRating(msg, reason) {
-  ratingAskMsg = msg;
-  setTimeout(() => rating.request(reason), 1800);   // let the line read first
+  if (rating.native()) {
+    ratingAskMsg = msg;
+    setTimeout(() => rating.request(reason), 1800);   // let the line read first
+  } else {
+    rating.request(reason);
+  }
 }
 
 // Returns true if a rating ask already fired this run (a new hiscore is the

@@ -141,6 +141,12 @@ requests that landed alongside it. All copy below is directional, not final.
   any kind ("Five flights and counting — enjoying it?"). A new
   `doids_plays` counter tracks completed runs (wiped by RESET PROGRESS along
   with the rest of a player's save).
+  **Owner follow-up:** on the web build the contextual line was showing with
+  no native prompt to follow it (there's no OS dialog outside the Capacitor
+  wrapper), reading as an odd standalone comment ("New personal best —
+  enjoying it?" with nothing else happening). It's a lead-in to the review
+  ask, not a comment on its own — a new `rating.native()` check gates it, so
+  it only shows when a real prompt is actually about to fire.
 - **Owner fix: ASSIST now also gates the landing-guide visuals.** Previously
   the dashed landing line, its SAFE/WARN/DANGER colour and glyph, and the
   descent/drift readout drew regardless of the ASSIST setting — only the

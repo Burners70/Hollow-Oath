@@ -122,6 +122,7 @@ const rating = (() => {
   };
   const reports = [];
   return {
+    native: () => !!plugin(),
     request: reason => {
       reports.push({ reason });
       if (reports.length > 60) reports.shift();
