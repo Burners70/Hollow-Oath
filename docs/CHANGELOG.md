@@ -78,6 +78,13 @@ checkbox was stale (its sub-items had already shipped).
 - **V17 — answering the Solace's pulse re-lights her whole hull**, the same
   reveal the ambient 41-second tell gives, instead of only spawning
   particles.
+  **Owner playtest follow-up:** the fix only set `sonarT` once in
+  `resolveBeacon`, and nothing decremented it during the "epilogue" state —
+  so it sat frozen at exactly `SONAR_DUR`, which is the sweep animation's
+  `puls = 0` (fully transparent) for the whole 6.5s scene. The hull never
+  actually looked lit. `updateEpilogue` now ticks it down and re-arms it, so
+  the sweep plays and repeats through the whole scene, not just a
+  never-visible freeze-frame.
 - **V18 — the first field resupply gets a one-time acknowledgement** ("You're
   not alone. Help is on the way. But there is a price."), instead of a drone
   appearing with no context.

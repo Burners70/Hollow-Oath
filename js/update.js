@@ -2551,6 +2551,13 @@ function updateEpilogue(dt) {
     camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.05, dt));
     camera.y = lerp(camera.y, b.y - 90, 1 - Math.pow(0.05, dt));
     b.fade = Math.max(0, (b.fade || 0) - dt / 3);
+    // V17 (owner playtest, follow-up) — the instant light-up in resolveBeacon
+    // only lasted one SONAR_DUR (1.8s); the rest of this 6.5s scripted scene
+    // then played with a dark hull, since nothing else re-arms sonarT once
+    // updateBeacon (which normally does, every Static beat) stops running
+    // outside "play". Keep re-triggering the sweep for the whole scene.
+    b.sonarT = Math.max(0, (b.sonarT || 0) - dt);
+    if (b.sonarT <= 0) b.sonarT = SONAR_DUR;
   }
   if (stateT > 0.8) epilogueChars = Math.min(EPILOGUE_LINE.length, epilogueChars + dt * 16);
   if ((input.tap && stateT > 0.8) || stateT >= 6.5) { state = "ending"; stateT = 0; }

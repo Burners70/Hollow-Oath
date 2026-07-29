@@ -24,9 +24,15 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   expect(s.endingType).toBe("answered");
   expect(s.unresolvedHaunt).toBe(false);   // the Static is heard; the title rests
   // V17 — the payoff moment: the whole submerged hull lights up the instant
-  // her pulse is actually returned, not just on the ambient 41s-beat tell
-  // (updateEpilogue never decrements sonarT, so this holds through the epilogue)
+  // her pulse is actually returned, not just on the ambient 41s-beat tell.
+  // Owner playtest follow-up: the original fix only set sonarT once, and
+  // since nothing decremented it during "epilogue" it sat frozen at exactly
+  // SONAR_DUR — which is puls=0 (fully transparent) the whole scene, so the
+  // hull never actually looked lit. updateEpilogue now ticks it down and
+  // re-arms it, so the sweep plays and repeats through the whole scene.
   expect(s.level.beacon.sonarT).toBeGreaterThan(0);
+  await page.waitForTimeout(2200);   // past one SONAR_DUR (1.8s) — must have re-armed
+  expect(await page.evaluate(() => level.beacon.sonarT)).toBeGreaterThan(0);
   // the typed line arrives, then a tap advances to the ending card
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });
