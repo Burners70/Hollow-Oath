@@ -23,6 +23,13 @@ test("the answered ending plays the SOLACE epilogue and clears the haunt (Bundle
   s = await page.evaluate(() => __doids.get());
   expect(s.endingType).toBe("answered");
   expect(s.unresolvedHaunt).toBe(false);   // the Static is heard; the title rests
+  // owner bug fix — the submerged hull must actually light up for the
+  // scripted scene, not rely on stale Static-beat timing (which stops
+  // entirely once the beacon is resolved), and stay pulsing through it —
+  // not just flash once and go dark for the rest of the 6.5s scene
+  expect(await page.evaluate(() => level.beacon.sonarT)).toBeGreaterThan(0);
+  await page.waitForTimeout(2200);   // past one SONAR_DUR (1.8s) — must have re-armed
+  expect(await page.evaluate(() => level.beacon.sonarT)).toBeGreaterThan(0);
   // the typed line arrives, then a tap advances to the ending card
   await page.waitForFunction(() => __doids.get().epilogueChars > 4, null, { timeout: 5000 });
   await page.evaluate(() => { input.tap = true; });

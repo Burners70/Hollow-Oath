@@ -17,6 +17,7 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
 - [Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating](#bundle-x--onboarding-trainee-sector-guided-pauses-hint-bank-in-app-rating) — the first 1.01 bundle to land; sequenced ahead of Bundles V and Z
+- [Bundle X owner-feedback round: onboarding refinements, an efficiency bonus, and an ASSIST fix](#bundle-x-owner-feedback-round-onboarding-refinements-an-efficiency-bonus-and-an-assist-fix) — owner playtest notes on PR #61, plus the minimum-journeys bonus and the ASSIST landing-guide fix
 
 **Design system & accessibility**
 - [Bundle DS — the design system made enforceable, and colourblind mode made real](#bundle-ds--the-design-system-made-enforceable-and-colourblind-mode-made-real) — token layer, 130 hardcoded semantic colours routed through `PAL()`, the flight controls made swappable
@@ -92,6 +93,77 @@ Copy for all of the above is mirrored in [COPY_DECK.md](COPY_DECK.md) §3
 (new §3·X2/§3·X5 subsections). The full 96-test smoke suite is green,
 including five new/updated tests covering the trainee mode, the guided
 pauses, the hint bank's no-repeat rotation, and the rating-prompt trigger.
+
+## Bundle X owner-feedback round: onboarding refinements, an efficiency bonus, and an ASSIST fix
+
+**Release:** 1.01
+
+A round of owner playtest notes on the shipped Bundle X (PR #61), plus two
+requests that landed alongside it. All copy below is directional, not final.
+
+- **Guided-pause pacing.** The THRUST → drift cards no longer advance on a
+  bare tap; drift now needs 1.5s of *cumulative* held thrust so the player
+  can actually feel THRUST work before the next card interrupts.
+- **Event-driven training script (`TRAINING_CARDS`).** Rebuilt the
+  sequential `TRAINING_SCRIPT` as an ordered list of `{id, cond, text}`
+  cards, each firing the first time its own real condition is true rather
+  than on a timer — FIRE waits for a gun actually on screen, a new "land
+  close and it'll board" card waits for a Scion on screen, a low-fuel card
+  fires under 33% tank, and two new cards ("fly it home to the recovery
+  bay" / "hold in the bay to refuel") land after the first pickup and
+  first delivery respectively. The old "other ways to put a gun down"
+  tease — which gated on a parry the trainee sector never taught — moved
+  out of the script entirely into the always-available hint bank.
+- **A second Scion in the trainee sector**, placed past the turret, plus a
+  third fuel pod — somewhere to fly once the FIRE/rescue cards land, and a
+  reason to keep flying in X2b's free-play afterward.
+- **Hint bank reworded and re-set.** All twelve hint-bank lines (`HINTS_ALWAYS`
+  / `HINTS_GATED`) reworded to read as a flight-training officer's own
+  advice, now quoted and attributed (`— FLIGHT OPS`) on the game-over
+  screen, repositioned into the clear space above `FLATLINE` instead of
+  wedged between the tally and the buttons below.
+- **Bug fix: a "pace" Scion's post-panic position jump.** `explode()` panics
+  any grounded Scion within 160px of gunfire; when the panic ended, the
+  `persona === "pace"` branch snapped straight to an absolute sine-wave
+  position instead of continuing from wherever the Scion actually was,
+  reading as a visible teleport (reported on Level 1 / Asclepion). Now eases
+  toward the target instead of snapping.
+- **Owner feature: the minimum-journeys efficiency bonus.** Deliver every
+  Scion in a sector using the fewest possible MERCY-bay trips for that
+  sector's Scion count (`⌈scions / CAPACITY⌉`) and the sector-clear screen
+  now shows `EVERY TRIP COUNTED — efficiency bonus +1000`, alongside the
+  existing Hippocratic and stopwatch bonuses.
+- **X6 refinement: a 5-completed-runs rating milestone.** `rating.request`
+  is unchanged (Apple's own `SKStoreReviewController` dialog text can't be
+  customized), but the contextual line shown just before it now has three
+  tiers in priority order — a new hiscore, a clean sweep ("Every Scion came
+  home. Want others to share your success?"), then the 5th completed run of
+  any kind ("Five flights and counting — enjoying it?"). A new
+  `doids_plays` counter tracks completed runs (wiped by RESET PROGRESS along
+  with the rest of a player's save).
+- **Owner fix: ASSIST now also gates the landing-guide visuals.** Previously
+  the dashed landing line, its SAFE/WARN/DANGER colour and glyph, and the
+  descent/drift readout drew regardless of the ASSIST setting — only the
+  post-touchdown auto-level behaviour actually respected it. With ASSIST off,
+  none of that on-screen guidance draws; judging a landing is now unaided,
+  matching what the toggle's label implies.
+- **Owner feature: known-fake fuel pods can be scanned or destroyed, not
+  only stumbled into.** Once Avicenna's CANON OF TRUTH marks a counterfeit
+  pod, blind contact with it is no longer an automatic trap — land beside it
+  and hold (same pacing as a lure-tree scan) or shoot it, either way +200 and
+  no fuel/score penalty. Before CANON OF TRUTH, nothing changes: the pod is
+  indistinguishable from a real one and blind contact still drains the tank.
+- **Bug fix: answering the Solace's signal didn't reliably light up her
+  submerged hull.** The hull-sweep visual (`sonarT`) only refreshed on the
+  41-second Static beat, which stops entirely the instant the beacon
+  resolves — so at the exact moment of a successful parry the pulse was
+  often already stale by up to 41s and the payoff scene played with a dark
+  hull. `resolveBeacon("answered")` now lights it immediately, and
+  `updateEpilogue` keeps re-arming it so she stays visibly lit through the
+  whole scripted scene, not just one flash.
+
+Copy updates mirrored in [COPY_DECK.md](COPY_DECK.md) §3·X2/§3·X5 (rewritten)
+and a new §3·X6, plus the §11 sector-clear line. Full smoke suite green.
 
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 

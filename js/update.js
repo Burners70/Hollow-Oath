@@ -84,6 +84,7 @@ function updateStaticClock(dt) {
 }
 
 let bannerMsg = null;
+let ratingAskMsg = null;   // X6 — contextual line drawn into the win/gameover panel itself
 /* R8 — in-flight copy lingers longer for a phone held at arm's length; the
    banner keeps its last-second alpha fade (see render), the float slows.
    V13 — an optional yFrac (0–1 of screen height) overrides the default
@@ -111,33 +112,64 @@ function updateCoach() {
   input.tap = false;
 }
 
+// owner note (July 2026): is a world x-coordinate currently inside the
+// camera's viewport? Drives the FIRE/rescue cards below (a gun or a Scion
+// "on screen" — not a fixed timer or distance).
+function onScreen(x) {
+  const z = zoomLevel(), cw = (vw - saLeft) / z;
+  const cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
+  return x >= cx - 20 && x <= cx + cw + 20;
+}
+
 /* X2a — the trainee sector's guided-pause sequence, stepped through via
-   showCoach(). Draft copy per APP_STORE_ROADMAP.md Bundle X (final copy
-   mirrored to COPY_DECK.md §3). The first three steps wait on the action
-   they're teaching (so each card lands right as it becomes relevant); the
-   last three are proactive introductions (FIRE / SHIELD / the parry tease)
-   and simply pace themselves a few seconds apart. */
-const TRAINING_SCRIPT = [
-  "Press THRUST to fight gravity. The longer you hold, the faster and further you go.",
-  "Press RIGHT and tap THRUST to start drifting right — keep thrusting UP at the same time so you don't sink.",
-  "The faster you're moving one way, the more thrust it takes to stop. Watch your FUEL.",
-  "FIRE shoots — but firing is malpractice and costs your rank. Every Scion can come home without a shot fired.",
-  "Hold SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.",
-  "There are other ways to put a gun down than shooting it."
+   showCoach(). Draft copy — directional, not final; owner review pending
+   (mirror into COPY_DECK.md §3 once locked). Reworked per owner playtest
+   (July 2026): every card that CAN be tied to a real event now is (a gun or
+   a Scion coming on screen, fuel actually running low, a passenger actually
+   boarding/being delivered), instead of a fixed timer — checked in array
+   order each frame, but a later, independent trigger (low fuel, a boarding,
+   a delivery) can still fire ahead of an earlier one that isn't ready yet,
+   so the sequence adapts to how the player actually flies rather than
+   forcing one script order. Each card is one-shot (`trainingShown`). The
+   old "other ways to put a gun down" tease moved to the always-available
+   hint bank (X5) instead of gating the training script on a parry nobody's
+   taught yet. `trainingHeldT`/`trainingShown` are declared in js/world.js
+   alongside `trainingT`. */
+const TRAINING_CARDS = [
+  { id: "thrust", cond: () => stateT > 0.6,
+    text: "Hold THRUST to fight gravity, Captain. The longer you hold it, the faster and further you'll go." },
+  // owner note: give the player time to actually hold thrust and see it
+  // work before the next card interrupts — was an instant trigger on any
+  // tap, which cut the demonstration off before it landed.
+  { id: "drift", cond: () => trainingHeldT > 1.5,
+    text: "Now add RIGHT while you thrust — keep the UP thrust going too, or you'll sink." },
+  { id: "fuel-aware", cond: () => trainingShown.drift && (Math.abs(ship.vx) > 40 || trainingT > 4),
+    text: "Speed costs fuel to shed. The faster you're moving, the more thrust it takes to stop — watch that tank." },
+  { id: "fire", cond: () => level.turrets.some(t => t.alive && onScreen(t.x)),
+    text: "That's a gun. FIRE will drop it — but firing's malpractice, and it costs your rank. Every Scion can come home without a shot." },
+  { id: "rescue", cond: () => level.oids.some(o => o.state !== "aboard" && onScreen(o.x)),
+    text: "See that Scion? Set down close and gentle, and it'll climb aboard on its own." },
+  { id: "shield", cond: () => trainingShown.fire && trainingT > 3,
+    text: "Raise SHIELD the instant before impact. It'll save the ship — but it drinks fuel fast, so don't hold it a second longer than you need." },
+  { id: "lowfuel", cond: () => ship.fuel / maxFuel() < 0.33,
+    text: "Tank's getting low. Find a fuel barrel — the yellow ones — and top up before you're stranded." },
+  { id: "return", cond: () => ship.passengers.length > 0,
+    text: "Good — you've got one aboard. Now fly it home: MERCY's blue recovery bay is where it gets delivered." },
+  { id: "refuel", cond: () => level.delivered > 0,
+    text: "While you're docked in the bay, hold there a moment — that tops off your tank too." }
 ];
 function updateTrainingScript(dt) {
-  if (trainingStep >= TRAINING_SCRIPT.length) return false;
+  if (input.thrust || pad.thrust) trainingHeldT += dt;
   trainingT += dt;
-  const thrusting = input.thrust || pad.thrust;
-  const ready =
-    trainingStep === 0 ? stateT > 0.6 :
-    trainingStep === 1 ? thrusting :
-    trainingStep === 2 ? (Math.abs(ship.vx) > 40 && thrusting) :
-    trainingT > 3;   // steps 3–5: proactive intros, paced a few seconds apart
-  if (!ready) return false;
-  showCoach(TRAINING_SCRIPT[trainingStep]);
-  trainingStep++; trainingT = 0;
-  return true;
+  for (const card of TRAINING_CARDS) {
+    if (trainingShown[card.id]) continue;
+    if (!card.cond()) continue;
+    showCoach(card.text);
+    trainingShown[card.id] = true;
+    trainingT = 0;
+    return true;
+  }
+  return false;
 }
 
 function grantFragment(queueForClear) {
@@ -277,6 +309,19 @@ function sectorClearNow() {
   if (!early) {
     score += 1000;
     if (level.firedShots === 0) { score += 2000; gc.achieve(GC_ACH.noHarm); }   // G3
+    // owner idea (July 2026): reward flying it efficiently — every Scion
+    // home in the fewest MERCY visits their number allows. The ship only
+    // ever carries CAPACITY at once, so the true minimum is ceil(n/CAPACITY);
+    // journeys (tracked in updateDocking) counts distinct med-bay visits that
+    // delivered anyone. Losing even one Scion disqualifies it — this is an
+    // efficiency bonus for a clean rescue, not a reward for a lucky low
+    // headcount, so it checks every Scion actually reached "delivered".
+    const scions = level.oids.filter(o => o.role === "normal" || o.role === "famous");
+    const minJourneys = Math.max(1, Math.ceil(scions.length / CAPACITY));
+    if (scions.length > 0 && scions.every(o => o.state === "delivered") &&
+        level.journeys === minJourneys) {
+      score += 1000; level.journeyBonus = true;
+    }
   }
   if (dailyMod("stopwatch") && sectorT < 90) { score += 500; level.stopwatchBeat = true; }
   bannerMsg = null;
@@ -589,18 +634,31 @@ function update(dt) {
       if (input.tap && stateT > 1) {
         state = "win"; stateT = 0;
         reportRunAchievements();   // G3 — before saveHi so the trace reads rank → score
-        saveHi(); recordDaily(); clearRun();
-        // X6 — a clean ending is the natural high-signal moment for the
-        // native review prompt; Apple's own OS-level throttling (~once/year)
-        // means this can be called freely without extra logic here.
-        if (endingType === "answered") rating.request("ending");
+        const asked = saveHi();
+        recordDaily(); clearRun();
+        // X6 (owner refinement) — contextual review prompts, in priority
+        // order: a new hiscore (handled inside saveHi), then a clean sweep,
+        // then the 5-plays milestone, then a plain answered ending. A "fire"
+        // ending only qualifies for the hiscore/milestone asks — bombing the
+        // sector isn't the moment to ask if someone's enjoying the story.
+        if (!asked) {
+          if (endingType === "answered" && runLost === 0) {
+            askForRating("Every Scion came home. Want others to share your success?", "ending-clean");
+          } else if (runsPlayed === 5) {
+            askForRating("Five flights and counting — enjoying it?", "milestone-5");
+          } else if (endingType === "answered") {
+            rating.request("ending");
+          }
+        }
       }
       input.tap = false; return;
     case "dead":
       if (stateT > 1.6) {
         if (lives <= 0) {
           checkpoint = savedRun; clearRun();
-          state = "gameover"; stateT = 0; saveHi(); recordDaily(); pickHint();   // X5
+          state = "gameover"; stateT = 0;
+          const asked = saveHi(); recordDaily(); pickHint();   // X5
+          if (!asked && runsPlayed === 5) askForRating("Five flights and counting — enjoying it?", "milestone-5");   // X6
         } else {
           if (level.isCave) exitCave();   // the Hollows spit you back out
           // V13 (owner steer) — a life lost inside the finale twin, while the
@@ -637,18 +695,34 @@ function reportRunAchievements() {
   if (runLost === 0) gc.achieve(GC_ACH.spotless);
 }
 
+// X6 (owner refinement) — Apple's native review sheet is entirely
+// OS-controlled: its own text can't be customized. "Contextual wording" is
+// this line, drawn into the win/gameover panel itself (drawWin/drawGameOver)
+// just before the system prompt fires — not the prompt's own text.
+function askForRating(msg, reason) {
+  ratingAskMsg = msg;
+  setTimeout(() => rating.request(reason), 1800);   // let the line read first
+}
+
+// Returns true if a rating ask already fired this run (a new hiscore is the
+// highest-priority moment), so callers know not to layer another one on top.
 function saveHi() {
-  if (runMode === "training") return;   // X2 — training is never a scored run
-  if (score > hiscore) {
+  if (runMode === "training") return false;   // X2 — training is never a scored run
+  runsPlayed++;
+  try { localStorage.setItem("doids_plays", runsPlayed); } catch (e) {}
+  cloud.set("doids_plays", runsPlayed);   // E4 mirror
+  const isNewHiscore = score > hiscore;
+  if (isNewHiscore) {
     hiscore = score;
     try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
     cloud.set("doids_hi", hiscore);   // E4 mirror
-    rating.request("hiscore");   // X6 — the other high-signal moment
+    askForRating("New personal best — enjoying it?", "hiscore");   // X6
   }
   // G2 — the all-time board. FIELD MEDIC runs stay off it (H3: report only
   // when easy mode is off); the daily flight posts to its own board in
   // recordDaily() instead.
   if (!easyMode && runMode !== "daily") gc.score(score, GC_BOARD_ALLTIME);
+  return isNewHiscore;
 }
 
 let introIdx = 0;
@@ -905,12 +979,12 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro", "doids_trained", "doids_vetintro"];   // X3 fork + V8 veteran intro re-show after a wipe
+    "doids_intro", "doids_trained", "doids_vetintro", "doids_plays"];   // X3 fork + V8 veteran intro re-show after a wipe
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
   }
-  hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set();
+  hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set(); runsPlayed = 0;
   savedRun = null; checkpoint = null; veteran = false; introSeen = false;
   vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
@@ -1157,6 +1231,7 @@ function updatePlay(dt) {
   updateLift(dt);
   updateShrine(dt);
   updateScan(dt);
+  updatePodScan(dt);      // owner feature — scan a known-fake pod, once CANON OF TRUTH marks it
   updateScionScan(dt);    // S5 — read a grounded unit's vitals; flag the fakes
   updateWaves(dt);        // V6 — Vectors cast a sonic wave; parry it to catalogue them
   updateContagion(dt);    // Semmelweis Deep — unscreened contagion spreads
@@ -1299,7 +1374,17 @@ function updateOids(dt, now) {
     if (o.state === "wait") {
       o.nearShip = Math.abs(s.x - o.x) < 240 && Math.abs(s.y - o.y) < 180;
       if (o.persona === "pace") {
-        o.x = o.home + Math.sin((now + o.wave * 3) * 0.7) * 26;
+        // owner report: a "pace" Scion visibly jumped a few pixels the
+        // instant it calmed down from nearby gunfire (explode() panics any
+        // grounded Scion within 160px). The panic wander (below) moves o.x
+        // by its own accumulating drift, clamped to home±70; this formula
+        // instead SNAPS o.x to an absolute sine position every frame, with
+        // no continuity guarantee from wherever panic left it. Ease toward
+        // the target instead of teleporting to it — fixes the panic→wait
+        // handoff (and any other cause of a positional discontinuity here)
+        // without changing the steady-state pacing motion at all.
+        const paceTarget = o.home + Math.sin((now + o.wave * 3) * 0.7) * 26;
+        o.x += (paceTarget - o.x) * Math.min(1, dt * 6);
         o.y = groundAt(o.x);
       }
     }
@@ -1509,6 +1594,15 @@ function updateEnemies(dt) {
       } else if (sc.hollow && Math.hypot(b.x - sc.x, b.y - (sc.y - 8 * sc.s)) < 16 * sc.s) {
         gone = true;
         revealSecret(sc, true);
+      }
+    }
+    // owner feature (July 2026) — once CANON OF TRUTH marks a fake pod,
+    // shooting it destroys it cleanly, same as a lure-tree; before that the
+    // player can't tell it apart from a real one, so fire does nothing here
+    if (upgrades.canon) for (const p of level.fakePods) {
+      if (!p.taken && Math.hypot(b.x - p.x, b.y - (p.y - 8)) < 22) {
+        gone = true;
+        revealFakePod(p, true);
       }
     }
     if (level.beacon && !level.beacon.resolved &&
@@ -1955,6 +2049,12 @@ function updateDocking(dt) {
       const p = deliverable[0];
       s.passengers.splice(s.passengers.indexOf(p), 1);
       p.state = "delivered";
+      // minimum-journeys bonus: count this as a new journey only the first
+      // time THIS docking visit delivers anyone — a visit that drops off
+      // several passengers in a row (one every 0.35s while docked) is still
+      // one journey, not one per passenger. journeyOpen clears when the ship
+      // leaves the bay (below), so the next visit counts as a fresh journey.
+      if (!level.journeyOpen) { level.journeyOpen = true; level.journeys++; }
       level.delivered++; runSaved++;
       score += 300;
       addText(level.mx, level.my + 40, "DELIVERED +300", PAL().SAFE);
@@ -1996,7 +2096,7 @@ function updateDocking(dt) {
         pendingBreach = { infected: sab.infected, t: BREACH_REVEAL_DELAY };
       }
     }
-  } else { s.dockT = 0; s.escapeT = 0; }
+  } else { s.dockT = 0; s.escapeT = 0; level.journeyOpen = false; }
 
   if (inBay(bays.red)) {
     s.redDockT += dt;
@@ -2094,9 +2194,12 @@ function updatePods() {
       goldBurst(p.x, p.y - 8);
     }
   }
-  // the counterfeits: they drink instead of pour
+  // the counterfeits: they drink instead of pour — unless CANON OF TRUTH has
+  // already marked one as fake, in which case blind contact is no longer a
+  // trap; dealing with a known fake becomes the deliberate act below
+  // (updatePodScan / destroy-by-fire), same as Glycon's secrets.
   for (const p of level.fakePods) {
-    if (p.taken) continue;
+    if (p.taken || upgrades.canon) continue;
     if (Math.hypot(s.x - p.x, s.y - (p.y - 8)) < 30) {
       p.taken = true;
       markMetFake();   // X5
@@ -2108,6 +2211,38 @@ function updatePods() {
       explode(p.x, p.y - 8, PAL().REVEAL, 14);
     }
   }
+}
+
+/* owner feature (July 2026) — once CANON OF TRUTH marks a fake pod, the
+   player can deal with it deliberately instead of only finding out by
+   flying into it: land beside it and hold (scan, same pacing as a
+   lure-tree) or shoot it (destroy-by-fire, wired in the bullet loop above).
+   Same reward either way — the safer scan costs time, not score. */
+function revealFakePod(p, viaFire) {
+  p.taken = true;
+  markMetFake();   // X5
+  score += 200;
+  explode(p.x, p.y - 8, PAL().REVEAL, 18);
+  staticTick();
+  addText(p.x, p.y - 44,
+    (viaFire ? "COUNTERFEIT POD DESTROYED" : "COUNTERFEIT POD READ FOR WHAT IT IS") +
+    " +200", PAL().REVEAL);
+}
+const POD_SCAN_T = 4;
+function updatePodScan(dt) {
+  const s = ship;
+  let target = null;
+  if (upgrades.canon && s.landed && !s.dead) {
+    for (const p of level.fakePods) {
+      if (p.taken) continue;
+      if (Math.abs(s.x - p.x) < 45 && Math.abs(s.y - (p.y - 8)) < 60) { target = p; break; }
+    }
+  }
+  for (const p of level.fakePods)
+    if (p !== target && p.scanT) p.scanT = Math.max(0, p.scanT - dt * 2);
+  if (!target) return;
+  target.scanT = (target.scanT || 0) + dt * scanRate();
+  if (target.scanT >= POD_SCAN_T) revealFakePod(target, false);
 }
 
 /* THE TRANSFUSION LINE — field refuelling as an active hover minigame.
@@ -2589,6 +2724,12 @@ function resolveBeacon(how) {
     // Bundle L2 — the answered call earns a held breath before the card:
     // the camera goes to her, the rings die down, and she gets a name.
     b.fade = 1;
+    // owner bug fix (July 2026) — the pay-off moment: sonarT otherwise only
+    // refreshes on the 41s Static beat (updateStaticClock), which stops
+    // entirely once the beacon is resolved and could be anywhere up to 41s
+    // stale at the exact instant of the parry, so her hull often never lit
+    // up here at all. Light it immediately; updateEpilogue keeps it pulsing.
+    b.sonarT = SONAR_DUR;
     state = "epilogue"; stateT = 0; epilogueChars = 0;
   }
 }
@@ -2604,6 +2745,11 @@ function updateEpilogue(dt) {
     camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.05, dt));
     camera.y = lerp(camera.y, b.y - 90, 1 - Math.pow(0.05, dt));
     b.fade = Math.max(0, (b.fade || 0) - dt / 3);
+    // owner bug fix — keep her hull sweeping back into view through the
+    // whole scripted scene (updateBeacon, which normally re-arms this every
+    // Static beat, stops running once state leaves "play")
+    b.sonarT = Math.max(0, (b.sonarT || 0) - dt);
+    if (b.sonarT <= 0) b.sonarT = SONAR_DUR;
   }
   if (stateT > 0.8) epilogueChars = Math.min(EPILOGUE_LINE.length, epilogueChars + dt * 16);
   if ((input.tap && stateT > 0.8) || stateT >= 6.5) { state = "ending"; stateT = 0; }

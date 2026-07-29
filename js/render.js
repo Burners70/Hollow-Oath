@@ -435,6 +435,21 @@ function drawWorld(now) {
       ctx.fillText("?", 0, -16);
     }
     ctx.restore();
+    // owner feature — an in-progress landed scan on a known-fake pod, same
+    // ring language as a lure-tree's scan (Bundle J)
+    if (p.scanT > 0) {
+      ctx.save();
+      ctx.strokeStyle = TOK.CYAN_INK; ctx.shadowColor = TOK.CYAN_INK; ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 30, 16, -Math.PI / 2, -Math.PI / 2 + (p.scanT / POD_SCAN_T) * Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = mono(10); ctx.textAlign = "center";
+      ctx.fillStyle = TOK.CYAN_INK;
+      ctx.fillText("SCANNING… hold position", p.x, p.y - 56);
+      ctx.restore();
+    }
   }
 
   // black box: half-buried, blinking faintly when you're near
@@ -543,7 +558,7 @@ function drawWorld(now) {
   }
   // S4 — the bay doors slide shut over the captured ship before she jumps
   if (level.extraction && level.extraction.done) drawBayDoors(now);
-  if (!ship.dead && !ship.landed && state === "play" && !(level.extraction && level.extraction.done)) drawLandingGuide();
+  if (landingGuideVisible()) drawLandingGuide();
   if (resupplyDrone) drawResupplyDrone(now);
 
   ctx.textAlign = "center";
@@ -905,6 +920,12 @@ function drawResupplyDrone(now) {
   }
 }
 
+// owner note (July 2026) — ASSIST off means judging a landing unaided: no
+// dashed line, no SAFE/WARN/DANGER colour or glyph, no reason text.
+function landingGuideVisible() {
+  return assist && !ship.dead && !ship.landed && state === "play" &&
+    !(level.extraction && level.extraction.done);
+}
 function drawLandingGuide() {
   const s = ship;
   const g = groundAt(s.x);
@@ -2828,7 +2849,7 @@ function drawHudGuide(now) {
   ctx.beginPath(); ctx.moveTo(sx - 12, sy + 22); ctx.lineTo(sx + 12, sy + 22); ctx.stroke(); ctx.shadowBlur = 0;
   ctx.fillStyle = PAL().SAFE; ctx.font = F(9); ctx.textAlign = "left"; ctx.fillText("✓ ↓2  ↔1", sx + 20, sy + 2);
   lab(sx, sy + 42, "center", "LANDING GUIDE",
-    "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down.", 240);
+    "Under the ship on approach: ↓ descent · ↔ drift. GREEN = safe to touch down. Only shown with ASSIST on (toggle in SETTINGS).", 240);
 
   // ---- bottom controls: clean rows (left = turn, right = act), each labelled
   //      above so nothing overlaps on a short landscape viewport ----
@@ -3987,6 +4008,7 @@ function tallyLine() {
 function drawClear(now) {
   if (clearCards.length > 0) { drawCardPanel(clearCards[0], now); return; }
   const hip = (level.firedShots === 0 ? "PRIMUM NON NOCERE — Hippocratic bonus +2000\n" : "") +
+    (level.journeyBonus ? "EVERY TRIP COUNTED — efficiency bonus +1000\n" : "") +
     (level.stopwatchBeat ? "⏱ STOPWATCH BEAT +500\n" : "");
   const boxNote = level.blackbox && !level.blackbox.found ? "\n(a signal source went unfound in this sector)" : "";
   drawCenter(SECTOR_NAMES[levelIdx] + " CLEAR",
@@ -4149,18 +4171,21 @@ function drawSettings(now) {
 }
 
 function drawGameOver(now) {
-  drawCenter("FLATLINE", "GAME OVER — " + tallyLine(), PAL().DANGER);
+  drawCenter("FLATLINE", "GAME OVER — " + tallyLine() + (ratingAskMsg ? "\n\n" + ratingAskMsg : ""), PAL().DANGER);   // X6
   ctx.textAlign = "center";
-  // X5 — one rotating hint, positioned to clear whichever follows it
-  // (the CONTINUE/MAIN MENU buttons, or the plain tap-to-menu line)
+  // X5 — one rotating hint, quoted and attributed like something an in-game
+  // training officer would actually say, in the clear space above FLATLINE
+  // (owner note, July 2026 — it read squashed wedged between the tally and
+  // the buttons below).
   if (currentHint) {
     ctx.font = mono(11, 600);
-    const lines = wrapText(currentHint, Math.min(340, vw - 70));
-    const lh = 15;
-    const bottomY = (checkpoint ? continueRect().y : vh * 0.6) - 16;
-    const topY = bottomY - (lines.length - 1) * lh;
-    ctx.fillStyle = "rgba(217,232,255,.75)";
+    const lines = wrapText("“" + currentHint + "”", Math.min(340, vw - 70));
+    const lh = 14, topY = vh * 0.08;
+    ctx.fillStyle = "rgba(217,232,255,.8)";
     lines.forEach((l, i) => ctx.fillText(l, vw / 2, topY + i * lh));
+    ctx.font = mono(10, 600);
+    ctx.fillStyle = "rgba(217,232,255,.45)";
+    ctx.fillText("— FLIGHT OPS", vw / 2, topY + lines.length * lh + 6);
   }
   if (checkpoint) {
     const cr = continueRect(), nr = { x: cr.x, y: cr.y + cr.h + 14, w: cr.w, h: 40 };
@@ -4256,10 +4281,11 @@ function drawWin() {
   }
   const spotless = runLost === 0 ? "\nspotless record — no Scion lost" : "";
   const serpent = shrines.size >= SHRINES.length ? "\n☤ the serpent unmasked" : "";
+  const ask = ratingAskMsg ? "\n\n" + ratingAskMsg : "";   // X6
   drawCenter(runLost === 0 && endingType === "answered" ? "A PERFECT ROTATION" : "MISSION COMPLETE",
     "score " + score + "  ·  hi " + hiscore + "\n" + tallyLine() +
     "  ·  ◈ " + blackboxCount + "/" + NBOX + "  ·  logs " + runFragments + "/" + FRAGMENTS.length +
-    spotless + serpent +
+    spotless + serpent + ask +
     "\nrank: " + rank + "\ntap to play again", PAL().SAFE);
 }
 
@@ -4343,9 +4369,9 @@ window.__doids = {
     decoyOutcome, fakeMercy: level && level.fakeMercy,
     darkAlpha: level && level.darkAlpha, nightFell: level && !!level.nightFell,   // T6
     gcReports: gc.reports.slice(), cloudNative: cloud.native(),
-    ratingReports: rating.reports.slice(),   // X6
+    ratingReports: rating.reports.slice(), runsPlayed, ratingAskMsg,   // X6
     // X2/X4/X5 — onboarding-bundle introspection for the guard tests
-    training: runMode === "training", trainingStep,
+    training: runMode === "training", trainingShown: Object.assign({}, trainingShown),
     coach: { active: state === "coach", text: coachText },
     currentHint, codex: [...codex],
     everParried, everScanned, metFake }),
@@ -4402,6 +4428,7 @@ window.__doids = {
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
+  landingGuideVisible,   // owner fix: ASSIST off hides the landing-guide visuals
   logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body
   btnHit: (x, y) => buttonsAt(x, y),              // C1 — touch-button hit test
   give: k => { upgrades[k] = true; },

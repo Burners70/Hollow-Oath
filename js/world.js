@@ -169,7 +169,11 @@ let level, ship, camera, particles, texts, stars;
 let resupplyDrone = null;   // the graceful bail-out for a ship stranded at 0 fuel
 let runRefuels = 0;         // U2 — field resupplies used this run; each fill carries less
 let liftTransit = null;     // in-progress lift descent/ascent animation
-let trainingStep = 0, trainingT = 0;   // X2a — progress through the guided-pause script
+// X2a — progress through the guided-pause script: trainingT paces the
+// time-fallback conditions, trainingHeldT tracks cumulative THRUST-held
+// time (the "drift" card's gate), trainingShown is the one-shot guard per
+// card id (see TRAINING_CARDS, js/update.js)
+let trainingT = 0, trainingHeldT = 0, trainingShown = {};
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
 // why a no-fire run ended: firedAtSecret = shot a lure-tree / hollow rock
@@ -251,6 +255,11 @@ function restoreRun(r) {
 }
 let hiscore = 0;
 try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
+// X6 (owner refinement) — completed runs (any ending), so the review prompt
+// can fire on a "you've played enough to have an opinion" milestone, not
+// only on a clean ending or a new hiscore.
+let runsPlayed = 0;
+try { runsPlayed = +localStorage.getItem("doids_plays") || 0; } catch (e) {}
 let codex = new Set();
 try { codex = new Set(JSON.parse(localStorage.getItem("doids_codex") || "[]")); } catch (e) {}
 function saveCodex() {
@@ -558,7 +567,7 @@ function startTraining() {
   levelIdx = -1;
   surfaceCtx = null;
   level = genTrainingLevel();
-  trainingStep = 0; trainingT = 0;
+  trainingT = 0; trainingHeldT = 0; trainingShown = {};
   spawnShip();
   state = "play"; stateT = 0;
   blip(330, 660, 0.2, "sine", 0.1);
@@ -608,20 +617,24 @@ function markMetFake() {
    has met the system they describe — "found a lift" and "met Avicenna" reuse
    existing persistent state rather than new flags. Owner-reviewed copy;
    mirrored in COPY_DECK.md §3. */
+// owner note (July 2026): reworded as lines an in-game training officer could
+// actually say — attributable, spoken register, not a manual excerpt. Draft
+// copy, not final; quoted + attributed at render time (drawGameOver).
 const HINTS_ALWAYS = [
-  "Thrust is momentum, not a throttle — to stop, thrust the opposite way.",
-  "Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.",
-  "Fuel can be scarce. A pod picked up is a pod gone.",
-  "You don't have to fight — any Scion can come home without a shot fired.",
-  "A long fall needs a long burn to arrest. Start slowing early.",
-  "When you only need a nudge — tap, don't hold."
+  "Thrust is momentum, not a throttle. To stop, thrust the other way.",
+  "Raise SHIELD right before you hit rock. It'll save the ship — but it drinks fuel fast.",
+  "Fuel's scarce out here. Once a pod's gone, it's gone.",
+  "You don't have to fight. Any Scion can come home without a shot fired.",
+  "A long fall needs a long burn to arrest. Start slowing early, not late.",
+  "When you only need a nudge, tap. Don't hold.",
+  "There's more than one way to put a gun down. Shooting it isn't the only one."
 ];
 const CANON_FAMOUS_ID = FAMOUS.findIndex(f => f.upgrade === "canon");
 const HINTS_GATED = [
-  { gate: () => everParried, text: "A shield raised at the right moment turns a shot back on its sender." },
-  { gate: () => everScanned, text: "Land beside a thing and read it — it can tell you what firing never will." },
-  { gate: () => metFake, text: "Not every fuel pod is a friend. The honest ones flicker like fire; the fakes keep to the Static's beat." },
-  { gate: () => veteran && shrinesSeen.size > 0, text: "The ground rings hollow in places. There is a way down." },
+  { gate: () => everParried, text: "A shield raised at just the right moment turns a shot back on whoever sent it." },
+  { gate: () => everScanned, text: "Land beside a thing and read it. It'll tell you what firing never will." },
+  { gate: () => metFake, text: "Not every fuel pod's a friend. The honest ones flicker like fire — the fakes keep to the Static's beat." },
+  { gate: () => veteran && shrinesSeen.size > 0, text: "The ground rings hollow in places. There's a way down, if you're listening." },
   { gate: () => codex.has(CANON_FAMOUS_ID), text: "Your CANON OF TRUTH marks the fakes now. Trust the mark." }
 ];
 let hintSeen = new Set();
@@ -1003,9 +1016,10 @@ function genTrainingLevel() {
     drones: [], pods: [], fakePods: [], anomalies: [], scenery: [],
     blackbox: null, beacon: null, lift: null, shrine: null, roof: null,
     mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
-    total: 1, firedShots: 0, extraction: null, pulse: null, isCave: false,
+    total: 2, firedShots: 0, extraction: null, pulse: null, isCave: false,
     dark: false, isFinale: false, contamKnown: false, contagion: false,
-    contagSeen: false, fragmentsHere: [], training: true };
+    contagSeen: false, fragmentsHere: [], training: true,
+    journeys: 0, journeyOpen: false };
 
   const sx = W * 0.55, sy = flatten(heights, sx, 80);
   lvl.oids.push({ x: sx, y: sy, home: sx, state: "wait", wave: rng() * 6,
@@ -1017,8 +1031,16 @@ function genTrainingLevel() {
   const tx = W * 0.82, ty = flatten(heights, tx, 40);
   lvl.turrets.push({ x: tx, y: ty, cd: 1 + rng() * 2, alive: true, ang: -Math.PI / 2 });
 
+  // a second Scion further out, past the turret — owner note (July 2026):
+  // gives the trainee sector somewhere to fly to once the FIRE/rescue cards
+  // land, and a reason to keep flying in X2b's free-play afterward.
+  const sx2 = W * 0.93, sy2 = flatten(heights, sx2, 80);
+  lvl.oids.push({ x: sx2, y: sy2, home: sx2, state: "wait", wave: rng() * 6,
+    role: "normal", sleeper: false, famousId: -1, carrier: false, panicT: 0,
+    sabT: 0, persona: "sit", scale: 1, gait: 34, nearShip: false });
+
   // fuel pods so X2b's free-play can't strand a new pilot
-  for (const px of [W * 0.35, W * 0.68]) {
+  for (const px of [W * 0.35, W * 0.68, W * 0.88]) {
     lvl.pods.push({ x: px, y: flatten(heights, px, 30), taken: false, ph: rng() * 7 });
   }
 
@@ -1062,7 +1084,8 @@ function genLevel(n) {
     mx: 280, my: 170, mxo: 0, myo: 0, delivered: 0, lost: 0, contained: 0,
     total: 0, firedShots: 0, extraction: null, pulse: null, isCave: false,
     dark: r.dark || dailyMod("dark"), isFinale: n === FINALE_IDX,
-    contamKnown: false, contagion: !!r.contagion, contagSeen: false, fragmentsHere: [] };
+    contamKnown: false, contagion: !!r.contagion, contagSeen: false, fragmentsHere: [],
+    journeys: 0, journeyOpen: false };   // minimum-journeys bonus tracking
 
   // T6 — the Basin stages its own nightfall: it opens at dusk and the dark
   // comes down over the first ~20s (or at first boarding, whichever is first).
@@ -1583,7 +1606,7 @@ function resetRun() {
   runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; confirmCard = null; leftBehindNote = null; surfaceCtx = null;
-  checkpoint = null;
+  checkpoint = null; ratingAskMsg = null;   // X6 — don't leak a prior run's ask onto the next
   runSeed = 0; runMode = "campaign"; famousMap = null;
   runRefuels = 0;   // U2 — the diminishing field-resupply allowance resets each run
   rollDailyMods();

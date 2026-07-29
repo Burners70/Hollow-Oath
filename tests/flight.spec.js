@@ -38,6 +38,16 @@ test("landing evaluator and rank flags are exposed", async ({ page }) => {
   expect(s.runFired).toBe(0);
 });
 
+test("owner fix: ASSIST off hides the landing-guide visuals", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(0); __doids.launch(); });
+  expect(await page.evaluate(() => assist)).toBe(true);   // default
+  expect(await page.evaluate(() => __doids.landingGuideVisible())).toBe(true);
+  await page.evaluate(() => { assist = false; });
+  expect(await page.evaluate(() => __doids.landingGuideVisible())).toBe(false);
+  await page.evaluate(() => { assist = true; });
+  expect(await page.evaluate(() => __doids.landingGuideVisible())).toBe(true);
+});
+
 test("stranding at 0 fuel: the signal brings a drone, a primer, and a line", async ({ page }) => {
   await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
   let s = await page.evaluate(() => __doids.get());

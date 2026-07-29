@@ -59,9 +59,9 @@ test("X5: game over shows one hint from the always-available bank, no repeat unt
   await page.waitForFunction(() => __doids.get().state === "gameover", null, { timeout: 5000 });
   const first = await page.evaluate(() => __doids.get().currentHint);
   expect(first.length).toBeGreaterThan(0);
-  // die five more times (there are 6 always-available hints) — none should repeat
+  // die six more times (there are 7 always-available hints) — none should repeat
   const seen = new Set([first]);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     await page.waitForTimeout(700);   // updateMenu ignores a tap before stateT > 0.6
     await page.evaluate(() => { input.tap = true; input.tapX = 5; input.tapY = 5; });
     await page.waitForFunction(() => __doids.get().state === "title", null, { timeout: 3000 });
@@ -252,7 +252,11 @@ test("X2: the trainee sector is its own mode — never ends on its own and never
   expect(s.training).toBe(true);
   expect(s.runMode).toBe("training");
   expect(s.state).toBe("play");
-  expect(s.level.total).toBe(1);
+  expect(s.level.total).toBe(2);   // owner refinement: a second Scion was added past the turret
+  // guided-pause cards (X2a) can auto-fire here — e.g. "rescue" the instant
+  // the Scion is on screen, which it is at spawn — this test is about
+  // checkSectorClear, not the coach script, so mark every card pre-shown
+  await page.evaluate(() => { for (const c of TRAINING_CARDS) trainingShown[c.id] = true; });
   // X2b — even with "everyone accounted for," the sector-clear check no-ops
   await page.evaluate(() => { level.delivered = level.total; checkSectorClear(); });
   s = await page.evaluate(() => __doids.get());
@@ -262,9 +266,9 @@ test("X2: the trainee sector is its own mode — never ends on its own and never
   expect(await page.evaluate(() => localStorage.getItem("doids_hi"))).toBe("0");
 });
 
-test("X2a/X4: the trainee sector opens with a guided-pause card; thrusting advances it", async ({ page }) => {
+test("X2a/X4: the trainee sector opens with a guided-pause card; sustained thrust advances it", async ({ page }) => {
   await page.evaluate(() => { __doids.training(); });
-  // step 0 ("press THRUST") fires automatically shortly after entering play
+  // the "thrust" card fires automatically shortly after entering play
   await page.waitForTimeout(900);
   let s = await page.evaluate(() => __doids.get());
   expect(s.coach.active).toBe(true);
@@ -276,20 +280,42 @@ test("X2a/X4: the trainee sector opens with a guided-pause card; thrusting advan
   s = await page.evaluate(() => __doids.get());
   expect(s.coach.active).toBe(false);
   expect(s.state).toBe("play");
-  expect(s.trainingStep).toBe(1);
-  // holding THRUST should fire the next card (step 1 — drift)
+  expect(s.trainingShown.thrust).toBe(true);
+  expect(s.trainingShown.drift).toBeFalsy();
+  // owner note: a brief tap must NOT immediately advance — the player needs
+  // real time to hold thrust and see it work first
   await page.evaluate(() => { input.thrust = true; });
   await page.waitForTimeout(200);
   s = await page.evaluate(() => __doids.get());
+  expect(s.coach.active).toBe(false);
+  // holding it past the 1.5s gate fires the next card ("drift")
+  await page.waitForTimeout(1500);
+  s = await page.evaluate(() => __doids.get());
   expect(s.coach.active).toBe(true);
-  expect(s.trainingStep).toBe(2);
+  expect(s.trainingShown.drift).toBe(true);
 });
 
 test("X6: a new high score requests the native rating prompt", async ({ page }) => {
   await page.evaluate(() => { __doids.go(0); __doids.launch(); });
   await page.evaluate(() => { hiscore = 0; score = 500; saveHi(); });
-  const s = await page.evaluate(() => __doids.get());
-  expect(s.ratingReports.some(r => r.reason === "hiscore")).toBe(true);
+  // owner refinement (X6) — the ask is a custom banner shown first, then the
+  // native prompt a beat later (Apple's own dialog text can't be customized).
+  await page.waitForFunction(
+    () => __doids.get().ratingReports.some(r => r.reason === "hiscore"),
+    null, { timeout: 3000 });
+});
+
+test("X6 (owner refinement): the 5th completed run requests a milestone rating prompt", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(2); __doids.launch(); });
+  await page.evaluate(() => { hiscore = 999999; runsPlayed = 4; lives = 1; shipDie(); });
+  await page.waitForFunction(() => __doids.get().state === "gameover", null, { timeout: 5000 });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.runsPlayed).toBe(5);
+  // hiscore is pinned sky-high above, so the milestone ask (not the hiscore
+  // ask) must be the one that fires on this 5th completed run
+  await page.waitForFunction(
+    () => __doids.get().ratingReports.some(r => r.reason === "milestone-5"),
+    null, { timeout: 3000 });
 });
 
 test("V8: a veteran's first fresh run shows the one-panel veteran intro, once", async ({ page }) => {

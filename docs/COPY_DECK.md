@@ -167,42 +167,67 @@ so it never shows again (a RESET PROGRESS in Settings brings it back).
 opened the HOW TO FLY guide above instead; the guide is still reachable any
 time from HELP).
 
-### 3·X2. Trainee sector guided-pause script (`TRAINING_SCRIPT`)
+### 3·X2. Trainee sector guided-pause script (`TRAINING_CARDS`)
 
-A bespoke, always-identical "Level 0": gentle wide terrain, one Scion, one
-distant avoidable turret. Never scored, never ends on its own — the player
+A bespoke, always-identical "Level 0": gentle wide terrain, two Scions (the
+second added past the turret, owner refinement), one distant avoidable
+turret, three fuel pods. Never scored, never ends on its own — the player
 leaves via the pause menu's `END TRAINING` row (§12). Reached from the X3
 fork's "No" answer, or any time from HELP (`◆ TRAINEE SECTOR`). Each line
-below shows as its own tap-to-continue guided-pause card (X4), the first
-firing shortly after the sector opens and the rest as the player reaches (or,
-for the last three, simply awaits) the moment it teaches:
+below shows as its own tap-to-continue guided-pause card (X4), one-shot and
+event-driven rather than purely sequential — the THRUST/drift cards need
+real held-thrust time (1.5s) to fire, not just a tap, and FIRE/rescue/low-fuel/
+return/refuel each wait for the real on-screen event they teach (a gun in
+view, a Scion in view, the tank under a third, a passenger aboard, a
+delivery made):
 
-> `Press THRUST to fight gravity. The longer you hold, the faster and further you go.`
-> `Press RIGHT and tap THRUST to start drifting right — keep thrusting UP at the same time so you don't sink.`
-> `The faster you're moving one way, the more thrust it takes to stop. Watch your FUEL.`
-> `FIRE shoots — but firing is malpractice and costs your rank. Every Scion can come home without a shot fired.`
-> `Hold SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.`
-> `There are other ways to put a gun down than shooting it.`
+> `Hold THRUST to fight gravity, Captain. The longer you hold it, the faster and further you'll go.`
+> `Now add RIGHT while you thrust — keep the UP thrust going too, or you'll sink.`
+> `Speed costs fuel to shed. The faster you're moving, the more thrust it takes to stop — watch that tank.`
+> `That's a gun. FIRE will drop it — but firing's malpractice, and it costs your rank. Every Scion can come home without a shot.`
+> `See that Scion? Set down close and gentle, and it'll climb aboard on its own.`
+> `Raise SHIELD the instant before impact. It'll save the ship — but it drinks fuel fast, so don't hold it a second longer than you need.`
+> `Tank's getting low. Find a fuel barrel — the yellow ones — and top up before you're stranded.`
+> `Good — you've got one aboard. Now fly it home: MERCY's blue recovery bay is where it gets delivered.`
+> `While you're docked in the bay, hold there a moment — that tops off your tank too.`
+
+The old "other ways to put a gun down" tease moved out of this script — see
+§3·X5 below — since it gated on a parry the trainee sector never teaches.
 
 ### 3·X5. Post-death hint-card bank (`HINTS_ALWAYS` / `HINTS_GATED`)
 
-One hint shown on the game-over screen, rotating with no repeats until the
-bank cycles. Six are always eligible; five more unlock once the player has
+One hint shown on the game-over screen — quoted and attributed to FLIGHT OPS,
+in the clear space above `FLATLINE` (owner note: it read squashed wedged
+between the tally and the buttons below) — rotating with no repeats until the
+bank cycles. Seven are always eligible; five more unlock once the player has
 met the system they describe (a parry landed, a scan finished, a counterfeit
 pod taken, a Hollow lift found while veteran, AVICENNA's `CANON OF TRUTH`
 earned).
 
-> always: `Thrust is momentum, not a throttle — to stop, thrust the opposite way.`
-> always: `Raise SHIELD the instant before you hit rock. It saves the ship; it drinks fuel.`
-> always: `Fuel can be scarce. A pod picked up is a pod gone.`
-> always: `You don't have to fight — any Scion can come home without a shot fired.`
-> always: `A long fall needs a long burn to arrest. Start slowing early.`
-> always: `When you only need a nudge — tap, don't hold.`
-> after a parry: `A shield raised at the right moment turns a shot back on its sender.`
-> after a scan: `Land beside a thing and read it — it can tell you what firing never will.`
-> after a counterfeit pod: `Not every fuel pod is a friend. The honest ones flicker like fire; the fakes keep to the Static's beat.`
-> after a lift (veteran): `The ground rings hollow in places. There is a way down.`
-> after Avicenna: `Your CANON OF TRUTH marks the fakes now. Trust the mark.`
+> always: `“Thrust is momentum, not a throttle. To stop, thrust the other way.” — FLIGHT OPS`
+> always: `“Raise SHIELD right before you hit rock. It'll save the ship — but it drinks fuel fast.” — FLIGHT OPS`
+> always: `“Fuel's scarce out here. Once a pod's gone, it's gone.” — FLIGHT OPS`
+> always: `“You don't have to fight. Any Scion can come home without a shot fired.” — FLIGHT OPS`
+> always: `“A long fall needs a long burn to arrest. Start slowing early, not late.” — FLIGHT OPS`
+> always: `“When you only need a nudge, tap. Don't hold.” — FLIGHT OPS`
+> always: `“There's more than one way to put a gun down. Shooting it isn't the only one.” — FLIGHT OPS` *(moved here from the X2 training script — it gated on a parry a trainee hasn't been taught yet)*
+> after a parry: `“A shield raised at just the right moment turns a shot back on whoever sent it.” — FLIGHT OPS`
+> after a scan: `“Land beside a thing and read it. It'll tell you what firing never will.” — FLIGHT OPS`
+> after a counterfeit pod: `“Not every fuel pod's a friend. The honest ones flicker like fire — the fakes keep to the Static's beat.” — FLIGHT OPS`
+> after a lift (veteran): `“The ground rings hollow in places. There's a way down, if you're listening.” — FLIGHT OPS`
+> after Avicenna: `“Your CANON OF TRUTH marks the fakes now. Trust the mark.” — FLIGHT OPS`
+
+### 3·X6. In-app rating prompt — contextual line (`askForRating`)
+
+Apple's native review sheet (`SKStoreReviewController.requestReview`) has its
+own fixed OS text that cannot be customized. "Contextual wording" is this
+line, shown inside the WIN/GAME OVER panel itself just before the native
+prompt fires 1.8s later, in priority order — a new hiscore beats a clean
+sweep beats the 5-completed-runs milestone beats a plain answered ending:
+
+> hiscore: `New personal best — enjoying it?`
+> clean sweep (an answered ending, no Scion lost): `Every Scion came home. Want others to share your success?`
+> 5th completed run (any ending): `Five flights and counting — enjoying it?`
 
 ### 3a. WHAT YOU'RE LOOKING AT card (`LEGEND_CARD`, U3)
 
@@ -228,7 +253,8 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
 > firing is malpractice and costs you; hold SHIELD for a force field.
 >
 > LANDING GUIDE — the chevrons under the ship on approach: ↓ is your descent
-> rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe.
+> rate, ↔ your sideways drift. They turn GREEN when a touchdown is safe. Only
+> shown with ASSIST on (toggle in SETTINGS).
 >
 > THE STATIC CLOCK — from the deep sectors on, a countdown to the 41-second
 > surge: the ECG jumps, the sector name corrupts, a caught fuel line rocks.
@@ -383,6 +409,9 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 `COUNTERFEIT — SOMEBODY'S LURE  -100` · `FUEL DRAINED -18` ·
 `LURE-TREE DESTROYED` / `LURE-TREE READ FOR WHAT IT IS — COUNTERFEIT
 TRANSMITTER +500` ·
+`COUNTERFEIT POD DESTROYED` / `COUNTERFEIT POD READ FOR WHAT IT IS +200`
+(owner feature: once CANON OF TRUTH marks a fake pod, scanning or shooting it
+resolves it cleanly instead of only finding out by touching it) ·
 `HIDDEN CACHE +400 — someone didn't want this found` · `SHIELD BOUNCE` ·
 `SHIELD HELD` · `HARD LANDING -<n>` · `-40` / `-26` (hit damage) ·
 `+250` / `+150` (turret / drone) · `FUEL LINE CUT` [S7 promotes] ·
@@ -422,9 +451,11 @@ shield to catalogue it, no shot)
 ## 11. Sector clear, endings, epilogue, ranks
 
 - **Sector clear** (`drawClear`): `<SECTOR> CLEAR` · optional
-  `PRIMUM NON NOCERE — Hippocratic bonus +2000` · `⏱ STOPWATCH BEAT +500` ·
-  `saved <n>/<n> · ✝ lost <n>` · `(a signal source went unfound in this
-  sector)` · `tap to continue`.
+  `PRIMUM NON NOCERE — Hippocratic bonus +2000` · optional `EVERY TRIP COUNTED
+  — efficiency bonus +1000` (owner feature: every rescued Scion delivered in
+  the minimum possible number of MERCY-bay trips for the sector's Scion count)
+  · `⏱ STOPWATCH BEAT +500` · `saved <n>/<n> · ✝ lost <n>` · `(a signal source
+  went unfound in this sector)` · `tap to continue`.
 - **Epilogue** (`EPILOGUE_LINE`): `AMS SOLACE · crew manifest 214 · status:
   HEARD.`
 - **THE ANSWERED CALL** — "You landed beside it and listened. / The beacon was
