@@ -99,6 +99,37 @@ checkbox was stale (its sub-items had already shipped).
 Copy for V15/V18 mirrored in [COPY_DECK.md](COPY_DECK.md). Five new/updated
 smoke tests; full suite green.
 
+### Owner playtest round 2
+
+A second live round on the same branch. Earlier items in this round (the
+pre-reveal Solace hint removed, the sonar hull-shape bug, the COUNTERFEIT TIME
+card, the veteran ending line) are described in the commits; this entry covers
+the post-completion flow.
+
+- **A repeat completion goes home to the title, not into another campaign.**
+  Finishing a run that was *already* a veteran run used to tap straight through
+  the win screen into `startFreshRun()` — and because `vetIntroSeen` was set,
+  that meant no menu and no acknowledgement, just sector 1 of a fresh campaign.
+  A **first** completion still flows on unbroken (that tap is what plays V8's
+  once-only VET_INTRO); a repeat now lands on the title with a one-off gold
+  nudge toward the rotations, which are the actual loop once the campaign is
+  done. `endingFirstRun` is now also stamped on the "unresolved" ending path,
+  where it previously kept a stale value from a previous run.
+- **AMS Solace's hull watermarks the title** — an outline-only ghost under the
+  wordmark, drawn from the same `solaceMercyPath()` the destruction reveal and
+  the bad-ending card use. Gated on a new persisted `solaceSeen`
+  (`doids_solace`), set only by `resolveBeacon` — so a player who never reached
+  her doesn't get the finale's biggest reveal spoiled on the menu. Deliberately
+  *not* set by the "unresolved" ending, which fires before the finale sector is
+  ever entered.
+- **Two save-wipe gaps closed.** `RESET PROGRESS` now also clears
+  `doids_solace` and `doids_lastrun_tally`; the latter meant a freshly-reset
+  save could still be told it "brought them all home" by the VET_INTRO recap,
+  on the strength of a run that no longer existed.
+
+Three new smoke tests (both routing branches + the hull gate and the wipe);
+full suite green at 99.
+
 ## Bundle DS — the design system made enforceable, and colourblind mode made real
 
 An audit of the live game assets against

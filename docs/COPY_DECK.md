@@ -52,6 +52,7 @@ Landed (July 2026, Bundle S):
 | Hook, haunted variant (violet, after an unresolved ending) | `the Static answers still — every 41 seconds` |
 | Warning (yellow) | `not every Scion you rescue is what it seems` |
 | Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5). After a first completion (veteran) it becomes `▼ SOMETHING'S STILL DOWN THERE`, teasing the Hollows — V7 |
+| Rotation nudge (gold; shown once, on returning here from a *repeat* completion) | `the sector still turns — try a REMIX ROTATION or the DAILY FLIGHT below` |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
 | Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `◎ HUD GUIDE` (U3) · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |

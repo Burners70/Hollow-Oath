@@ -71,7 +71,8 @@ Load order is the order below; it is significant (see "no build step").
 `doids_shrines_seen`, `doids_daily`, `doids_intro`, `doids_a2hs`, `doids_tilt`,
 `doids_snd`, `doids_mus`, `doids_assist`, `doids_hapt`, `doids_cb` (colorblind),
 `doids_easy` (Field Medic), `doids_bigtext`, `doids_flash` (reduced flash),
-`doids_unres` (unresolved haunt), `doids_veteran`. Keep the `doids_` prefix on new
+`doids_unres` (unresolved haunt), `doids_veteran`, `doids_solace` (has the Solace
+actually been met — gates her hull on the title). Keep the `doids_` prefix on new
 keys for consistency with the shipped save format.
 
 ## Documentation guide — what to read for what

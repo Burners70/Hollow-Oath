@@ -670,8 +670,20 @@ function updateMenu() {
         blip(300, 200, 0.12, "sine", 0.08);
       }
     } else if (state === "win") {
-      // the win screen keeps tap-anywhere-to-launch; the title does not
-      startFreshRun();
+      // (owner feedback, July 2026) — a FIRST completion still flows straight on
+      // from the win screen: that tap is what plays the once-only VET_INTRO
+      // ("SOMETHING DOESN'T SIT RIGHT") and opens the Hollows layer, and it
+      // should stay a single unbroken beat. A REPEAT completion used to do the
+      // same thing and, with vetIntroSeen already set, silently dropped the
+      // player into sector 1 of yet another full campaign with no menu in
+      // between. Send that case home to the title instead, with a nudge toward
+      // the rotations — the campaign is finished; REMIX/DAILY is the loop now.
+      if (endingFirstRun) startFreshRun();
+      else {
+        titleNudge = true;
+        state = "title"; stateT = 0;
+        blip(300, 200, 0.12, "sine", 0.08);
+      }
     }
     // a title tap that hit no pill now does nothing (R5)
   }
@@ -799,7 +811,15 @@ function updateClear() {
     else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
     else if (levelIdx === FINALE_IDX - 1) {
       if (blackboxCount >= TRIANGULATE_N) toBriefing(FINALE_IDX);
-      else { endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0; }
+      else {
+        // endingFirstRun is otherwise only stamped by resolveBeacon, so on this
+        // path it kept a stale value from a previous run. The win screen now
+        // reads it to decide whether to flow on or go home to the title, so
+        // stamp it here too. (drawEnding's own use is already guarded by
+        // endingType !== "unresolved", so it is unaffected.)
+        endingFirstRun = !veteran;
+        endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0;
+      }
     } else { state = "ending"; stateT = 0; }
   }
   input.tap = false;
@@ -845,7 +865,13 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro", "doids_trained", "doids_vetintro"];   // X3 fork + V8 veteran intro re-show after a wipe
+    "doids_intro", "doids_trained", "doids_vetintro",   // X3 fork + V8 veteran intro re-show after a wipe
+    // both found while wiring the post-completion title flow: doids_solace
+    // gates the Solace's hull on the title, and doids_lastrun_tally fed the
+    // VET_INTRO recap stale saved/lost counts from before the wipe (so a
+    // freshly-reset save could be told it "brought them all home" on the
+    // strength of a run that no longer exists).
+    "doids_solace", "doids_lastrun_tally"];
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
@@ -855,6 +881,8 @@ function resetProgress() {
   vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
   unresolvedHaunt = false;
+  solaceSeen = false;
+  lastRunSaved = 0; lastRunLost = 0;
 }
 let settingsReturnState = "title";
 function updateSettings() {
@@ -2514,6 +2542,7 @@ function resolveBeacon(how) {
   endingFirstRun = !veteran;   // capture BEFORE markVeteran — did this run have the Glycon layer sealed?
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
+  markSolaceSeen();  // she's been found and dealt with — her hull may show on the title now
   saveLastRunTally();   // V13 — so the next veteran-intro recap can be honest about it
   if (how === "fire") {
     // (owner steer) — the destroy-on-sight order the CMO refused to sign. The

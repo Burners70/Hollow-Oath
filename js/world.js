@@ -416,6 +416,26 @@ function markVeteran() {
   try { localStorage.setItem("doids_veteran", "1"); } catch (e) {}
   cloud.set("doids_veteran", "1");   // E4 mirror
 }
+/* (owner feedback, July 2026) — has this pilot actually MET the Solace? Set only
+   by resolveBeacon (answered or fire), i.e. only once she's been found and dealt
+   with. Deliberately NOT set by the "unresolved" ending: that one fires when the
+   blackbox count never reached TRIANGULATE_N, so the player never entered the
+   finale sector and never saw her — and this repo's rule is that a secret gives
+   nothing away until it's actually been examined (same reason the pre-reveal
+   "THE SIGNAL SOURCE" label came off the beacon). Gates her hull on the title. */
+let solaceSeen = false;
+try { solaceSeen = localStorage.getItem("doids_solace") === "1"; } catch (e) {}
+function markSolaceSeen() {
+  solaceSeen = true;
+  try { localStorage.setItem("doids_solace", "1"); } catch (e) {}
+  cloud.set("doids_solace", "1");   // E4 mirror
+}
+/* (owner feedback, July 2026) — transient, not persisted: a REPEAT completion
+   (a run that was already a veteran run) now lands back on the title instead of
+   launching straight into another full campaign, and the title carries a one-off
+   nudge toward the rotations. Cleared by resetRun, so it shows until the player
+   actually starts something. */
+let titleNudge = false;
 // V13 — the veteran-intro recap ("SOMETHING DOESN'T SIT RIGHT") needs to know
 // whether the finished campaign actually brought everyone home, so its line
 // isn't a blanket claim when it often wasn't. Snapshotted once, at the ending
@@ -440,9 +460,10 @@ function saveLastRunTally() {
 async function syncFromCloud() {
   if (!cloud.native()) return;
   try {
-    const [cHi, cCodex, cLogs, cShrines, cVet, cRun] = await Promise.all([
+    const [cHi, cCodex, cLogs, cShrines, cVet, cRun, cSol] = await Promise.all([
       cloud.get("doids_hi"), cloud.get("doids_codex"), cloud.get("doids_logs"),
-      cloud.get("doids_shrines_seen"), cloud.get("doids_veteran"), cloud.get("doids_run")]);
+      cloud.get("doids_shrines_seen"), cloud.get("doids_veteran"), cloud.get("doids_run"),
+      cloud.get("doids_solace")]);
     if (cHi && +cHi > hiscore) {
       hiscore = +cHi;
       try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
@@ -459,6 +480,7 @@ async function syncFromCloud() {
     union(logsSeen, cLogs, saveLogs);
     union(shrinesSeen, cShrines, saveShrinesSeen);
     if (cVet === "1" && !veteran) markVeteran();
+    if (cSol === "1" && !solaceSeen) markSolaceSeen();
     if (cRun && !savedRun) {
       try {
         const parsed = JSON.parse(cRun);
@@ -1486,6 +1508,7 @@ function resetRun() {
   checkpoint = null;
   runSeed = 0; runMode = "campaign"; famousMap = null;
   runRefuels = 0;   // U2 — the diminishing field-resupply allowance resets each run
+  titleNudge = false;   // the post-completion rotation nudge is spent once a run starts
   rollDailyMods();
   clearRun();
 }
