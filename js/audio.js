@@ -283,6 +283,23 @@ function hydraulic(descending) { // the lift — a filtered hiss under a pitch s
   s.connect(lp); lp.connect(g); g.connect(sfxGain); s.start();
   blip(descending ? 260 : 90, descending ? 70 : 260, 0.55, "sawtooth", 0.1);
 }
+/* V15 — the counterfeit MERCY's bay closing on you: an unpleasant, wet
+   swallow. Same shape as hydraulic() (noise bed + a pitch sweep) but wetter
+   and worse — a heavier lowpass, a longer decay, a lower descending sweep.
+   Timed to when the ship visibly gets pulled in. */
+function swallow() {
+  if (!AC) return;
+  const dur = 0.9, sz = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, sz, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / sz, 1.5) * 0.7;
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = rjit(260, 0.15);
+  const g = AC.createGain(); g.gain.value = 0.22;
+  s.connect(lp); lp.connect(g); g.connect(sfxGain); s.start();
+  blip(160, 40, 0.85, "sawtooth", 0.12);
+  haptic.heavy();
+}
 /* U1 — the pad rings hollow the instant the ship settles on a lift plate: a
    resonant struck-tube tone, two detuned partials ~an octave apart under a
    gentle lowpass (like hydraulic), decaying long so it reads as empty space

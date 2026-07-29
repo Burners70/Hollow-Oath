@@ -213,21 +213,41 @@ function goldBurst(x, y) {
   }
 }
 
+// V19 — `s.ang` accumulates unbounded while flying (steer adds to it every
+// tick with no wraparound), so after a long or hard-turning flight it can sit
+// several full turns past zero. Reduces to the equivalent angle in (-π, π].
+function normAngle(a) { return ((a % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI; }
+
 /* ---------------- landing rules ---------------- */
 function landingEval() {
   const s = ship;
   const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
-  const tilt = Math.abs(((s.ang % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  const tilt = Math.abs(normAngle(s.ang));
   const upright = tilt < 0.5;
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance
-  const vyMax = (upgrades.gentle ? 62 : 52) * tol;
-  const vxMax = 38 * tol, slopeMax = 0.25 * tol;
+  // Z2 — heavier REMIX/DAILY gravity means a naturally faster, harder-to-
+  // arrest descent; scale the DOWNWARD-speed tolerance (not sideways drift or
+  // ground slope, neither of which gravity causes) so the same quality of
+  // approach reads the same across the whole gravity range, not just at 1x.
+  // sqrt, not linear: doubling gravity only needs ~41% more allowed descent
+  // speed to stay equivalently fair, the same relationship real fall/braking
+  // distances have to acceleration. gravScale === 1 (campaign, and REMIX/DAILY
+  // seeds that happen to roll near-1x) leaves every threshold exactly as before.
+  const gtol = Math.sqrt(gravScale);
+  // owner feature — a crosswind (gravSide()) adds involuntary drift that's
+  // not the player's doing, so the sideways tolerance widens with it too
+  // (linearly, not sqrt: it's a constant force added to vx every frame, not
+  // an accelerating one compounding like the downward fall does). 0 in
+  // campaign and any REMIX/DAILY sector that happened to roll no tilt.
+  const sideTol = 1 + Math.abs(gravSide()) / (GRAV * 2);
+  const vyMax = (upgrades.gentle ? 62 : 52) * tol * gtol;
+  const vxMax = 38 * tol * sideTol, slopeMax = 0.25 * tol;
   // only DOWNWARD speed can make a landing hard — rising (vy < 0) is never
   // "too fast" (s.vy < vyMax is trivially true while ascending), so there is no
   // rising-too-fast state and no message for it
   const soft = s.vy < vyMax && Math.abs(s.vx) < vxMax && slope < slopeMax && upright;
-  const survivable = s.vy < (upgrades.gentle ? 100 : 85) * tol &&
-    Math.abs(s.vx) < 60 * tol && slope < 0.35 * tol && upright;
+  const survivable = s.vy < (upgrades.gentle ? 100 : 85) * tol * gtol &&
+    Math.abs(s.vx) < 60 * tol * sideTol && slope < 0.35 * tol && upright;
   let reason = "";
   if (!upright) reason = "LEVEL THE SHIP";
   else if (slope >= slopeMax) reason = "GROUND TOO STEEP";
@@ -563,7 +583,7 @@ function update(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.t -= dt; if (p.t <= 0) { particles.splice(i, 1); continue; }
-    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += GRAV * 0.6 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += grav() * 0.6 * dt;   // Z1
   }
   for (let i = texts.length - 1; i >= 0; i--) {
     texts[i].t -= dt; texts[i].y -= 16 * dt;
@@ -629,6 +649,9 @@ function update(dt) {
       }
       input.tap = false; return;
     case "coach": updateCoach(); return;   // X4
+    case "trapcard":   // V15 — held until dismissed; only then does shipDie() run
+      if (input.tap && stateT > 0.4) { trapCard = null; shipDie(); }
+      input.tap = false; return;
     case "clear": updateClear(); return;
     case "ending":
       if (input.tap && stateT > 1) {
@@ -803,8 +826,20 @@ function updateMenu() {
         blip(300, 200, 0.12, "sine", 0.08);
       }
     } else if (state === "win") {
-      // the win screen keeps tap-anywhere-to-launch; the title does not
-      startFreshRun();
+      // (owner feedback, July 2026) — a FIRST completion still flows straight on
+      // from the win screen: that tap is what plays the once-only VET_INTRO
+      // ("SOMETHING DOESN'T SIT RIGHT") and opens the Hollows layer, and it
+      // should stay a single unbroken beat. A REPEAT completion used to do the
+      // same thing and, with vetIntroSeen already set, silently dropped the
+      // player into sector 1 of yet another full campaign with no menu in
+      // between. Send that case home to the title instead, with a nudge toward
+      // the rotations — the campaign is finished; REMIX/DAILY is the loop now.
+      if (endingFirstRun) startFreshRun();
+      else {
+        titleNudge = true;
+        state = "title"; stateT = 0;
+        blip(300, 200, 0.12, "sine", 0.08);
+      }
     }
     // a title tap that hit no pill now does nothing (R5)
   }
@@ -933,7 +968,15 @@ function updateClear() {
     else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
     else if (levelIdx === FINALE_IDX - 1) {
       if (blackboxCount >= TRIANGULATE_N) toBriefing(FINALE_IDX);
-      else { endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0; }
+      else {
+        // endingFirstRun is otherwise only stamped by resolveBeacon, so on this
+        // path it kept a stale value from a previous run. The win screen now
+        // reads it to decide whether to flow on or go home to the title, so
+        // stamp it here too. (drawEnding's own use is already guarded by
+        // endingType !== "unresolved", so it is unaffected.)
+        endingFirstRun = !veteran;
+        endingType = "unresolved"; setHaunt(true); state = "ending"; stateT = 0;
+      }
     } else { state = "ending"; stateT = 0; }
   }
   input.tap = false;
@@ -945,7 +988,8 @@ function updateClear() {
    restores both. Backgrounding the app while reading now pauses too, so you never
    lose your place. */
 let pauseReturnState = "play", pauseReturnT = 0;
-const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm", "coach"]);
+const PAUSABLE = new Set(["play", "reveal", "clear", "brief", "ending", "epilogue", "confirm",
+  "coach", "trapcard"]);
 function enterPause() {
   if (!PAUSABLE.has(state)) return;
   if (state === "play") snapshotRun();
@@ -988,7 +1032,13 @@ let resetArmed = false;
 function resetProgress() {
   const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
-    "doids_intro", "doids_trained", "doids_vetintro", "doids_plays"];   // X3 fork + V8 veteran intro re-show after a wipe
+    "doids_intro", "doids_trained", "doids_vetintro", "doids_plays",   // X3 fork + V8 veteran intro re-show after a wipe
+    // both found while wiring the post-completion title flow: doids_solace
+    // gates the Solace's hull on the title, and doids_lastrun_tally fed the
+    // VET_INTRO recap stale saved/lost counts from before the wipe (so a
+    // freshly-reset save could be told it "brought them all home" on the
+    // strength of a run that no longer exists).
+    "doids_solace", "doids_lastrun_tally"];
   for (const k of wipe) {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
@@ -998,6 +1048,24 @@ function resetProgress() {
   vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
   unresolvedHaunt = false;
+  solaceSeen = false;
+  lastRunSaved = 0; lastRunLost = 0;
+  /* (owner feedback, July 2026 — "the reset didn't fully clear") — a wipe has to
+     take the LIVE RUN with it. SETTINGS is reachable from the pause menu, so the
+     wipe could be triggered mid-flight; it cleared the saves and every persisted
+     flag but left the run in progress completely untouched, and tapping out of
+     settings returned you to that same pause screen. You then resumed a run
+     belonging to the save you had just deleted — its score, sector and already-
+     generated content intact, including the veteran-only Glycon layer (the
+     counterfeit MERCY twin and the Hollows lift are gated on `veteran` at
+     genLevel time, so a sector generated before the wipe still carries them even
+     though `veteran` is now false). Go home to a boot-fresh title instead. */
+  resetRun();
+  levelIdx = 0; level = genLevel(0); spawnShip();
+  camera = { x: ship.x, y: ship.y, shake: 0 };
+  particles = []; texts = [];
+  settingsReturnState = "title";   // so tapping out of settings lands home, not on a stale pause
+  state = "title"; stateT = 0;
 }
 let settingsReturnState = "title";
 function updateSettings() {
@@ -1163,7 +1231,8 @@ function updatePlay(dt) {
   }
 
   if (!s.landed) {
-    s.vy += GRAV * dt;
+    s.vy += grav() * dt;       // Z1 — REMIX/DAILY only; grav() === GRAV in campaign
+    s.vx += gravSide() * dt;   // owner feature — a per-sector crosswind; 0 in campaign
     s.x += s.vx * dt; s.y += s.vy * dt;
   }
 
@@ -1190,7 +1259,7 @@ function updatePlay(dt) {
     if (soft) {
       // assist eases the real touchdown tilt to level afterward (above);
       // without assist, keep the original instant snap unchanged
-      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? normAngle(s.ang) : 0;   // V19 — normalize before the assist ease
     } else if (s.shield) {
       // the force field turns a bad approach into a bounce — reflected off
       // the ACTUAL local slope normal, not just vertically. A vertical-only
@@ -1217,7 +1286,7 @@ function updatePlay(dt) {
       addText(s.x, s.y - 30, "SHIELD BOUNCE", PAL().SAFE);
       blip(200, 380, 0.15, "sine", 0.12);
     } else if (survivable) {
-      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? s.ang : 0;
+      s.landed = true; s.y = g - SHIP_R; s.vx = 0; s.vy = 0; s.ang = assist ? normAngle(s.ang) : 0;   // V19 — normalize before the assist ease
       const dmg = upgrades.gentle ? 12 : 35;
       s.vitals -= dmg; camera.shake += 10;
       haptic.heavy();
@@ -1311,7 +1380,7 @@ function updateOids(dt, now) {
     if (o.state === "thrown") {
       // E2 — a Scion hurled from the cabin, falling. Fly into them to catch and
       // re-board; if they hit the ground they're lost (Field Medic: they survive).
-      o.vy += GRAV * 1.2 * dt;
+      o.vy += grav() * 1.2 * dt;   // Z1
       o.x += o.vx * dt; o.y += o.vy * dt;
       if (o.throwLock > 0) o.throwLock -= dt;
       if ((o.throwLock || 0) <= 0 && !s.dead && s.passengers.length < CAPACITY &&
@@ -1835,12 +1904,17 @@ function updateWaves(dt) {
       } else {
         // a wash-over costs vitals: the full hit at the finale, HALF mid-game
         // (owner steer) — a Vector's pulse still stings, just less than Solace's.
-        const cost = w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2;
+        // A PRE-REVEAL Solace pulse is free: it exists to tell you she's there and
+        // transmitting (see updateBeacon), and the game hasn't yet told you a parry
+        // is the answer. It still lands the surge, shake and flash — unsettling,
+        // just not damaging. Full cost once she's named.
+        const cost = w.preReveal ? 0 : (w.finale ? WAVE_MISS_VITALS : WAVE_MISS_VITALS / 2);
         s.vitals = Math.max(0, s.vitals - cost);
         staticSurge = Math.max(staticSurge, w.finale ? 0.6 : 0.35);
         sabotageFlash = w.finale ? 0.5 : 0.3;
         camera.shake += w.finale ? 5 : 3;
-        addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
+        if (cost > 0) addText(s.x, s.y - 34, "SIGNAL WASH  −" + cost, TOK.VIOLET);
+        else addText(s.x, s.y - 34, "SIGNAL WASH", TOK.VIOLET);
       }
     }
   }
@@ -2370,6 +2444,10 @@ function updateResupplySignal(dt) {
       given: 0, occluded: false, attachedNow: false, everAttached: false,
       dripT: 0, dripFlip: false, firePrev: true };
     blip(180, 420, 0.4, "sine", 0.12);
+    // V18 — the first field resupply this run deserves a beat, not just a
+    // fuel bar: nothing until now has acknowledged the drone exists at all,
+    // let alone that it comes at a cost (U2's diminishing allowance).
+    if (runRefuels === 0) banner("YOU'RE NOT ALONE. HELP IS ON THE WAY. BUT THERE IS A PRICE.", PAL().WARN);
   }
   if (!resupplyDrone) return;
   const rd = resupplyDrone;
@@ -2638,12 +2716,17 @@ function updateDecoy(dt) {
       f.dead = true; decoyOutcome = "trapped";
       // V13 (owner steer) — the trap costs a full life, not a score ding: this
       // is the third act's real cost. shipDie() itself accounts for anyone
-      // still aboard (its own "-250 each" text), so the banner carries only
-      // the reveal — no stacked score penalty on top of the life.
-      banner("COUNTERFEIT — THE BAY IS A MOUTH\nNO HEALING. NO FUEL. A HULL WITH NOTHING INSIDE BUT APPETITE.", PAL().REVEAL);
-      staticTick(); dullThud();
+      // still aboard (its own "-250 each" text).
+      // V15 — this is a story climax (the CMO's fear made literal), not a
+      // passing toast: the swallow SFX fires now, timed to the ship visibly
+      // getting pulled in, then a tap-gated panel holds the beat — shipDie()
+      // (and the "dead" state it enters) only fires once the player dismisses it.
+      staticTick(); swallow();
       explode(f.x, f.y + 40, PAL().REVEAL, 30);
-      shipDie();
+      trapCard = { kicker: "THE THIRD ACT", title: "THE BAY IS A MOUTH",
+        body: "No healing. No fuel. A hull with nothing inside but appetite — wearing the one shape you stopped checking.\n\nHe built a better lure this time. He built the thing you trust.",
+        color: PAL().REVEAL };
+      state = "trapcard"; stateT = 0;
     }
   } else {
     f.dockT = 0;
@@ -2657,11 +2740,17 @@ function updateDecoy(dt) {
 }
 function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure fails
   f.dead = true; decoyOutcome = "observed";
-  score += 800;
-  explode(f.x, f.y - 10, PAL().REVEAL, 40);
+  score += 2000;   // owner steer — a full hull's worth of a reveal, priced accordingly
+  // owner feature — a full hull going down deserves more than a lure-tree's
+  // burst: several staggered bursts across her whole footprint, not one
+  // burst at her centre, with a real camera shake to match.
+  explode(f.x, f.y - 10, PAL().REVEAL, 50);
+  explode(f.x - 60, f.y, TOK.GOLD, 26);
+  explode(f.x + 60, f.y, TOK.GOLD, 26);
+  camera.shake = Math.max(camera.shake, 18);
   staticTick();
-  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +800", title: "MACHINE TIME", subtitle: "",
-    body: "Her emblem pulses like a pulse. Its emblem keeps perfect time.\n\nYou counted the beats. He never learned a heartbeat.",
+  showCard({ kicker: "COUNTERFEIT IDENTIFIED · +2000", title: "COUNTERFEIT TIME", subtitle: "",
+    body: "Mercy's emblem pulses. An organic pulse.\nGlycon's keeps perfect time. Plausible. False.\n\nOne thing Glycon never managed.\nA beating heart.",
     color: TOK.CYAN_INK });
 }
 
@@ -2690,15 +2779,36 @@ function updateBeacon(dt) {
   // updateWaves' finale branch); the pulse comes round again. FIRE still silences
   // her (the other ending). The science of "being heard" — she stops repeating
   // once the signal is finally acknowledged in kind.
-  if (b.revealed && !s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
+  /* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to
+     pulse ONLY once revealed, i.e. only after you had already landed within 120px
+     of her. Until then she was completely inert: you could hover right beside her,
+     well inside ANSWER_RANGE, and get nothing back at all. The pre-reveal "land
+     beside it, or open fire" label was the only thing carrying that requirement,
+     and removing it (correctly — too much of a handhold) left the beat with no
+     tell whatsoever. She is "still transmitting" — that is her whole character —
+     so she now casts her looping distress wave as soon as you are near, revealed
+     or not. That IS the clue, with no words: something down here is signalling at
+     you, and closing in and touching down is what names her.
+     A pre-reveal wash costs no vitals, though (see updateWaves): being punished
+     12 vitals every ANSWER_GAP for approaching a mystery you have not been told
+     how to answer would just relocate the unfairness. Full stakes resume once
+     she's named and the card has told you the signal seeks a response. */
+  if (!s.dead && Math.hypot(s.x - b.x, s.y - b.y) < ANSWER_RANGE) {
     b.castT = (b.castT || 0) + dt;
     if (b.castT >= ANSWER_GAP) {
       b.castT = 0;
       level.waves = level.waves || [];
-      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false, finale: true });
+      level.waves.push({ src: b, ox: b.x, oy: b.y - 40, t: 0, done: false, hit: false,
+        finale: true, preReveal: !b.revealed });
     }
   } else b.castT = 0;
-  if (b.heardParry) resolveBeacon("answered");
+  // only a parry she can be named by counts as being HEARD: pre-reveal you don't
+  // yet know who or what you're answering, so a lucky early parry is discarded
+  // rather than banked (it would otherwise resolve her the instant she's revealed).
+  if (b.heardParry) {
+    if (b.revealed) resolveBeacon("answered");
+    else b.heardParry = false;
+  }
 }
 
 function resolveBeacon(how) {
@@ -2708,6 +2818,7 @@ function resolveBeacon(how) {
   endingFirstRun = !veteran;   // capture BEFORE markVeteran — did this run have the Glycon layer sealed?
   setHaunt(false);   // the Static is answered (or silenced) — the title rests
   markVeteran();     // any resolved ending unlocks REMIX ROTATION (M2) + the Hollows layer
+  markSolaceSeen();  // she's been found and dealt with — her hull may show on the title now
   saveLastRunTally();   // V13 — so the next veteran-intro recap can be honest about it
   if (how === "fire") {
     // (owner steer) — the destroy-on-sight order the CMO refused to sign. The
@@ -2732,6 +2843,9 @@ function resolveBeacon(how) {
     blip(220, 880, 1.2, "sine", 0.15);
     // Bundle L2 — the answered call earns a held breath before the card:
     // the camera goes to her, the rings die down, and she gets a name.
+    // V17 — the payoff moment: the whole submerged hull lights up the
+    // instant her pulse is actually returned, not just on the ambient tell.
+    b.sonarT = SONAR_DUR;
     b.fade = 1;
     // owner bug fix (July 2026) — the pay-off moment: sonarT otherwise only
     // refreshes on the 41s Static beat (updateStaticClock), which stops
@@ -2754,9 +2868,11 @@ function updateEpilogue(dt) {
     camera.x = lerp(camera.x, b.x, 1 - Math.pow(0.05, dt));
     camera.y = lerp(camera.y, b.y - 90, 1 - Math.pow(0.05, dt));
     b.fade = Math.max(0, (b.fade || 0) - dt / 3);
-    // owner bug fix — keep her hull sweeping back into view through the
-    // whole scripted scene (updateBeacon, which normally re-arms this every
-    // Static beat, stops running once state leaves "play")
+    // V17 (owner playtest, follow-up) — the instant light-up in resolveBeacon
+    // only lasted one SONAR_DUR (1.8s); the rest of this 6.5s scripted scene
+    // then played with a dark hull, since nothing else re-arms sonarT once
+    // updateBeacon (which normally does, every Static beat) stops running
+    // outside "play". Keep re-triggering the sweep for the whole scene.
     b.sonarT = Math.max(0, (b.sonarT || 0) - dt);
     if (b.sonarT <= 0) b.sonarT = SONAR_DUR;
   }
@@ -2793,6 +2909,15 @@ function updateDestruct(dt) {
     b._det = true; boom(); camera.shake = Math.max(camera.shake, 34);
     crushCrater(level.heights, b.x, 240, 96);
     invalidateTiles();
+    // V16 — a turret planted near her at generation keeps its own static x/y;
+    // without this it's left hanging in mid-air over the crater the blast just
+    // carved. Take down anything the collapse would have brought with it.
+    for (const t of level.turrets) {
+      if (t.alive && Math.abs(t.x - b.x) < 240) {
+        t.alive = false;
+        explode(t.x, t.y - 8, PAL().WARN, 30);
+      }
+    }
     // the shower: a big omnidirectional burst of fine sparks…
     for (let i = 0; i < 320; i++) {
       const a = Math.random() * Math.PI * 2, sp = 70 + Math.random() * 460;

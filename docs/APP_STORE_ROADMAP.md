@@ -7,8 +7,8 @@ in a bundle is checked, move the whole section to
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) and leave a row in the shipped table
 below — that's what keeps this file cheap to read.*
 
-**This file holds only what is still open.** The 21 fully shipped bundles (A–N,
-R, S, U, QA, Y, DS, X) live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) with their
+**This file holds only what is still open.** The 22 fully shipped bundles (A–N,
+R, S, U, QA, Y, DS, X, Z) live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) with their
 acceptance notes and code anchors intact — go there when you need the record of
 *how* something was built, not to decide what to build.
 
@@ -89,8 +89,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 11 | 1.01 | V1 fly-back (resolved → 1.1 with P), V11 decoy-MERCY reachability *(owner decision open)*, V12 fake-MERCY surprise, **V14 flaky-for-a-reason REMIX fairness gap**, **V15–V20 owner-playtest defects (bay-is-a-mouth beat, Solace-adjacent turret, Solace-answer reveal, first-resupply beat, landing spin, dune overspill)**, V·ship |
-| Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
+| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 fly-back (resolved → 1.1 with P; not a 1.01 item), V·ship (the release action itself — code side is done) |
 | P | The pendulum sling | 3 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md) |
 | W | Landscape challenge escalation | 2 | 1.1 (with P) | W1 progressive terrain difficulty, W·guard |
 | Q | The deep Hollows | 3 | 1.1 core + 1.2 caves | Whole bundle — spec is [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) |
@@ -141,6 +140,7 @@ to the archive in full, including its already-shipped X1/X3 slices.
 | Y | 1.01 release-fix defects | Stability + render/telegraphing fixes |
 | DS | Design-system conformance | Token layer; colourblind mode made real (**1.0**) |
 | X | Onboarding & new-player experience | Trainee sector, guided pauses, hint bank, in-app rating (**1.01**) |
+| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.01**) |
 
 ---
 
@@ -659,14 +659,18 @@ narrative beats; no shared dependency between them or with V1–V14.
   MERCY only for `veteran`, `js/world.js:829`). Code anchors: `genLevel` in
   `js/world.js` (placement + `RECIPE`), gated on `veteran`; reconcile with the
   existing REMIX rotation (M) so the two return modes don't fight.
-- [ ] **V11. (Candidate) Decoy MERCY reachability.** Owner question, July
+- [x] **V11. (Candidate) Decoy MERCY reachability.** *(Resolved (owner, 1.01
+  round): leave it as a deep secret — no code change. Matches the game's
+  existing design pillar of rewarding deep exploration rather than surfacing
+  every secret to every player.)* Owner question, July
   2026: the counterfeit MERCY is currently gated behind **`veteran` +
   reaching the secret finale + `blackboxCount >= TRIANGULATE_N`**
   (`js/world.js:829`, `js/update.js:695`), so most players never see it.
   Decide whether 1.01 should surface it earlier / more reliably, or leave it as
   a deep secret. Owner decision — logged so it isn't lost.
-- [ ] **V12. The counterfeit MERCY should be a *surprise*, not a signposted
-  quiz (owner playtest, late July 2026).** Today the finale over-explains the
+- [x] **V12. The counterfeit MERCY should be a *surprise*, not a signposted
+  quiz (owner playtest, late July 2026).** *(V12a–c all shipped — see the
+  parenthetical below; checkbox was stale.)* Today the finale over-explains the
   twin: the veteran warning spells out *"Two ships will answer as MERCY … tell
   them apart by the emblem … count the beats before you dock"* (`js/update.js:671`),
   and the decoy gives itself away by **position** — it spawns at `W*0.45`
@@ -788,7 +792,24 @@ narrative beats; no shared dependency between them or with V1–V14.
     call sites in `js/update.js` (the S5 landed-scan catalogue text + the
     "dying" kill resolution) and the boarding-exemption change in the oid
     update loop.
-- [ ] **V14. The V2 scan-landing invariant does not hold for every REMIX seed.**
+- [x] **V14. The V2 scan-landing invariant does not hold for every REMIX seed.**
+  *(Shipped. `startRemix(seed)` (`js/world.js`) now takes an optional explicit
+  seed — `__doids.remix(seed)` — so a failure is reproducible. A brute-force
+  sweep (4000 seeds × 7 sectors, then confirmed clean across 30000 seeds ×
+  7 sectors) found two real domino effects the original single-pass fix
+  never re-checked for: (1) the lift-flat reassert's own scanSpotOK-driven
+  repair can carve its replacement shelf on top of a THIRD, unrelated
+  Scion's already-fair band; (2) two scannable neighbours ~260px apart
+  (pick()'s own minimum) can mutually nick each other's checked BAND even
+  though their pads never overlap — the band reaches ~195px out, further
+  than either pad's ~122px cap. Fixed with `enforceScanFairness()` (the
+  original widen+shelf logic, pulled into a function) called a second time
+  after the lift reassert, plus a final verify-as-you-go backstop that tries
+  candidate spots inside the actual checked band and confirms each one
+  before moving on, rather than predicting a position. M1 golden checksum
+  unchanged (1090254029) — the campaign seed was never affected. Smoke:
+  "V14 the V2 fairness invariant holds across a broad REMIX seed sweep"
+  (fixed known-failing seeds + an in-process 5000-seed sweep).)*
   Found while verifying Bundle DS (July 2026), and **pre-existing — not caused by
   that work**: the V2 fairness guard
   (`worldgen.spec.js:241`, "every scannable Scion has a fair scan-landing spot")
@@ -820,8 +841,16 @@ narrative beats; no shared dependency between them or with V1–V14.
   seed.** Both flakes were misattributed to unrelated changes before being
   measured — check the failure rate on a clean worktree before believing a diff
   caused it.
-- [ ] **V15. "The bay is a mouth" needs to land as a beat, not a banner
-  (owner note, July 2026).** The decoy's reveal — that the counterfeit
+- [x] **V15. "The bay is a mouth" needs to land as a beat, not a banner
+  (owner note, July 2026).** *(Shipped. A new `"trapcard"` state
+  (`updateDecoy`'s trap branch, `js/update.js`) holds a tap-gated panel —
+  reusing `drawCardPanel`, kicker `THE THIRD ACT`, title `THE BAY IS A
+  MOUTH` — until the player dismisses it; only then does `shipDie()` (and
+  the life it costs) run. A new `swallow()` SFX (`js/audio.js`, a lower/
+  wetter `hydraulic()`) fires the instant the trap closes, timed to the ship
+  visibly getting pulled in, before the panel appears. Copy in COPY_DECK.md
+  §10. Smoke: the docking-trap test in `finale.spec.js` now dismisses the
+  card before asserting the life loss.)* The decoy's reveal — that the counterfeit
   MERCY's bay has no healing, no fuel, only appetite — is today just the
   standard 4.2s `banner()` (`function banner`, `js/update.js:92`) fired from
   `updateDecoy` when the trap closes (`js/update.js:2426`), and it races the
@@ -837,8 +866,12 @@ narrative beats; no shared dependency between them or with V1–V14.
   `updateDecoy` (`js/update.js:2410`), `shipDie` (`js/update.js:161`), the
   tap-gated card pattern (`showCard`, `drawWin`/`drawFireEnding` in
   `js/render.js`), `js/audio.js` for the new SFX.
-- [ ] **V16. Shooting the Solace should take a beside-her turret down with
-  her.** Firing on the Solace sinks the ridge over her buried hull into a
+- [x] **V16. Shooting the Solace should take a beside-her turret down with
+  her.** *(Shipped. `updateDestruct`'s detonation branch (`js/update.js`)
+  now kills/explodes any `level.turrets` entry within the crater radius
+  right alongside `crushCrater`, instead of leaving it hanging over the
+  hole. Smoke: "V16 shooting the Solace takes a beside-her turret down with
+  the crater".)* Firing on the Solace sinks the ridge over her buried hull into a
   real crater (`crushCrater`, `js/world.js:779`, called from `updateDestruct`,
   `js/update.js:2566`) — but any `level.turrets` entry planted near her at
   generation keeps its own static `t.x`/`t.y` set once in `genLevel`, and is
@@ -849,8 +882,10 @@ narrative beats; no shared dependency between them or with V1–V14.
   instead of leaving it floating. Code anchors: `crushCrater`/
   `invalidateTiles` (`js/world.js:779`; `js/update.js:2566`-`2567`), the
   existing turret hit-test to mirror (`js/update.js:1409`-`1416`).
-- [ ] **V17. Returning the Solace's pulse should re-trigger the full hull
-  reveal.** V3's sonar sweep (`beacon.sonarT = SONAR_DUR`, `SONAR_DUR` at
+- [x] **V17. Returning the Solace's pulse should re-trigger the full hull
+  reveal.** *(Shipped — one line, `resolveBeacon`'s answered branch now sets
+  `b.sonarT = SONAR_DUR`. Smoke: added to the existing answered-ending
+  test.)* V3's sonar sweep (`beacon.sonarT = SONAR_DUR`, `SONAR_DUR` at
   `js/update.js:31`) currently fires on the first landing-beside reveal
   (`js/update.js:2460`) and on every 41-second Static beat
   (`js/update.js:80`), but **not** at the moment the player actually answers
@@ -860,7 +895,10 @@ narrative beats; no shared dependency between them or with V1–V14.
   bigger, one-off flash variant) to that branch so the whole submerged hull
   lights up the instant her pulse is returned — the payoff moment, not just
   the ambient tell. Code anchor: `resolveBeacon` (`js/update.js:2487`).
-- [ ] **V18. First field resupply deserves a beat, not just a fuel bar.** The
+- [x] **V18. First field resupply deserves a beat, not just a fuel bar.**
+  *(Shipped verbatim, gated on `runRefuels === 0` at the drone-spawn point.
+  Copy in COPY_DECK.md §8. Smoke: "V18 the very first field resupply gets a
+  one-time acknowledgement banner".)* The
   resupply drone (`updateResupplySignal`, `js/update.js:2124`) launches
   silently the first time a stranded player holds THRUST long enough to
   signal — nothing acknowledges that help exists at all, let alone that it
@@ -872,7 +910,12 @@ narrative beats; no shared dependency between them or with V1–V14.
   drone-spawn block (`js/update.js:2148`-`2156`), `runRefuels`
   (`js/update.js:2205`), `banner()`/`showCard()` for how to present it;
   mirror the new line into COPY_DECK.md (R10).
-- [ ] **V19. Occasional weird ship spin on landing (assist mode).** Reported:
+- [x] **V19. Occasional weird ship spin on landing (assist mode).** *(Shipped
+  exactly as diagnosed — a new `normAngle()` helper (`js/update.js`, the
+  existing modulo pattern factored out of `landingEval`'s `tilt`) applied at
+  both landing snaps: `s.ang = assist ? normAngle(s.ang) : 0`. Smoke: "V19 a
+  long flight's accumulated rotation doesn't survive into a landing spin".)*
+  Reported:
   the dart sometimes visibly spins on touchdown, possibly tied to shield use.
   Likely cause: `s.ang` accumulates unbounded while flying — `steer` adds to
   it every tick with no wraparound (`js/update.js:947`) — so after a long or
@@ -889,7 +932,16 @@ narrative beats; no shared dependency between them or with V1–V14.
   modulo pattern to reuse. Code anchors: `js/update.js:947` (accumulation),
   `:958`-`960` (assist ease), `:1041`/`:1068` (landing snap), `:142`
   (existing normalize pattern).
-- [ ] **V20. Dune scenery overspills unnaturally on one level.** Owner
+- [x] **V20. Dune scenery overspills unnaturally on one level.** *(Root cause
+  found by code comparison, not a live repro: every OTHER wide ground-
+  anchored decoration (`drawHedge`, `drawSpire`, `drawRuin`, …) rotates to
+  `sc.tilt` right after translating; `drawDune` never did, so its flat base
+  held level in screen space regardless of slope — on a sloped patch it
+  visibly floats clear of the ground on one side and digs into it on the
+  other. Fixed with `ctx.rotate(sc.tilt * 0.4)`, matching `drawHedge`'s
+  damping for the same kind of organic mound. Confirmed with a REMIX seed
+  whose dune actually sits on a slope (campaign seed 0's Avicenna dunes all
+  happen to land on flat ground, so this never reproduced there).)* Owner
   screenshot, July 2026: on one surface sector a hillside/dune reads as
   spilling past its own terrain in a way that looks broken rather than
   windswept. Avicenna's banded dunes are placed once at generation
@@ -905,7 +957,11 @@ narrative beats; no shared dependency between them or with V1–V14.
   for other scenery (`js/world.js`, `scanSpotOK`/pad-widening section).
 - [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
-  [CHANGELOG.md](CHANGELOG.md).
+  [CHANGELOG.md](CHANGELOG.md). *(This bundle's code changes add no new
+  entitlements, permissions, or data collection — confirmed while landing
+  V11/V14–V20 above; CHANGELOG.md updated in the same PR. The actual
+  release (What's-New copy finalized, submitted in App Store Connect)
+  remains an owner action, same as O9.)*
 
 ## Bundle W — Landscape challenge escalation (update 1.1, with P)
 
@@ -934,34 +990,6 @@ generators.**
   checksum stay green; add fairness-invariant assertions for the new terrain
   shapes across every seed the campaign and REMIX/DAILY can produce.
 
-## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
-
-**Why:** Owner idea (late July 2026) — add **variable gravity to REMIX** for
-replay variety. Gravity is a single global (`GRAV = 46`, `js/world.js:149`), so a
-per-run scale is cheap to *apply*; the real work is **fairness tuning**, not
-plumbing. **Priority: pulled forward to 1.01 (owner decision, late July 2026; was
-1.1). The Z2 fairness re-tune gates it — this is *not* a lean-1.0 "low-risk win,"
-so it rides 1.01, not the launch binary, unless the re-tune proves trivial.
-Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
-
-- [ ] **Z1. Variable-gravity modifier.** Scale `GRAV` by a per-run factor drawn
-  from `runSeed` (e.g. ~0.7×–1.4×), **REMIX / DAILY only — never seed 0**, so the
-  M1 golden heightmap and the authored campaign feel stay untouched. Surface it
-  in the briefing prefix ("REMIX ROTATION // heavy world" / "thin gravity"). Code
-  anchors: `GRAV` (`js/world.js:149`) → a scaled read; the remix/daily plumbing
-  (Bundle M, `doids_daily`); the briefing prefix in `BRIEFS`.
-- [ ] **Z2. Fairness re-tune under changed gravity.** Gravity touches more than
-  the ship — safe-landing descent thresholds, fuel economy, oid fall
-  (`js/update.js:1048`), particles (`:433`), the resupply-drone airframe
-  (`:1909`). Landing-safe speed and the ASSIST bands must scale with `GRAV` or
-  heavy runs are unfair. **Design + playtest pass**, plus a smoke assertion that a
-  landing safe at 1× stays classifiable across the whole gravity range. Respects
-  the V2 scan-landing fairness invariant.
-- [ ] **Z·guard. Regression gate.** M1 checksum + full smoke green (**seed 0
-  unaffected**); add coverage for the gravity-scale bounds and the landing-safety
-  re-tune.
-
----
 
 ## Suggested sequencing
 

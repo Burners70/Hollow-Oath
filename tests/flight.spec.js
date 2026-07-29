@@ -11,6 +11,29 @@ const { useGame } = require("./harness");
 
 useGame(test, expect);
 
+test("V19: a long flight's accumulated rotation doesn't survive into a landing spin", async ({ page }) => {
+  // steer accumulates s.ang every tick with no wraparound, so a long or
+  // hard-turning flight can sit several full turns past zero (e.g. ~15 rad)
+  // at the moment it lands. With assist on (the bug's precondition — assist
+  // keeps the raw angle instead of snapping to 0) that used to visibly spin
+  // through every accumulated turn before easing to level.
+  await page.evaluate(() => {
+    __doids.go(0); __doids.launch();
+    assist = true;
+    ship.x = level.oids[0].x;   // a Scion's own pad — flattened at generation, always landable
+    // several full turns past zero (4π), but the EQUIVALENT angle is upright
+    // (~0.05 rad) — exactly the bug's precondition: a survivable landing that
+    // used to spin through every accumulated turn before easing to level
+    ship.ang = 4 * Math.PI + 0.05;
+    ship.y = groundAt(ship.x) - SHIP_R + 1; ship.vx = 0; ship.vy = 5; ship.landed = false;
+  });
+  await page.waitForTimeout(120);   // the next physics tick detects touchdown
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.ship.landed).toBe(true);
+  // normalized to (-π, π] on touchdown — never left at the raw accumulated value
+  expect(Math.abs(s.ship.ang)).toBeLessThanOrEqual(Math.PI + 0.001);
+});
+
 test("secret lift descends into the Hollows", async ({ page }) => {
   // sector 1 hides a lift; land on it and hold ~2.4s. The Hollows are a
   // veteran-only layer now, so unlock it first. (V10 escalates the veteran
@@ -59,6 +82,35 @@ test("stranding at 0 fuel: the signal brings a drone, a primer, and a line", asy
   await page.evaluate(() => { input.thrust = false; });
   s = await page.evaluate(() => __doids.get());
   expect(s.ship.fuel).toBeGreaterThan(6);   // the primer mist — enough to reach the line
+});
+
+test("V18: the very first field resupply gets a one-time acknowledgement banner", async ({ page }) => {
+  await page.evaluate(() => { __doids.go(1); __doids.launch(); __doids.strand(); });
+  expect(await page.evaluate(() => runRefuels)).toBe(0);
+  await page.evaluate(() => { input.thrust = true; });
+  await page.waitForFunction(() => __doids.get().resupplyDrone !== null, null, { timeout: 4000 });
+  const s = await page.evaluate(() => ({ str: bannerMsg && bannerMsg.str }));
+  expect(s.str).toMatch(/HELP IS ON THE WAY/);
+  await page.evaluate(() => { input.thrust = false; bannerMsg = null; });
+  // deliver it and land — the SECOND resupply this run must stay silent
+  await page.evaluate(() => {
+    resupplyDrone.phase = "line";
+    window.__pin = setInterval(() => {
+      if (!resupplyDrone) return;
+      const cp = capturePoint(resupplyDrone);
+      ship.x = cp.x; ship.y = cp.y; ship.vx = ship.vy = 0; ship.landed = false;
+    }, 30);
+  });
+  await page.waitForFunction(() => runRefuels > 0, null, { timeout: 4000 });
+  await page.evaluate(() => {
+    clearInterval(window.__pin);
+    ship.fuel = 0; ship.y = __doids.ground(ship.x) - 11; ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;
+    resupplyDrone = null; ship.signalT = 0; bannerMsg = null;
+    input.thrust = true;
+  });
+  await page.waitForFunction(() => __doids.get().resupplyDrone !== null, null, { timeout: 4000 });
+  const s2 = await page.evaluate(() => ({ str: bannerMsg && bannerMsg.str }));
+  expect(s2.str || "").not.toMatch(/HELP IS ON THE WAY/);
 });
 
 test("the transfusion line: hover to flow, shield forced down, FIRE detaches cleanly", async ({ page }) => {

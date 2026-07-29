@@ -266,6 +266,36 @@ test("X2: the trainee sector is its own mode — never ends on its own and never
   expect(await page.evaluate(() => localStorage.getItem("doids_hi"))).toBe("0");
 });
 
+/* X/Z integration (found merging the two bundles) — resetRun cleared gravScale but
+   not gravTilt. A campaign run is saved by rollGravity()'s runSeed === 0 early
+   return, but TRAINING never calls rollGravity at all: startTraining builds its
+   level directly instead of going through toBriefing. So the trainee sector
+   inherited whatever crosswind the last REMIX/DAILY run rolled, and taught "hold
+   THRUST and see it work" while an unexplained sideways shove pushed the ship off
+   course. */
+test("X/Z: the trainee sector always flies at plain 1x gravity, never inheriting a REMIX roll", async ({ page }) => {
+  // fly a REMIX seed that actually rolls a crosswind, then open training
+  const rolled = await page.evaluate(() => {
+    for (let seed = 1; seed < 400; seed++) {
+      __doids.remix(seed);
+      if (Math.abs(gravTilt) > 0.3 && Math.abs(gravScale - 1) > 0.2) {
+        return { seed, scale: gravScale, tilt: gravTilt };
+      }
+    }
+    return null;
+  });
+  expect(rolled, "found a REMIX seed with both a scale and a crosswind").not.toBeNull();
+  expect(Math.abs(rolled.tilt)).toBeGreaterThan(0.3);
+  await page.evaluate(() => { __doids.training(); });
+  const s = await page.evaluate(() => ({
+    runMode, gravScale, gravTilt, grav: grav(), gravSide: gravSide() }));
+  expect(s.runMode).toBe("training");
+  expect(s.gravScale, "no inherited gravity scale").toBe(1);
+  expect(s.gravTilt, "no inherited crosswind").toBe(0);
+  expect(s.gravSide, "no sideways shove in the tutorial").toBe(0);
+  expect(s.grav).toBe(await page.evaluate(() => GRAV));
+});
+
 test("X2a/X4: the trainee sector opens with a guided-pause card; sustained thrust advances it", async ({ page }) => {
   await page.evaluate(() => { __doids.training(); });
   // the "thrust" card fires automatically shortly after entering play

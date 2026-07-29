@@ -258,6 +258,47 @@ test("V2: every scannable Scion has a fair scan-landing spot (campaign + REMIX)"
   }
 });
 
+test("V14: the V2 fairness invariant holds across a broad REMIX seed sweep", async ({ page }) => {
+  // V14 — __doids.remix(seed) now takes an explicit seed, so a failure is a
+  // fixed repro, not a one-shot. These are the exact seeds a brute-force sweep
+  // (4000 seeds × 7 sectors, on the pre-fix generator) found failing: a domino
+  // between the lift-flat reassert's own repair and a THIRD Scion's
+  // already-fair band elsewhere in the level, and a mutual ping-pong between
+  // two neighbours ~260px apart whose pads never overlap but whose checked
+  // BANDS (which reach further than either pad) do.
+  const knownFailingSeeds = [402, 1476, 1661, 2024, 2340, 2528, 3234, 3386, 3479, 3678, 3788, 3954];
+  for (const seed of knownFailingSeeds) {
+    await page.evaluate(s => __doids.remix(s), seed);
+    for (let n = 0; n < 7; n++) {
+      await page.evaluate(i => __doids.go(i), n);
+      const fails = await page.evaluate(() => __doids.scanSpotFailures());
+      expect(fails, `remix seed ${seed} sector ${n}`).toEqual([]);
+    }
+  }
+  // a fast, broad sweep in-process (bypassing the full remix()/toBriefing()
+  // flow) — thousands of generations in one call, the same brute-force check
+  // that found the seeds above, so the invariant is verified far beyond what
+  // a handful of live runs could cover. Does not touch the current live run.
+  const sweepFails = await page.evaluate(() => {
+    const savedSeed = runSeed, savedMode = runMode;
+    runMode = "remix";
+    const fails = [];
+    for (let seed = 1; seed <= 5000; seed++) {
+      runSeed = seed;
+      for (let n = 0; n < 7; n++) {
+        const lvl = genLevel(n);
+        const bad = (lvl.oids || [])
+          .filter(o => o.role === "normal" || o.role === "saboteur" || o.role === "famous")
+          .filter(o => !scanSpotOK(lvl.heights, lvl.W, o.x));
+        if (bad.length) fails.push("seed " + seed + " sector " + n);
+      }
+    }
+    runSeed = savedSeed; runMode = savedMode;
+    return fails;
+  });
+  expect(sweepFails).toEqual([]);
+});
+
 test("the return-lift pad always sits on a flat, never halfway up a slope", async ({ page }) => {
   // you land and HOLD on the lift, and its surface marker must sit on that flat.
   // A crowded map used to make pick() drop the lift beside a Scion whose V2
@@ -299,4 +340,128 @@ test("V10: a veteran campaign return escalates — more guns, more Vectors, move
   expect(vet.turrets, "more guns on return").toBeGreaterThan(first.turrets);
   expect(vet.sab, "higher Vector proportion on return").toBeGreaterThan(first.sab);
   expect(vet.xs, "different placements on return").not.toEqual(first.xs);
+});
+
+/* ===== Bundle Z — REMIX variable gravity ===== */
+
+test("Z1: gravity varies by seed AND sector in REMIX/DAILY, and never in campaign", async ({ page }) => {
+  // campaign (seed 0) always plays at exactly 1x — the authored feel and the
+  // M1 golden heightmap stay untouched
+  await page.evaluate(() => { __doids.go(0); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.gravScale).toBe(1);
+  expect(s.grav).toBe(46);   // GRAV's base value
+  // deterministic per (seed, sector), and bounded to the ~0.4x-2.2x range —
+  // owner steer (July 2026): widened from ~0.7x-1.4x (read as barely
+  // different from 1x) and re-rolled every sector, not once per run
+  const rolls = await page.evaluate(() => {
+    const out = {};
+    for (const seed of [1, 2, 3, 42, 12345]) {
+      runSeed = seed;
+      out[seed] = [0, 1, 2, 3, 4, 5, 6, 7].map(n => { rollGravity(n); return gravScale; });
+    }
+    return out;
+  });
+  for (const seed of Object.keys(rolls)) {
+    for (const v of rolls[seed]) {
+      expect(v, "seed " + seed).toBeGreaterThanOrEqual(0.4);
+      expect(v, "seed " + seed).toBeLessThanOrEqual(2.2);
+    }
+    // a whole run doesn't sit at one barely-noticed value — sectors differ
+    expect(new Set(rolls[seed].map(v => v.toFixed(6))).size, "seed " + seed).toBeGreaterThan(1);
+  }
+  // same (seed, sector) → same roll, every time (reproducible, no RNG bleed)
+  const again = await page.evaluate(() => { runSeed = 42; rollGravity(3); return gravScale; });
+  expect(again).toBeCloseTo(rolls[42][3], 10);
+  // even called directly, seed 0 never scales
+  const zero = await page.evaluate(() => { runSeed = 0; rollGravity(2); return gravScale; });
+  expect(zero).toBe(1);
+  // __doids.remix(seed) applies it end-to-end (sector 0) and surfaces a label
+  await page.evaluate(() => __doids.remix(1));
+  s = await page.evaluate(() => __doids.get());
+  expect(s.gravScale).toBeCloseTo(rolls[1][0], 10);
+  expect(s.grav).toBeCloseTo(46 * rolls[1][0], 5);
+  // owner feature — a crosswind can now share the label with a magnitude
+  // tier ("heavy world · → wind"), so check each part, not a fixed list
+  const magParts = ["", "heavy world", "thin gravity", "crushing gravity", "near-weightless"];
+  for (const part of s.gravLabel.split(" · ")) {
+    expect(magParts.includes(part) || part === "→ wind" || part === "← wind",
+      "unexpected gravLabel part: " + part).toBe(true);
+  }
+  // advancing sectors within the same REMIX run re-rolls gravity, not just at launch
+  await page.evaluate(() => { __doids.go(1); });
+  s = await page.evaluate(() => __doids.get());
+  expect(s.gravScale).toBeCloseTo(rolls[1][1], 10);
+});
+
+test("Z2: landing fairness thresholds scale with gravity, so the same approach reads the same across the range", async ({ page }) => {
+  await page.evaluate(() => {
+    __doids.go(0); __doids.launch();
+    ship.x = level.oids[0].x;   // a Scion's own pad — flattened at generation, always flat
+    ship.landed = false; ship.vx = 0; ship.ang = 0;
+  });
+  const base = 52;   // landingEval's non-gentle vyMax at gravScale === 1
+  const check = (gs, vy) => page.evaluate(({ gs, vy }) => {
+    gravScale = gs; ship.vy = vy;
+    return __doids.evalLanding();
+  }, { gs, vy });
+  // at 1x, just under the base threshold is soft; just over is not
+  expect((await check(1, base - 1)).soft).toBe(true);
+  expect((await check(1, base + 1)).soft).toBe(false);
+  // heavy world (1.4x): the same speed that failed at 1x now passes —
+  // sqrt(1.4) ≈ 1.18x, so base+1 sits comfortably under the new max
+  expect((await check(1.4, base + 1)).soft).toBe(true);
+  // thin gravity (0.7x): the threshold tightens — a speed that passed at 1x
+  // can now fail
+  expect((await check(0.7, base - 1)).soft).toBe(false);
+  // the widened range (owner steer) still holds the same sqrt relationship
+  // at its new extremes — crushing gravity (2.2x) widens further...
+  expect((await check(2.2, base * Math.sqrt(2.2) - 1)).soft).toBe(true);
+  // ...near-weightless (0.4x) tightens further
+  expect((await check(0.4, base * Math.sqrt(0.4) + 1)).soft).toBe(false);
+});
+
+test("Z3 (owner feature): a per-sector crosswind pushes the ship sideways, never in campaign, and widens the drift tolerance", async ({ page }) => {
+  // campaign (seed 0): no crosswind, ever, even if rollGravity is forced
+  await page.evaluate(() => { __doids.go(0); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.gravTilt).toBe(0);
+  expect(s.gravSide).toBe(0);
+  // deterministic per (seed, sector), and bounded to -1..1
+  const tilts = await page.evaluate(() => {
+    const out = {};
+    for (const seed of [1, 2, 3, 42, 12345]) {
+      runSeed = seed;
+      out[seed] = [0, 1, 2, 3, 4, 5, 6, 7].map(n => { rollGravity(n); return gravTilt; });
+    }
+    return out;
+  });
+  for (const seed of Object.keys(tilts)) {
+    for (const v of tilts[seed]) {
+      expect(v, "seed " + seed).toBeGreaterThanOrEqual(-1);
+      expect(v, "seed " + seed).toBeLessThanOrEqual(1);
+    }
+    expect(new Set(tilts[seed].map(v => v.toFixed(6))).size, "seed " + seed).toBeGreaterThan(1);
+  }
+  // a real crosswind actually pushes the ship: pin gravTilt strongly positive
+  // (pulls right) while airborne and confirm vx climbs, not just vy
+  await page.evaluate(() => {
+    __doids.go(0); __doids.launch();
+    gravScale = 1; gravTilt = 1;
+    ship.x = 600; ship.y = 300; ship.vx = 0; ship.landed = false; ship.dead = false;
+  });
+  await page.waitForTimeout(200);
+  const vxAfter = await page.evaluate(() => ship.vx);
+  expect(vxAfter).toBeGreaterThan(0);   // pushed right, as gravTilt > 0 promises
+  // the sideways drift tolerance widens with a strong crosswind, same
+  // "the environment did this, not the player" logic as Z2's descent scaling
+  await page.evaluate(() => {
+    ship.x = level.oids[0].x; ship.landed = false; ship.vy = 0; ship.ang = 0;
+  });
+  const checkVx = (gt, vx) => page.evaluate(({ gt, vx }) => {
+    gravScale = 1; gravTilt = gt; ship.vx = vx;
+    return __doids.evalLanding();
+  }, { gt, vx });
+  expect((await checkVx(0, 39)).soft, "no crosswind: just over base vxMax fails").toBe(false);
+  expect((await checkVx(1, 39)).soft, "full crosswind: the same speed now passes").toBe(true);
 });

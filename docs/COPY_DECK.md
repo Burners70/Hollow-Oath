@@ -52,6 +52,7 @@ Landed (July 2026, Bundle S):
 | Hook, haunted variant (violet, after an unresolved ending) | `the Static answers still — every 41 seconds` |
 | Warning (yellow) | `not every Scion you rescue is what it seems` |
 | Launch prompt | `▶ START NEW FLIGHT` (explicit pill; tap-anywhere no longer launches — R5). After a first completion (veteran) it becomes `▼ SOMETHING'S STILL DOWN THERE`, teasing the Hollows — V7 |
+| Rotation nudge (gold; shown once, on returning here from a *repeat* completion) | `the sector still turns — try a REMIX ROTATION or the DAILY FLIGHT below` |
 | Hi score | `hi score <n>` |
 | Controller notice | `🎮 controller connected — stick steers · A thrust · X fire · LB/B shield` |
 | Pills | `⚙ SETTINGS` · `✦ HOW TO FLY` · `▸ STORY` · `◎ HUD GUIDE` (U3) · `⚕ <n>/11 · ◈ <n>/14` (codex) · `▶ RESUME — <SECTOR>` · `⟳ REMIX ROTATION` · `☀ DAILY FLIGHT` / `☀ DAILY ✓ <score>` |
@@ -307,7 +308,16 @@ title (`◎ HUD GUIDE` pill, beside HOW TO FLY) and from the PAUSE screen
 
 Brief-screen furniture: `— INCOMING TRANSMISSION · AMS MERCY —` ·
 `REMIX ROTATION // seed <n>` · `DAILY FLIGHT // <n> · yesterday-you: <score>` ·
-`TAP TO LAUNCH`.
+`TAP TO LAUNCH`. **Z1** appends a gravity label to either mode-line, re-rolled
+every sector (owner steer, July 2026 — was one roll for the whole run, and the
+~0.7x-1.4x range read as barely different from 1x; now ~0.4x-2.2x): `· crushing
+gravity` (gravScale ≥ 1.7), `· heavy world` (≥ 1.05), `· near-weightless`
+(≤ 0.5), `· thin gravity` (≤ 0.95) — silent (no label) for a near-1x roll.
+**Owner feature:** a per-sector crosswind label can share the line, e.g.
+`REMIX ROTATION // seed 12345 · heavy world · → wind` — `· → wind` (pulls
+right) or `· ← wind` (pulls left) when the roll's tilt is meaningful, silent
+otherwise. The same `→`/`← WIND` glyph appears on the in-flight score line
+(`drawHUD`) for the whole sector, not just the one-time briefing.
 
 ## 5. Log fragments (`FRAGMENTS[0..13]`; logs 1–10 the Static, 11–14 Glycon)
 
@@ -400,7 +410,7 @@ Format on card: story + `★ UPGRADE NAME — upgrade description`.
 | Famous Scion boards | `SOMEONE EXTRAORDINARY IS ABOARD…` |
 | Transfusion line snaps | `LINE SEVERED — REMAINDER LOST  -50 / SIGNAL AGAIN IF YOU NEED IT` |
 | Transfusion window closes | `TRANSFUSION WINDOW CLOSED — SIGNAL AGAIN IF NEEDED` |
-| Counterfeit MERCY trap | `COUNTERFEIT — THE BAY IS A MOUTH  -200` |
+| First field resupply (V18, one-time) | `YOU'RE NOT ALONE. HELP IS ON THE WAY. BUT THERE IS A PRICE.` |
 
 ## 9. Floating texts (`addText()` call sites)
 
@@ -439,10 +449,13 @@ shield to catalogue it, no shot)
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at
   least 3 of 7 to triangulate the source."
 - **Log fragment (sector clear)** — kicker `LOG FRAGMENT RECOVERED`.
-- **Counterfeit MERCY, docked (the trap)** — kicker `THE THIRD ACT ·
-  -200`, title `THE BAY IS A MOUTH`: "No healing. No fuel. A hull with
-  nothing inside but appetite — wearing the one shape you stopped checking. /
-  He built a better lure this time. He built the thing you trust."
+- **Counterfeit MERCY, docked (the trap)** *(V15 — a tap-gated panel, not the
+  transient banner it used to be; holds until dismissed, then `shipDie()`
+  runs)* — kicker `THE THIRD ACT`, title `THE BAY IS A MOUTH`: "No healing.
+  No fuel. A hull with nothing inside but appetite — wearing the one shape
+  you stopped checking. / He built a better lure this time. He built the
+  thing you trust." A new `swallow()` SFX (a lower, wetter `hydraulic()`)
+  fires the instant the trap closes, before the panel appears.
 - **Counterfeit MERCY, identified without docking** — kicker `COUNTERFEIT
   IDENTIFIED · +800`, title `MACHINE TIME`: "Her emblem pulses like a pulse.
   Its emblem keeps perfect time. / You counted the beats. He never learned a

@@ -1600,4 +1600,48 @@ independent.**
   and "No"→guide→run paths and the illustrated-guide pagination/on-screen fit.
   The trainee-sector / guided-pause / hint-card assertions land with X2/X4/X5 in
   1.01.)*
+## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
+
+**Why:** Owner idea (late July 2026) — add **variable gravity to REMIX** for
+replay variety. Gravity is a single global (`GRAV = 46`, `js/world.js:149`), so a
+per-run scale is cheap to *apply*; the real work is **fairness tuning**, not
+plumbing. **Priority: pulled forward to 1.01 (owner decision, late July 2026; was
+1.1). The Z2 fairness re-tune gates it — this is *not* a lean-1.0 "low-risk win,"
+so it rides 1.01, not the launch binary, unless the re-tune proves trivial.
+Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
+
+- [x] **Z1. Variable-gravity modifier.** *(Shipped. `GRAV` (`js/world.js`)
+  stays the base constant; a new `gravScale` (default 1) is drawn
+  deterministically from `runSeed` by `rollGravity()` (~0.7×–1.4×, mulberry32
+  keyed off `runSeed ^ 0x5a17e5` so it doesn't collide with the famous-map or
+  daily-mods RNG streams), called from `startRemix`/`startDaily` — never for
+  campaign (`resetRun` resets it to 1, and `rollGravity()` itself forces 1 at
+  `runSeed === 0` as a second guard). Every physics site that used the bare
+  `GRAV` constant (ship descent, thrown-Scion fall, particle fall) now reads
+  a new `grav()` accessor instead. `startRemix(seed)` also gained an optional
+  explicit seed, so a roll is reproducible from a test. Surfaced in the
+  briefing mode-line via `gravLabel()` — "REMIX ROTATION // seed `<n>` ·
+  heavy world" / "· thin gravity" (empty string, no label, for a roll near
+  1x). Smoke: "Z1 gravity varies by seed in REMIX/DAILY, and never in
+  campaign".)*
+- [x] **Z2. Fairness re-tune under changed gravity.** *(Shipped. `landingEval`
+  (`js/update.js`) scales its downward-speed tolerance (`vyMax`, both the
+  `soft` and `survivable` bands) by `Math.sqrt(gravScale)` — sqrt rather
+  than linear, so doubling gravity only needs ~41% more allowed descent
+  speed, matching how real stopping distance scales with acceleration.
+  Sideways drift and ground-slope tolerance are untouched (gravity doesn't
+  cause either). At `gravScale === 1` every threshold is byte-identical to
+  before. Fuel economy under heavier gravity (more thrust-time needed to
+  stay aloft, hence more fuel burned per unit of flight) is left as an
+  intentional, emergent difficulty consequence of the modifier, not a bug to
+  compensate for. The resupply-drone "airframe" cited in the original item
+  doesn't actually reference `GRAV` in the current code (its drift comes
+  from anomaly fields, a separate force) — nothing to scale there. Smoke:
+  "Z2 landing fairness thresholds scale with gravity, so the same approach
+  reads the same across the range" (confirms the sqrt relationship
+  directly at 0.7×/1×/1.4×).)*
+- [x] **Z·guard. Regression gate.** *(Full 94-test smoke suite green; M1
+  golden checksum unchanged (1090254029) — campaign seed 0 is provably
+  unaffected (`gravScale === 1`, `grav() === GRAV`). `__doids.get()` now
+  exposes `gravScale`, `grav`, and `gravLabel` for test coverage.)*
 
