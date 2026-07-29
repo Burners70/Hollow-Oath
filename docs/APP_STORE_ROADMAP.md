@@ -7,8 +7,8 @@ in a bundle is checked, move the whole section to
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) and leave a row in the shipped table
 below — that's what keeps this file cheap to read.*
 
-**This file holds only what is still open.** The 19 fully shipped bundles (A–N,
-R, S, U, QA, Y) live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) with their
+**This file holds only what is still open.** The 21 fully shipped bundles (A–N,
+R, S, U, QA, Y, DS, Z) live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) with their
 acceptance notes and code anchors intact — go there when you need the record of
 *how* something was built, not to decide what to build.
 
@@ -91,7 +91,6 @@ bundle's section — grep the bundle heading to jump there.
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 2 | 1.01 | V1 fly-back (resolved → 1.1 with P; not a 1.01 item), V·ship (the release action itself — code side is done) |
 | X | Onboarding & new-player experience | 4 | 1.01 | X2 trainee Level 0, X4 guided-pause overlay, X5 hint-card bank, X·guard |
-| Z | REMIX variable gravity | 3 | 1.01 | Z1 modifier, Z2 fairness re-tune *(gates Z1)*, Z·guard |
 | P | The pendulum sling | 4 | **1.1** | Whole bundle — spec is [PENDULUM_SPEC.md](PENDULUM_SPEC.md); plus P·review, the in-app rating prompt |
 | W | Landscape challenge escalation | 2 | 1.1 (with P) | W1 progressive terrain difficulty, W·guard |
 | Q | The deep Hollows | 3 | 1.1 core + 1.2 caves | Whole bundle — spec is [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) |
@@ -140,6 +139,7 @@ V3, X1 — are still here.
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness |
 | Y | 1.01 release-fix defects | Stability + render/telegraphing fixes |
 | DS | Design-system conformance | Token layer; colourblind mode made real (**1.0**) |
+| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.01**) |
 
 ---
 
@@ -1141,35 +1141,6 @@ independent.**
   and "No"→guide→run paths and the illustrated-guide pagination/on-screen fit.
   The trainee-sector / guided-pause / hint-card assertions land with X2/X4/X5 in
   1.01.)*
-
-## Bundle Z — REMIX replay modifiers: variable gravity (post-launch feature)
-
-**Why:** Owner idea (late July 2026) — add **variable gravity to REMIX** for
-replay variety. Gravity is a single global (`GRAV = 46`, `js/world.js:149`), so a
-per-run scale is cheap to *apply*; the real work is **fairness tuning**, not
-plumbing. **Priority: pulled forward to 1.01 (owner decision, late July 2026; was
-1.1). The Z2 fairness re-tune gates it — this is *not* a lean-1.0 "low-risk win,"
-so it rides 1.01, not the launch binary, unless the re-tune proves trivial.
-Dependencies: Bundle M (REMIX/DAILY seed plumbing — shipped).**
-
-- [ ] **Z1. Variable-gravity modifier.** Scale `GRAV` by a per-run factor drawn
-  from `runSeed` (e.g. ~0.7×–1.4×), **REMIX / DAILY only — never seed 0**, so the
-  M1 golden heightmap and the authored campaign feel stay untouched. Surface it
-  in the briefing prefix ("REMIX ROTATION // heavy world" / "thin gravity"). Code
-  anchors: `GRAV` (`js/world.js:149`) → a scaled read; the remix/daily plumbing
-  (Bundle M, `doids_daily`); the briefing prefix in `BRIEFS`.
-- [ ] **Z2. Fairness re-tune under changed gravity.** Gravity touches more than
-  the ship — safe-landing descent thresholds, fuel economy, oid fall
-  (`js/update.js:1048`), particles (`:433`), the resupply-drone airframe
-  (`:1909`). Landing-safe speed and the ASSIST bands must scale with `GRAV` or
-  heavy runs are unfair. **Design + playtest pass**, plus a smoke assertion that a
-  landing safe at 1× stays classifiable across the whole gravity range. Respects
-  the V2 scan-landing fairness invariant.
-- [ ] **Z·guard. Regression gate.** M1 checksum + full smoke green (**seed 0
-  unaffected**); add coverage for the gravity-scale bounds and the landing-safety
-  re-tune.
-
----
 
 ## Suggested sequencing
 

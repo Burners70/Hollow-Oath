@@ -2628,6 +2628,9 @@ function drawHUD(now) {
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
   if (dailyMod("stopwatch") && !level.isCave)
     mid += "  ·  ⏱ " + (sectorT < 90 ? Math.ceil(90 - sectorT) : "—");
+  // owner feature — a persistent reminder while airborne, not just a line
+  // in the briefing you can forget: which way the crosswind pushes.
+  if (Math.abs(gravTilt) > 0.15) mid += "  ·  " + (gravTilt > 0 ? "→" : "←") + " WIND";
   // the sector label itself glitches for a beat when the Static fires (I2);
   // REDUCED FLASH keeps the corruption sparse instead of a full scramble
   if (staticGlitchT > 0)
@@ -3661,9 +3664,10 @@ function drawBrief(now) {
     ctx.font = mono(11);
     ctx.fillStyle = runMode === "remix" ? PAL().SAFE : PAL().WARN;
     const prev = runMode === "daily" ? dailyPrevScore() : 0;
+    const gl = gravLabel();   // Z1 — "" for a near-1x roll
     afterHeaderY = kickerY + 24;
-    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed
-      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : ""),
+    ctx.fillText(runMode === "remix" ? "REMIX ROTATION // seed " + runSeed + (gl ? " · " + gl : "")
+      : "DAILY FLIGHT // " + runSeed + (prev > 0 ? " · yesterday-you: " + prev : "") + (gl ? " · " + gl : ""),
       vw / 2, afterHeaderY);
   }
   ctx.font = display(24);
@@ -4348,6 +4352,8 @@ window.__doids = {
     codexCardOpen: !!codexCard,
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
+    gravScale, grav: grav(), gravLabel: gravLabel(),   // Z1
+    gravTilt, gravSide: gravSide(),   // owner feature — the crosswind
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
     rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect(),
       help: helpRect(), legend: legendRect(), pauseLegend: pauseLegendRect() },

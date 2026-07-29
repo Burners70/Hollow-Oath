@@ -16,6 +16,7 @@ file; the *plan* they came from is
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
+- [Bundle Z — REMIX variable gravity](#bundle-z--remix-variable-gravity) — a per-sector gravity scale and crosswind, plus the landing-fairness re-tune both required
 - [Bundle V — fairness fixes and owner-playtest defects](#bundle-v--fairness-fixes-and-owner-playtest-defects) — the V14 REMIX scan-fairness domino, V15's tap-gated trap reveal, V16–V20's smaller playtest fixes
 
 **Design system & accessibility**
@@ -49,6 +50,69 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 ---
 
+## Bundle Z — REMIX variable gravity
+
+**Release:** 1.01
+
+Closes out Bundle Z: variable gravity for REMIX/DAILY replay variety, plus
+the fairness re-tune it required.
+
+- **Z1 — a per-run gravity scale** (~0.7×–1.4×), drawn deterministically from
+  `runSeed` so the same seed always rolls the same gravity. REMIX/DAILY
+  only — campaign (seed 0) always plays at exactly 1×, byte-identical to
+  before. Surfaced in the briefing mode-line: `REMIX ROTATION // seed <n> ·
+  heavy world` / `· thin gravity` (no label for a near-1x roll).
+- **Z2 — the landing-fairness thresholds now scale with gravity.** A heavier
+  world means a naturally faster, harder-to-arrest descent; the safe-speed
+  tolerance scales by `sqrt(gravScale)` (not linearly — doubling gravity
+  only needs ~41% more allowed descent speed to stay equivalently fair) so
+  the same quality of approach reads the same across the whole gravity
+  range. Sideways drift and ground-slope tolerance are untouched, since
+  gravity doesn't cause either.
+
+M1 golden checksum unchanged; two new smoke tests confirm the seed-to-scale
+determinism and the fairness re-tune's exact scaling relationship.
+
+**Owner playtest follow-up:** the ~0.7x-1.4x range read as barely different
+from 1x, and one roll for the whole run meant a REMIX flight sat at that
+one barely-noticed value the entire time.
+- Widened to **~0.4x-2.2x**.
+- **Re-rolled every sector** (`toBriefing(n)` now calls `rollGravity(n)`,
+  seeded from `(runSeed, n)`) instead of once at launch — a REMIX/DAILY run
+  now moves through a genuinely different gravity each sector, still fully
+  deterministic per seed.
+- `gravLabel()` gained two more tiers at the new extremes: `crushing
+  gravity` (≥1.7x) and `near-weightless` (≤0.5x), alongside the existing
+  `heavy world`/`thin gravity`.
+- Campaign (seed 0) is unaffected either way — still exactly 1x, every
+  sector, always.
+
+**Owner feature: a per-sector crosswind.** The owner asked for gravity that
+could "have fun" with direction too — sides, even above. Scoped to a
+tractable version: a constant sideways pull alongside the existing downward
+one, not a full direction flip (which would mean rethinking terrain, camera
+orientation and the HUD for those sectors — closer to a new game mode).
+"Down" stays down; the ship is just also being shoved sideways.
+- **`gravTilt`** (-1..1, + pulls right) rolls alongside `gravScale` from the
+  same `(runSeed, sector)` seed. `gravSide()` returns the sideways
+  acceleration, capped at half of that sector's own (scaled) vertical pull
+  (`TILT_STRENGTH = 0.5`) — a strong crosswind never dominates the descent.
+  Applied to `ship.vx` every frame the ship is airborne, same gating as the
+  vertical pull.
+- **The sideways landing tolerance widens with it**, on the same "the
+  environment did this, not the player" logic as Z2 — linearly this time
+  (a constant added force, not an accelerating one), so the same quality of
+  approach still reads the same in a crosswind.
+- **Surfaced everywhere the player needs to know before or during flight**:
+  the briefing mode-line (`· → wind` / `· ← wind`, alongside any magnitude
+  label) and a persistent HUD readout on the score line during flight — not
+  a one-time brief you can forget mid-sector.
+- Scope note: affects ship flight only for now, not particle debris or a
+  thrown/rescued Scion's fall — those still fall straight down regardless of
+  a sector's crosswind.
+
+New Z3 smoke test covers the tilt roll's determinism/bounds, that it
+actually pushes the ship, and the widened drift tolerance. Full suite green.
 ## Bundle V — fairness fixes and owner-playtest defects
 
 **Release:** 1.01

@@ -147,14 +147,29 @@ function landingEval() {
   const tilt = Math.abs(normAngle(s.ang));
   const upright = tilt < 0.5;
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance
-  const vyMax = (upgrades.gentle ? 62 : 52) * tol;
-  const vxMax = 38 * tol, slopeMax = 0.25 * tol;
+  // Z2 — heavier REMIX/DAILY gravity means a naturally faster, harder-to-
+  // arrest descent; scale the DOWNWARD-speed tolerance (not sideways drift or
+  // ground slope, neither of which gravity causes) so the same quality of
+  // approach reads the same across the whole gravity range, not just at 1x.
+  // sqrt, not linear: doubling gravity only needs ~41% more allowed descent
+  // speed to stay equivalently fair, the same relationship real fall/braking
+  // distances have to acceleration. gravScale === 1 (campaign, and REMIX/DAILY
+  // seeds that happen to roll near-1x) leaves every threshold exactly as before.
+  const gtol = Math.sqrt(gravScale);
+  // owner feature — a crosswind (gravSide()) adds involuntary drift that's
+  // not the player's doing, so the sideways tolerance widens with it too
+  // (linearly, not sqrt: it's a constant force added to vx every frame, not
+  // an accelerating one compounding like the downward fall does). 0 in
+  // campaign and any REMIX/DAILY sector that happened to roll no tilt.
+  const sideTol = 1 + Math.abs(gravSide()) / (GRAV * 2);
+  const vyMax = (upgrades.gentle ? 62 : 52) * tol * gtol;
+  const vxMax = 38 * tol * sideTol, slopeMax = 0.25 * tol;
   // only DOWNWARD speed can make a landing hard — rising (vy < 0) is never
   // "too fast" (s.vy < vyMax is trivially true while ascending), so there is no
   // rising-too-fast state and no message for it
   const soft = s.vy < vyMax && Math.abs(s.vx) < vxMax && slope < slopeMax && upright;
-  const survivable = s.vy < (upgrades.gentle ? 100 : 85) * tol &&
-    Math.abs(s.vx) < 60 * tol && slope < 0.35 * tol && upright;
+  const survivable = s.vy < (upgrades.gentle ? 100 : 85) * tol * gtol &&
+    Math.abs(s.vx) < 60 * tol * sideTol && slope < 0.35 * tol && upright;
   let reason = "";
   if (!upright) reason = "LEVEL THE SHIP";
   else if (slope >= slopeMax) reason = "GROUND TOO STEEP";
@@ -472,7 +487,7 @@ function update(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.t -= dt; if (p.t <= 0) { particles.splice(i, 1); continue; }
-    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += GRAV * 0.6 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += grav() * 0.6 * dt;   // Z1
   }
   for (let i = texts.length - 1; i >= 0; i--) {
     texts[i].t -= dt; texts[i].y -= 16 * dt;
@@ -1063,7 +1078,8 @@ function updatePlay(dt) {
   }
 
   if (!s.landed) {
-    s.vy += GRAV * dt;
+    s.vy += grav() * dt;       // Z1 — REMIX/DAILY only; grav() === GRAV in campaign
+    s.vx += gravSide() * dt;   // owner feature — a per-sector crosswind; 0 in campaign
     s.x += s.vx * dt; s.y += s.vy * dt;
   }
 
@@ -1210,7 +1226,7 @@ function updateOids(dt, now) {
     if (o.state === "thrown") {
       // E2 — a Scion hurled from the cabin, falling. Fly into them to catch and
       // re-board; if they hit the ground they're lost (Field Medic: they survive).
-      o.vy += GRAV * 1.2 * dt;
+      o.vy += grav() * 1.2 * dt;   // Z1
       o.x += o.vx * dt; o.y += o.vy * dt;
       if (o.throwLock > 0) o.throwLock -= dt;
       if ((o.throwLock || 0) <= 0 && !s.dead && s.passengers.length < CAPACITY &&
