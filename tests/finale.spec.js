@@ -305,6 +305,35 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
 /* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to pulse
    only AFTER being revealed by a landing within 120px, so hovering beside her gave
    nothing back at all and the beat had no tell once the hint label was removed. */
+/* (owner feedback, July 2026 — "I didn't get the card either… it just started
+   pinging me") — the reveal band was 120px, narrower than the ship she is buried
+   under: the ridge is flattened ±250 and her hull spans ±198. Setting down on top
+   of her buried hull, inside ANSWER_RANGE and being pulsed, gave nothing. The V3
+   test above can't catch this because warpBeacon() teleports to her exact x. */
+test("V3: landing anywhere ON the Solace's buried hull names her, not just beside her tower", async ({ page }) => {
+  const hullHalf = 152 * 1.3;   // solaceMercyPath half-width × SOLACE_MS
+  expect(await page.evaluate(() => REVEAL_RANGE)).toBeGreaterThanOrEqual(Math.floor(hullHalf));
+  expect(await page.evaluate(() => REVEAL_RANGE)).toBeLessThan(await page.evaluate(() => ANSWER_RANGE));
+  // touch down 170px off her tower — over her hull, outside the old 120 band
+  await page.evaluate(() => {
+    __doids.setVeteran(); __doids.go(7); __doids.launch();
+    level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
+    const b = level.beacon;
+    ship.x = b.x - 170; ship.y = groundAt(ship.x) - SHIP_R;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true;
+  });
+  await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 3000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("reveal");
+  expect(s.revealCard.kicker).toContain("AMS SOLACE");
+  // the ridge really is flat out there — this was a landable spot, not a cliff
+  const flat = await page.evaluate(() => {
+    const b = level.beacon;
+    return Math.abs(groundAt(b.x - 170) - groundAt(b.x)) < 6;
+  });
+  expect(flat, "her ridge is flattened, so 170px out is genuinely landable").toBe(true);
+});
+
 test("the Solace transmits on approach: a pre-reveal wash is free, and a pre-reveal parry names her rather than answering her", async ({ page }) => {
   await page.evaluate(() => {
     __doids.setVeteran(); __doids.go(7); __doids.launch();

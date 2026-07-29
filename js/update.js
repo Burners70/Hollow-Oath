@@ -31,6 +31,15 @@ const WAVE_FIRST_SECTOR = 5;   // Avicenna Shoals — introduced with the counte
 const SONAR_DUR = 1.8;         // V3 — how long a Solace sonar hull-pulse takes to sweep + fade
 const ANSWER_GAP = 4.5;        // V6-finale — seconds between the Solace's answerable pulses
 const ANSWER_RANGE = 300;      // you must be this near for her to pulse (and to parry)
+/* (owner feedback, July 2026 — "I didn't get the card either… it just started
+   pinging me") — how close a touchdown has to be to NAME her. This was 120,
+   which was narrower than the ship she's buried under: genLevel flattens a ±250
+   ridge over her, and her hull (solaceMercyPath, ±152 × SOLACE_MS 1.3) spans
+   ±198. So you could set down directly on top of her buried hull, well inside
+   ANSWER_RANGE and being pinged every ANSWER_GAP, and still get nothing — the
+   tower is a small target on a wide flat ridge, and at night it's barely visible.
+   200 ≈ her actual hull: land anywhere ON her and she gives up her name. */
+const REVEAL_RANGE = 200;
 // (owner steer) — the Solace's fire-death beats, shared by updateDestruct +
 // drawSolaceDeath. The glow ignites on her exposed broadcast tower; the red heat
 // then flows DOWN below the ground, drawing out her buried MERCY-class hull; a
@@ -2759,10 +2768,10 @@ function updateBeacon(dt) {
   if (!b || b.resolved) return;
   const s = ship;
   if (b.sonarT > 0) b.sonarT = Math.max(0, b.sonarT - dt);
-  // V3 — the reveal beat: land beside the source and it gives up its name, the
+  // V3 — the reveal beat: land on the source and it gives up its name, the
   // AMS SOLACE, with a sonar pulse that draws her whole drowned hull. From then
   // on she pulses back on every 41-second Static beat (see updateStaticClock).
-  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) revealBeacon(b);
+  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < REVEAL_RANGE) revealBeacon(b);
   // V6-finale (owner: replace the old land-and-hold) — the answer is the
   // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
   // looping distress wave; parry it (shield, the E3 window) to send her own

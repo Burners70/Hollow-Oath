@@ -376,6 +376,18 @@ pending a retest against the now-merged `main`.
   The reveal is factored into a shared `revealBeacon()` so the landing route and
   the parry route can't drift apart. One consequence, deliberate: landing beside
   her is no longer the *only* way to earn the name card.
+- **Landing anywhere on her buried hull names her** (owner: "I didn't get the card
+  either… it just started pinging me"). The reveal band was **120px** — narrower
+  than the ship the player is standing on. `genLevel` flattens a **±250** ridge
+  over her, and her hull (`solaceMercyPath`, ±152 × `SOLACE_MS` 1.3) spans **±198**.
+  So you could set down directly on top of her, well inside `ANSWER_RANGE` and
+  being pulsed every `ANSWER_GAP`, and get nothing at all — her tower is a small
+  target on a wide flat ridge, and in the dark it's barely visible. Now a named
+  `REVEAL_RANGE = 200`, matching her actual hull: land anywhere *on* her and she
+  gives up her name. Strictly a superset of the old band, so nothing regresses.
+  The existing V3 test couldn't catch this — `warpBeacon()` teleports to her exact
+  x — so the new test lands 170px out and also asserts the ridge really is flat
+  there, i.e. that it was a genuinely landable spot rather than a cliff.
 
 Owner decision, no code change: arriving at the finale with no fuel makes the
 Solace unanswerable (the shield, and so the parry, needs `fuel > 0`) while her
