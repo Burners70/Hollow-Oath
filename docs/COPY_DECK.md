@@ -443,7 +443,9 @@ shield to catalogue it, no shot)
   isn't asking to be silenced. It's asking to be answered. / The signal seeks a
   response." *(A clue, not an instruction — the player discovers that "a
   response" means parrying her pulse. Replaces the old cross-screen "raise
-  shield" banner.)*
+  shield" banner. **Two triggers** (July 2026): landing beside her, or parrying
+  the pulse she loops on approach — a parry before she's named earns this card
+  rather than resolving her, so the card can never land after its own payoff.)*
 - **Black box** — kicker `BLACK BOX RECOVERED · SIGNAL <n>/7 · +800`; body =
   the log fragment, or "The recorder is blank — wiped clean. Someone got here
   first."; footer: "◈ Triangulation viable. Keep flying." / "◈ Recover at

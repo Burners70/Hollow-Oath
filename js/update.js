@@ -2762,16 +2762,7 @@ function updateBeacon(dt) {
   // V3 — the reveal beat: land beside the source and it gives up its name, the
   // AMS SOLACE, with a sonar pulse that draws her whole drowned hull. From then
   // on she pulses back on every 41-second Static beat (see updateStaticClock).
-  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) {
-    b.revealed = true; b.sonarT = SONAR_DUR;
-    ringHollow();
-    // owner steer — a quiet CLUE, not an instruction: name her and hint that the
-    // signal wants answering. The player works out that "a response" means
-    // parrying her pulse; no cross-screen "raise shield" giveaway.
-    showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
-      body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
-      color: TOK.CYAN_INK });
-  }
+  if (!b.revealed && s.landed && Math.abs(s.x - b.x) < 120) revealBeacon(b);
   // V6-finale (owner: replace the old land-and-hold) — the answer is the
   // sonic-wave PARRY. Once she's named and you're near, the Solace pulses her
   // looping distress wave; parry it (shield, the E3 window) to send her own
@@ -2802,13 +2793,37 @@ function updateBeacon(dt) {
         finale: true, preReveal: !b.revealed });
     }
   } else b.castT = 0;
-  // only a parry she can be named by counts as being HEARD: pre-reveal you don't
-  // yet know who or what you're answering, so a lucky early parry is discarded
-  // rather than banked (it would otherwise resolve her the instant she's revealed).
+  /* Answering her is what resolves her — but only once she's been NAMED, so the
+     STILL TRANSMITTING card can't land after its own payoff.
+     (owner feedback, July 2026, follow-up) — this used to silently DISCARD a
+     pre-reveal parry, which was the worst of both: now that she pulses on
+     approach, a player can parry her before ever touching down, see the round
+     visibly bounce off the shield and burst back at her, and have the game do
+     absolutely nothing with it. A successful parry is the hardest input in the
+     game; it must never be a no-op. So a pre-reveal parry now triggers the
+     REVEAL instead: she answers being answered by giving up her name, and the
+     NEXT pulse you parry resolves her. Same beats, same order, nothing thrown
+     away. (This does mean landing beside her is no longer the only route to the
+     name card — answering her signal is now an equally valid way to earn it.) */
   if (b.heardParry) {
+    b.heardParry = false;
     if (b.revealed) resolveBeacon("answered");
-    else b.heardParry = false;
+    else revealBeacon(b);
   }
+}
+
+/* V3 — the reveal beat: she gives up her name, the AMS SOLACE, with a sonar pulse
+   that draws her whole drowned hull. Two ways to earn it (see updateBeacon): land
+   beside her, or parry the pulse she's been looping all along. */
+function revealBeacon(b) {
+  b.revealed = true; b.sonarT = SONAR_DUR;
+  ringHollow();
+  // owner steer — a quiet CLUE, not an instruction: name her and hint that the
+  // signal wants answering. The player works out that "a response" means
+  // parrying her pulse; no cross-screen "raise shield" giveaway.
+  showCard({ kicker: "AMS SOLACE · MERCY'S LOST SISTER", title: "STILL TRANSMITTING",
+    body: "Her distress call never stopped looping — years of it, alone out here in the dark.\n\nIt isn't asking to be silenced. It's asking to be answered.\n\nThe signal seeks a response.",
+    color: TOK.CYAN_INK });
 }
 
 function resolveBeacon(how) {

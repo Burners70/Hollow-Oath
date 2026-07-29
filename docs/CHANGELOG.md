@@ -363,6 +363,19 @@ pending a retest against the now-merged `main`.
   being docked 12 vitals every 4.5s for approaching a mystery you haven't been told
   how to answer would just relocate the unfairness — but it keeps the surge, shake
   and flash. Full stakes resume once she's named.
+- **A pre-reveal parry names her instead of being thrown away** (owner: "when I
+  parry the Solace's signal, I see it bounce back and hit the ship — but nothing
+  happens"). A follow-up defect in the change above: now that she pulses on
+  approach, a player can parry her *before* ever touching down. That parry
+  succeeded — the round visibly bounced off the shield and burst back at her — and
+  then the beacon logic silently discarded it, because resolving her before the
+  STILL TRANSMITTING card would land the card after its own payoff. A successful
+  parry is the hardest input in the game and must never be a no-op. It now
+  triggers the **reveal**: she answers being answered by giving up her name, and
+  the next pulse you parry resolves her. Same beats, same order, nothing wasted.
+  The reveal is factored into a shared `revealBeacon()` so the landing route and
+  the parry route can't drift apart. One consequence, deliberate: landing beside
+  her is no longer the *only* way to earn the name card.
 
 Owner decision, no code change: arriving at the finale with no fuel makes the
 Solace unanswerable (the shield, and so the parry, needs `fuel > 0`) while her

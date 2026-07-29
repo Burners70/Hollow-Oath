@@ -305,7 +305,7 @@ test("Bad ending: the Solace can be destroyed by fire — full-hull blast, then 
 /* (owner feedback, July 2026 — "the beacon wouldn't respond") — she used to pulse
    only AFTER being revealed by a landing within 120px, so hovering beside her gave
    nothing back at all and the beat had no tell once the hint label was removed. */
-test("the Solace transmits on approach, before she is revealed — but a pre-reveal wash is free and can't answer her", async ({ page }) => {
+test("the Solace transmits on approach: a pre-reveal wash is free, and a pre-reveal parry names her rather than answering her", async ({ page }) => {
   await page.evaluate(() => {
     __doids.setVeteran(); __doids.go(7); __doids.launch();
     level.turrets.forEach(t => t.alive = false); level.drones.forEach(d => d.alive = false);
@@ -332,21 +332,18 @@ test("the Solace transmits on approach, before she is revealed — but a pre-rev
   });
   await page.waitForFunction(() => (level.waves[0] || {}).done === true, null, { timeout: 3000 });
   expect(await page.evaluate(() => ship.vitals), "a pre-reveal wash is free").toBe(v0);
-  // and a lucky pre-reveal parry does NOT resolve her — she isn't named yet
-  await page.evaluate(() => {
-    level.beacon.heardParry = true;
-  });
-  await page.waitForTimeout(120);
-  let s = await page.evaluate(() => __doids.get());
-  expect(s.state, "still flying — a pre-reveal parry can't answer her").toBe("play");
-  expect(await page.evaluate(() => level.beacon.resolved)).toBeFalsy();
-  expect(await page.evaluate(() => level.beacon.heardParry), "discarded, not banked").toBe(false);
-  // land beside her → she gives up her name (the STILL TRANSMITTING card)
-  await page.evaluate(() => { __doids.warpBeacon(); });
+  /* A pre-reveal parry must never be a no-op — it's the hardest input in the game.
+     It doesn't resolve her (the STILL TRANSMITTING card would then land after its
+     own payoff), it NAMES her: she answers being answered. Owner-reported as "I
+     parry, I see it bounce back, and nothing happens". */
+  await page.evaluate(() => { level.beacon.heardParry = true; });
   await page.waitForFunction(() => level.beacon.revealed === true, null, { timeout: 3000 });
-  expect(await page.evaluate(() => __doids.get().state), "the reveal card holds").toBe("reveal");
-  expect(await page.evaluate(() => __doids.get().revealCard.kicker)).toContain("AMS SOLACE");
-  // dismiss it, and NOW a parry answers her
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.state, "the parry earns the reveal card").toBe("reveal");
+  expect(s.revealCard.kicker).toContain("AMS SOLACE");
+  expect(await page.evaluate(() => level.beacon.resolved), "named, not yet answered").toBeFalsy();
+  expect(await page.evaluate(() => level.beacon.heardParry), "consumed, not banked").toBe(false);
+  // dismiss it, and NOW a second parry answers her
   await page.waitForTimeout(600);
   await page.evaluate(() => { input.tap = true; });
   await page.waitForFunction(() => __doids.get().state === "play", null, { timeout: 3000 });
