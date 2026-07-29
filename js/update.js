@@ -2387,25 +2387,24 @@ const XFUSE_RATE = 12, XFUSE_PRIMER = 10, XFUSE_PATIENCE = 30, XFUSE_SNAP_R = 13
    limp to the next pad) so the crutch, even the RATIONED TANK daily mod plus
    this penalty, can never soft-lock a run. Each resupply caps lower than the
    last: maxFuel × 0.9^refuels, floored at XFUSE_FLOOR. */
+/* (owner decision, July 2026) — this floor is FLAT on purpose, and does not scale
+   with Bundle Z's per-sector gravity. It was briefly made to, on the reasoning that
+   35 units buys well under half the altitude in a 2.2x sector, so the "can never
+   soft-lock a run" claim above no longer held. That was rolled back: the guarantee
+   is now carried by the SCUTTLE CHARGE, which is available on any empty tank whether
+   the ship is landed or held aloft (see updateResupplySignal), so no amount of
+   gravity can make a strand terminal. With the soft-lock closed there, scaling the
+   floor would only hand the player a bigger tank in exactly the sectors Bundle Z
+   widened its range to make harder — and quietly inflate the points XFUSE_COST
+   charges for the fill. Heavy gravity is meant to be heavy. */
 const XFUSE_COST = 4, XFUSE_FLOOR = 35;
-/* (owner feedback, July 2026 — "you can get trapped in a gravity well with no
-   fuel to escape") — the floor above is a fixed constant, and the guarantee it
-   documents ("enough to limp to the next pad", "can never soft-lock a run") was
-   measured at 1x gravity. Bundle Z then introduced per-sector gravity up to ~2.2x
-   plus a crosswind, without re-tuning this: climbing out of a dip costs fuel in
-   rough proportion to gravity, so 35 units in a 2.2x sector buys well under half
-   the altitude it was sized for, and the drone would then keep answering with the
-   same never-enough tank forever. Scale the floor with the sector's own gravity so
-   the original guarantee holds again — and never go BELOW the old value, since a
-   thin-gravity sector doesn't make the primer any cheaper. */
-function xfuseFloor() { return Math.round(XFUSE_FLOOR * Math.max(1, gravScale)); }
 // Owner steer: on SEMMELWEIS DEEP the supply lines are cut — the drone still
 // answers (a stranded ship must never be un-rescuable) but on scavenged reserves:
 // it comes slower, fills slower, and leaves you with less. Never below the floor.
 function supplyCut() { return !!(level && level.contagion); }
 function xfuseCap() {
   const base = Math.round(maxFuel() * Math.pow(0.9, runRefuels) * (supplyCut() ? 0.7 : 1));
-  return Math.max(xfuseFloor(), base);
+  return Math.max(XFUSE_FLOOR, base);
 }
 function xfuseRate() { return XFUSE_RATE * (supplyCut() ? 0.55 : 1); }
 function signalHoldT() { return SIGNAL_HOLD_T * (supplyCut() ? 1.6 : 1); }

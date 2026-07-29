@@ -16,7 +16,7 @@ file; the *plan* they came from is
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.01 (queued for the first post-launch update)**
-- [A surface scuttle, and the resupply floor re-tuned for Bundle Z's gravity](#a-surface-scuttle-and-the-resupply-floor-re-tuned-for-bundle-zs-gravity) — the "trapped in a gravity well" soft-lock, from both ends
+- [The scuttle charge becomes a universal escape hatch](#the-scuttle-charge-becomes-a-universal-escape-hatch) — the gravity-anomaly soft-lock, and why the fuel floor deliberately stays flat
 - [The Solace's hull reveal reads brighter and holds](#the-solaces-hull-reveal-reads-brighter-and-holds) — the reflected-ping hull outline was a blink, not a reveal
 - [Bundle X + Z integration: the trainee sector's inherited crosswind](#bundle-x--z-integration-the-trainee-sectors-inherited-crosswind) — a bug that only exists once X's training mode and Z's gravity share a codebase
 - [Bundle X — onboarding: trainee sector, guided pauses, hint bank, in-app rating](#bundle-x--onboarding-trainee-sector-guided-pauses-hint-bank-in-app-rating) — the first 1.01 bundle to land; sequenced ahead of Bundles V and Z
@@ -55,24 +55,27 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 ---
 
-## A surface scuttle, and the resupply floor re-tuned for Bundle Z's gravity
+## The scuttle charge becomes a universal escape hatch
 
 **Release:** 1.01
 
 Owner playtest: *"You can get trapped in a gravity well with no fuel to escape. We
-need a scuttle for that situation."* Two independent causes, both fixed.
+need a scuttle for that situation."* The "gravity well" is a **gravity anomaly** —
+the concentric rings in CURIE FIELDS and later sectors — not a dip in the terrain,
+which is how it was first read. The anomaly case is the substantive fix below; the
+first attempt at a terrain reading has been rolled back.
 
-- **The resupply floor was measured at 1× gravity.** `XFUSE_FLOOR = 35` is
-  documented as the smallest tank the drone will leave you with — "≥ primer +
-  enough to limp to the next pad" — so that the lifeline "can never soft-lock a
-  run". Bundle Z then introduced per-sector gravity up to ~2.2× plus a crosswind
-  and never re-tuned it. Climbing out of a dip costs fuel in rough proportion to
-  gravity, so 35 units in a heavy sector buys well under half the altitude it was
-  sized for — and the drone would then keep answering with the same never-enough
-  tank, forever. A new `xfuseFloor()` scales the floor with `gravScale`, and never
-  goes *below* the old value (a thin-gravity sector doesn't make the primer
-  cheaper). This is the same class of bug as the X/Z gravity leak below: a constant
-  tuned before Z existed, silently invalidated by it.
+- **The resupply floor stays flat across gravity** (owner decision). It was briefly
+  scaled by `gravScale`: `XFUSE_FLOOR = 35` is documented as the smallest tank the
+  drone will leave you with — "≥ primer + enough to limp to the next pad" — so the
+  lifeline "can never soft-lock a run", and that was measured at 1× while Bundle Z
+  now allows ~2.2×. **Rolled back.** The anti-soft-lock guarantee is carried by the
+  scuttle charge instead, which works on any empty tank whether the ship is landed
+  or held aloft, so no amount of gravity can make a strand terminal. With the
+  soft-lock closed there, scaling the floor would only hand the player a bigger tank
+  in exactly the sectors Z widened its range to make *harder*, and quietly inflate
+  the points `XFUSE_COST` charges for the fill. Heavy gravity is meant to be heavy.
+  The reasoning is recorded at the constant so it isn't re-derived and re-applied.
 - **The scuttle charge now works above ground, and does not require a landing.**
   It existed already but was gated to the Hollows, where there's no drone to call.
   On the surface it sits on **SHIELD** rather than THRUST: THRUST already signals

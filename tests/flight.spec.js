@@ -161,19 +161,22 @@ test("the THRUST-to-signal lifeline still works untouched alongside the scuttle"
   await page.evaluate(() => { input.thrust = false; });
 });
 
-test("the resupply floor scales with gravity, so a heavy sector can't hand back a never-enough tank", async ({ page }) => {
-  // the floor is the drone's promise: "enough to limp to the next pad". It was a
-  // flat 35, measured at 1x, and Bundle Z then allowed gravity up to ~2.2x.
-  const floors = await page.evaluate(() => {
+/* (owner decision, July 2026) — the resupply floor stays FLAT across gravity. It was
+   briefly scaled by gravScale to keep the "can never soft-lock" claim true in a heavy
+   sector; that's rolled back, because the scuttle charge now closes the soft-lock on
+   any empty tank instead, and scaling the floor would only soften exactly the sectors
+   Bundle Z widened its range to make harder. */
+test("the resupply floor stays flat across gravity — heavy sectors are meant to be heavy", async ({ page }) => {
+  const caps = await page.evaluate(() => {
     __doids.go(1); __doids.launch();
     const out = {};
-    for (const g of [0.4, 1, 2.2]) { gravScale = g; out[g] = xfuseFloor(); }
+    for (const g of [0.4, 1, 2.2]) { gravScale = g; out[g] = xfuseCap(); }
     gravScale = 1;
     return out;
   });
-  expect(floors["1"]).toBe(35);                       // unchanged at normal gravity
-  expect(floors["0.4"]).toBe(35);                     // never LESS generous than before
-  expect(floors["2.2"]).toBeGreaterThan(70);          // a heavy sector gets a real tank
+  expect(caps["2.2"]).toBe(caps["1"]);
+  expect(caps["0.4"]).toBe(caps["1"]);
+  expect(await page.evaluate(() => typeof xfuseFloor), "the scaling helper is gone").toBe("undefined");
 });
 
 test("V18: the very first field resupply gets a one-time acknowledgement banner", async ({ page }) => {
