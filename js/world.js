@@ -173,20 +173,42 @@ const CAPACITY = 6;
 // the authored feel and the M1 golden heightmap are untouched. Every gravity
 // reference in physics code reads grav(), never the bare GRAV constant.
 let gravScale = 1;
+// owner feature (July 2026) — a per-sector "crosswind": a constant sideways
+// pull alongside the usual downward one. gravTilt is -1..1 (- pulls left,
+// + pulls right); the downward pull (grav()) is untouched by it entirely —
+// "down" stays down, terrain/landing/HUD orientation don't change, you're
+// just also being shoved sideways. TILT_STRENGTH caps how strong that shove
+// can get, relative to this sector's own (scaled) gravity.
+let gravTilt = 0;
+const TILT_STRENGTH = 0.5;
 function grav() { return GRAV * gravScale; }
+function gravSide() { return GRAV * gravScale * gravTilt * TILT_STRENGTH; }
 function rollGravity(n) {
-  gravScale = runSeed === 0 ? 1 : 0.4 + mulberry32((runSeed ^ 0x5a17e5) + n * 7919)() * 1.8;
+  if (runSeed === 0) { gravScale = 1; gravTilt = 0; return; }   // campaign: untouched
+  const rng = mulberry32((runSeed ^ 0x5a17e5) + n * 7919);
+  gravScale = 0.4 + rng() * 1.8;
+  gravTilt = rng() * 2 - 1;
 }
 // Z1 — named in the briefing prefix so the roll is a KNOWN condition, not a
 // silent difficulty modifier; "" for a near-1x roll (rare, but not every
 // seed lands far from center — no label reads as no news, not a bug).
-// Owner steer: graded further at the extremes now that the range is wider.
+// Owner steer: graded further at the extremes now that the range is wider,
+// plus a crosswind direction call-out (owner feature) when gravTilt is
+// meaningful — the player has to know this before they're airborne, not
+// discover it as a surprise.
 function gravLabel() {
-  if (gravScale >= 1.7) return "crushing gravity";
-  if (gravScale >= 1.05) return "heavy world";
-  if (gravScale <= 0.5) return "near-weightless";
-  if (gravScale <= 0.95) return "thin gravity";
-  return "";
+  let lbl = "";
+  if (gravScale >= 1.7) lbl = "crushing gravity";
+  else if (gravScale >= 1.05) lbl = "heavy world";
+  else if (gravScale <= 0.5) lbl = "near-weightless";
+  else if (gravScale <= 0.95) lbl = "thin gravity";
+  // kept short (not "crosswind from the left") — this shares a line with the
+  // mode/seed header and the HUD's own score line; both are tight for space
+  if (Math.abs(gravTilt) > 0.15) {
+    const wind = (gravTilt > 0 ? "→" : "←") + " wind";
+    lbl = lbl ? lbl + " · " + wind : wind;
+  }
+  return lbl;
 }
 
 let level, ship, camera, particles, texts, stars;

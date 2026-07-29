@@ -2627,6 +2627,9 @@ function drawHUD(now) {
   if (blackboxCount > 0) mid += "  ·  ◈ " + blackboxCount + "/" + NBOX;
   if (dailyMod("stopwatch") && !level.isCave)
     mid += "  ·  ⏱ " + (sectorT < 90 ? Math.ceil(90 - sectorT) : "—");
+  // owner feature — a persistent reminder while airborne, not just a line
+  // in the briefing you can forget: which way the crosswind pushes.
+  if (Math.abs(gravTilt) > 0.15) mid += "  ·  " + (gravTilt > 0 ? "→" : "←") + " WIND";
   // the sector label itself glitches for a beat when the Static fires (I2);
   // REDUCED FLASH keeps the corruption sparse instead of a full scramble
   if (staticGlitchT > 0)
@@ -4313,6 +4316,7 @@ window.__doids = {
     unresolvedHaunt, epilogueChars,
     runSeed, runMode, famousMap, veteran, dailyDone: dailyDoneToday(),
     gravScale, grav: grav(), gravLabel: gravLabel(),   // Z1
+    gravTilt, gravSide: gravSide(),   // owner feature — the crosswind
     dailyMods: dailyMods.map(m => m.id), sectorT, maxFuel: maxFuel(),
     rects: { resume: resumeRect(), remix: remixRect(), daily: dailyRect(), start: startRect(),
       help: helpRect(), legend: legendRect(), pauseLegend: pauseLegendRect() },

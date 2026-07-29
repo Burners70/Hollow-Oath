@@ -340,7 +340,13 @@ test("Z1: gravity varies by seed AND sector in REMIX/DAILY, and never in campaig
   s = await page.evaluate(() => __doids.get());
   expect(s.gravScale).toBeCloseTo(rolls[1][0], 10);
   expect(s.grav).toBeCloseTo(46 * rolls[1][0], 5);
-  expect(["", "heavy world", "thin gravity", "crushing gravity", "near-weightless"]).toContain(s.gravLabel);
+  // owner feature — a crosswind can now share the label with a magnitude
+  // tier ("heavy world · → wind"), so check each part, not a fixed list
+  const magParts = ["", "heavy world", "thin gravity", "crushing gravity", "near-weightless"];
+  for (const part of s.gravLabel.split(" · ")) {
+    expect(magParts.includes(part) || part === "→ wind" || part === "← wind",
+      "unexpected gravLabel part: " + part).toBe(true);
+  }
   // advancing sectors within the same REMIX run re-rolls gravity, not just at launch
   await page.evaluate(() => { __doids.go(1); });
   s = await page.evaluate(() => __doids.get());
@@ -372,4 +378,49 @@ test("Z2: landing fairness thresholds scale with gravity, so the same approach r
   expect((await check(2.2, base * Math.sqrt(2.2) - 1)).soft).toBe(true);
   // ...near-weightless (0.4x) tightens further
   expect((await check(0.4, base * Math.sqrt(0.4) + 1)).soft).toBe(false);
+});
+
+test("Z3 (owner feature): a per-sector crosswind pushes the ship sideways, never in campaign, and widens the drift tolerance", async ({ page }) => {
+  // campaign (seed 0): no crosswind, ever, even if rollGravity is forced
+  await page.evaluate(() => { __doids.go(0); });
+  let s = await page.evaluate(() => __doids.get());
+  expect(s.gravTilt).toBe(0);
+  expect(s.gravSide).toBe(0);
+  // deterministic per (seed, sector), and bounded to -1..1
+  const tilts = await page.evaluate(() => {
+    const out = {};
+    for (const seed of [1, 2, 3, 42, 12345]) {
+      runSeed = seed;
+      out[seed] = [0, 1, 2, 3, 4, 5, 6, 7].map(n => { rollGravity(n); return gravTilt; });
+    }
+    return out;
+  });
+  for (const seed of Object.keys(tilts)) {
+    for (const v of tilts[seed]) {
+      expect(v, "seed " + seed).toBeGreaterThanOrEqual(-1);
+      expect(v, "seed " + seed).toBeLessThanOrEqual(1);
+    }
+    expect(new Set(tilts[seed].map(v => v.toFixed(6))).size, "seed " + seed).toBeGreaterThan(1);
+  }
+  // a real crosswind actually pushes the ship: pin gravTilt strongly positive
+  // (pulls right) while airborne and confirm vx climbs, not just vy
+  await page.evaluate(() => {
+    __doids.go(0); __doids.launch();
+    gravScale = 1; gravTilt = 1;
+    ship.x = 600; ship.y = 300; ship.vx = 0; ship.landed = false; ship.dead = false;
+  });
+  await page.waitForTimeout(200);
+  const vxAfter = await page.evaluate(() => ship.vx);
+  expect(vxAfter).toBeGreaterThan(0);   // pushed right, as gravTilt > 0 promises
+  // the sideways drift tolerance widens with a strong crosswind, same
+  // "the environment did this, not the player" logic as Z2's descent scaling
+  await page.evaluate(() => {
+    ship.x = level.oids[0].x; ship.landed = false; ship.vy = 0; ship.ang = 0;
+  });
+  const checkVx = (gt, vx) => page.evaluate(({ gt, vx }) => {
+    gravScale = 1; gravTilt = gt; ship.vx = vx;
+    return __doids.evalLanding();
+  }, { gt, vx });
+  expect((await checkVx(0, 39)).soft, "no crosswind: just over base vxMax fails").toBe(false);
+  expect((await checkVx(1, 39)).soft, "full crosswind: the same speed now passes").toBe(true);
 });

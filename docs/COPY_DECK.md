@@ -249,6 +249,11 @@ every sector (owner steer, July 2026 — was one roll for the whole run, and the
 ~0.7x-1.4x range read as barely different from 1x; now ~0.4x-2.2x): `· crushing
 gravity` (gravScale ≥ 1.7), `· heavy world` (≥ 1.05), `· near-weightless`
 (≤ 0.5), `· thin gravity` (≤ 0.95) — silent (no label) for a near-1x roll.
+**Owner feature:** a per-sector crosswind label can share the line, e.g.
+`REMIX ROTATION // seed 12345 · heavy world · → wind` — `· → wind` (pulls
+right) or `· ← wind` (pulls left) when the roll's tilt is meaningful, silent
+otherwise. The same `→`/`← WIND` glyph appears on the in-flight score line
+(`drawHUD`) for the whole sector, not just the one-time briefing.
 
 ## 5. Log fragments (`FRAGMENTS[0..13]`; logs 1–10 the Static, 11–14 Glycon)
 
