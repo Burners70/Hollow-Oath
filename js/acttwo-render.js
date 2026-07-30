@@ -199,6 +199,14 @@ function plantChamberPal() {
 
 const SPAN_TILE_PAD = 60;
 
+/* one world-anchored rock gradient, shared by the tiles and by the flat fills
+   above and below each tile's band, so all three agree at every boundary */
+function spanRockGradient(c2d, H, pal) {
+  const g = c2d.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, pal.grad[0]); g.addColorStop(1, pal.grad[1]);
+  return g;
+}
+
 function buildSpanTile(x0, x1, spans, H, pal) {
   const ov = STEP * 2;
   const i0 = Math.max(0, Math.floor((x0 - ov) / STEP));
@@ -219,9 +227,11 @@ function buildSpanTile(x0, x1, spans, H, pal) {
   const tctx = c.getContext("2d");
   tctx.setTransform(sc, 0, 0, sc, -x0 * sc, -top * sc);
 
-  const grad = tctx.createLinearGradient(0, top, 0, bot);
-  grad.addColorStop(0, pal.grad[0]); grad.addColorStop(1, pal.grad[1]);
-  tctx.fillStyle = grad;
+  // The gradient is anchored to the WORLD (0..H), never to this tile's band.
+  // Anchoring it to the band puts a hard vertical seam at every tile boundary
+  // where the band changes — Act One dodges the same trap by passing fixed
+  // gradFrom/gradTo stops into buildHeightTile rather than the tile's own extent.
+  tctx.fillStyle = spanRockGradient(tctx, H, pal);
   tctx.fillRect(x0 - ov, top, (x1 - x0) + ov * 2, bot - top);
 
   if (!solid) {
@@ -278,14 +288,15 @@ function getSpanTiles(lvl, xLo, xHi, pal) {
 function drawChamberTerrain(cx, viewW) {
   const pal = plantChamberPal();
   const H = level.H || WORLD_H;
+  // the same world-anchored gradient the tiles fill with, so the rock outside a
+  // tile's band is continuous with the rock inside it — no seam at any boundary
+  ctx.fillStyle = spanRockGradient(ctx, H, pal);
   for (const tile of getSpanTiles(level, cx, cx + viewW, pal)) {
-    // rock above and below the tile's band — flat fill, no boundary to stroke
-    ctx.fillStyle = pal.grad[0];
+    if (tile.solid) { ctx.fillRect(tile.x0, -260, tile.w, H + 320); continue; }
+    // rock above and below the band: solid by definition, so nothing to stroke
     if (tile.bandTop > 0) ctx.fillRect(tile.x0, -260, tile.w, tile.bandTop + 260);
-    ctx.fillStyle = pal.grad[1];
     if (tile.bandBot < H) ctx.fillRect(tile.x0, tile.bandBot, tile.w, H + 60 - tile.bandBot);
-    if (!tile.solid) ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
-    else ctx.fillRect(tile.x0, -260, tile.w, H + 320);
+    ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
   }
 }
 

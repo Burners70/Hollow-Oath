@@ -501,9 +501,9 @@ done, so the chain now starts at P·slice.
   not as content: **6000×2400** (the widest surface sector is 5500, the finale
   4400), with **96 overhang columns, an 85px pinch** against the 175px every Act
   One cave is guaranteed, and a floor-to-ceiling **pillar**. That is P·slice's
-  required geometry, ready for it. Six tests in `tests/worldgen.spec.js`, one of
+  required geometry, ready for it. Seven tests in `tests/worldgen.spec.js`, one of
   which samples the *rendered canvas* against `solidAt` at twelve points — the
-  rock you see is the rock you hit. Suite green at 127.
+  rock you see is the rock you hit. Suite green at 128.
   Not done here, deliberately: no racks, well, tow, reserve or tether — `genChamber`
   builds terrain only, and `heights` is absent rather than stubbed so anything
   that secretly wants a heightmap fails loudly. Re-entrant hooks remain

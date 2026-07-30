@@ -607,3 +607,43 @@ test("P·terrain: the rock you see is the rock you hit", async ({ page }) => {
   expect(probes.some(p => p.solid)).toBe(true);
   expect(probes.some(p => !p.solid)).toBe(true);
 });
+
+test("P·terrain: chamber rock is seamless across tile boundaries", async ({ page }) => {
+  // spans are drawn per 512px tile, and each tile only covers the vertical band
+  // its own spans occupy. Anchoring the rock gradient to that band instead of to
+  // the world puts a hard vertical step at every boundary where the band changes
+  // — visible as a seam down the middle of solid rock. Act One avoids it by
+  // passing fixed gradient stops into buildHeightTile; spans must do the same.
+  const seams = await page.evaluate(() => {
+    __doids.loadChamber("slice");
+    const out = [];
+    for (const bx of [3072, 4096, 5120]) {
+      // derive a y that is rock on BOTH sides rather than hardcoding one, so this
+      // stays honest if the chamber is ever retuned: sit above the shallowest
+      // ceiling either side of the boundary
+      const tops = [bx - 14, bx + 14].map(x => {
+        const col = __doids.spans(x);
+        return col.length ? col[0].top : null;
+      }).filter(v => v != null);
+      const wy = Math.max(20, Math.min(...tops) - 40);
+      ship.x = bx; ship.y = wy; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+      camera.x = bx; camera.y = wy;
+      render(performance.now() / 1000);
+      const z = zoomLevel(), cw = (vw - saLeft) / z, ch = vh / z;
+      const cx = Math.max(0, Math.min(camera.x - cw / 2, Math.max(0, level.W - cw)));
+      const cy = Math.max(-100, Math.min(camera.y - ch / 2, (level.H || WORLD_H) - ch));
+      const at = wx => ctx.getImageData(Math.round((saLeft + (wx - cx) * z) * dpr),
+        Math.round((wy - cy) * z * dpr), 1, 1).data;
+      const a = at(bx - 14), b = at(bx + 14);
+      out.push({ bx,
+        solid: __doids.solidAt(bx - 14, wy) && __doids.solidAt(bx + 14, wy),
+        delta: Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2])) });
+    }
+    return out;
+  });
+  for (const s of seams) {
+    expect(s.solid, `x=${s.bx} is rock either side`).toBe(true);
+    // a band-anchored gradient showed deltas of 20+ here; world-anchored is ~0
+    expect(s.delta, `seam at tile boundary x=${s.bx}`).toBeLessThan(8);
+  }
+});
