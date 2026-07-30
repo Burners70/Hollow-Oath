@@ -214,8 +214,24 @@ for i in range(len(pts) - 1):
 for x, y in pts:
     cst.append(f'<circle cx="{x}" cy="{y}" r="9" fill="#fff"/>')
     cst.append(f'<circle cx="{x}" cy="{y}" r="16" fill="none" stroke="{GOLD}" stroke-width="3" opacity="0.6"/>')
+# 1.2 (Bundle P, Act Two) adds a twelfth Scion mind to the codex. It joins as its
+# OWN small satellite cluster off the existing eleven-star chain (a dashed
+# connector, not another link in the chain) so the constellation still reads at
+# a glance once Act Two's ten more push the total to 22 — "stay legible", not
+# "grow the chain forever".
+sat = '''
+<g filter="url(#glow)" opacity="0.85">
+  <line x1="786" y1="258" x2="820" y2="200" stroke="{GOLD}" stroke-width="3" opacity="0.4"/>
+  <line x1="700" y1="296" x2="786" y2="258" stroke="{GOLD}" stroke-width="2.5" opacity="0.3" stroke-dasharray="4 6"/>
+  <circle cx="786" cy="258" r="7" fill="#fff" opacity="0.7"/>
+  <circle cx="786" cy="258" r="13" fill="none" stroke="{GOLD}" stroke-width="2.5" opacity="0.45"/>
+  <circle cx="820" cy="200" r="11" fill="#fff"/>
+  <circle cx="820" cy="200" r="19" fill="none" stroke="{GOLD}" stroke-width="3.5" opacity="0.75"/>
+  <circle cx="820" cy="200" r="27" fill="none" stroke="{GOLD}" stroke-width="2" opacity="0.35"/>
+</g>'''.format(GOLD=GOLD)
 body = f'''
 <g filter="url(#glow)">{''.join(cst)}</g>
+{sat}
 <g filter="url(#glowBig)" fill="none" stroke="{GOLD}" stroke-width="12" stroke-linejoin="round">
   <path d="M 512 500 C 430 452, 330 452, 258 492 L 258 712 C 330 672, 430 672, 512 720 Z"/>
   <path d="M 512 500 C 594 452, 694 452, 766 492 L 766 712 C 694 672, 594 672, 512 720 Z"/>
@@ -229,5 +245,45 @@ body = f'''
   <path d="M 548 650 C 596 624, 658 624, 718 652"/>
 </g>'''
 shell("the_full_codex", 9, GOLD, body)
+
+# ------------------------------------------------------- 10. EVERY HOLLOW HEARD
+# 1.2 (Bundle P, Act Two). The racks are life-support machines a player reads
+# by ear as much as by eye (docs/ACT_TWO_SPEC.md §7.5) — an ECG line either side
+# of the rod says "heard", not just "seen". Signature cyan (the default accent),
+# not a semantic PAL() colour: this is brand art, not in-HUD state.
+body = f'''
+<circle cx="512" cy="512" r="300" fill="none" stroke="{CYAN}" stroke-width="9" opacity="0.7" filter="url(#glow)"/>
+<g filter="url(#glow)">
+  <line x1="512" y1="300" x2="512" y2="730" stroke="{PALE}" stroke-width="15" stroke-linecap="round"/>
+</g>
+<path d="M 512 343.0 C 607 368.8, 607 429.0, 512 463.4 C 417 497.8, 417 558.0, 512 592.4 C 607 626.8, 607 687.0, 512 712.8"
+  fill="none" stroke="{CYAN}" stroke-width="17" stroke-linecap="round" filter="url(#glow)"/>
+<g filter="url(#glow)" fill="none" stroke="{CYAN}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+  <path d="M 300 512 L 360 512 L 385 460 L 420 560 L 450 512 L 512 512"/>
+  <path d="M 724 512 L 664 512 L 639 460 L 604 560 L 574 512 L 512 512"/>
+</g>'''
+shell("every_hollow_heard", 10, CYAN, body)
+
+# ------------------------------------------------------------- 11. GENTLE HANDS
+# 1.2 (Bundle P, Act Two). Safe mint (PAL().SAFE's hue in this design system,
+# reused here as brand art) — two cradling arcs around the rod, rescue without
+# harm. No cross anywhere; the medical mark stays the single-serpent rod.
+def cradling_hand(tx, ty, rot, mirror):
+    sx = -1 if mirror else 1
+    return f'''<g transform="translate({tx} {ty}) rotate({rot}) scale({sx},1)" filter="url(#glow)" fill="{GREEN}">
+    <rect x="-38" y="-48" width="76" height="96" rx="32"/>
+    <rect x="-34" y="-78" width="16" height="42" rx="8"/>
+    <rect x="-12" y="-86" width="16" height="48" rx="8"/>
+    <rect x="10" y="-82" width="16" height="46" rx="8"/>
+    <rect x="30" y="-6" width="40" height="18" rx="9" transform="rotate(-28 30 -6)"/>
+  </g>'''
+body = f'''
+<path d="M 512 310.0 C 597 333.5, 597 388.5, 512 419.4 C 427 450.3, 427 500.3, 512 518.0"
+  fill="none" stroke="{GREEN}" stroke-width="16" stroke-linecap="round" filter="url(#glow)"/>
+{cradling_hand(394, 650, 58, False)}
+{cradling_hand(630, 650, -58, True)}
+<circle cx="512" cy="600" r="18" fill="#c9ffe6" opacity="0.95" filter="url(#glow)"/>
+<circle cx="512" cy="600" r="30" fill="none" stroke="{GREEN}" stroke-width="3" opacity="0.5" filter="url(#glow)"/>'''
+shell("gentle_hands", 11, GREEN, body)
 
 print("done")
