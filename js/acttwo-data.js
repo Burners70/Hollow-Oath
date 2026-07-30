@@ -107,6 +107,22 @@ const PLANT_ZONES = {
 };
 function plantPal(zoneKey) { return PLANT_ZONES[zoneKey] || PLANT_ZONES.cyan; }
 
+/* The rock a chamber is cut into — flavour, not state, so it lives here beside
+   PLANT_ZONES rather than in TOK (same precedent: these are scene tones, and the
+   semantic SAFE/WARN/DANGER ramp that has to swap under colourblind mode stays in
+   PAL()). Three clearly separated values are what make the owner's "rock overhead,
+   mechanical underfoot" rule legible at a glance:
+
+     void  #05060f (TOK.VOID)      — open, flyable space
+     rock  below                    — the mass, a cold violet-grey stone
+     steel PLANT_ZONES[].top/bottom — the paved band behind a milled face
+
+   Deliberately NOT as dark as the Hollows' CAVE_PAL: the Hollows are an unlit
+   cave read by lamplight, whereas a chamber is lit (spec §9.2), so near-black
+   stone in a lit room reads as a hole rather than as rock. It keeps the violet
+   cast, though, which ties Act Two's stone to Act One's. */
+const ROCK_PAL = { top: "#3b3454", bottom: "#241f38" };
+
 /* ================================================================
    P·terrain — the chamber authoring grammar, compiled to spans at load.
 
@@ -132,27 +148,79 @@ function plantPal(zoneKey) { return PLANT_ZONES[zoneKey] || PLANT_ZONES.cyan; }
    own `seed`, so a chamber compiles byte-identically every load and can be
    checksummed in a test exactly as Act One's heightmap is under M1. */
 
-function spanUnion(list, top, bot) {
+/* Every boundary carries a MATERIAL — "rock" or "mach" (owner steer, July 2026:
+   for the first eight or so chambers the ceiling is raw rock and only the floor
+   is mechanical, so the plant reads as a facility *installed in a cave* rather
+   than a tiled box). It is per-boundary rather than per-chamber because that is
+   the whole point: one span's ceiling can be rock while its floor is paved. The
+   material rides through union and subtraction so a face newly exposed by
+   carving rock into a room comes out as rock, which is what actually happens. */
+const MAT_ROCK = "rock", MAT_MACH = "mach";
+
+function spanUnion(list, top, bot, mt, mb) {
   if (bot - top <= 0) return list;
   const out = [];
-  let t = top, b = bot;
+  let t = top, b = bot, tm = mt || MAT_ROCK, bm = mb || MAT_ROCK;
   for (const sp of list) {
-    if (sp.bot < t || sp.top > b) out.push(sp);                  // disjoint — keep
-    else { t = Math.min(t, sp.top); b = Math.max(b, sp.bot); }   // touches — absorb
+    if (sp.bot < t || sp.top > b) { out.push(sp); continue; }   // disjoint — keep
+    if (sp.top < t) { t = sp.top; tm = sp.mt; }                 // absorb, and the
+    if (sp.bot > b) { b = sp.bot; bm = sp.mb; }                 // surviving face wins
   }
-  out.push({ top: t, bot: b });
+  out.push({ top: t, bot: b, mt: tm, mb: bm });
   out.sort((p, q) => p.top - q.top);
   return out;
 }
 
-function spanSubtract(list, top, bot) {
+/* Carving rock out of a room exposes TWO faces and they need not match — a shelf
+   can be a milled pad on top and raw stone underneath, which is the single most
+   useful thing the material split buys. `matUp` dresses the rock's upper surface
+   (it becomes the FLOOR of the air left above the cut); `matDown` dresses its
+   underside (the CEILING of the air left below). */
+function spanSubtract(list, top, bot, matUp, matDown) {
+  const mu = matUp || MAT_ROCK, md = matDown || matUp || MAT_ROCK;
   const out = [];
   for (const sp of list) {
-    if (bot <= sp.top || top >= sp.bot) { out.push(sp); continue; }   // misses it
-    if (top > sp.top) out.push({ top: sp.top, bot: top });            // air left above
-    if (bot < sp.bot) out.push({ top: bot, bot: sp.bot });            // air left below
+    if (bot <= sp.top || top >= sp.bot) { out.push(sp); continue; }             // misses it
+    if (top > sp.top) out.push({ top: sp.top, bot: top, mt: sp.mt, mb: mu });   // air above
+    if (bot < sp.bot) out.push({ top: bot, bot: sp.bot, mt: md, mb: sp.mb });   // air below
   }
   return out;
+}
+
+/* A boundary is not obliged to be a straight line. Beyond the value-noise
+   roughness, a part may give either boundary a PROFILE, which is what stops a
+   chamber being nothing but right angles (owner note, July 2026 — slopes,
+   spikes and immaculate rounded edges). `u` is 0..1 across the part:
+
+     ramp  — descends (or climbs) linearly by dy. Sloped floors to land on.
+     arc   — a half-sine bulge of dy. A machined bore, or a domed cavern.
+     teeth — n triangular spikes of depth dy. Stalactites in rock; a cut
+             comb in steel. Deliberately shallow by default: a spike that
+             seals a passage is a bug, not a hazard.
+
+   Rounded corners are separate: a part's `radius` eases both boundaries in at
+   each end by r − √(r²−d²), so a machined room ends in a fillet rather than a
+   square corner. Profiles compose with roughness — a rough ramp is a rough ramp. */
+function boundaryProfile(prof, u) {
+  if (!prof) return 0;
+  const dy = prof.dy || 0;
+  switch (prof.kind) {
+    case "ramp":  return dy * u;
+    case "arc":   return dy * Math.sin(Math.PI * clamp(u, 0, 1));
+    case "teeth": {
+      const n = prof.n || 6, t = (clamp(u, 0, 1) * n) % 1;
+      return dy * (1 - Math.abs(2 * t - 1));
+    }
+    default: return 0;
+  }
+}
+
+// r − √(r²−d²) at each end, so both boundaries curve in to meet the wall
+function cornerInset(radius, x, x0, w) {
+  if (!radius) return 0;
+  const d = Math.min(x - x0, x0 + w - x);
+  if (d >= radius || d < 0) return 0;
+  return radius - Math.sqrt(Math.max(0, radius * radius - d * d));
 }
 
 // the same cosine-interpolated value noise as genLevel's `octave` / genCave's,
@@ -172,18 +240,31 @@ function chamberNoise(rng, wl, W) {
 function compileChamber(ch) {
   const cols = Math.floor(ch.W / STEP) + 2;
   const rng = mulberry32(ch.seed);
-  const nTop = chamberNoise(rng, 150, ch.W), nBot = chamberNoise(rng, 180, ch.W);
+  // rock wants a coarser, bigger wobble than milled steel does — genLevel stacks
+  // three octaves for the surface; two per boundary is enough underground, where
+  // a chamber's shape is authored rather than found
+  const nT1 = chamberNoise(rng, 320, ch.W), nT2 = chamberNoise(rng, 90, ch.W);
+  const nB1 = chamberNoise(rng, 360, ch.W), nB2 = chamberNoise(rng, 110, ch.W);
+  const defTop = ch.matTop || MAT_ROCK, defBot = ch.matBot || MAT_ROCK;
   const spans = [];
   for (let i = 0; i < cols; i++) spans.push([]);
   for (const p of ch.parts) {
     const i0 = Math.max(0, Math.floor(p.x / STEP));
     const i1 = Math.min(cols - 1, Math.ceil((p.x + p.w) / STEP));
+    const mt = p.mt || defTop, mb = p.mb || defBot;
     for (let i = i0; i <= i1; i++) {
-      const x = i * STEP;
-      const top = p.y + (p.roughTop ? nTop(x) * p.roughTop : 0);
-      const bot = p.y + p.h + (p.roughBot ? nBot(x) * p.roughBot : 0);
-      spans[i] = p.op === "rock" ? spanSubtract(spans[i], top, bot)
-                                 : spanUnion(spans[i], top, bot);
+      const x = i * STEP, u = p.w ? (x - p.x) / p.w : 0;
+      const inset = cornerInset(p.radius, x, p.x, p.w);
+      // a milled face takes only the fine octave, and at a fraction of it: the
+      // difference between cut steel and raw rock is mostly how quiet it is
+      const rT = p.roughTop ? (mt === MAT_MACH ? nT2(x) * 0.35 : nT1(x) * 0.7 + nT2(x) * 0.3) * p.roughTop : 0;
+      const rB = p.roughBot ? (mb === MAT_MACH ? nB2(x) * 0.35 : nB1(x) * 0.7 + nB2(x) * 0.3) * p.roughBot : 0;
+      const top = p.y + rT + boundaryProfile(p.profTop, u) + inset;
+      const bot = p.y + p.h + rB + boundaryProfile(p.profBot, u) - inset;
+      // for a rock part, mt/mb name its OWN two surfaces: mt the upper face you
+      // can land on, mb the underside you fly beneath
+      spans[i] = p.op === "rock" ? spanSubtract(spans[i], top, bot, mt, mb)
+                                 : spanUnion(spans[i], top, bot, mt, mb);
     }
   }
   const minGap = ch.minGap != null ? ch.minGap : 10;
@@ -213,16 +294,53 @@ function spanCountAt(x, spans) {
    cave is guaranteed by construction; that opens into a deep lower gallery with
    a full-height PILLAR and a second shelf to tow a rack around. */
 const SLICE_CHAMBER = {
-  id: "slice", name: "INTAKE", seed: 90210, W: 6000, H: 2400, zone: "cyan",
+  id: "slice", name: "INTAKE", seed: 90210, W: 7600, H: 2400, zone: "cyan",
+  /* SOLACE's breached intake is beat 1; the plant proper is 2–5 (spec §11.1), so
+     this chamber is NOT dressed as a plant — `plant` stays false and the machined
+     surfaces read as her own wrecked intake gear rather than his facility. */
+  plant: false,
+  // the owner rule: raw rock overhead, mechanical underfoot
+  matTop: MAT_ROCK, matBot: MAT_MACH,
   parts: [
     { op: "room", x: 180,  y: 120,  w: 300,  h: 720, roughTop: 6,  roughBot: 0  },  // entry shaft
-    { op: "room", x: 120,  y: 620,  w: 2600, h: 700, roughTop: 26, roughBot: 34 },  // upper gallery
-    { op: "rock", x: 1500, y: 850,  w: 760,  h: 170, roughTop: 14, roughBot: 18 },  // the overhang shelf
-    { op: "room", x: 2650, y: 980,  w: 900,  h: 340, roughTop: 12, roughBot: 16 },  // mid corridor
-    { op: "rock", x: 2900, y: 980,  w: 280,  h: 256, roughTop: 0,  roughBot: 8  },  // the pinch (~84px)
-    { op: "room", x: 3400, y: 1300, w: 2450, h: 900, roughTop: 30, roughBot: 40 },  // lower gallery
-    { op: "rock", x: 4400, y: 1240, w: 200,  h: 1000, roughTop: 0, roughBot: 0  },  // pillar, floor to ceiling
-    { op: "rock", x: 4950, y: 1620, w: 700,  h: 180, roughTop: 12, roughBot: 14 }   // tow-around shelf
+    { op: "room", x: 120,  y: 620,  w: 2600, h: 700, roughTop: 34, roughBot: 30 },  // upper gallery
+    // the overhang shelf: machined on top (you land on it) and rock underneath
+    // (you fly under raw stone) — one part, two materials, which is the point
+    { op: "rock", x: 1500, y: 850,  w: 760,  h: 170, roughTop: 10, roughBot: 22,
+      mt: MAT_MACH, mb: MAT_ROCK },
+    { op: "room", x: 2650, y: 980,  w: 900,  h: 340, roughTop: 14, roughBot: 12 },  // mid corridor
+    { op: "rock", x: 2900, y: 980,  w: 280,  h: 256, roughTop: 0,  roughBot: 8  },  // the pinch (~85px)
+    { op: "room", x: 3400, y: 1300, w: 2450, h: 900, roughTop: 38, roughBot: 34,
+      radius: 90 },                                                                 // lower gallery
+    { op: "rock", x: 4400, y: 1240, w: 200,  h: 1000, roughTop: 0, roughBot: 0,
+      mt: MAT_MACH },                                                               // pillar, floor to ceiling
+    { op: "rock", x: 4950, y: 1620, w: 700,  h: 180, roughTop: 10, roughBot: 16,
+      mt: MAT_MACH, mb: MAT_ROCK },                                                 // tow-around shelf
+
+    /* ---- the shape vocabulary, so P·content isn't authoring against right
+       angles alone (owner note, July 2026). Placed to the right of everything
+       above so the proven overhang/pinch/pillar keep their coordinates. */
+    { op: "room", x: 5700, y: 1300, w: 1200, h: 480, roughTop: 30, roughBot: 10,
+      profBot: { kind: "ramp", dy: 380 }, radius: 80 },        // a ramped machined descent
+    { op: "rock", x: 5950, y: 1240, w: 760,  h: 140, roughBot: 10,
+      profBot: { kind: "teeth", n: 7, dy: 130 }, mt: MAT_ROCK, mb: MAT_ROCK },  // stalactite teeth
+    { op: "room", x: 6800, y: 1700, w: 760,  h: 560, roughTop: 8, roughBot: 8,
+      profTop: { kind: "arc", dy: -190 }, radius: 130,
+      mt: MAT_MACH, mb: MAT_MACH }                            // an immaculate machined bore
+  ],
+  /* dressing. These are #69's existing ornaments (js/acttwo-render.js), which
+     were built and then never switched on by any level — conduitRun in
+     particular runs a light along its length on the rack's own heartbeat.
+     `snap` sits an ornament on the floor of whatever span its y falls in, so a
+     retune of the terrain doesn't leave the furniture hovering. */
+  ornaments: [
+    { type: "conduitRun",   x: 600,  y: 1280, w: 420, snap: true },
+    { type: "rackingFrame", x: 1010, y: 1280, w: 90,  h: 140, snap: true },
+    { type: "ventGrate",    x: 2380, y: 1280, w: 70,  h: 90,  snap: true },
+    { type: "conduitRun",   x: 3700, y: 2150, w: 520, snap: true },
+    { type: "junctionTruss",x: 4720, y: 2180, scale: 1.2, snap: true },
+    { type: "rackingFrame", x: 5180, y: 1600, w: 90,  h: 140, snap: true },
+    { type: "conduitRun",   x: 6900, y: 2240, w: 480, snap: true }
   ]
 };
 const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
@@ -237,10 +355,25 @@ const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
    unconditionally. `heights` is deliberately absent, not stubbed: a chamber that
    accidentally depends on the heightmap should fail loudly here, not silently
    render half a level. */
+/* sit an ornament on the floor of whichever span its y falls in, so terrain
+   retuning never leaves the furniture hovering in mid-air. h (or 0) is how far
+   above the floor its origin has to sit for the thing to rest ON the floor. */
+function snapOrnaments(list, spans) {
+  return (list || []).map(o => {
+    if (!o.snap) return Object.assign({}, o);
+    const col = spans[clamp(Math.round(o.x / STEP), 0, spans.length - 1)] || [];
+    const sp = pickSpan(col, o.y);
+    if (!sp) return Object.assign({}, o);
+    return Object.assign({}, o, { y: sp.bot - (o.h || 0) - 2 });
+  });
+}
+
 function genChamber(ch) {
+  const spans = compileChamber(ch);
   return {
-    n: 0, W: ch.W, H: ch.H, spans: compileChamber(ch), chamberId: ch.id,
-    isChamber: true, isPlant: true, plantZone: ch.zone, dark: false,
+    n: 0, W: ch.W, H: ch.H, spans, chamberId: ch.id,
+    isChamber: true, isPlant: !!ch.plant, plantZone: ch.zone, dark: false,
+    plantOrnaments: snapOrnaments(ch.ornaments, spans),
     oids: [], turrets: [], bullets: [], shots: [], drones: [], pods: [],
     fakePods: [], anomalies: [], scenery: [], fragmentsHere: [],
     blackbox: null, beacon: null, lift: null, shrine: null, roof: null,

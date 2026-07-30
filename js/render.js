@@ -353,13 +353,13 @@ function drawWorld(now) {
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
   const viewW = (vw - saLeft) / z;
 
-  // Bundle P §5 (js/acttwo-render.js) — a plant chamber is a lit, built
-  // facility, never open sky: flat steel zone-accent fill (plantChamberPal)
-  // in place of a biome's organic gradient, and no starfield (same as a
-  // cave, whether or not the chamber also sets isCave). PROVISIONAL against
-  // P·terrain — see plantChamberPal's own comment in js/acttwo-render.js.
-  const pal = level.isPlant ? plantChamberPal() : biomePal();
-  if (!level.isCave && !level.isPlant) {
+  /* Bundle P §5 (js/acttwo-render.js) — an Act Two chamber is underground and
+     never open sky: no starfield, and the zone's accent in place of a biome's
+     organic gradient. Keyed on level.spans, not on isPlant: every chamber is
+     underground, but only chambers 2–5 are the plant (spec §11.1), so isPlant
+     now controls the plant's *dressing* rather than whether terrain draws. */
+  const pal = (level.spans || level.isPlant) ? plantChamberPal() : biomePal();
+  if (!level.isCave && !level.isPlant && !level.spans) {
     ctx.save();
     ctx.translate(cx * 0.35, cy * 0.35);
     const sr = pal.star;   // T2 — per-biome starfield tint
@@ -379,7 +379,10 @@ function drawWorld(now) {
      it shipped with, untouched — the M1 golden checksum is the proof. */
   if (level.spans) {
     drawChamberTerrain(cx, viewW);
-    if (level.isPlant) drawMachinedPanelTicks(cx, cx + viewW);
+    // ticks are a property of a MACHINED face now, not of the chamber being a
+    // plant — an intake's own wrecked gear is milled too. The function itself
+    // walks materials and skips raw rock.
+    drawMachinedPanelTicks(cx, cx + viewW);
   } else {
     // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
     // T2 threads the sector's biome palette (grad/stroke/glow) through the cache

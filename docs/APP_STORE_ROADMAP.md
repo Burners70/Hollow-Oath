@@ -508,6 +508,40 @@ done, so the chain now starts at P·slice.
   builds terrain only, and `heights` is absent rather than stubbed so anything
   that secretly wants a heightmap fails loudly. Re-entrant hooks remain
   unexpressible, as accepted above.
+  **Owner review, July 2026 — two additions, both landed.** The first pass was
+  called *cold and dull, and ten levels of it a chore*, with three specific notes:
+  1. **Rock overhead, mechanical underfoot** for roughly the first eight chambers,
+     so the plant reads as a facility *installed in a cave* rather than a tiled
+     box. Landed as a per-boundary **material** (`MAT_ROCK`/`MAT_MACH`) rather than
+     a per-chamber flag, because the useful case is one surface being both — the
+     slice chamber's shelf is a milled pad on top and raw stone underneath. Three
+     separated values carry it: void (open) < `ROCK_PAL` (the mass) < the zone's
+     steel (a paved band behind a milled face). Raw rock strokes violet and keeps
+     the Hollows' glow, tying Act Two's stone to Act One's; milled faces stroke the
+     zone accent and are the only ones that get panel ticks. Chambers set
+     `matTop`/`matBot` defaults, so P·content gets the rule for free.
+  2. **Not everything at right angles.** The grammar gained boundary **profiles** —
+     `ramp` (sloped floors, so not every landing is level), `arc` (a domed cavern
+     or a machined bore) and `teeth` (stalactites, or a cut comb) — plus a
+     `radius` corner fillet for "immaculate rounded edges". They compose with the
+     roughness, and rock now takes two noise octaves against a milled face's one
+     quiet one. The slice chamber demonstrates all four to the right of the proven
+     overhang/pinch/pillar, which kept their coordinates.
+  3. **Points of interest in the ground.** Mostly already built and never switched
+     on: #69's `PLANT_ORNAMENTS` (conduit run, racking frame, junction truss, vent
+     grate) had no level setting `plantOrnaments`. The slice chamber now carries
+     seven, `snap`ped onto whatever floor they sit above so retuning terrain can't
+     leave them hovering. `conduitRun` already runs a light along its length on the
+     rack's own heartbeat — the pulsing the owner asked for exists.
+  Also fixed in the same pass: `genChamber` hardcoded `isPlant: true`, which dressed
+  SOLACE's breached intake (beat 1, §11.1) as one of Glycon's plant rooms. It now
+  comes from the chamber, and the chamber-terrain render path keys on `level.spans`
+  rather than `isPlant` — every chamber is underground, only 2–5 are the plant.
+  **Still open for P·slice/P·content, not guessed at:** whether the chamber should
+  be vertical rather than the current 3.5:1 letterbox (a descent probably wants
+  depth); whether 83px is the right pinch, which needs the tether to judge; and
+  84% of floor being landable under Act One's 0.25 slope rule, which may make the
+  "care" half of hurry-versus-care too cheap.
 - [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
   with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
   the rack reads correctly, and that is a design problem before it is a code

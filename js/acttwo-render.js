@@ -199,9 +199,22 @@ function plantChamberPal() {
 
 const SPAN_TILE_PAD = 60;
 
-/* one world-anchored rock gradient, shared by the tiles and by the flat fills
-   above and below each tile's band, so all three agree at every boundary */
-function spanRockGradient(c2d, H, pal) {
+/* The chamber's MASS is raw rock, and it reuses the Hollows' own dark violet
+   (TOK.VOID_MID/VOID_HIGH over VIOLET) rather than the zone's steel — the steel
+   is reserved for the paved band behind a machined face, so "rock overhead,
+   mechanical underfoot" reads from the fill and not only from the stroke. One
+   world-anchored gradient, shared by the tiles and by the flat fills above and
+   below each tile's band, so all three agree at every boundary. */
+function spanRockGradient(c2d, H) {
+  const g = c2d.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, ROCK_PAL.top); g.addColorStop(1, ROCK_PAL.bottom);
+  return g;
+}
+
+// MACH_BAND is how deep the paving goes — thick enough to read as fitted plate
+// at flight speed, thin enough that the rock behind it still dominates the mass
+const MACH_BAND = 46;
+function spanMachGradient(c2d, H, pal) {
   const g = c2d.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, pal.grad[0]); g.addColorStop(1, pal.grad[1]);
   return g;
@@ -231,10 +244,34 @@ function buildSpanTile(x0, x1, spans, H, pal) {
   // Anchoring it to the band puts a hard vertical seam at every tile boundary
   // where the band changes — Act One dodges the same trap by passing fixed
   // gradFrom/gradTo stops into buildHeightTile rather than the tile's own extent.
-  tctx.fillStyle = spanRockGradient(tctx, H, pal);
+  tctx.fillStyle = spanRockGradient(tctx, H);
   tctx.fillRect(x0 - ov, top, (x1 - x0) + ov * 2, bot - top);
 
   if (!solid) {
+    /* A machined face has been PAVED: a band of steel fitted into the rock
+       behind it (owner steer — rock overhead, mechanical underfoot, so the
+       facility reads as installed in a cave rather than as a tiled box). Laid
+       down before the punch so the band can't spill into open space. */
+    tctx.fillStyle = spanMachGradient(tctx, H, pal);
+    for (let i = i0; i < i1; i++) {
+      const xa = i * STEP, xb = (i + 1) * STEP;
+      for (const sp of spans[i]) {
+        const m = matchSpan(spans[i + 1], sp) || sp;
+        if (sp.mb === "mach") {
+          tctx.beginPath();
+          tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
+          tctx.lineTo(xb, m.bot + MACH_BAND); tctx.lineTo(xa, sp.bot + MACH_BAND);
+          tctx.closePath(); tctx.fill();
+        }
+        if (sp.mt === "mach") {
+          tctx.beginPath();
+          tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
+          tctx.lineTo(xb, m.top - MACH_BAND); tctx.lineTo(xa, sp.top - MACH_BAND);
+          tctx.closePath(); tctx.fill();
+        }
+      }
+    }
+
     // punch the open space out of the rock
     tctx.globalCompositeOperation = "destination-out";
     tctx.fillStyle = "#000";
@@ -248,22 +285,42 @@ function buildSpanTile(x0, x1, spans, H, pal) {
         tctx.closePath(); tctx.fill();
       }
     }
-    // then edge the rock: floors and ceilings always, and a wall wherever a span
-    // has no counterpart to continue into (which is what a pillar's flank is)
+
+    /* Then edge the rock — floors and ceilings always, plus a wall wherever a
+       span has no counterpart to continue into (which is what a pillar's flank
+       is). Two passes, because the whole point of the material split is that a
+       cut face and a raw one do not look alike: milled edges are crisp and take
+       the zone's accent, raw rock is softer, violet and carries the Hollows'
+       glow, which also ties Act Two's stone to Act One's. */
     tctx.globalCompositeOperation = "source-over";
-    tctx.beginPath();
-    for (let i = i0; i < i1; i++) {
-      const xa = i * STEP, xb = (i + 1) * STEP;
-      for (const sp of spans[i]) {
-        const fwd = matchSpan(spans[i + 1], sp), m = fwd || sp;
-        tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
-        tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
-        if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); }
-        if (i > i0 && !matchSpan(spans[i - 1], sp)) { tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); }
+    for (const mat of ["rock", "mach"]) {
+      tctx.beginPath();
+      let any = false;
+      for (let i = i0; i < i1; i++) {
+        const xa = i * STEP, xb = (i + 1) * STEP;
+        for (const sp of spans[i]) {
+          const fwd = matchSpan(spans[i + 1], sp), m = fwd || sp;
+          if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top); any = true; }
+          if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot); any = true; }
+          // a flank belongs to the rock pass: a wall is where the mass is cut
+          if (mat === "rock") {
+            if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); any = true; }
+            if (i > i0 && !matchSpan(spans[i - 1], sp)) {
+              tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); any = true;
+            }
+          }
+        }
       }
+      if (!any) continue;
+      if (mat === "mach") {
+        tctx.shadowColor = pal.glow; tctx.shadowBlur = 8;
+        tctx.strokeStyle = pal.stroke; tctx.lineWidth = 2;
+      } else {
+        tctx.shadowColor = TOK.VIOLET_DEEP; tctx.shadowBlur = 14;
+        tctx.strokeStyle = TOK.VIOLET; tctx.lineWidth = 2.4;
+      }
+      tctx.stroke();
     }
-    tctx.shadowColor = pal.glow; tctx.shadowBlur = 12;
-    tctx.strokeStyle = pal.stroke; tctx.lineWidth = 2; tctx.stroke();
   }
   return { canvas: c, x0, y0: top, w: x1 - x0, h: bot - top, bandTop: top, bandBot: bot, solid };
 }
@@ -290,7 +347,7 @@ function drawChamberTerrain(cx, viewW) {
   const H = level.H || WORLD_H;
   // the same world-anchored gradient the tiles fill with, so the rock outside a
   // tile's band is continuous with the rock inside it — no seam at any boundary
-  ctx.fillStyle = spanRockGradient(ctx, H, pal);
+  ctx.fillStyle = spanRockGradient(ctx, H);
   for (const tile of getSpanTiles(level, cx, cx + viewW, pal)) {
     if (tile.solid) { ctx.fillRect(tile.x0, -260, tile.w, H + 320); continue; }
     // rock above and below the band: solid by definition, so nothing to stroke
@@ -316,8 +373,9 @@ function drawMachinedPanelTicks(x0, x1) {
   for (let i = i0; i <= i1; i += spacing) {
     const x = i * STEP;
     for (const sp of spans[i]) {
-      ctx.moveTo(x, sp.bot + 6); ctx.lineTo(x, sp.bot + 24);   // into the floor
-      ctx.moveTo(x, sp.top - 6); ctx.lineTo(x, sp.top - 24);   // up into the ceiling
+      // only a MILLED face is ticked — raw rock has no panel joints to show
+      if (sp.mb === "mach") { ctx.moveTo(x, sp.bot + 8); ctx.lineTo(x, sp.bot + 30); }
+      if (sp.mt === "mach") { ctx.moveTo(x, sp.top - 8); ctx.lineTo(x, sp.top - 30); }
     }
   }
   ctx.stroke();

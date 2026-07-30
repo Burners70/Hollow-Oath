@@ -971,7 +971,11 @@ function spanAt(x, y) {
   const a = pickSpan(s[i], y == null ? Infinity : y);
   if (!a) return null;
   const b = matchSpan(s[i + 1], a) || a;
-  return { top: lerp(a.top, b.top, t), bot: lerp(a.bot, b.bot, t) };
+  // materials come from the span you are actually in, not interpolated: a face is
+  // either milled or it is raw rock, and a half-milled surface means nothing.
+  // Carried here so P·systems can ask what it just touched (§8.1's tell needs it:
+  // thruster wash raises grit off rock and nothing off a projection).
+  return { top: lerp(a.top, b.top, t), bot: lerp(a.bot, b.bot, t), mt: a.mt, mb: a.mb };
 }
 
 /* is (x, y) inside rock? The tether and the "every chamber is clearable"

@@ -690,6 +690,17 @@ checksum is unchanged at `1090254029`, so the table above held: collision stayed
 an O(1) column lookup, `STEP` and the tile cache both survived, and the
 re-entrant hook is still the one thing spans cannot express.
 
+**Owner review of the first pass (July 2026)** added two things to the model,
+both of which turned out to be cheap because a span's two boundaries are already
+independent. Each boundary carries a **material** — raw rock or milled — so
+"rock overhead, mechanical underfoot" is expressible per surface rather than per
+chamber, and a single shelf can be a landing pad on top and raw stone beneath.
+`spanAt` returns the material of the span you are in, which §8.1's tell needs:
+thruster wash raising grit off real rock and nothing off a projection is a
+question about what the surface *is*. Each boundary can also take a **profile** —
+`ramp`, `arc` or `teeth` — plus a corner radius, so an authored chamber is not
+condemned to right angles. Both are `js/acttwo-data.js`.
+
 ### 11.1 The descent, and where the checkpoint lives
 
 The act is a descent, so the structure is one: **each chamber's exit is the next

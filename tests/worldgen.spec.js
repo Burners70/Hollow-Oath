@@ -585,9 +585,8 @@ test("P·terrain: the rock you see is the rock you hit", async ({ page }) => {
       ["pillar mass", 4500, 1700], ["lower gallery air", 4000, 1700],
       ["over the lower gallery", 4000, 1000], ["outside the chamber", 5950, 400]
     ];
-    const out = [];
-    for (const [name, wx, wy] of pts) {
-      // pin and freeze so the camera can't drift between drawing and sampling
+    // Sample the pixel at a world point, with the camera pinned on it.
+    const sampleAt = (wx, wy) => {
       ship.x = wx; ship.y = wy; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
       camera.x = wx; camera.y = wy;
       render(performance.now() / 1000);
@@ -596,12 +595,28 @@ test("P·terrain: the rock you see is the rock you hit", async ({ page }) => {
       const cy = Math.max(-100, Math.min(camera.y - ch / 2, (level.H || WORLD_H) - ch));
       const px = ctx.getImageData(Math.round((saLeft + (wx - cx) * z) * dpr),
         Math.round((wy - cy) * z * dpr), 1, 1).data;
-      // rock is the plant zone's light steel fill; open space shows the dark void
-      out.push({ name, drawnRock: (px[0] + px[1] + px[2]) / 3 > 90, solid: __doids.solidAt(wx, wy) });
+      return [px[0], px[1], px[2]];
+    };
+    /* Classify by nearest REFERENCE colour rather than a luminance threshold, so
+       this keeps testing the geometry rather than the palette — the rock tone has
+       already changed once (steel → ROCK_PAL when the material split landed) and
+       a hardcoded threshold silently inverted the whole test when it did. */
+    const refRock = sampleAt(4500, 1700);   // deep inside the pillar's mass
+    const refAir = sampleAt(4000, 1700);    // middle of the lower gallery
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    const out = [];
+    for (const [name, wx, wy] of pts) {
+      const px = sampleAt(wx, wy);
+      out.push({ name, drawnRock: dist(px, refRock) < dist(px, refAir),
+        solid: __doids.solidAt(wx, wy) });
     }
+    // guard the references themselves: if rock and air render alike, the test is
+    // meaningless and must fail loudly rather than pass by coincidence
+    out.push({ name: "references are distinguishable",
+      drawnRock: dist(refRock, refAir) > 24, solid: true });
     return out;
   });
-  expect(probes).toHaveLength(12);
+  expect(probes).toHaveLength(13);   // 12 world points + the reference-contrast guard
   for (const pr of probes) expect(pr.drawnRock, pr.name).toBe(pr.solid);
   // and the set is meaningful: both answers actually occur
   expect(probes.some(p => p.solid)).toBe(true);
