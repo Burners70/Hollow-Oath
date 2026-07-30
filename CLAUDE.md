@@ -60,7 +60,7 @@ Load order is the order below; it is significant (see "no build step").
 | `js/input.js`    | ~485  | Header notes, Capacitor/`NATIVE` detection, canvas + `resize()`; touch multi-touch tracker + on-screen buttons + `canvasTap`; keyboard (`keyMap`) + gamepad (`pollPad`); tilt/gyro steering |
 | `js/audio.js`    | ~605  | WebAudio graph, `blip`/`boom`/`heartbeat`/`staticTick`/`hydraulic`/`ringHollow`, generative ambient music drone |
 | `js/platform.js` | ~110  | Haptics facade (F1), iCloud `cloud` save-sync (E4), Game Center `gc` (G4); runs `gc.auth()` at load |
-| `js/world.js`    | ~1470 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); the design-system token layer (`TOK`, `PALETTES`/`PAL()`, `shade()`, `mono()`/`body()`/`display()` — Bundle DS); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; `resetRun`/`toBriefing` state flow |
+| `js/world.js`    | ~1470 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); the design-system token layer (`TOK`, `PALETTES`/`PAL()`, `shade()`, `mono()`/`body()`/`display()` — Bundle DS); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; the span terrain layer (`spanAt`/`solidAt`/`levelH` — Bundle P, P·terrain); `resetRun`/`toBriefing` state flow |
 | `js/update.js`   | ~2610 | The 41-second Static clock; landing rules + extraction/MERCY; `update(dt)` dispatch; rank system; per-screen + gameplay updates (`updatePlay`, oids, enemies, sabotage, scan/reveal, docking, blackbox, transfusion, lifts, counterfeit MERCY, epilogue) |
 | `js/render.js`   | ~4400 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
 | `js/main.js`     | ~40   | Bootstrap (`genLevel(0)`, `spawnShip`, …) + the `frame()`/`requestAnimationFrame` loop — must load last |
@@ -77,17 +77,26 @@ done to avoid. **Do not "tidy" these files back into the originals.**
 Planned files and their load position (insert **after `js/world.js`** so the token
 layer, constants and utils exist, and **before `js/update.js`**):
 
-| File | Covers |
-|------|--------|
-| `js/acttwo-data.js`   | **Landed (P·design slice):** the rack's token/state layer — `RACK_STATES`, `RACK_PULSE_PERIOD`, the beat envelope, `rackColor`/`rackBrightness`, `PLANT_ZONES`/`plantPal` — same data/no-drawing split as `PAL()`/`TOK` in `js/world.js`. **Still to come:** the ten authored chambers in the room/span grammar (P·terrain/P·content), Act Two's story tables and its own rank ladder (P·scions) |
-| `js/acttwo-update.js` | Not started. Tether physics, racks and reserves, trunk-cut pulse reading, the well, the transfusion inversion, chamber checkpointing |
-| `js/acttwo-render.js` | **Landed (P·design slice):** the rack cage, conduit real-vs-fake tell, the network ripple/dip (riding the real `staticClock`), directional edge bleed, ornamentation, the sling and the well's bay/winch — all terrain-representation-agnostic, gated on level fields no `genLevel` path sets yet (inert no-ops today). Its plant-chamber floor fill (`plantChamberPal`/`drawMachinedPanelTicks`) is **provisional against P·terrain**: it reuses the shipped heightmap tile system as a stand-in so the palette can be judged now, and will need to move onto span terrain once P·terrain lands. **Still to come:** span terrain drawing itself (P·terrain), Act Two screens |
+| File | Lines | Covers |
+|------|-------|--------|
+| `js/acttwo-data.js`   | ~250 | **Landed (P·design):** the rack's token/state layer — `RACK_STATES`, `RACK_PULSE_PERIOD`, the beat envelope, `rackColor`/`rackBrightness`, `PLANT_ZONES`/`plantPal` — same data/no-drawing split as `PAL()`/`TOK` in `js/world.js`. **Landed (P·terrain):** the chamber authoring grammar (`room`/`rock` parts with per-boundary roughness) and its compiler — `compileChamber`, `spanUnion`/`spanSubtract`, `chamberNoise`, `spanCountAt` — plus `SLICE_CHAMBER` (the one chamber, proving the format) and `genChamber` (compiles a chamber to a level-shaped object, **terrain only**). **Still to come:** the other nine chambers (P·content), Act Two's story tables and its own rank ladder (P·scions) |
+| `js/acttwo-update.js` | — | Not started. Tether physics, racks and reserves, trunk-cut pulse reading, the well, the transfusion inversion, chamber checkpointing |
+| `js/acttwo-render.js` | ~510 | **Landed (P·design):** the rack cage, conduit real-vs-fake tell, the network ripple/dip (riding the real `staticClock`), directional edge bleed, ornamentation, the sling and the well's bay/winch — gated on level fields no `genLevel` path sets yet (inert no-ops today). **Landed (P·terrain):** span terrain drawing — `buildSpanTile`/`getSpanTiles`/`drawChamberTerrain` draw a chamber's rock as the *complement* of its spans, reusing Act One's per-512px tile cache contract (`tileTouch`/`TILE_CACHE_CAP`/`invalidateTiles`), and `drawMachinedPanelTicks` now walks spans so an overhang's underside gets ticked too. The provisional heightmap stand-in this file shipped with is gone. **Still to come:** the ward's four readability channels (P·systems), Act Two screens |
+
+**The span primitives deliberately stayed in `js/world.js`**, beside `groundAt` —
+they generalise the *shipped* terrain model rather than adding to Act Two, and
+Act One's collision calls them every frame. Grep "columns of spans" there:
+`spanAt`/`pickSpan`/`matchSpan`/`solidAt`/`levelH`, plus the **optional second
+argument** on `groundAt`/`roofAt` that says which span you mean. Every Act One
+call site passes `x` alone and takes the heightmap path completely unchanged,
+which is what keeps the M1 golden checksum green — that equivalence is the
+constraint to preserve if you touch any of it.
 
 The constraints that are *not* lifted, because they are technical rather than
 stylistic: scripts stay **non-module** sharing one global scope, **load order
 stays significant**, `index.html`'s `<script>` list must be updated in the same
 PR, and `app/sync.sh` copies `js/` wholesale so new files inside `js/` need no
-sync change. Update this table when the files actually land.
+sync change. Update this table as more of each file lands.
 
 ## localStorage keys (all prefixed `doids_`)
 
@@ -148,7 +157,7 @@ doc only when the task touches it:
 ## Workflow
 
 - **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. `main` is not auto-published anywhere (see Bundle O7 above) — a merge is the source for the *next* TestFlight/App Store build, not an instant live release; it only reaches players once someone runs the manual archive/upload step (`app/MAC_SETUP.md`). Still treat a merge as consequential — it's what ships next.
-- **Tests:** Playwright smoke suite in `tests/` — 121 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
+- **Tests:** Playwright smoke suite in `tests/` — 127 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
 - **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it.
 - **Assets:** icons/manifest at root (`icon-*.png`, `manifest.webmanifest`, `apple-touch-icon.png`); art in `assets/`.

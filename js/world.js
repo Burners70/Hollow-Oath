@@ -903,7 +903,93 @@ const GUIDE_PAGES = [
    HOW TO FLY) and from the PAUSE screen. */
 const LEGEND_CARD = { page: 0 };
 
-function groundAt(x) {
+/* ===== Bundle P (P·terrain) — columns of spans ==========================
+   Act One terrain is a heightmap: level.heights[], one floor per column every
+   STEP px, plus at most one parallel ceiling (level.roof, genCave). That model
+   cannot express an overhang — see docs/ACT_TWO_SPEC.md §11.0 for why, and for
+   the owner decision to generalise rather than move to polygon terrain.
+
+   An Act Two chamber carries level.spans instead: one entry per column, each
+   an array of OPEN (flyable) intervals { top, bot } ordered top to bottom,
+   with solid rock above `top` and below `bot`. It is a strict superset of the
+   heightmap —
+
+     a surface column   ≡  [{ top: -Infinity, bot: heights[i] }]
+     an Act One cave    ≡  [{ top: roof[i],   bot: heights[i] }]
+
+   — so nothing about the shipped representation had to change. Two or more
+   spans in one column IS an overhang; a short span is a pinch point; a column
+   with no span at all is solid rock (a pillar). What spans still cannot express
+   is a true re-entrant hook, which §11.0 accepts.
+
+   Collision stays an O(1) column lookup plus a walk of that column's spans
+   (one or two in practice). groundAt/roofAt keep their shape and take an
+   OPTIONAL second argument, the y that says which span you mean. Every shipped
+   call site passes x alone and takes the heightmap path completely unchanged —
+   that is what keeps Act One's generation, the landing maths and the M1 golden
+   checksum untouched by this bundle. Authored chambers are enclosed, so the
+   compiler never actually emits an infinite `top`; the equivalence above is
+   there to show the model is a superset, not to describe emitted data. */
+
+// the span in `col` that y falls inside; failing that, the one whose interval y
+// is nearest to — so a query from inside rock still resolves to the surface it
+// is about to hit, the way a heightmap always had exactly one answer.
+function pickSpan(col, y) {
+  if (!col || !col.length) return null;
+  let best = null, bestD = Infinity;
+  for (const sp of col) {
+    if (y > sp.top && y < sp.bot) return sp;
+    const d = y <= sp.top ? sp.top - y : y - sp.bot;
+    if (d < bestD) { bestD = d; best = sp; }
+  }
+  return best;
+}
+
+// the span in the neighbouring column that best lines up with `ref`: most
+// vertical overlap, falling back to nearest midpoint when nothing overlaps.
+// This is what stitches per-column spans into continuous floors and ceilings.
+function matchSpan(col, ref) {
+  if (!col || !col.length) return null;
+  let best = null, bestScore = -Infinity;
+  for (const sp of col) {
+    const ov = Math.min(sp.bot, ref.bot) - Math.max(sp.top, ref.top);
+    const score = ov > 0 ? ov : -Math.abs((sp.top + sp.bot) / 2 - (ref.top + ref.bot) / 2);
+    if (score > bestScore) { bestScore = score; best = sp; }
+  }
+  return best;
+}
+
+/* the open span at (x, y), interpolated between the two bracketing columns so
+   floors and ceilings slope smoothly exactly as the heightmap's lerp does.
+   y omitted means "the lowest span in the column" — the heightmap's one answer.
+   Returns null only where the column is solid rock through and through. */
+function spanAt(x, y) {
+  const s = level.spans;
+  if (!s) return null;
+  const i = clamp(Math.floor(x / STEP), 0, s.length - 2);
+  const t = clamp(x / STEP - i, 0, 1);
+  const a = pickSpan(s[i], y == null ? Infinity : y);
+  if (!a) return null;
+  const b = matchSpan(s[i + 1], a) || a;
+  return { top: lerp(a.top, b.top, t), bot: lerp(a.bot, b.bot, t) };
+}
+
+/* is (x, y) inside rock? The tether and the "every chamber is clearable"
+   invariant both want this, and it is the one question a heightmap could only
+   answer one axis at a time. The heightmap branch uses the same strict
+   comparisons the shipped projectile test used (updateShots, js/update.js), so
+   substituting solidAt there is exactly equivalent rather than merely close. */
+function solidAt(x, y) {
+  if (!level.spans) return y > groundAt(x) || (!!level.roof && y < roofAt(x));
+  const sp = spanAt(x, y);
+  return !sp || y <= sp.top || y >= sp.bot;
+}
+
+// a chamber may be deeper than Act One's world box; everything else defaults to it
+function levelH() { return (level && level.H) || WORLD_H; }
+
+function groundAt(x, y) {
+  if (level.spans) { const sp = spanAt(x, y); return sp ? sp.bot : levelH(); }
   const h = level.heights;
   const i = clamp(Math.floor(x / STEP), 0, h.length - 2);
   const t = clamp(x / STEP - i, 0, 1);
@@ -1574,7 +1660,10 @@ function genLevel(n) {
 }
 
 /* ---------------- the Hollows: secret caves under the lifts ---------------- */
-function roofAt(x) {
+function roofAt(x, y) {
+  // P·terrain — a chamber's ceiling is whichever span you are in, not a single
+  // parallel array. Act One caves keep the exact one-argument path they shipped.
+  if (level.spans) { const sp = spanAt(x, y); return sp ? sp.top : levelH(); }
   const h = level.roof;
   const i = clamp(Math.floor(x / STEP), 0, h.length - 2);
   const t = clamp(x / STEP - i, 0, 1);

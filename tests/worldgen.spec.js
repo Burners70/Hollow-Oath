@@ -465,3 +465,145 @@ test("Z3 (owner feature): a per-sector crosswind pushes the ship sideways, never
   expect((await checkVx(0, 39)).soft, "no crosswind: just over base vxMax fails").toBe(false);
   expect((await checkVx(1, 39)).soft, "full crosswind: the same speed now passes").toBe(true);
 });
+
+/* ===== Bundle P (P·terrain) — span terrain and the chamber grammar =========
+   docs/ACT_TWO_SPEC.md §11.0. Two things are on trial here: that Act One's
+   heightmap generation is bit-for-bit untouched (the M1 golden checksum, which
+   is the bundle's stated proof), and that spans express the three shapes a
+   heightmap cannot — an overhang, a pinch point tighter than a cave's
+   guaranteed 175px, and a pillar. Gameplay is NOT on trial: a chamber is
+   terrain only until P·slice (see genChamber, js/acttwo-data.js). */
+
+test("P·terrain: Act One generation is untouched by the span layer (M1)", async ({ page }) => {
+  // the whole bundle rests on this: spans are additive, so seed 0 must still
+  // produce the exact authored heightmap the shipped game does
+  await page.evaluate(() => { __doids.reset(); __doids.go(1); });
+  expect(await page.evaluate(() => __doids.heightChecksum())).toBe(1090254029);
+  // and a surface level carries no spans at all, so every groundAt/roofAt call
+  // site takes the heightmap path it always did
+  expect(await page.evaluate(() => !!__doids.get().level.spans)).toBe(false);
+  expect(await page.evaluate(() => __doids.spanStats().cols)).toBe(0);
+  // groundAt ignores the new optional y argument on a heightmap level
+  const same = await page.evaluate(() => {
+    const x = 900;
+    return [__doids.ground(x), __doids.ground(x, 200), __doids.ground(x, 1400)];
+  });
+  expect(same[1]).toBe(same[0]);
+  expect(same[2]).toBe(same[0]);
+});
+
+test("P·terrain: the slice chamber compiles, and is bigger than any surface sector", async ({ page }) => {
+  const info = await page.evaluate(() => __doids.loadChamber("slice"));
+  expect(info).not.toBeNull();
+  // §11.0: each chamber is larger than any surface sector. The widest is
+  // sector 6 at 2200 + 6*550 = 5500px; the finale is 4400.
+  expect(info.W).toBeGreaterThan(5500);
+  // and deeper than Act One's world box, which is why level.H exists
+  expect(info.H).toBeGreaterThan(1500);
+  const st = await page.evaluate(() => __doids.spanStats());
+  expect(st.cols).toBe(info.cols);
+  expect(st.deepest).toBeGreaterThan(1500);
+  // the chamber renders and simulates without a heightmap present
+  await page.waitForTimeout(250);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.state).toBe("play");
+  expect(s.ship.dead).toBe(false);
+});
+
+test("P·terrain: spans express an overhang, a pinch and a pillar", async ({ page }) => {
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  const st = await page.evaluate(() => __doids.spanStats());
+
+  // an OVERHANG is literally a column holding two open spans — the shape a
+  // one-value-per-column heightmap cannot hold at all
+  expect(st.overhangs).toBeGreaterThan(0);
+  const shelf = await page.evaluate(() => __doids.spans(1900));
+  expect(shelf.length).toBe(2);
+  // air above the shelf, rock inside it, air below it again
+  const probes = await page.evaluate(() => ({
+    above: __doids.solidAt(1900, 700),
+    inside: __doids.solidAt(1900, 930),
+    below: __doids.solidAt(1900, 1150)
+  }));
+  expect(probes).toEqual({ above: false, inside: true, below: false });
+  // and the ceiling you get depends on which span you ask from — the whole
+  // point of the optional y argument
+  const roofs = await page.evaluate(() => [__doids.roofAtY(1900, 700), __doids.roofAtY(1900, 1150)]);
+  expect(roofs[1]).toBeGreaterThan(roofs[0]);
+
+  // a PINCH tighter than the 175px every Act One cave is guaranteed by
+  // construction (genCave clamps roof to heights - 175)
+  expect(st.tightest).toBeLessThan(175);
+  expect(st.tightest).toBeGreaterThan(2 * 11);   // still wider than the ship (SHIP_R 11)
+
+  // a PILLAR is a column with no open span at all
+  expect(st.solidCols).toBeGreaterThan(0);
+  expect(await page.evaluate(() => __doids.spans(4500))).toEqual([]);
+  expect(await page.evaluate(() => __doids.solidAt(4500, 1700))).toBe(true);
+});
+
+test("P·terrain: a chamber compiles deterministically", async ({ page }) => {
+  // the authoring format is only authoring if the same definition always
+  // compiles to the same rock — the span equivalent of the M1 anchor
+  const first = await page.evaluate(() => { __doids.loadChamber("slice"); return __doids.spanChecksum(); });
+  const second = await page.evaluate(() => { __doids.loadChamber("slice"); return __doids.spanChecksum(); });
+  expect(second).toBe(first);
+  expect(first).not.toBe(0);
+});
+
+test("P·terrain: landing picks the span you are in, not the deepest floor", async ({ page }) => {
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  // over the overhang shelf: from above, the ground is the shelf's top face;
+  // from below, it is the gallery floor far beneath it
+  const [fromAbove, fromBelow] = await page.evaluate(() =>
+    [__doids.ground(1900, 700), __doids.ground(1900, 1150)]);
+  expect(fromAbove).toBeLessThan(fromBelow);
+  // settle the ship onto the shelf and it must come to rest on the shelf,
+  // not fall through to the floor below it
+  await page.evaluate(() => {
+    ship.x = 1900; ship.y = 700; ship.vx = 0; ship.vy = 0;
+    ship.ang = 0; ship.landed = false; ship.dead = false;
+  });
+  await page.waitForTimeout(900);
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.ship.dead).toBe(false);
+  expect(s.ship.y).toBeLessThan(fromBelow);
+});
+
+test("P·terrain: the rock you see is the rock you hit", async ({ page }) => {
+  // spans drive collision (spanAt) and drawing (buildSpanTile) through the same
+  // column-to-column span pairing, so the two must never disagree — an overhang
+  // you can see but fly through, or a pillar that is invisible but solid, is the
+  // failure mode this representation could plausibly introduce. Sample the real
+  // rendered canvas at chosen world points and compare with solidAt().
+  const probes = await page.evaluate(() => {
+    __doids.loadChamber("slice");
+    const pts = [
+      ["gallery air", 1300, 900], ["above ceiling", 1300, 400], ["below floor", 1300, 1500],
+      ["above the shelf", 1900, 700], ["inside the shelf", 1900, 930], ["under the shelf", 1900, 1150],
+      ["pinch throat", 3040, 1280], ["rock over the throat", 3040, 1100],
+      ["pillar mass", 4500, 1700], ["lower gallery air", 4000, 1700],
+      ["over the lower gallery", 4000, 1000], ["outside the chamber", 5950, 400]
+    ];
+    const out = [];
+    for (const [name, wx, wy] of pts) {
+      // pin and freeze so the camera can't drift between drawing and sampling
+      ship.x = wx; ship.y = wy; ship.vx = ship.vy = 0; ship.landed = true; ship.dead = false;
+      camera.x = wx; camera.y = wy;
+      render(performance.now() / 1000);
+      const z = zoomLevel(), cw = (vw - saLeft) / z, ch = vh / z;
+      const cx = Math.max(0, Math.min(camera.x - cw / 2, Math.max(0, level.W - cw)));
+      const cy = Math.max(-100, Math.min(camera.y - ch / 2, (level.H || WORLD_H) - ch));
+      const px = ctx.getImageData(Math.round((saLeft + (wx - cx) * z) * dpr),
+        Math.round((wy - cy) * z * dpr), 1, 1).data;
+      // rock is the plant zone's light steel fill; open space shows the dark void
+      out.push({ name, drawnRock: (px[0] + px[1] + px[2]) / 3 > 90, solid: __doids.solidAt(wx, wy) });
+    }
+    return out;
+  });
+  expect(probes).toHaveLength(12);
+  for (const pr of probes) expect(pr.drawnRock, pr.name).toBe(pr.solid);
+  // and the set is meaningful: both answers actually occur
+  expect(probes.some(p => p.solid)).toBe(true);
+  expect(probes.some(p => !p.solid)).toBe(true);
+});

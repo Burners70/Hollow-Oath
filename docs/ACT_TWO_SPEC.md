@@ -677,6 +677,19 @@ proves spans can't carry the level design.
 Act One's surface generation must be untouched by any of this; the M1 golden
 heightmap checksum is the proof, and it stays green.
 
+**Implemented (P·terrain).** `level.spans` holds one array of open `{top, bot}`
+intervals per column, ordered top to bottom, with solid rock outside them; two
+spans in a column *is* an overhang, a short span is a pinch point, and a column
+with none is a pillar. The primitives are in `js/world.js` under the "columns of
+spans" banner — `spanAt`, `pickSpan`, `matchSpan`, `solidAt`, `levelH` — and
+`groundAt`/`roofAt` gained the optional `y` argument this section anticipated as
+"a span argument". The room/span grammar and its compiler are in
+`js/acttwo-data.js` (`compileChamber`, and `SLICE_CHAMBER` as the worked
+example); drawing is `drawChamberTerrain` in `js/acttwo-render.js`. The M1
+checksum is unchanged at `1090254029`, so the table above held: collision stayed
+an O(1) column lookup, `STEP` and the tile cache both survived, and the
+re-entrant hook is still the one thing spans cannot express.
+
 ### 11.1 The descent, and where the checkpoint lives
 
 The act is a descent, so the structure is one: **each chamber's exit is the next

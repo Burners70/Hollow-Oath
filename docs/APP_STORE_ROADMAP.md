@@ -90,7 +90,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 9 | **1.1** | Whole bundle, now phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain gates everything** |
+| P | **Act Two — the descent** | 8 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain has landed** (span terrain + the chamber grammar), so **P·slice is next and gates the rest** |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -450,9 +450,10 @@ every feel-critical item below is tuned on hardware rather than in a browser.
 it runs as a sequence of PRs against a long-lived integration branch, everything
 behind a feature flag until P·slice signs off — `main` stays releasable for a
 1.01 hotfix throughout. The order below is a dependency chain, not a preference:
-**P·terrain gates P·slice, and P·slice gates everything after it.**
+**P·terrain gates P·slice, and P·slice gates everything after it.** P·terrain is
+done, so the chain now starts at P·slice.
 
-- [ ] **P·terrain. Span terrain, and the chamber authoring format.** *(Owner
+- [x] **P·terrain. Span terrain, and the chamber authoring format.** *(Owner
   decision, July 2026: spans, not heightmaps.)* **The shipped terrain model
   cannot express an overhang.** Terrain is a heightmap — `heights[]` sampled
   every `STEP` (16px), one value per column — and caves add a single parallel
@@ -477,6 +478,36 @@ behind a feature flag until P·slice signs off — `main` stays releasable for a
   spans at load), built before the content rather than after two levels of it.
   Act One's surface generation must be untouched — the M1 golden checksum is the
   proof.
+  **Landed.** `level.spans` — one array of open `{top, bot}` intervals per
+  column, ordered top to bottom, solid rock outside them. Primitives sit in
+  `js/world.js` beside `groundAt` (grep "columns of spans"):
+  `spanAt`/`pickSpan`/`matchSpan`/`solidAt`/`levelH`, and `groundAt`/`roofAt`
+  took an **optional second argument** — the `y` that says which span you mean.
+  Every shipped call site passes `x` alone and takes the heightmap path
+  unchanged, which is how Act One stayed untouched; the M1 checksum is still
+  `1090254029`. Three call sites opted in: the ship's ground and ceiling tests
+  (`updatePlay`) and the projectile test, which now uses `solidAt` — the same
+  predicate on both models, so a shot is stopped by a pillar as well as a floor.
+  The authoring grammar is in `js/acttwo-data.js`: a chamber is a list of coarse
+  `{op:"room"|"rock", x, y, w, h}` parts applied in order, with optional
+  per-boundary roughness, compiled by `compileChamber` (interval union and
+  subtract per column) — **rock inside a room is how you author an overhang**.
+  Deterministic from the chamber's own `seed`, so it is checksummable exactly as
+  the heightmap is (`__doids.spanChecksum`). Drawing is `drawChamberTerrain`
+  (`js/acttwo-render.js`), which builds a chamber's rock as the complement of its
+  spans through Act One's own per-512px tile cache contract; the provisional
+  heightmap stand-in P·design shipped is gone.
+  `SLICE_CHAMBER` is the one authored chamber, and it exists to prove the format,
+  not as content: **6000×2400** (the widest surface sector is 5500, the finale
+  4400), with **96 overhang columns, an 85px pinch** against the 175px every Act
+  One cave is guaranteed, and a floor-to-ceiling **pillar**. That is P·slice's
+  required geometry, ready for it. Six tests in `tests/worldgen.spec.js`, one of
+  which samples the *rendered canvas* against `solidAt` at twelve points — the
+  rock you see is the rock you hit. Suite green at 127.
+  Not done here, deliberately: no racks, well, tow, reserve or tether — `genChamber`
+  builds terrain only, and `heights` is absent rather than stubbed so anything
+  that secretly wants a heightmap fails loudly. Re-entrant hooks remain
+  unexpressible, as accepted above.
 - [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
   with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
   the rack reads correctly, and that is a design problem before it is a code
@@ -499,6 +530,10 @@ behind a feature flag until P·slice signs off — `main` stays releasable for a
   chambers won't have, which is the one failure mode the slice exists to
   prevent. Expose the new state through `__doids.get()` from day one so the
   slice is testable headlessly while it is being felt by hand.
+  *P·terrain delivered that geometry:* `SLICE_CHAMBER` (`js/acttwo-data.js`) is
+  6000×2400 with 96 overhang columns, an 85px pinch and a floor-to-ceiling
+  pillar, loadable with `__doids.loadChamber("slice")`. It is terrain only — the
+  rack, trunk cut, tow, well, reserve and transfusion are this item's work.
 - [ ] **P·persist. Persistence and save schema.** Promoted out of
   ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
   than after it. Act Two is a second campaign, not a run mode: per-chamber

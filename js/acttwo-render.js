@@ -171,31 +171,145 @@ function drawRackEdgeBleed(now) {
   ctx.restore();
 }
 
-/* ---- §5 plant chamber terrain — PROVISIONAL against P·terrain. The locked
-   1.1 plan (docs/APP_STORE_ROADMAP.md, Bundle P) replaces the shipped
-   heightmap tile system (`buildHeightTile`/`getTiles`, js/render.js) with a
-   span-based terrain model BEFORE anything else lands, because the current
-   one-value-per-column heightmap can't express the overhangs and pinch
-   points Act Two's chambers require. This function reuses the *existing*
-   tile system as a stand-in so the palette/overlay can be seen and judged
-   now; the palette itself (PLANT_ZONES, js/acttwo-data.js) is terrain-
-   representation-agnostic and should carry over unchanged, but this call
-   site (and drawWorld's getTiles calls) will need to move onto span terrain
-   once P·terrain lands. Not wired for overhangs — flat-column only. */
+/* ---- §5 plant chamber terrain — now drawn from SPANS (P·terrain).
+   The heightmap stand-in this file shipped with in P·design is gone: chamber
+   terrain reads level.spans (js/world.js — one array of open {top,bot}
+   intervals per column) so overhangs, pinch points and pillars actually draw.
+   The palette itself (PLANT_ZONES, js/acttwo-data.js) carried over unchanged,
+   which is what it was built to do.
+
+   Tiles, same as Act One. buildHeightTile/getTiles (js/render.js) cache a
+   traced heightmap path per 512px chunk rather than re-stroking a blurred path
+   every frame (Bundle D4); spans need their own builder because the thing being
+   drawn is the COMPLEMENT of the open intervals, but the caching contract is
+   identical and tileTouch/TILE_CACHE_CAP/invalidateTiles are reused as-is.
+
+   How a tile is built: fill the whole tile with rock, then punch out one quad
+   per column per span — left edge from this column's span, right edge from the
+   best-matching span in the next column, which is the same pairing spanAt()
+   interpolates collision across, so what you fly through is exactly what you
+   see. A tile only covers the vertical BAND its own spans occupy (plus pad);
+   above and below that band every column is rock by definition, so the caller
+   fills those with flat rects and no tile memory is spent on them. That keeps a
+   2400px-deep chamber's tiles the same order of size as Act One's. */
 function plantChamberPal() {
   const z = plantPal(level.plantZone);
   return { grad: [z.top, z.bottom], stroke: z.stroke, glow: z.glow };
 }
+
+const SPAN_TILE_PAD = 60;
+
+function buildSpanTile(x0, x1, spans, H, pal) {
+  const ov = STEP * 2;
+  const i0 = Math.max(0, Math.floor((x0 - ov) / STEP));
+  const i1 = Math.min(spans.length - 1, Math.ceil((x1 + ov) / STEP));
+  let bandTop = Infinity, bandBot = -Infinity;
+  for (let i = i0; i <= i1; i++)
+    for (const sp of spans[i]) {
+      if (sp.top < bandTop) bandTop = sp.top;
+      if (sp.bot > bandBot) bandBot = sp.bot;
+    }
+  const solid = bandTop === Infinity;                 // a tile of pure rock
+  const top = solid ? 0 : Math.max(0, bandTop - SPAN_TILE_PAD);
+  const bot = solid ? 1 : Math.min(H, bandBot + SPAN_TILE_PAD);
+  const sc = dpr;
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.ceil((x1 - x0) * sc));
+  c.height = Math.max(1, Math.ceil((bot - top) * sc));
+  const tctx = c.getContext("2d");
+  tctx.setTransform(sc, 0, 0, sc, -x0 * sc, -top * sc);
+
+  const grad = tctx.createLinearGradient(0, top, 0, bot);
+  grad.addColorStop(0, pal.grad[0]); grad.addColorStop(1, pal.grad[1]);
+  tctx.fillStyle = grad;
+  tctx.fillRect(x0 - ov, top, (x1 - x0) + ov * 2, bot - top);
+
+  if (!solid) {
+    // punch the open space out of the rock
+    tctx.globalCompositeOperation = "destination-out";
+    tctx.fillStyle = "#000";
+    for (let i = i0; i < i1; i++) {
+      const xa = i * STEP, xb = (i + 1) * STEP;
+      for (const sp of spans[i]) {
+        const m = matchSpan(spans[i + 1], sp) || sp;
+        tctx.beginPath();
+        tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
+        tctx.lineTo(xb, m.bot);  tctx.lineTo(xa, sp.bot);
+        tctx.closePath(); tctx.fill();
+      }
+    }
+    // then edge the rock: floors and ceilings always, and a wall wherever a span
+    // has no counterpart to continue into (which is what a pillar's flank is)
+    tctx.globalCompositeOperation = "source-over";
+    tctx.beginPath();
+    for (let i = i0; i < i1; i++) {
+      const xa = i * STEP, xb = (i + 1) * STEP;
+      for (const sp of spans[i]) {
+        const fwd = matchSpan(spans[i + 1], sp), m = fwd || sp;
+        tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
+        tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
+        if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); }
+        if (i > i0 && !matchSpan(spans[i - 1], sp)) { tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); }
+      }
+    }
+    tctx.shadowColor = pal.glow; tctx.shadowBlur = 12;
+    tctx.strokeStyle = pal.stroke; tctx.lineWidth = 2; tctx.stroke();
+  }
+  return { canvas: c, x0, y0: top, w: x1 - x0, h: bot - top, bandTop: top, bandBot: bot, solid };
+}
+
+// same cache contract as getTiles, keyed on level._spanTiles
+function getSpanTiles(lvl, xLo, xHi, pal) {
+  if (!lvl._spanTiles) lvl._spanTiles = new Map();
+  const map = lvl._spanTiles;
+  const t0 = Math.max(0, Math.floor(xLo / TILE_W)), t1 = Math.floor(clamp(xHi, 0, lvl.W) / TILE_W);
+  const out = [];
+  for (let ti = t0; ti <= t1; ti++) {
+    const x0 = ti * TILE_W, x1 = Math.min(x0 + TILE_W, lvl.W);
+    let tile = map.get(ti);
+    if (!tile) tile = buildSpanTile(x0, x1, lvl.spans, lvl.H || WORLD_H, pal);
+    out.push(tileTouch(map, ti, tile));
+  }
+  return out;
+}
+
+/* the chamber's rock. Called from drawWorld in place of the heightmap/roof tile
+   pair when level.spans is present (js/render.js). */
+function drawChamberTerrain(cx, viewW) {
+  const pal = plantChamberPal();
+  const H = level.H || WORLD_H;
+  for (const tile of getSpanTiles(level, cx, cx + viewW, pal)) {
+    // rock above and below the tile's band — flat fill, no boundary to stroke
+    ctx.fillStyle = pal.grad[0];
+    if (tile.bandTop > 0) ctx.fillRect(tile.x0, -260, tile.w, tile.bandTop + 260);
+    ctx.fillStyle = pal.grad[1];
+    if (tile.bandBot < H) ctx.fillRect(tile.x0, tile.bandBot, tile.w, H + 60 - tile.bandBot);
+    if (!tile.solid) ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+    else ctx.fillRect(tile.x0, -260, tile.w, H + 320);
+  }
+}
+
+/* §5 — the machined tell: short ticks cut into the rock just past a plant's
+   surfaces, so a milled face reads differently from raw rock. Drawn INTO the
+   rock (below a floor, above a ceiling) over the terrain tile, as the heightmap
+   version did. Spans mean an overhang's underside gets them too, not just the
+   column's lowest floor. */
 function drawMachinedPanelTicks(x0, x1) {
-  const heights = level.heights;
-  const i0 = Math.max(0, Math.floor(x0 / STEP)), i1 = Math.min(heights.length - 1, Math.ceil(x1 / STEP));
+  const spans = level.spans;
+  if (!spans) return;
+  const i0 = Math.max(0, Math.floor(x0 / STEP)), i1 = Math.min(spans.length - 1, Math.ceil(x1 / STEP));
   const spacing = Math.max(1, Math.round(90 / STEP));
   ctx.save();
   ctx.strokeStyle = shade(TOK.VOID, .5); ctx.lineWidth = 1;
+  ctx.beginPath();
   for (let i = i0; i <= i1; i += spacing) {
-    const x = i * STEP, y = heights[i];
-    ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.lineTo(x, y + 26); ctx.stroke();
+    const x = i * STEP;
+    for (const sp of spans[i]) {
+      ctx.moveTo(x, sp.bot + 6); ctx.lineTo(x, sp.bot + 24);   // into the floor
+      ctx.moveTo(x, sp.top - 6); ctx.lineTo(x, sp.top - 24);   // up into the ceiling
+    }
   }
+  ctx.stroke();
   ctx.restore();
 }
 

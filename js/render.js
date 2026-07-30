@@ -161,7 +161,10 @@ function worldTransform() {
   // the visible viewport starts right of the camera lozenge
   const cw = (vw - saLeft) / z, ch = vh / z;
   let cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
-  let cy = clamp(camera.y - ch / 2, -100, WORLD_H - ch);
+  // P·terrain — an Act Two chamber is deeper than Act One's world box; levelH()
+  // is WORLD_H for every level that doesn't set its own H, so surface play is
+  // bit-identical here.
+  let cy = clamp(camera.y - ch / 2, -100, levelH() - ch);
   if (camera.shake > 0) {
     cx += (Math.random() - 0.5) * camera.shake;
     cy += (Math.random() - 0.5) * camera.shake;
@@ -245,6 +248,7 @@ function invalidateTiles() {
   if (!level) return;
   level._terrainTiles = null;
   level._roofTiles = null;
+  level._spanTiles = null;   // P·terrain — chambers cache their rock the same way
 }
 
 /* T2 — the Hollows keep the Static's violet regardless of which sector's lift
@@ -367,24 +371,33 @@ function drawWorld(now) {
     ctx.restore();
   }
 
-  // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
-  // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
-  for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
-      40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
-    ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
-  // Bundle P §5 — machined-panel ticks stand in for organic terrain noise
-  if (level.isPlant) drawMachinedPanelTicks(cx, cx + viewW);
-
-  // cave roof, hanging overhead — same tile cache; the Hollows keep violet, a
-  // plant chamber's roof keeps the same flat zone accent as its floor (its
-  // gradient stops reversed, same convention CAVE_PAL's roof already uses)
-  if (level.roof) {
-    const roofGrad = level.isPlant ? [pal.grad[1], pal.grad[0]] : ["#0c0820", "#1b1040"];
-    const roofStroke = level.isPlant ? pal.stroke : CAVE_PAL.stroke;
-    const roofGlow = level.isPlant ? pal.glow : CAVE_PAL.glow;
-    for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
-        350, 40, "top", 500, 1100, roofGrad, roofStroke, roofGlow))
+  /* P·terrain — a chamber's rock is the COMPLEMENT of level.spans, so it can't
+     come from the heightmap/roof tile pair (one floor and at most one ceiling per
+     column, which is exactly the limit §11.0 replaces). drawChamberTerrain
+     (js/acttwo-render.js) draws both surfaces from the spans in one pass, using
+     the same per-512px tile cache contract. Act One falls through to the branch
+     it shipped with, untouched — the M1 golden checksum is the proof. */
+  if (level.spans) {
+    drawChamberTerrain(cx, viewW);
+    if (level.isPlant) drawMachinedPanelTicks(cx, cx + viewW);
+  } else {
+    // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
+    // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
+    for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
+        40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
       ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+
+    // cave roof, hanging overhead — same tile cache; the Hollows keep violet, a
+    // plant chamber's roof keeps the same flat zone accent as its floor (its
+    // gradient stops reversed, same convention CAVE_PAL's roof already uses)
+    if (level.roof) {
+      const roofGrad = level.isPlant ? [pal.grad[1], pal.grad[0]] : ["#0c0820", "#1b1040"];
+      const roofStroke = level.isPlant ? pal.stroke : CAVE_PAL.stroke;
+      const roofGlow = level.isPlant ? pal.glow : CAVE_PAL.glow;
+      for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
+          350, 40, "top", 500, 1100, roofGrad, roofStroke, roofGlow))
+        ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+    }
   }
 
   drawBoundaryField(now);
@@ -4530,6 +4543,47 @@ window.__doids = {
   training: startTraining,   // X2
   // M1 regression anchor: seed 0 must always produce today's exact levels
   heightChecksum: () => level.heights.reduce((a, h) => (a * 31 + Math.round(h)) | 0, 0),
+
+  /* ---- P·terrain: span terrain and the chamber grammar ----
+     Exposed from day one so the representation is testable headlessly while
+     P·slice is being felt by hand (Bundle P's own instruction). */
+  // load a compiled chamber as the live level. Terrain only — see genChamber.
+  loadChamber: id => {
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === (id || "slice"));
+    if (!ch) return null;
+    level = genChamber(ch);
+    const sp = spanAt(400, 700);
+    ship.x = 400; ship.y = sp ? (sp.top + sp.bot) / 2 : 700;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
+    camera.x = ship.x; camera.y = ship.y;
+    state = "play";
+    return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length };
+  },
+  // the same stable fingerprint idea as heightChecksum, over spans: a chamber
+  // must compile identically every load or the authoring format isn't authoring
+  spanChecksum: () => (level.spans || []).reduce((a, col) =>
+    col.reduce((b, sp) => (b * 31 + Math.round(sp.top) * 7 + Math.round(sp.bot)) | 0, a), 0),
+  spans: x => (level.spans ? (level.spans[clamp(Math.round(x / STEP), 0, level.spans.length - 1)] || [])
+    .map(sp => ({ top: Math.round(sp.top), bot: Math.round(sp.bot) })) : null),
+  spanCountAt: x => spanCountAt(x),
+  // how many columns hold an overhang (2+ spans), and the tightest gap anywhere —
+  // the two properties §11.0 says the heightmap could not express
+  spanStats: () => {
+    const s = level.spans || [];
+    let overhangs = 0, solidCols = 0, tightest = Infinity, deepest = 0;
+    for (const col of s) {
+      if (col.length >= 2) overhangs++;
+      if (!col.length) solidCols++;
+      for (const sp of col) {
+        tightest = Math.min(tightest, sp.bot - sp.top);
+        deepest = Math.max(deepest, sp.bot);
+      }
+    }
+    return { cols: s.length, overhangs, solidCols, deepest: Math.round(deepest),
+      tightest: tightest === Infinity ? null : Math.round(tightest) };
+  },
+  solidAt: (x, y) => solidAt(x, y),
+  roofAtY: (x, y) => roofAt(x, y),
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,
