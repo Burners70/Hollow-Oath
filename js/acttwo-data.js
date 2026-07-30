@@ -39,13 +39,17 @@ const RACK_PULSE_PERIOD = 1.10;   // seconds/cycle — resting pulse, all 4 stat
    towing clearance, and width the axis that buys readability, so landscape is
    cheaper on both counts.
 
-   Sized against the SHIP rather than the room, in the end. A sixth of the hall
-   (~98px) was the owner's first ceiling and 66px cleared it, but it still read
-   "out of kilter with the ship" — the room is 586px tall and the ship only 22px
-   across, so the room is the more forgiving reference and the wrong one. At a 70
-   x 48 cage the rack is 3.2x the ship's width: unmistakably a load one ship
-   should struggle with, not a shipping container towed by a dart. That is ~70%
-   off the first pass's cage area.
+   Sized against the SHIP rather than the room, in the end, and by eye rather than
+   by arithmetic. A sixth of the hall (~98px) was the first ceiling and 66px
+   cleared it, but it still read "out of kilter with the ship" — the room is 586px
+   tall and the ship only 22px across, so the room is the forgiving reference and
+   the wrong one. At a 70x48 cage the rack is 3.2x the ship's width: a load one
+   ship should visibly struggle with, not a container towed by a dart. ~70% off
+   the first pass's cage area, chosen from four candidates rendered side by side.
+
+   Explicitly NOT sized to fit its occupants (owner steer, July 2026): scale in
+   this game was never literal — a Scion is about as tall as the dart — so what
+   matters is visual fit against the ship and the physics of towing it.
 
    Authored here rather than as a magic default in drawRacks, so a chamber that
    wants an unusual rack overrides data instead of passing render arguments. */
@@ -53,8 +57,12 @@ const RACK_SIZE = { w: 97, h: 73 };            // nominal → a 70 x 48 cage
 const RACK_CAGE_W = 0.72, RACK_CAGE_H = 0.66;  // drawRack's insets, named
 // §6.1 — a rack holds eight to twelve. The occupant count is data, so the cells
 // stay legible at any size instead of always being ten of them.
-const RACK_OCCUPANTS_DEFAULT = 8;   // the low end of §6.1's eight-to-twelve: at a
-// 70px cage, ten cells come out 7px apart and stop reading as separate people
+/* Cell count is a VISUAL DENSITY choice, not a headcount. Owner steer, July 2026:
+   this game has never been to literal scale — a Scion stands about as tall as the
+   dart — so sizing a rack to fit eight bodies would be solving a problem the game
+   does not have. Eight cells simply read as separate cells at this cage width;
+   §6.1's "eight to twelve" is narrative, and a chamber can set any count. */
+const RACK_OCCUPANTS_DEFAULT = 8;
 
 /* ---- the tow envelope, and the MOMENTUM PINCH ----------------------------
    docs/PENDULUM_SPEC.md §4.1 is the tether reference and survives into Act Two
@@ -90,7 +98,23 @@ const RACK_OCCUPANTS_DEFAULT = 8;   // the low end of §6.1's eight-to-twelve: a
    twice as hard). Wide enough to author against; if a momentum pinch turns out to
    want more room still, `SLING_L` is the dial — a 70px sling gives 57px of band.
    Not retuned here: tether length is a feel value and belongs on hardware. */
-const SLING_L = 46;                     // PENDULUM_SPEC §4.1, centre-to-centre
+/* PENDULUM_SPEC §4.1 says `SLING_L = 46`, and that number was set for a payload
+   of **radius 8** — the Hollows' relics. It gave ~28px of visible cable. Against a
+   rack whose cage is 48px tall the same 46 leaves 12px, and at the first pass's
+   112px cage it left *nothing*: the sling was geometrically inside the rack.
+
+   So the sling is derived to preserve the thing the constant was really choosing —
+   a readable length of cable — rather than the literal 46 that only expressed it
+   for one payload size. The pendulum needs to be SEEN: PENDULUM_SPEC's whole feel
+   note is "thrust away and the load lags, then swings through under you", which a
+   12px cable cannot show. Owner steer, July 2026: judge this on visual fit and
+   physics, not on occupancy fidelity.
+
+   A longer sling also means a slower, wider swing, which is the right direction
+   for a load you are supposed to respect. Exact feel is P·slice's, on hardware. */
+const SLING_SHIP_ANCHOR = 10;           // cable leaves the hull this far below centre
+const SLING_VISIBLE = 36;               // px of cable actually on screen at rest
+const SLING_L = SLING_SHIP_ANCHOR + RACK_SIZE.h * RACK_CAGE_H / 2 + SLING_VISIBLE;
 const TOW_SWING_LEVEL = 90;             // degrees from vertical = load at your level
 
 // vertical and horizontal extent of ship-plus-slung-rack at a given swing angle
@@ -126,6 +150,16 @@ function momentumGapPx(tether) {
   const rest = towEnvelope(0, tether).vertical;
   const swung = towEnvelope(TOW_SWING_LEVEL, tether).vertical;
   return Math.round((rest + swung) / 2);
+}
+
+/* And the gap an ORDINARY tight spot should be authored to: comfortably past the
+   at-rest depth, with enough margin to survive the surrounding floor roughness
+   (±22px in the hall) without slipping into the momentum band. Derived for the
+   same reason — lengthening the sling to 70 pushed the at-rest depth from 81 to
+   105, which silently turned the chamber's ordinary 98px pinch INTO a momentum
+   pinch and collapsed the distinction the two are there to teach. */
+function restGapPx(tether) {
+  return Math.round(towEnvelope(0, tether).vertical + 30);
 }
 /* base = resting brightness (0-1), amp = how much the beat lifts it, beats =
    how many lobes in the envelope (2 = a double-beat "lub-dub", 1 = a single
@@ -458,8 +492,11 @@ const SLICE_CHAMBER = {
     // stalactite teeth off the raw ceiling
     { op: "rock", x: 2500, y: 500,  w: 520,  h: 90,  roughBot: 8,
       profBot: { kind: "teeth", n: 6, dy: 95 }, mt: MAT_ROCK, mb: MAT_ROCK },
-    // the pinch between two bays of the hall — squeeze under it
-    { op: "rock", x: 3100, y: 500,  w: 300,  h: 540, roughBot: 8, mb: MAT_ROCK },
+    /* an ordinary tight spot: you must slow down and thread it, but the load can
+       hang. Height derived so it stays in the "rest" tier whatever the sling and
+       rack are tuned to — see restGapPx. */
+    { op: "rock", x: 3100, y: 500,  w: 300,  h: 640 - restGapPx(),
+      roughBot: 8, mb: MAT_ROCK },
     // a structural pillar, floor to ceiling
     { op: "rock", x: 4600, y: 440,  w: 210,  h: 800, mt: MAT_MACH },
     /* ---- THE MOMENTUM PINCH (owner idea, July 2026) --------------------

@@ -521,7 +521,12 @@ function drawAnchorRing(x, y) {
   ctx.restore();
 }
 function drawSlingLine(shipX, shipY, rackX, rackY, tension, now, rackTopOffset) {
-  const top = rackTopOffset != null ? rackTopOffset : 45;
+  /* Where the cable meets the rack: its own top rail. Defaulted to the real cage
+     half-height rather than the old magic 45, which was fitted to the first
+     pass's 112px cage — against the final 48px cage it put the rack's anchor
+     ABOVE the ship's, so the cable was drawn ~9px long and pointing upwards.
+     That is the "cable looks very short" the owner spotted. */
+  const top = rackTopOffset != null ? rackTopOffset : RACK_SIZE.h * RACK_CAGE_H / 2;
   const sag = (1 - clamp(tension, 0, 1)) * 60;
   const shipAnchorY = shipY + 10, rackAnchorY = rackY - top;
   const midX = (shipX + rackX) / 2, midY = (shipAnchorY + rackAnchorY) / 2 + sag;

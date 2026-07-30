@@ -4724,7 +4724,11 @@ window.__doids = {
     gaps.sort((a, b) => a - b);
     const tiers = { rest: 0, momentum: 0, unladen: 0 };
     for (const g of gaps) tiers[towTierForGap(g, tether)]++;
-    return { cage: rest.cage, shipDiameter: 2 * SHIP_R, tether: tether != null ? tether : SLING_L,
+    const L = tether != null ? tether : SLING_L;
+    return { cage: rest.cage, shipDiameter: 2 * SHIP_R, tether: L,
+      // how much cable is actually on screen at rest — the sling has to be SEEN
+      // to read as a pendulum at all (PENDULUM_SPEC §4.1's feel note)
+      visibleCable: +(L - SLING_SHIP_ANCHOR - rest.cage.h / 2).toFixed(1),
       atRest: +rest.vertical.toFixed(1), atSpeed: +swung.vertical.toFixed(1),
       momentumBand: +(rest.vertical - swung.vertical).toFixed(1),
       tightestGap: gaps.length ? Math.round(gaps[0]) : null,

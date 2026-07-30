@@ -780,6 +780,10 @@ slice decides.
 
 ### 11.3 The momentum pinch (owner idea, July 2026)
 
+**Scale here is not literal.** A Scion stands about as tall as the dart (owner,
+July 2026), so a rack is sized by visual fit against the ship and by the physics of
+towing it, never by fitting its occupants. Its cell count is visual density.
+
 A slung rack hangs `SHIP_R + SLING_L + cage/2` below you — 90px at PENDULUM_SPEC
 §4.1's numbers — but only `max(2·SHIP_R, cage)` = 66px when it is trailing at
 your own level. That 24px band is a mechanic: **a gap you cannot creep through
@@ -790,8 +794,14 @@ upgrade, and because going fast with a rack is the dangerous thing — every tur
 is felt by everyone in the box (§6.1), and damage accrues above `SLING_SAFE_V`.
 So the shortcut is real and it costs the thing you are trying to protect.
 
-Three tiers follow, and they are the chamber-authoring vocabulary: **≥ 90** pass
-at rest · **66–90** momentum pinch · **< 66** unladen route only. An unladen-only
+`SLING_L` is derived rather than PENDULUM_SPEC §4.1's literal 46: that number was
+set for a payload of radius 8 and expressed a *readable length of visible cable*,
+which a rack-sized payload destroys. The sling keeps the readable length instead.
+
+Three tiers follow, and they are the chamber-authoring vocabulary — pass at rest ·
+momentum pinch · unladen route only — with the boundaries computed from the
+envelope, and both authored gaps derived from it, so retuning the rack or the sling
+moves the pinches with it instead of quietly voiding them. An unladen-only
 gap needs a parallel laden route, which is P·content's clearable-while-towing
 invariant. Implemented as geometry in `js/acttwo-data.js` (`towEnvelope`,
 `towTierForGap`) under P·terrain; the tether physics itself is P·systems.
