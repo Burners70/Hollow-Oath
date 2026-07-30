@@ -87,6 +87,8 @@ function render() {
   if (level) drawWorld(now);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Bundle P (js/acttwo-render.js) — directional edge bleed for an off-screen critical rack
+  if (level && level.racks && (state === "play" || state === "dead")) drawRackEdgeBleed(now);
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
       state === "pause" || state === "confirm" || state === "coach" ||
       state === "trapcard") drawHUD(now);
@@ -347,8 +349,13 @@ function drawWorld(now) {
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
   const viewW = (vw - saLeft) / z;
 
-  const pal = biomePal();
-  if (!level.isCave) {
+  // Bundle P §5 (js/acttwo-render.js) — a plant chamber is a lit, built
+  // facility, never open sky: flat steel zone-accent fill (plantChamberPal)
+  // in place of a biome's organic gradient, and no starfield (same as a
+  // cave, whether or not the chamber also sets isCave). PROVISIONAL against
+  // P·terrain — see plantChamberPal's own comment in js/acttwo-render.js.
+  const pal = level.isPlant ? plantChamberPal() : biomePal();
+  if (!level.isCave && !level.isPlant) {
     ctx.save();
     ctx.translate(cx * 0.35, cy * 0.35);
     const sr = pal.star;   // T2 — per-biome starfield tint
@@ -365,11 +372,18 @@ function drawWorld(now) {
   for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
       40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
     ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+  // Bundle P §5 — machined-panel ticks stand in for organic terrain noise
+  if (level.isPlant) drawMachinedPanelTicks(cx, cx + viewW);
 
-  // cave roof, hanging overhead — same tile cache; always the Hollows' violet
+  // cave roof, hanging overhead — same tile cache; the Hollows keep violet, a
+  // plant chamber's roof keeps the same flat zone accent as its floor (its
+  // gradient stops reversed, same convention CAVE_PAL's roof already uses)
   if (level.roof) {
+    const roofGrad = level.isPlant ? [pal.grad[1], pal.grad[0]] : ["#0c0820", "#1b1040"];
+    const roofStroke = level.isPlant ? pal.stroke : CAVE_PAL.stroke;
+    const roofGlow = level.isPlant ? pal.glow : CAVE_PAL.glow;
     for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
-        350, 40, "top", 500, 1100, ["#0c0820", "#1b1040"], CAVE_PAL.stroke, CAVE_PAL.glow))
+        350, 40, "top", 500, 1100, roofGrad, roofStroke, roofGlow))
       ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
   }
 
@@ -395,6 +409,18 @@ function drawWorld(now) {
   drawMercySplit(now);   // V13 — the staged one-then-two reveal on finale arrival
   drawLift(now);
   if (level.shrine) drawShrine(now);
+
+  // Bundle P §4/§5/§6 (js/acttwo-render.js) — the rack network, its
+  // furniture, and the tow/dock pieces; each a no-op until Bundle P's
+  // chamber authoring sets the field.
+  if (level.plantOrnaments) drawPlantOrnaments(now);
+  drawRacks(now);
+  if (level.wellDock) drawWellDock(now);
+  if (level.towedRack) {
+    const tr = level.towedRack;
+    drawSlingLine(ship.x, ship.y, tr.x, tr.y, tr.tension != null ? tr.tension : .55, now);
+    drawRack(tr.x, tr.y, tr.w || 120, tr.h || 90, tr.state || "reserve", now);
+  }
 
   // fuel pods — real ones flicker like fire, alive and irregular
   for (const p of level.pods) {

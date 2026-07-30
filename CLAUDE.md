@@ -79,9 +79,9 @@ layer, constants and utils exist, and **before `js/update.js`**):
 
 | File | Covers |
 |------|--------|
-| `js/acttwo-data.js`   | The ten authored chambers in the room/span grammar, plus Act Two's story tables and its own rank ladder |
-| `js/acttwo-update.js` | Tether physics, racks and reserves, trunk-cut pulse reading, the well, the transfusion inversion, chamber checkpointing |
-| `js/acttwo-render.js` | Span terrain drawing, the ward's pulsing light and edge bleed, the sling, Act Two screens |
+| `js/acttwo-data.js`   | **Landed (P·design slice):** the rack's token/state layer — `RACK_STATES`, `RACK_PULSE_PERIOD`, the beat envelope, `rackColor`/`rackBrightness`, `PLANT_ZONES`/`plantPal` — same data/no-drawing split as `PAL()`/`TOK` in `js/world.js`. **Still to come:** the ten authored chambers in the room/span grammar (P·terrain/P·content), Act Two's story tables and its own rank ladder (P·scions) |
+| `js/acttwo-update.js` | Not started. Tether physics, racks and reserves, trunk-cut pulse reading, the well, the transfusion inversion, chamber checkpointing |
+| `js/acttwo-render.js` | **Landed (P·design slice):** the rack cage, conduit real-vs-fake tell, the network ripple/dip (riding the real `staticClock`), directional edge bleed, ornamentation, the sling and the well's bay/winch — all terrain-representation-agnostic, gated on level fields no `genLevel` path sets yet (inert no-ops today). Its plant-chamber floor fill (`plantChamberPal`/`drawMachinedPanelTicks`) is **provisional against P·terrain**: it reuses the shipped heightmap tile system as a stand-in so the palette can be judged now, and will need to move onto span terrain once P·terrain lands. **Still to come:** span terrain drawing itself (P·terrain), Act Two screens |
 
 The constraints that are *not* lifted, because they are technical rather than
 stylistic: scripts stay **non-module** sharing one global scope, **load order
