@@ -161,7 +161,10 @@ function worldTransform() {
   // the visible viewport starts right of the camera lozenge
   const cw = (vw - saLeft) / z, ch = vh / z;
   let cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
-  let cy = clamp(camera.y - ch / 2, -100, WORLD_H - ch);
+  // P·terrain — an Act Two chamber is deeper than Act One's world box; levelH()
+  // is WORLD_H for every level that doesn't set its own H, so surface play is
+  // bit-identical here.
+  let cy = clamp(camera.y - ch / 2, -100, levelH() - ch);
   if (camera.shake > 0) {
     cx += (Math.random() - 0.5) * camera.shake;
     cy += (Math.random() - 0.5) * camera.shake;
@@ -245,6 +248,7 @@ function invalidateTiles() {
   if (!level) return;
   level._terrainTiles = null;
   level._roofTiles = null;
+  level._spanTiles = null;   // P·terrain — chambers cache their rock the same way
 }
 
 /* T2 — the Hollows keep the Static's violet regardless of which sector's lift
@@ -349,13 +353,13 @@ function drawWorld(now) {
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
   const viewW = (vw - saLeft) / z;
 
-  // Bundle P §5 (js/acttwo-render.js) — a plant chamber is a lit, built
-  // facility, never open sky: flat steel zone-accent fill (plantChamberPal)
-  // in place of a biome's organic gradient, and no starfield (same as a
-  // cave, whether or not the chamber also sets isCave). PROVISIONAL against
-  // P·terrain — see plantChamberPal's own comment in js/acttwo-render.js.
-  const pal = level.isPlant ? plantChamberPal() : biomePal();
-  if (!level.isCave && !level.isPlant) {
+  /* Bundle P §5 (js/acttwo-render.js) — an Act Two chamber is underground and
+     never open sky: no starfield, and the zone's accent in place of a biome's
+     organic gradient. Keyed on level.spans, not on isPlant: every chamber is
+     underground, but only chambers 2–5 are the plant (spec §11.1), so isPlant
+     now controls the plant's *dressing* rather than whether terrain draws. */
+  const pal = (level.spans || level.isPlant) ? plantChamberPal() : biomePal();
+  if (!level.isCave && !level.isPlant && !level.spans) {
     ctx.save();
     ctx.translate(cx * 0.35, cy * 0.35);
     const sr = pal.star;   // T2 — per-biome starfield tint
@@ -367,24 +371,39 @@ function drawWorld(now) {
     ctx.restore();
   }
 
-  // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
-  // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
-  for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
-      40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
-    ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
-  // Bundle P §5 — machined-panel ticks stand in for organic terrain noise
-  if (level.isPlant) drawMachinedPanelTicks(cx, cx + viewW);
-
-  // cave roof, hanging overhead — same tile cache; the Hollows keep violet, a
-  // plant chamber's roof keeps the same flat zone accent as its floor (its
-  // gradient stops reversed, same convention CAVE_PAL's roof already uses)
-  if (level.roof) {
-    const roofGrad = level.isPlant ? [pal.grad[1], pal.grad[0]] : ["#0c0820", "#1b1040"];
-    const roofStroke = level.isPlant ? pal.stroke : CAVE_PAL.stroke;
-    const roofGlow = level.isPlant ? pal.glow : CAVE_PAL.glow;
-    for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
-        350, 40, "top", 500, 1100, roofGrad, roofStroke, roofGlow))
+  /* P·terrain — a chamber's rock is the COMPLEMENT of level.spans, so it can't
+     come from the heightmap/roof tile pair (one floor and at most one ceiling per
+     column, which is exactly the limit §11.0 replaces). drawChamberTerrain
+     (js/acttwo-render.js) draws both surfaces from the spans in one pass, using
+     the same per-512px tile cache contract. Act One falls through to the branch
+     it shipped with, untouched — the M1 golden checksum is the proof. */
+  if (level.spans) {
+    drawChamberTerrain(cx, viewW);
+    // ticks are a property of a MACHINED face now, not of the chamber being a
+    // plant — an intake's own wrecked gear is milled too. The function itself
+    // walks materials and skips raw rock.
+    drawMachinedPanelTicks(cx, cx + viewW);
+    // the fixtures that make the room lit (§9.2). After the terrain so they
+    // light it, before scenery/oids so those are not washed out.
+    drawChamberLights(now);
+  } else {
+    // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
+    // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
+    for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
+        40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
       ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+
+    // cave roof, hanging overhead — same tile cache; the Hollows keep violet, a
+    // plant chamber's roof keeps the same flat zone accent as its floor (its
+    // gradient stops reversed, same convention CAVE_PAL's roof already uses)
+    if (level.roof) {
+      const roofGrad = level.isPlant ? [pal.grad[1], pal.grad[0]] : ["#0c0820", "#1b1040"];
+      const roofStroke = level.isPlant ? pal.stroke : CAVE_PAL.stroke;
+      const roofGlow = level.isPlant ? pal.glow : CAVE_PAL.glow;
+      for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
+          350, 40, "top", 500, 1100, roofGrad, roofStroke, roofGlow))
+        ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+    }
   }
 
   drawBoundaryField(now);
@@ -419,7 +438,8 @@ function drawWorld(now) {
   if (level.towedRack) {
     const tr = level.towedRack;
     drawSlingLine(ship.x, ship.y, tr.x, tr.y, tr.tension != null ? tr.tension : .55, now);
-    drawRack(tr.x, tr.y, tr.w || 120, tr.h || 90, tr.state || "reserve", now);
+    drawRack(tr.x, tr.y, tr.w || RACK_SIZE.w, tr.h || RACK_SIZE.h, tr.state || "reserve", now,
+      { occupants: tr.occupants });
   }
 
   // fuel pods — real ones flicker like fire, alive and irregular
@@ -4530,6 +4550,229 @@ window.__doids = {
   training: startTraining,   // X2
   // M1 regression anchor: seed 0 must always produce today's exact levels
   heightChecksum: () => level.heights.reduce((a, h) => (a * 31 + Math.round(h)) | 0, 0),
+
+  /* ---- P·terrain: span terrain and the chamber grammar ----
+     Exposed from day one so the representation is testable headlessly while
+     P·slice is being felt by hand (Bundle P's own instruction). */
+  // load a compiled chamber as the live level. Terrain only — see genChamber.
+  loadChamber: id => {
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === (id || "slice"));
+    if (!ch) return null;
+    level = genChamber(ch);
+    const sp = spanAt(400, 700);
+    ship.x = 400; ship.y = sp ? (sp.top + sp.bot) / 2 : 700;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
+    camera.x = ship.x; camera.y = ship.y;
+    state = "play";
+    return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length };
+  },
+  // the same stable fingerprint idea as heightChecksum, over spans: a chamber
+  // must compile identically every load or the authoring format isn't authoring
+  spanChecksum: () => (level.spans || []).reduce((a, col) =>
+    col.reduce((b, sp) => (b * 31 + Math.round(sp.top) * 7 + Math.round(sp.bot)) | 0, a), 0),
+  spans: x => (level.spans ? (level.spans[clamp(Math.round(x / STEP), 0, level.spans.length - 1)] || [])
+    .map(sp => ({ top: Math.round(sp.top), bot: Math.round(sp.bot) })) : null),
+  spanCountAt: x => spanCountAt(x),
+  // how many columns hold an overhang (2+ spans), and the tightest gap anywhere —
+  // the two properties §11.0 says the heightmap could not express
+  spanStats: () => {
+    const s = level.spans || [];
+    let overhangs = 0, solidCols = 0, tightest = Infinity, deepest = 0, shallowest = Infinity;
+    for (const col of s) {
+      if (col.length >= 2) overhangs++;
+      if (!col.length) solidCols++;
+      for (const sp of col) {
+        tightest = Math.min(tightest, sp.bot - sp.top);
+        deepest = Math.max(deepest, sp.bot);
+        shallowest = Math.min(shallowest, sp.top);
+      }
+    }
+    return { cols: s.length, overhangs, solidCols, deepest: Math.round(deepest),
+      // how much vertical the open route actually uses — a FLOOR of a complex is
+      // wide against this, not tall (owner steer, July 2026)
+      verticalUsed: Math.round(deepest - (shallowest === Infinity ? 0 : shallowest)),
+      tightest: tightest === Infinity ? null : Math.round(tightest) };
+  },
+  solidAt: (x, y) => solidAt(x, y),
+  roofAtY: (x, y) => roofAt(x, y),
+
+  /* §8 — where the drawn view and the solid view deliberately disagree. Every
+     disagreement must be one of the two authored hazards; anything else is the
+     two views having drifted apart, which is a bug and is counted separately. */
+  deceptions: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    /* Classify by measuring AIR, not by counting spans. Painted rock usually
+       shortens an existing span rather than adding one (its mass runs past the
+       hall floor, so no air survives beneath it), which a span-count test misses
+       entirely — it read 0 painted rock on a chamber that has some. */
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    // every difference must fall inside a part that DECLARED a view, or the two
+    // views have drifted apart on their own, which is the bug worth catching
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    const ranges = ((ch && ch.parts) || []).filter(p => p.view)
+      .map(p => [p.x - STEP * 2, p.x + p.w + STEP * 2]);
+    const declared = x => ranges.some(r => x >= r[0] && x <= r[1]);
+    let falseFloors = 0, paintedRock = 0, undeclaredColumns = 0;
+    for (let i = 0; i < sol.length; i++) {
+      const a = openLen(sol[i]), b = openLen(drw[i]);
+      if (Math.abs(a - b) < 0.01) continue;
+      if (!declared(i * STEP)) { undeclaredColumns++; continue; }
+      if (b < a) falseFloors++;      // drawn hides real air → a ledge that isn't there
+      else paintedRock++;            // drawn shows air over real mass → a painted wall
+    }
+    return { falseFloors, paintedRock, undeclaredColumns };
+  },
+  // the first column where a ledge is drawn but nothing is solid: the ledge's y,
+  // the real ground you actually fall to, and whether the ledge holds you
+  falseFloorProbe: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    for (let i = 0; i < sol.length; i++) {
+      // LESS air drawn than exists = a ledge drawn across open space
+      if (openLen(sol[i]) - openLen(drw[i]) < 1) continue;
+      const x = i * STEP;
+      /* Find the FALSE boundary specifically: a drawn floor with no solid rock
+         under it. Taking drw[i][0].bot instead picks the topmost boundary in the
+         column, which on a chamber with a mezzanine is a perfectly real ceiling —
+         it reported ledge === ground and the deception as solid. */
+      for (const sp of drw[i]) {
+        if (solidAt(x, sp.bot + 4)) continue;            // a real floor, keep looking
+        return { x: Math.round(x), drawnLedge: Math.round(sp.bot),
+          realGround: Math.round(groundAt(x, sp.bot + 4)),
+          solidAtLedge: solidAt(x, sp.bot + 4) };
+      }
+    }
+    return null;
+  },
+  // the first column that is solid where the drawn view shows open space
+  paintedRockProbe: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    for (let i = 0; i < sol.length; i++) {
+      // MORE air drawn than exists = mass hidden behind a painted face
+      if (openLen(drw[i]) - openLen(sol[i]) < 1) continue;
+      const x = i * STEP;
+      // a y inside the hidden mass: just below the surviving solid span's floor
+      const y = (sol[i].length ? sol[i][sol[i].length - 1].bot : 0) + 30;
+      const d = pickSpan(drw[i], y);
+      return { x: Math.round(x), y: Math.round(y), solid: solidAt(x, y),
+        drawnOpen: !!(d && y > d.top && y < d.bot) };
+    }
+    return null;
+  },
+  /* Points known to be far from either declared lie, for the pixel-agreement
+     test — derived rather than hardcoded so retuning the chamber can't quietly
+     aim a probe into a deception and make the test contradict itself. */
+  honestProbePoints: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const honest = i => {
+      const a = sol[i] || [], b = drw[i] || [];
+      return a.length === b.length && a.every((sp, k) =>
+        Math.abs(sp.top - b[k].top) < 0.01 && Math.abs(sp.bot - b[k].bot) < 0.01);
+    };
+    /* Stay well clear of the world edges: drawBoundaryField paints a glowing
+       dashed containment line at BOUND_X (40) that brightens as the ship nears
+       it, so a pixel sampled there is reading the overlay, not the terrain. */
+    const EDGE = 240;
+    const iLo = Math.max(3, Math.ceil(EDGE / STEP));
+    const iHi = Math.min(sol.length - 4, Math.floor((level.W - EDGE) / STEP));
+    const clear = i => honest(i - 2) && honest(i - 1) && honest(i) && honest(i + 1) && honest(i + 2);
+    const pts = [];
+    let pillar = null, air = null;
+    for (let i = iLo; i <= iHi; i++) {
+      if (!clear(i)) continue;
+      const col = sol[i];
+      if (!pillar && !col.length && sol[i - 1].length) {
+        let j = i;                                        // a RUN of solid columns
+        while (j < sol.length - 1 && !sol[j].length) j++;  // with hall either side
+        // the MIDDLE of the run, not its first column: a flank carries a violet
+        // rock stroke with a 14px glow, and sampling that returned TOK.VIOLET as
+        // the "rock" reference, which made every genuine rock probe look like air
+        if (sol[j].length) pillar = Math.floor((i + j) / 2) * STEP;
+      }
+      if (!air && col.length === 1) air = i * STEP;
+    }
+    for (let i = iLo; i <= iHi && pts.length < 8; i += 37) {
+      if (!clear(i)) continue;
+      const col = sol[i];
+      const x = i * STEP;
+      if (!col.length) { pts.push(["solid column @" + x, x, 900]); continue; }
+      const sp = col[0];
+      pts.push(["air @" + x, x, (sp.top + sp.bot) / 2]);
+      pts.push(["above ceiling @" + x, x, Math.max(30, sp.top - 90)]);
+      pts.push(["below floor @" + x, x, sp.bot + 90]);
+    }
+    const airCol = sol[Math.round(air / STEP)];
+    const airSp = airCol[airCol.length - 1];
+    return { points: pts,
+      refRock: [pillar != null ? pillar : iLo * STEP, 900],
+      refAir: [air, (airSp.top + airSp.bot) / 2] };
+  },
+  chamberLights: () => (level.lights || []).length,
+  /* Can a rack actually be lifted through this chamber, and where does it need
+     momentum? A slung load hangs 90px deep at rest and only 66px when trailing at
+     your own level, so a gap classifies into three tiers (towTierForGap,
+     js/acttwo-data.js). Reported rather than assumed: the first pass drew a rack
+     that could not fit the level it was standing in, and the arithmetic that
+     "proved" it used a made-up 24px tether instead of PENDULUM_SPEC's 46. */
+  towClearance: (tether) => {
+    // NB: not named `level` — that is the global level object (js/world.js:214,
+    // a `let` binding, so window.level would be undefined and this would throw)
+    const rest = towEnvelope(0, tether), swung = towEnvelope(TOW_SWING_LEVEL, tether);
+    const gaps = [];
+    for (const col of (level.spans || [])) for (const sp of col) gaps.push(sp.bot - sp.top);
+    gaps.sort((a, b) => a - b);
+    const tiers = { rest: 0, momentum: 0, unladen: 0 };
+    for (const g of gaps) tiers[towTierForGap(g, tether)]++;
+    const L = tether != null ? tether : SLING_L;
+    return { cage: rest.cage, shipDiameter: 2 * SHIP_R, tether: L,
+      // how much cable is actually on screen at rest — the sling has to be SEEN
+      // to read as a pendulum at all (PENDULUM_SPEC §4.1's feel note)
+      visibleCable: +(L - SLING_SHIP_ANCHOR - rest.cage.h / 2).toFixed(1),
+      atRest: +rest.vertical.toFixed(1), atSpeed: +swung.vertical.toFixed(1),
+      momentumBand: +(rest.vertical - swung.vertical).toFixed(1),
+      tightestGap: gaps.length ? Math.round(gaps[0]) : null,
+      medianGap: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)]) : null,
+      tiers, gapCount: gaps.length,
+      // the tightest gap of each tier, so a test can find the authored pinch
+      tightestMomentum: (() => {
+        const m = gaps.filter(g => towTierForGap(g, tether) === "momentum");
+        return m.length ? Math.round(m[0]) : null;
+      })() };
+  },
+  towTier: (gap, tether) => towTierForGap(gap, tether),
+  // every part that declared a pinch intent, so authored intent can be checked
+  // against the geometry actually compiled rather than trusted
+  declaredPinches: () => {
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    return ((ch && ch.parts) || []).filter(p => p.pinch)
+      .map(p => ({ kind: p.pinch, x: p.x, w: p.w }));
+  },
+  /* Sample the RENDERED canvas at a world point — the honest way, which took
+     two attempts. Centring the camera on the point puts it at screen centre,
+     which is exactly where the ship is drawn: the first version of this returned
+     the ship's own cyan (113,170,255) and called it rock. So aim the point at a
+     quiet third of the screen instead, and park the ship a full screen away.
+     Avoids, by construction: the ship and its glow, the top HUD strip, the
+     bottom-right touch buttons, the centre banner text, and drawBoundaryField's
+     glowing containment line at the world edges. */
+  samplePixel: (wx, wy) => {
+    const z = zoomLevel(), cw = (vw - saLeft) / z, ch = vh / z;
+    const wantSx = (vw - saLeft) * 0.32, wantSy = vh * 0.34;
+    camera.x = wx - (wantSx / z - cw / 2);
+    camera.y = wy - (wantSy / z - ch / 2);
+    camera.shake = 0;
+    ship.x = clamp(wx + cw, BOUND_X, level.W - BOUND_X);
+    ship.y = wy; ship.vx = ship.vy = 0; ship.ang = 0;
+    ship.landed = true; ship.dead = false;
+    render(performance.now() / 1000);
+    // recompute the transform exactly as worldTransform does, AFTER its clamps
+    const cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
+    const cy = clamp(camera.y - ch / 2, -100, levelH() - ch);
+    const px = ctx.getImageData(Math.round((saLeft + (wx - cx) * z) * dpr),
+      Math.round((wy - cy) * z * dpr), 1, 1).data;
+    return [px[0], px[1], px[2]];
+  },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,

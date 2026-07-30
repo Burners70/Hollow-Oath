@@ -26,7 +26,7 @@ for `__doids`, and fail the test on any console error or uncaught exception.
 | `boot.spec.js` | Booting to the title, the first-play fork and HOW TO FLY guide, the veteran intro, game over, save/resume (incl. a corrupt save), iOS-lifecycle stability |
 | `settings.spec.js` | The settings panel and every persisted toggle, pause menu, HUD legend, tight-viewport layout fits, keyboard/touch input |
 | `audio.spec.js` | Thrust-noise lifecycle, ambience tracking the ship's vitals |
-| `worldgen.spec.js` | Level/cave generation, biomes and widths, beacons and black boxes, wrecks and lift pads, seeded/daily runs, veteran gating and escalation, plus the generation-**fairness** invariants |
+| `worldgen.spec.js` | Level/cave generation, biomes and widths, beacons and black boxes, wrecks and lift pads, seeded/daily runs, veteran gating and escalation, plus the generation-**fairness** invariants. Also Act Two's **span terrain** (Bundle P, P·terrain): that Act One's heightmap is untouched, that a chamber compiles deterministically, that overhangs/pinches/pillars exist, and that the drawn rock matches `solidAt` |
 | `flight.spec.js` | The landing evaluator and rank flags, shield parry, the secret lift down and back, fuel economy (stranding, resupply drone, transfusion line, paid refueller) |
 | `rescue.spec.js` | Scions vs Vectors: the landed scan, counterfeit tells, malpractice rules, contagion and the healing cabin, breach retrieval/isolation, extraction hangar and triage retreat |
 | `finale.spec.js` | The counterfeit MERCY, the twin reveal, the Solace, and every ending |

@@ -1269,9 +1269,11 @@ function updatePlay(dt) {
   s.x = clamp(s.x, BOUND_X, level.W - BOUND_X);
   if (s.y < BOUND_Y) { s.y = BOUND_Y; s.vy = Math.max(s.vy, 0); }
 
-  // cave roofs are unforgiving — unless the field is up
-  if (level.roof && !s.dead && !s.landed) {
-    const rY = roofAt(s.x);
+  // cave roofs are unforgiving — unless the field is up. P·terrain: a chamber
+  // has no level.roof, its ceiling is whichever span you're in, so roofAt takes
+  // the ship's y to pick one (Act One passes x alone and is unchanged).
+  if ((level.roof || level.spans) && !s.dead && !s.landed) {
+    const rY = roofAt(s.x, s.y);
     if (s.y - SHIP_R <= rY) {
       if (s.shield) {
         s.y = rY + SHIP_R + 1;
@@ -1283,7 +1285,10 @@ function updatePlay(dt) {
     }
   }
 
-  const g = groundAt(s.x);
+  // P·terrain — s.y picks the span, so in a chamber you land on the shelf you
+  // are actually over rather than on the deepest floor beneath it. Ignored on
+  // every heightmap level, which is all of Act One.
+  const g = groundAt(s.x, s.y);
   if (!s.landed && s.y + SHIP_R >= g) {
     const { soft, survivable } = landingEval();
     if (soft) {
@@ -1668,7 +1673,9 @@ function updateEnemies(dt) {
   for (let i = level.shots.length - 1; i >= 0; i--) {
     const b = level.shots[i];
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-    let gone = b.t <= 0 || b.y > groundAt(b.x) || (level.roof && b.y < roofAt(b.x));
+    // P·terrain — solidAt is the same test on both models: past the floor, into
+    // the roof, or (chambers only) buried in a pillar or an overhang's mass
+    let gone = b.t <= 0 || solidAt(b.x, b.y);
     for (const t of level.turrets) {
       if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
         t.alive = false; gone = true; firedAtCombat = true;

@@ -474,6 +474,16 @@ touches the oath, because probing is not shooting.
 It reuses the shipped exhaust-particle system, so the build cost is a response
 test rather than new art.
 
+**The terrain model holds both hazards as of P·terrain.** A chamber part may
+declare a `view` — `drawn` or `solid` — and `genChamber` compiles two span sets
+from the one definition: `spans` is what collision uses, `spansDrawn` is what the
+renderer draws. A false floor is a part in the drawn view only; painted rock is a
+part in the solid view only. Everything else appears in both, so the two views are
+identical on honest terrain and can differ **only** where a deception is declared —
+a test asserts exactly that, and counts any undeclared difference as a bug. What
+is still to come is the tell itself (the grit, the lamp shadow), which is
+P·systems; this is the hook it needs.
+
 **Consequence for §9.1:** Röntgen's RADIOGRAPH sees through solid matter, which
 is a direct counter to both hazards. **It must be limited to one sweep per
 chamber**, or the earned upgrade disables the whole deception layer for the rest
@@ -677,6 +687,30 @@ proves spans can't carry the level design.
 Act One's surface generation must be untouched by any of this; the M1 golden
 heightmap checksum is the proof, and it stays green.
 
+**Implemented (P·terrain).** `level.spans` holds one array of open `{top, bot}`
+intervals per column, ordered top to bottom, with solid rock outside them; two
+spans in a column *is* an overhang, a short span is a pinch point, and a column
+with none is a pillar. The primitives are in `js/world.js` under the "columns of
+spans" banner — `spanAt`, `pickSpan`, `matchSpan`, `solidAt`, `levelH` — and
+`groundAt`/`roofAt` gained the optional `y` argument this section anticipated as
+"a span argument". The room/span grammar and its compiler are in
+`js/acttwo-data.js` (`compileChamber`, and `SLICE_CHAMBER` as the worked
+example); drawing is `drawChamberTerrain` in `js/acttwo-render.js`. The M1
+checksum is unchanged at `1090254029`, so the table above held: collision stayed
+an O(1) column lookup, `STEP` and the tile cache both survived, and the
+re-entrant hook is still the one thing spans cannot express.
+
+**Owner review of the first pass (July 2026)** added two things to the model,
+both of which turned out to be cheap because a span's two boundaries are already
+independent. Each boundary carries a **material** — raw rock or milled — so
+"rock overhead, mechanical underfoot" is expressible per surface rather than per
+chamber, and a single shelf can be a landing pad on top and raw stone beneath.
+`spanAt` returns the material of the span you are in, which §8.1's tell needs:
+thruster wash raising grit off real rock and nothing off a projection is a
+question about what the surface *is*. Each boundary can also take a **profile** —
+`ramp`, `arc` or `teeth` — plus a corner radius, so an authored chamber is not
+condemned to right angles. Both are `js/acttwo-data.js`.
+
 ### 11.1 The descent, and where the checkpoint lives
 
 The act is a descent, so the structure is one: **each chamber's exit is the next
@@ -743,6 +777,34 @@ after the bump. That is a regression test in `P·guard`, not a manual check.
 **Still deliberately unanswered:** whether Act Two progress is a single linear
 save or per-chamber bests kept alongside it (§10a.4 wants both eventually). The
 slice decides.
+
+### 11.3 The momentum pinch (owner idea, July 2026)
+
+**Scale here is not literal.** A Scion stands about as tall as the dart (owner,
+July 2026), so a rack is sized by visual fit against the ship and by the physics of
+towing it, never by fitting its occupants. Its cell count is visual density.
+
+A slung rack hangs `SHIP_R + SLING_L + cage/2` below you — 90px at PENDULUM_SPEC
+§4.1's numbers — but only `max(2·SHIP_R, cage)` = 66px when it is trailing at
+your own level. That 24px band is a mechanic: **a gap you cannot creep through
+with the load hanging, and can take if you carry the speed to swing it up.**
+
+It is worth having because it prices speed against care instead of gating on an
+upgrade, and because going fast with a rack is the dangerous thing — every turn
+is felt by everyone in the box (§6.1), and damage accrues above `SLING_SAFE_V`.
+So the shortcut is real and it costs the thing you are trying to protect.
+
+`SLING_L` is derived rather than PENDULUM_SPEC §4.1's literal 46: that number was
+set for a payload of radius 8 and expressed a *readable length of visible cable*,
+which a rack-sized payload destroys. The sling keeps the readable length instead.
+
+Three tiers follow, and they are the chamber-authoring vocabulary — pass at rest ·
+momentum pinch · unladen route only — with the boundaries computed from the
+envelope, and both authored gaps derived from it, so retuning the rack or the sling
+moves the pinches with it instead of quietly voiding them. An unladen-only
+gap needs a parallel laden route, which is P·content's clearable-while-towing
+invariant. Implemented as geometry in `js/acttwo-data.js` (`towEnvelope`,
+`towTierForGap`) under P·terrain; the tether physics itself is P·systems.
 
 ## 12. What survives from PENDULUM_SPEC.md
 

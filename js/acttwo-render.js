@@ -44,7 +44,7 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   // §4 open question 1 (Option B, the trunk-ripple pick) — every rack takes a
   // simultaneous bite from the shared reserve on the network's real 41s beat.
   if (opts.networked !== false) brightness = Math.max(0.08, brightness * (1 - networkDipAmount() * 0.35));
-  const bw = w * 0.72, bh = h * 0.66, left = cx - bw / 2, top = cy - bh / 2;
+  const bw = w * RACK_CAGE_W, bh = h * RACK_CAGE_H, left = cx - bw / 2, top = cy - bh / 2;
   ctx.save();
   // light leaking from inside the cage — a radial wash, not a rounded halo outline
   const glowR = Math.max(bw, bh) * 0.7;
@@ -56,8 +56,12 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   // dark cell body, sharp corners
   ctx.fillStyle = TOK.VOID;
   ctx.fillRect(left, top, bw, bh);
-  // occupant cells — small lit windows behind the bars
-  const n = 10, pad = bw * 0.05, cellW = (bw - pad * 2) / n;
+  /* occupant cells — small lit windows behind the bars. The count is the rack's
+     actual occupancy (§6.1, eight to twelve) rather than a hardcoded ten, so
+     shrinking a rack thins the bank instead of grinding ten cells into slivers:
+     at the reduced RACK_SIZE, ten fixed cells came out 3.6px wide. */
+  const n = opts.occupants || RACK_OCCUPANTS_DEFAULT;
+  const pad = bw * 0.05, cellW = (bw - pad * 2) / n;
   for (let i = 0; i < n; i++) {
     const px = left + pad + i * cellW + cellW * 0.5;
     ctx.fillStyle = shade(color, 0.14 + brightness * 0.55);
@@ -66,8 +70,11 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   // heavy outer frame, sharp corners — industrial holding, not a device
   ctx.strokeStyle = shade(TOK.CYAN_TEXT, .6); ctx.lineWidth = Math.max(2.5, bw * 0.022);
   ctx.strokeRect(left, top, bw, bh);
-  // vertical bars over everything — dim steel, deliberately NOT glowing
-  const bars = 9;
+  /* vertical bars over everything — dim steel, deliberately NOT glowing. The
+     count follows the width (one per ~18px) rather than a fixed nine: nine bars
+     across the reduced cage left 7px of gap and read as a picket fence, hiding
+     the occupants the bars are supposed to be seen through. */
+  const bars = clamp(Math.round(bw / 18), 4, 9);
   ctx.strokeStyle = "rgba(10,12,24,.92)"; ctx.lineWidth = Math.max(3, bw * 0.02);
   for (let i = 1; i < bars; i++) {
     const x = left + (bw / bars) * i;
@@ -115,8 +122,8 @@ function drawRacks(now) {
       const c = r.conduit;
       drawConduitTrunk(c.x0, c.y0, c.x1, c.y1, c.real !== false, now, (i % 4) / 4);
     }
-    drawRack(r.x, r.y, r.w || 130, r.h || 170, r.state || "mains", now,
-      { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label });
+    drawRack(r.x, r.y, r.w || RACK_SIZE.w, r.h || RACK_SIZE.h, r.state || "mains", now,
+      { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label, occupants: r.occupants });
   });
 }
 
@@ -171,31 +178,268 @@ function drawRackEdgeBleed(now) {
   ctx.restore();
 }
 
-/* ---- §5 plant chamber terrain — PROVISIONAL against P·terrain. The locked
-   1.1 plan (docs/APP_STORE_ROADMAP.md, Bundle P) replaces the shipped
-   heightmap tile system (`buildHeightTile`/`getTiles`, js/render.js) with a
-   span-based terrain model BEFORE anything else lands, because the current
-   one-value-per-column heightmap can't express the overhangs and pinch
-   points Act Two's chambers require. This function reuses the *existing*
-   tile system as a stand-in so the palette/overlay can be seen and judged
-   now; the palette itself (PLANT_ZONES, js/acttwo-data.js) is terrain-
-   representation-agnostic and should carry over unchanged, but this call
-   site (and drawWorld's getTiles calls) will need to move onto span terrain
-   once P·terrain lands. Not wired for overhangs — flat-column only. */
+/* ---- §5 plant chamber terrain — now drawn from SPANS (P·terrain).
+   The heightmap stand-in this file shipped with in P·design is gone: chamber
+   terrain reads level.spans (js/world.js — one array of open {top,bot}
+   intervals per column) so overhangs, pinch points and pillars actually draw.
+   The palette itself (PLANT_ZONES, js/acttwo-data.js) carried over unchanged,
+   which is what it was built to do.
+
+   Tiles, same as Act One. buildHeightTile/getTiles (js/render.js) cache a
+   traced heightmap path per 512px chunk rather than re-stroking a blurred path
+   every frame (Bundle D4); spans need their own builder because the thing being
+   drawn is the COMPLEMENT of the open intervals, but the caching contract is
+   identical and tileTouch/TILE_CACHE_CAP/invalidateTiles are reused as-is.
+
+   How a tile is built: fill the whole tile with rock, then punch out one quad
+   per column per span — left edge from this column's span, right edge from the
+   best-matching span in the next column, which is the same pairing spanAt()
+   interpolates collision across, so what you fly through is exactly what you
+   see. A tile only covers the vertical BAND its own spans occupy (plus pad);
+   above and below that band every column is rock by definition, so the caller
+   fills those with flat rects and no tile memory is spent on them. That keeps a
+   2400px-deep chamber's tiles the same order of size as Act One's. */
 function plantChamberPal() {
   const z = plantPal(level.plantZone);
   return { grad: [z.top, z.bottom], stroke: z.stroke, glow: z.glow };
 }
+
+const SPAN_TILE_PAD = 60;
+
+/* The chamber's MASS is raw rock, and it reuses the Hollows' own dark violet
+   (TOK.VOID_MID/VOID_HIGH over VIOLET) rather than the zone's steel — the steel
+   is reserved for the paved band behind a machined face, so "rock overhead,
+   mechanical underfoot" reads from the fill and not only from the stroke. One
+   world-anchored gradient, shared by the tiles and by the flat fills above and
+   below each tile's band, so all three agree at every boundary. */
+function spanRockGradient(c2d, H) {
+  const g = c2d.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, ROCK_PAL.top); g.addColorStop(1, ROCK_PAL.bottom);
+  return g;
+}
+
+// MACH_BAND is how deep the paving goes — thick enough to read as fitted plate
+// at flight speed, thin enough that the rock behind it still dominates the mass
+const MACH_BAND = 46;
+function spanMachGradient(c2d, H, pal) {
+  const g = c2d.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, pal.grad[0]); g.addColorStop(1, pal.grad[1]);
+  return g;
+}
+
+function buildSpanTile(x0, x1, spans, H, pal) {
+  const ov = STEP * 2;
+  const i0 = Math.max(0, Math.floor((x0 - ov) / STEP));
+  const i1 = Math.min(spans.length - 1, Math.ceil((x1 + ov) / STEP));
+  let bandTop = Infinity, bandBot = -Infinity;
+  for (let i = i0; i <= i1; i++)
+    for (const sp of spans[i]) {
+      if (sp.top < bandTop) bandTop = sp.top;
+      if (sp.bot > bandBot) bandBot = sp.bot;
+    }
+  const solid = bandTop === Infinity;                 // a tile of pure rock
+  const top = solid ? 0 : Math.max(0, bandTop - SPAN_TILE_PAD);
+  const bot = solid ? 1 : Math.min(H, bandBot + SPAN_TILE_PAD);
+  const sc = dpr;
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.ceil((x1 - x0) * sc));
+  c.height = Math.max(1, Math.ceil((bot - top) * sc));
+  const tctx = c.getContext("2d");
+  tctx.setTransform(sc, 0, 0, sc, -x0 * sc, -top * sc);
+
+  // The gradient is anchored to the WORLD (0..H), never to this tile's band.
+  // Anchoring it to the band puts a hard vertical seam at every tile boundary
+  // where the band changes — Act One dodges the same trap by passing fixed
+  // gradFrom/gradTo stops into buildHeightTile rather than the tile's own extent.
+  tctx.fillStyle = spanRockGradient(tctx, H);
+  tctx.fillRect(x0 - ov, top, (x1 - x0) + ov * 2, bot - top);
+
+  if (!solid) {
+    /* A machined face has been PAVED: a band of steel fitted into the rock
+       behind it (owner steer — rock overhead, mechanical underfoot, so the
+       facility reads as installed in a cave rather than as a tiled box). Laid
+       down before the punch so the band can't spill into open space. */
+    tctx.fillStyle = spanMachGradient(tctx, H, pal);
+    for (let i = i0; i < i1; i++) {
+      const xa = i * STEP, xb = (i + 1) * STEP;
+      for (const sp of spans[i]) {
+        const m = matchSpan(spans[i + 1], sp) || sp;
+        if (sp.mb === "mach") {
+          tctx.beginPath();
+          tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
+          tctx.lineTo(xb, m.bot + MACH_BAND); tctx.lineTo(xa, sp.bot + MACH_BAND);
+          tctx.closePath(); tctx.fill();
+        }
+        if (sp.mt === "mach") {
+          tctx.beginPath();
+          tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
+          tctx.lineTo(xb, m.top - MACH_BAND); tctx.lineTo(xa, sp.top - MACH_BAND);
+          tctx.closePath(); tctx.fill();
+        }
+      }
+    }
+
+    // punch the open space out of the rock
+    tctx.globalCompositeOperation = "destination-out";
+    tctx.fillStyle = "#000";
+    for (let i = i0; i < i1; i++) {
+      const xa = i * STEP, xb = (i + 1) * STEP;
+      for (const sp of spans[i]) {
+        const m = matchSpan(spans[i + 1], sp) || sp;
+        tctx.beginPath();
+        tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
+        tctx.lineTo(xb, m.bot);  tctx.lineTo(xa, sp.bot);
+        tctx.closePath(); tctx.fill();
+      }
+    }
+
+    /* Then edge the rock — floors and ceilings always, plus a wall wherever a
+       span has no counterpart to continue into (which is what a pillar's flank
+       is). Two passes, because the whole point of the material split is that a
+       cut face and a raw one do not look alike: milled edges are crisp and take
+       the zone's accent, raw rock is softer, violet and carries the Hollows'
+       glow, which also ties Act Two's stone to Act One's. */
+    tctx.globalCompositeOperation = "source-over";
+    for (const mat of ["rock", "mach"]) {
+      tctx.beginPath();
+      let any = false;
+      for (let i = i0; i < i1; i++) {
+        const xa = i * STEP, xb = (i + 1) * STEP;
+        for (const sp of spans[i]) {
+          const fwd = matchSpan(spans[i + 1], sp), m = fwd || sp;
+          if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top); any = true; }
+          if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot); any = true; }
+          // a flank belongs to the rock pass: a wall is where the mass is cut
+          if (mat === "rock") {
+            if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); any = true; }
+            if (i > i0 && !matchSpan(spans[i - 1], sp)) {
+              tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); any = true;
+            }
+          }
+        }
+      }
+      if (!any) continue;
+      if (mat === "mach") {
+        tctx.shadowColor = pal.glow; tctx.shadowBlur = 8;
+        tctx.strokeStyle = pal.stroke; tctx.lineWidth = 2;
+      } else {
+        tctx.shadowColor = TOK.VIOLET_DEEP; tctx.shadowBlur = 14;
+        tctx.strokeStyle = TOK.VIOLET; tctx.lineWidth = 2.4;
+      }
+      tctx.stroke();
+    }
+  }
+  return { canvas: c, x0, y0: top, w: x1 - x0, h: bot - top, bandTop: top, bandBot: bot, solid };
+}
+
+// same cache contract as getTiles, keyed on level._spanTiles
+function getSpanTiles(lvl, xLo, xHi, pal) {
+  if (!lvl._spanTiles) lvl._spanTiles = new Map();
+  const map = lvl._spanTiles;
+  const t0 = Math.max(0, Math.floor(xLo / TILE_W)), t1 = Math.floor(clamp(xHi, 0, lvl.W) / TILE_W);
+  // drawn, not solid: §8's false floor is a ledge that renders and isn't there,
+  // and its painted rock is an outcrop that collides and never renders. On an
+  // honest chamber these are the same array (genChamber).
+  const spans = lvl.spansDrawn || lvl.spans;
+  const out = [];
+  for (let ti = t0; ti <= t1; ti++) {
+    const x0 = ti * TILE_W, x1 = Math.min(x0 + TILE_W, lvl.W);
+    let tile = map.get(ti);
+    if (!tile) tile = buildSpanTile(x0, x1, spans, lvl.H || WORLD_H, pal);
+    out.push(tileTouch(map, ti, tile));
+  }
+  return out;
+}
+
+/* ---- the chamber's light sources (§9.2 — a plant is LIT, and lit by
+   something). Additive pools over the terrain: cheap, cache-friendly (the tiles
+   stay untouched, so no relighting invalidates them) and it does the job the
+   owner asked of it twice over — the room gets brighter, and each fixture is a
+   point of interest on a floor that is otherwise evenly surfaced.
+
+   Ambient is lifted alongside them on purpose. Lights alone over a dark fill
+   give pools in blackness, which reads as a cave with lamps in it, not as a
+   maintained facility — the opposite of what §9.2 wants ("a bright, clean,
+   orderly room full of people being read is worse than a dark cave").
+
+   Two flavours, and it is not decoration: cool cyan fixtures are his, warm gold
+   ones are the failing original plant they were bolted into. Under REDUCED
+   FLASH the flicker goes away entirely rather than merely slowing — a fixture
+   that stutters is exactly the cue that setting exists to remove. */
+const LIGHT_AMBIENT = 0.10;
+function drawChamberLights(now) {
+  const lights = level.lights;
+  if (!lights || !lights.length) return;
+  const H = level.H || WORLD_H;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  // a flat ambient lift across the whole chamber, so the room has a floor level
+  // of brightness rather than only the pools
+  ctx.globalAlpha = LIGHT_AMBIENT;
+  ctx.fillStyle = shade(TOK.CYAN_PALE, .5);
+  ctx.fillRect(0, -260, level.W, H + 320);
+  for (let i = 0; i < lights.length; i++) {
+    const L = lights[i];
+    // a slow, shallow breath, out of phase per fixture so the hall never pulses
+    // as one object; dead steady when reduced flash is on
+    const flick = reducedFlash ? 1 : 0.93 + 0.07 * Math.sin(now * 1.7 + i * 2.1);
+    const r = L.r || 340;
+    const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, r);
+    const tint = L.warm ? TOK.GOLD_WARM : TOK.CYAN_PALE;
+    g.addColorStop(0, shade(tint, .40 * flick));
+    g.addColorStop(0.45, shade(tint, .13 * flick));
+    g.addColorStop(1, shade(tint, 0));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = g;
+    ctx.fillRect(L.x - r, L.y - r, r * 2, r * 2);
+    // the fitting itself, so a light source is a thing and not just a glow
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = shade(tint, .85);
+    ctx.fillRect(L.x - 13, L.y - 3, 26, 5);
+    ctx.globalCompositeOperation = "lighter";
+  }
+  ctx.restore();
+}
+
+/* the chamber's rock. Called from drawWorld in place of the heightmap/roof tile
+   pair when level.spans is present (js/render.js). */
+function drawChamberTerrain(cx, viewW) {
+  const pal = plantChamberPal();
+  const H = level.H || WORLD_H;
+  // the same world-anchored gradient the tiles fill with, so the rock outside a
+  // tile's band is continuous with the rock inside it — no seam at any boundary
+  ctx.fillStyle = spanRockGradient(ctx, H);
+  for (const tile of getSpanTiles(level, cx, cx + viewW, pal)) {
+    if (tile.solid) { ctx.fillRect(tile.x0, -260, tile.w, H + 320); continue; }
+    // rock above and below the band: solid by definition, so nothing to stroke
+    if (tile.bandTop > 0) ctx.fillRect(tile.x0, -260, tile.w, tile.bandTop + 260);
+    if (tile.bandBot < H) ctx.fillRect(tile.x0, tile.bandBot, tile.w, H + 60 - tile.bandBot);
+    ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+  }
+}
+
+/* §5 — the machined tell: short ticks cut into the rock just past a plant's
+   surfaces, so a milled face reads differently from raw rock. Drawn INTO the
+   rock (below a floor, above a ceiling) over the terrain tile, as the heightmap
+   version did. Spans mean an overhang's underside gets them too, not just the
+   column's lowest floor. */
 function drawMachinedPanelTicks(x0, x1) {
-  const heights = level.heights;
-  const i0 = Math.max(0, Math.floor(x0 / STEP)), i1 = Math.min(heights.length - 1, Math.ceil(x1 / STEP));
+  const spans = level.spansDrawn || level.spans;   // ticks belong to what you SEE
+  if (!spans) return;
+  const i0 = Math.max(0, Math.floor(x0 / STEP)), i1 = Math.min(spans.length - 1, Math.ceil(x1 / STEP));
   const spacing = Math.max(1, Math.round(90 / STEP));
   ctx.save();
   ctx.strokeStyle = shade(TOK.VOID, .5); ctx.lineWidth = 1;
+  ctx.beginPath();
   for (let i = i0; i <= i1; i += spacing) {
-    const x = i * STEP, y = heights[i];
-    ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.lineTo(x, y + 26); ctx.stroke();
+    const x = i * STEP;
+    for (const sp of spans[i]) {
+      // only a MILLED face is ticked — raw rock has no panel joints to show
+      if (sp.mb === "mach") { ctx.moveTo(x, sp.bot + 8); ctx.lineTo(x, sp.bot + 30); }
+      if (sp.mt === "mach") { ctx.moveTo(x, sp.top - 8); ctx.lineTo(x, sp.top - 30); }
+    }
   }
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -277,7 +521,12 @@ function drawAnchorRing(x, y) {
   ctx.restore();
 }
 function drawSlingLine(shipX, shipY, rackX, rackY, tension, now, rackTopOffset) {
-  const top = rackTopOffset != null ? rackTopOffset : 45;
+  /* Where the cable meets the rack: its own top rail. Defaulted to the real cage
+     half-height rather than the old magic 45, which was fitted to the first
+     pass's 112px cage — against the final 48px cage it put the rack's anchor
+     ABOVE the ship's, so the cable was drawn ~9px long and pointing upwards.
+     That is the "cable looks very short" the owner spotted. */
+  const top = rackTopOffset != null ? rackTopOffset : RACK_SIZE.h * RACK_CAGE_H / 2;
   const sag = (1 - clamp(tension, 0, 1)) * 60;
   const shipAnchorY = shipY + 10, rackAnchorY = rackY - top;
   const midX = (shipX + rackX) / 2, midY = (shipAnchorY + rackAnchorY) / 2 + sag;
@@ -345,7 +594,8 @@ function drawWellDock(now) {
   drawWellBay(well, now);
   const rackPos = wellRackPos(well, ship.x, ship.y, now);
   drawSlingLine(ship.x, ship.y, rackPos.x, rackPos.y, well.tension != null ? well.tension : 0.6, now, 26);
-  drawRack(rackPos.x, rackPos.y, 90, 70, well.rackState || "reserve", now);
+  drawRack(rackPos.x, rackPos.y, RACK_SIZE.w * 0.7, RACK_SIZE.h * 0.7,
+    well.rackState || "reserve", now, { occupants: well.occupants });
   if (rackPos.eased >= 1) {
     ctx.save();
     const g = ctx.createRadialGradient(rackPos.x, rackPos.y, 4, rackPos.x, rackPos.y, 70);
