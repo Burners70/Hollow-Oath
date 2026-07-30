@@ -503,7 +503,7 @@ done, so the chain now starts at P·slice.
   One cave is guaranteed, and a floor-to-ceiling **pillar**. That is P·slice's
   required geometry, ready for it. Seven tests in `tests/worldgen.spec.js`, one of
   which samples the *rendered canvas* against `solidAt` at twelve points — the
-  rock you see is the rock you hit. Suite green at 132.
+  rock you see is the rock you hit. Suite green at 133.
   Not done here, deliberately: no racks, well, tow, reserve or tether — `genChamber`
   builds terrain only, and `heights` is absent rather than stubbed so anything
   that secretly wants a heightmap fails loudly. Re-entrant hooks remain

@@ -4709,25 +4709,41 @@ window.__doids = {
       refAir: [air, (airSp.top + airSp.bot) / 2] };
   },
   chamberLights: () => (level.lights || []).length,
-  /* Can a rack actually be lifted through this chamber? A towed rack hangs under
-     the hull, so the clearance a laden ship needs is ship + tether + cage height.
-     Reported rather than assumed, because the first pass drew a rack that could
-     not fit the level it was standing in. */
+  /* Can a rack actually be lifted through this chamber, and where does it need
+     momentum? A slung load hangs 90px deep at rest and only 66px when trailing at
+     your own level, so a gap classifies into three tiers (towTierForGap,
+     js/acttwo-data.js). Reported rather than assumed: the first pass drew a rack
+     that could not fit the level it was standing in, and the arithmetic that
+     "proved" it used a made-up 24px tether instead of PENDULUM_SPEC's 46. */
   towClearance: (tether) => {
-    const t = tether != null ? tether : 24;
-    const cage = { w: RACK_SIZE.w * RACK_CAGE_W, h: RACK_SIZE.h * RACK_CAGE_H };
-    const laden = 2 * SHIP_R + t + cage.h;
+    // NB: not named `level` — that is the global level object (js/world.js:214,
+    // a `let` binding, so window.level would be undefined and this would throw)
+    const rest = towEnvelope(0, tether), swung = towEnvelope(TOW_SWING_LEVEL, tether);
     const gaps = [];
     for (const col of (level.spans || [])) for (const sp of col) gaps.push(sp.bot - sp.top);
     gaps.sort((a, b) => a - b);
-    const passable = gaps.filter(g => g >= laden).length;
-    return { cage: { w: +cage.w.toFixed(1), h: +cage.h.toFixed(1) },
-      shipDiameter: 2 * SHIP_R, tether: t, ladenStack: +laden.toFixed(1),
+    const tiers = { rest: 0, momentum: 0, unladen: 0 };
+    for (const g of gaps) tiers[towTierForGap(g, tether)]++;
+    return { cage: rest.cage, shipDiameter: 2 * SHIP_R, tether: tether != null ? tether : SLING_L,
+      atRest: +rest.vertical.toFixed(1), atSpeed: +swung.vertical.toFixed(1),
+      momentumBand: +(rest.vertical - swung.vertical).toFixed(1),
       tightestGap: gaps.length ? Math.round(gaps[0]) : null,
       medianGap: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)]) : null,
-      passableFraction: gaps.length ? +(passable / gaps.length).toFixed(3) : null };
+      tiers, gapCount: gaps.length,
+      // the tightest gap of each tier, so a test can find the authored pinch
+      tightestMomentum: (() => {
+        const m = gaps.filter(g => towTierForGap(g, tether) === "momentum");
+        return m.length ? Math.round(m[0]) : null;
+      })() };
   },
-
+  towTier: (gap, tether) => towTierForGap(gap, tether),
+  // every part that declared a pinch intent, so authored intent can be checked
+  // against the geometry actually compiled rather than trusted
+  declaredPinches: () => {
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    return ((ch && ch.parts) || []).filter(p => p.pinch)
+      .map(p => ({ kind: p.pinch, x: p.x, w: p.w }));
+  },
   /* Sample the RENDERED canvas at a world point — the honest way, which took
      two attempts. Centring the camera on the point puts it at screen centre,
      which is exactly where the ship is drawn: the first version of this returned

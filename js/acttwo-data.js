@@ -48,6 +48,61 @@ const RACK_CAGE_W = 0.72, RACK_CAGE_H = 0.66;  // drawRack's insets, named
 // §6.1 — a rack holds eight to twelve. The occupant count is data, so the cells
 // stay legible at any size instead of always being ten of them.
 const RACK_OCCUPANTS_DEFAULT = 10;
+
+/* ---- the tow envelope, and the MOMENTUM PINCH ----------------------------
+   docs/PENDULUM_SPEC.md §4.1 is the tether reference and survives into Act Two
+   unchanged: the payload is one point mass on a rigid sling attached at the
+   ship's centre, `SLING_L = 46` px centre-to-centre. The physics — verlet point
+   plus distance constraint, the 30/70 correction split that makes towing tug the
+   ship, the damage model above SLING_SAFE_V — is P·systems and is NOT built
+   here. What is needed *now* is the geometry, because it decides what a chamber
+   can be authored to ask of you.
+
+   The envelope depends on how far the load has swung. Hanging straight down the
+   stack is tall; trailing at your own level it is short but long:
+
+     swing 0°   vertical = SHIP_R + SLING_L + cage/2   = 11 + 46 + 33 = 90px
+     swing 90°  vertical = max(2·SHIP_R, cage)         =           66px
+
+   Which gives three tiers of gap, and the middle one is the owner's idea
+   (July 2026): **a pinch too tight to creep through with the load hanging, but
+   passable if you carry enough momentum to trail the rack near your own level.**
+
+     gap ≥ 90      pass at rest, load hanging — an ordinary tight spot
+     66 ≤ gap < 90 MOMENTUM PINCH — you must motor through, load swung up
+     gap < 66      the rack cannot pass at all; unladen route only
+
+   It is a good mechanic because it costs nothing to build (it falls out of the
+   sling that already had to exist), and because going fast with a rack is the
+   dangerous thing — every turn is felt by everyone in the box — so it prices
+   speed against care instead of gating on an upgrade.
+
+   **Note for P·slice:** that middle band is only 24px wide at these numbers, so
+   a momentum pinch is a narrow authoring target. If this is to be a recurring
+   beat rather than a one-off, `SLING_L` probably wants to be longer relative to
+   the rack's height — a 70px sling would widen the band to 48px. Flagged rather
+   than retuned, because tether length is a feel value and belongs on hardware. */
+const SLING_L = 46;                     // PENDULUM_SPEC §4.1, centre-to-centre
+const TOW_SWING_LEVEL = 90;             // degrees from vertical = load at your level
+
+// vertical and horizontal extent of ship-plus-slung-rack at a given swing angle
+function towEnvelope(swingDeg, tether) {
+  const L = tether != null ? tether : SLING_L;
+  const th = (swingDeg || 0) * Math.PI / 180;
+  const cage = { w: RACK_SIZE.w * RACK_CAGE_W, h: RACK_SIZE.h * RACK_CAGE_H };
+  const payloadCY = L * Math.cos(th), payloadCX = L * Math.sin(th);
+  const top = Math.min(-SHIP_R, payloadCY - cage.h / 2);
+  const bot = Math.max(SHIP_R, payloadCY + cage.h / 2);
+  return { vertical: bot - top, horizontal: Math.abs(payloadCX) + cage.w / 2 + SHIP_R,
+    cage };
+}
+
+// which tier of gap is this? "rest" | "momentum" | "unladen"
+function towTierForGap(gap, tether) {
+  if (gap >= towEnvelope(0, tether).vertical) return "rest";
+  if (gap >= towEnvelope(TOW_SWING_LEVEL, tether).vertical) return "momentum";
+  return "unladen";
+}
 /* base = resting brightness (0-1), amp = how much the beat lifts it, beats =
    how many lobes in the envelope (2 = a double-beat "lub-dub", 1 = a single
    thin flicker, 0 = no beat at all — degrading SHAPE, not rate, is the point:
@@ -383,6 +438,32 @@ const SLICE_CHAMBER = {
     { op: "rock", x: 3100, y: 500,  w: 300,  h: 540, roughBot: 8, mb: MAT_ROCK },
     // a structural pillar, floor to ceiling
     { op: "rock", x: 4600, y: 440,  w: 210,  h: 800, mt: MAT_MACH },
+    /* ---- THE MOMENTUM PINCH (owner idea, July 2026) --------------------
+       78px: below the 90px a hanging load needs, above the 66px a load
+       trailing at your own level needs. So you cannot creep through it with
+       a rack swinging under you — you have to carry speed and take it with
+       the load swung up beside you, which is the expensive way to fly a box
+       of people. See the tow-envelope note above for the tiers.
+
+       Both boundaries are pinned with zero roughness and the floor is cut to
+       an exact height, because the hall's own ±22px floor noise would
+       otherwise swing this gap between 54 and 106px — i.e. randomly between
+       "unladen only" and "just fly through it". A gap that IS the mechanic
+       has to be authored, not sampled.
+
+       Pinning takes BOTH ops, which is worth knowing when authoring another:
+       a room whose floor is at 1140 forces the floor no shallower than that
+       (union keeps the deeper bot), and a rock below 1140 forces it no deeper
+       (subtraction cuts the rest away). With only the rock the hall's own
+       roughness still made the gap 75 rather than 78 here, and a reseed could
+       have dropped it out of the momentum band entirely. */
+    { op: "room", x: 6480, y: 900,  w: 340, h: 240, roughTop: 0, roughBot: 0,
+      mb: MAT_MACH },                                     // floor no shallower than 1140
+    { op: "rock", x: 6480, y: 1140, w: 340, h: 260, roughTop: 0, roughBot: 0,
+      mt: MAT_MACH },                                     // floor no deeper than 1140
+    { op: "rock", x: 6520, y: 500,  w: 260, h: 562, roughTop: 0, roughBot: 0,
+      mb: MAT_ROCK, pinch: "momentum" },                  // ceiling mass to 1062
+
     // a domed machined bay off the hall — the immaculate end of the range
     { op: "room", x: 6800, y: 560,  w: 800,  h: 560, roughTop: 8, roughBot: 8,
       profTop: { kind: "arc", dy: -150 }, radius: 110, mt: MAT_MACH, mb: MAT_MACH },

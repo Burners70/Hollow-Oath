@@ -777,24 +777,61 @@ test("P·terrain: groundAt works with one argument on a chamber too", async ({ p
   expect(r.multiOneArg).toBeCloseTo(r.multiSpans[r.multiSpans.length - 1].bot, 0);
 });
 
-test("P·terrain: a rack is small enough to actually be lifted through a chamber", async ({ page }) => {
-  /* Owner review, July 2026: the rack read as too big by eye, and it was worse
-     than that — a towed rack hangs beneath the hull, so a laden ship needs
-     ship + tether + cage height of clearance. At the first pass's 112px cage
-     that was 158px against a chamber whose tightest passage is 98px: the rack
-     could not be lifted through the level it was standing in. */
+test("P·terrain: rack scale and the tow envelope, including the momentum pinch", async ({ page }) => {
+  /* Owner review: the rack read as too big, and measuring showed worse — but the
+     first correction's arithmetic was ALSO wrong. It assumed a 24px tether and
+     stacked the full cage height below it; PENDULUM_SPEC §4.1 gives SLING_L = 46
+     centre-to-centre, so the real at-rest depth is SHIP_R + SLING_L + cage/2 =
+     11 + 46 + 33 = 90px, not 158. The 98px pinch was passable all along.
+
+     What the geometry actually gives is three tiers, and the middle one is the
+     owner's momentum-pinch idea: a gap too tight to creep through with the load
+     hanging, passable if you carry enough speed to trail it at your own level. */
   const t = await page.evaluate(() => { __doids.loadChamber("slice"); return __doids.towClearance(); });
-  // the owner's ceiling: no more than a sixth of the room's height
+
+  // the size rules the owner set: under a sixth of the room's height, and a bank
+  // of eight to twelve read side by side is wider than it is tall
   expect(t.cage.h).toBeLessThan(t.medianGap / 6);
-  // and a bank of eight to twelve people read side by side is WIDER than tall
   expect(t.cage.w).toBeGreaterThan(t.cage.h);
-  // a laden ship must clear the great majority of the floor, or towing is misery
-  expect(t.passableFraction).toBeGreaterThan(0.85);
-  /* It deliberately does NOT fit the tightest pinch. That is a level-design
-     property worth keeping — a gap you can only take unladen makes the way out
-     with a load longer than the way in, which is exactly the hurry-versus-care
-     pressure the act runs on — but it MUST be deliberate, so assert it rather
-     than let it drift. P·content owns the matching invariant: every chamber has
-     to be clearable while towing, by some route. */
-  expect(t.ladenStack).toBeGreaterThan(t.tightestGap);
+
+  // the envelope, from PENDULUM_SPEC's own numbers rather than invented ones
+  expect(t.tether).toBe(46);
+  expect(t.atRest).toBe(90);      // hanging straight down
+  expect(t.atSpeed).toBe(66);     // trailing at your own level
+  expect(t.atSpeed).toBeLessThan(t.atRest);
+
+  // the chamber authors a real momentum pinch, and it sits strictly inside the
+  // band — not merely tight, and not impassable
+  expect(t.tiers.momentum).toBeGreaterThan(0);
+  expect(t.tightestMomentum).toBeGreaterThanOrEqual(t.atSpeed);
+  expect(t.tightestMomentum).toBeLessThan(t.atRest);
+
+  // nothing in the chamber blocks a laden ship outright: this is one hall, so an
+  // unladen-only gap here would make the floor unclearable while towing, which is
+  // the invariant P·content carries (every chamber clearable with everyone alive)
+  expect(t.tiers.unladen).toBe(0);
+  // and the great majority of the floor is still ordinary flying
+  expect(t.tiers.rest / t.gapCount).toBeGreaterThan(0.9);
+});
+
+test("P·terrain: an authored pinch compiles to the tier it claims", async ({ page }) => {
+  /* The gap IS the mechanic, so it cannot be left to the terrain noise. The
+     hall's ±22px floor roughness put this pinch at 75px rather than the intended
+     78 until it was pinned from both sides, and a reseed could have dropped it
+     out of the momentum band entirely. Assert intent against compiled geometry. */
+  const r = await page.evaluate(() => {
+    __doids.loadChamber("slice");
+    const declared = __doids.declaredPinches();
+    return declared.map(d => {
+      // the tightest gap actually compiled across the part's span
+      let tightest = Infinity;
+      for (let x = d.x; x <= d.x + d.w; x += STEP) {
+        for (const sp of __doids.spans(x)) tightest = Math.min(tightest, sp.bot - sp.top);
+      }
+      return { kind: d.kind, x: d.x, tightest: Math.round(tightest),
+        tier: __doids.towTier(tightest) };
+    });
+  });
+  expect(r.length).toBeGreaterThan(0);
+  for (const d of r) expect(d.tier, `pinch at x=${d.x} claims ${d.kind}`).toBe(d.kind);
 });
