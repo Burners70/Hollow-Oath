@@ -438,7 +438,8 @@ function drawWorld(now) {
   if (level.towedRack) {
     const tr = level.towedRack;
     drawSlingLine(ship.x, ship.y, tr.x, tr.y, tr.tension != null ? tr.tension : .55, now);
-    drawRack(tr.x, tr.y, tr.w || 120, tr.h || 90, tr.state || "reserve", now);
+    drawRack(tr.x, tr.y, tr.w || RACK_SIZE.w, tr.h || RACK_SIZE.h, tr.state || "reserve", now,
+      { occupants: tr.occupants });
   }
 
   // fuel pods — real ones flicker like fire, alive and irregular
@@ -4708,6 +4709,24 @@ window.__doids = {
       refAir: [air, (airSp.top + airSp.bot) / 2] };
   },
   chamberLights: () => (level.lights || []).length,
+  /* Can a rack actually be lifted through this chamber? A towed rack hangs under
+     the hull, so the clearance a laden ship needs is ship + tether + cage height.
+     Reported rather than assumed, because the first pass drew a rack that could
+     not fit the level it was standing in. */
+  towClearance: (tether) => {
+    const t = tether != null ? tether : 24;
+    const cage = { w: RACK_SIZE.w * RACK_CAGE_W, h: RACK_SIZE.h * RACK_CAGE_H };
+    const laden = 2 * SHIP_R + t + cage.h;
+    const gaps = [];
+    for (const col of (level.spans || [])) for (const sp of col) gaps.push(sp.bot - sp.top);
+    gaps.sort((a, b) => a - b);
+    const passable = gaps.filter(g => g >= laden).length;
+    return { cage: { w: +cage.w.toFixed(1), h: +cage.h.toFixed(1) },
+      shipDiameter: 2 * SHIP_R, tether: t, ladenStack: +laden.toFixed(1),
+      tightestGap: gaps.length ? Math.round(gaps[0]) : null,
+      medianGap: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)]) : null,
+      passableFraction: gaps.length ? +(passable / gaps.length).toFixed(3) : null };
+  },
 
   /* Sample the RENDERED canvas at a world point — the honest way, which took
      two attempts. Centring the camera on the point puts it at screen centre,

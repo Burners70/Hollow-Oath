@@ -24,6 +24,30 @@
    network-dip/ripple math that consumes staticClock). */
 
 const RACK_PULSE_PERIOD = 1.10;   // seconds/cycle — resting pulse, all 4 states
+
+/* ---- how big a rack is (owner review, July 2026) -------------------------
+   The first pass drew it far too large: a nominal 130x170 becomes a 94x112 cage
+   (drawRack insets to 72%/66%), and a rack is TOWED beneath the hull, so the
+   clearance it needs is ship + tether + cage height = 22 + ~24 + 112 = 158px.
+   The slice chamber's tightest passage is 98px. It could not physically be
+   lifted through the level it was standing in, which is what the owner spotted
+   by eye ("hard to see how you'd have the space").
+
+   Two corrections, not one. Smaller — the owner's ceiling was "no more than a
+   sixth of the height", and a sixth of the hall's 586px median gives ~98px, so
+   66px sits comfortably inside it. And WIDER THAN TALL: a rack is a bank of
+   eight to twelve people read side by side (§6.1), so a portrait box was the
+   wrong silhouette for the thing it is. Height is also the axis that costs
+   clearance, and width the axis that buys readability, so landscape is cheaper
+   on both counts. Cage area ends up ~40% down on the first pass.
+
+   Authored here rather than as a magic default in drawRacks, so a chamber that
+   wants an unusual rack overrides data instead of passing render arguments. */
+const RACK_SIZE = { w: 134, h: 100 };          // nominal → a 96 x 66 cage
+const RACK_CAGE_W = 0.72, RACK_CAGE_H = 0.66;  // drawRack's insets, named
+// §6.1 — a rack holds eight to twelve. The occupant count is data, so the cells
+// stay legible at any size instead of always being ten of them.
+const RACK_OCCUPANTS_DEFAULT = 10;
 /* base = resting brightness (0-1), amp = how much the beat lifts it, beats =
    how many lobes in the envelope (2 = a double-beat "lub-dub", 1 = a single
    thin flicker, 0 = no beat at all — degrading SHAPE, not rate, is the point:

@@ -44,7 +44,7 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   // §4 open question 1 (Option B, the trunk-ripple pick) — every rack takes a
   // simultaneous bite from the shared reserve on the network's real 41s beat.
   if (opts.networked !== false) brightness = Math.max(0.08, brightness * (1 - networkDipAmount() * 0.35));
-  const bw = w * 0.72, bh = h * 0.66, left = cx - bw / 2, top = cy - bh / 2;
+  const bw = w * RACK_CAGE_W, bh = h * RACK_CAGE_H, left = cx - bw / 2, top = cy - bh / 2;
   ctx.save();
   // light leaking from inside the cage — a radial wash, not a rounded halo outline
   const glowR = Math.max(bw, bh) * 0.7;
@@ -56,8 +56,12 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   // dark cell body, sharp corners
   ctx.fillStyle = TOK.VOID;
   ctx.fillRect(left, top, bw, bh);
-  // occupant cells — small lit windows behind the bars
-  const n = 10, pad = bw * 0.05, cellW = (bw - pad * 2) / n;
+  /* occupant cells — small lit windows behind the bars. The count is the rack's
+     actual occupancy (§6.1, eight to twelve) rather than a hardcoded ten, so
+     shrinking a rack thins the bank instead of grinding ten cells into slivers:
+     at the reduced RACK_SIZE, ten fixed cells came out 3.6px wide. */
+  const n = opts.occupants || RACK_OCCUPANTS_DEFAULT;
+  const pad = bw * 0.05, cellW = (bw - pad * 2) / n;
   for (let i = 0; i < n; i++) {
     const px = left + pad + i * cellW + cellW * 0.5;
     ctx.fillStyle = shade(color, 0.14 + brightness * 0.55);
@@ -66,8 +70,11 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   // heavy outer frame, sharp corners — industrial holding, not a device
   ctx.strokeStyle = shade(TOK.CYAN_TEXT, .6); ctx.lineWidth = Math.max(2.5, bw * 0.022);
   ctx.strokeRect(left, top, bw, bh);
-  // vertical bars over everything — dim steel, deliberately NOT glowing
-  const bars = 9;
+  /* vertical bars over everything — dim steel, deliberately NOT glowing. The
+     count follows the width (one per ~18px) rather than a fixed nine: nine bars
+     across the reduced cage left 7px of gap and read as a picket fence, hiding
+     the occupants the bars are supposed to be seen through. */
+  const bars = clamp(Math.round(bw / 18), 4, 9);
   ctx.strokeStyle = "rgba(10,12,24,.92)"; ctx.lineWidth = Math.max(3, bw * 0.02);
   for (let i = 1; i < bars; i++) {
     const x = left + (bw / bars) * i;
@@ -115,8 +122,8 @@ function drawRacks(now) {
       const c = r.conduit;
       drawConduitTrunk(c.x0, c.y0, c.x1, c.y1, c.real !== false, now, (i % 4) / 4);
     }
-    drawRack(r.x, r.y, r.w || 130, r.h || 170, r.state || "mains", now,
-      { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label });
+    drawRack(r.x, r.y, r.w || RACK_SIZE.w, r.h || RACK_SIZE.h, r.state || "mains", now,
+      { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label, occupants: r.occupants });
   });
 }
 
@@ -582,7 +589,8 @@ function drawWellDock(now) {
   drawWellBay(well, now);
   const rackPos = wellRackPos(well, ship.x, ship.y, now);
   drawSlingLine(ship.x, ship.y, rackPos.x, rackPos.y, well.tension != null ? well.tension : 0.6, now, 26);
-  drawRack(rackPos.x, rackPos.y, 90, 70, well.rackState || "reserve", now);
+  drawRack(rackPos.x, rackPos.y, RACK_SIZE.w * 0.7, RACK_SIZE.h * 0.7,
+    well.rackState || "reserve", now, { occupants: well.occupants });
   if (rackPos.eased >= 1) {
     ctx.save();
     const g = ctx.createRadialGradient(rackPos.x, rackPos.y, 4, rackPos.x, rackPos.y, 70);

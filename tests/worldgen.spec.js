@@ -776,3 +776,25 @@ test("P·terrain: groundAt works with one argument on a chamber too", async ({ p
   expect(r.multiOneArg).toBeLessThan(r.H);
   expect(r.multiOneArg).toBeCloseTo(r.multiSpans[r.multiSpans.length - 1].bot, 0);
 });
+
+test("P·terrain: a rack is small enough to actually be lifted through a chamber", async ({ page }) => {
+  /* Owner review, July 2026: the rack read as too big by eye, and it was worse
+     than that — a towed rack hangs beneath the hull, so a laden ship needs
+     ship + tether + cage height of clearance. At the first pass's 112px cage
+     that was 158px against a chamber whose tightest passage is 98px: the rack
+     could not be lifted through the level it was standing in. */
+  const t = await page.evaluate(() => { __doids.loadChamber("slice"); return __doids.towClearance(); });
+  // the owner's ceiling: no more than a sixth of the room's height
+  expect(t.cage.h).toBeLessThan(t.medianGap / 6);
+  // and a bank of eight to twelve people read side by side is WIDER than tall
+  expect(t.cage.w).toBeGreaterThan(t.cage.h);
+  // a laden ship must clear the great majority of the floor, or towing is misery
+  expect(t.passableFraction).toBeGreaterThan(0.85);
+  /* It deliberately does NOT fit the tightest pinch. That is a level-design
+     property worth keeping — a gap you can only take unladen makes the way out
+     with a load longer than the way in, which is exactly the hurry-versus-care
+     pressure the act runs on — but it MUST be deliberate, so assert it rather
+     than let it drift. P·content owns the matching invariant: every chamber has
+     to be clearable while towing, by some route. */
+  expect(t.ladenStack).toBeGreaterThan(t.tightestGap);
+});
