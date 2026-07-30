@@ -503,7 +503,7 @@ done, so the chain now starts at P·slice.
   One cave is guaranteed, and a floor-to-ceiling **pillar**. That is P·slice's
   required geometry, ready for it. Seven tests in `tests/worldgen.spec.js`, one of
   which samples the *rendered canvas* against `solidAt` at twelve points — the
-  rock you see is the rock you hit. Suite green at 128.
+  rock you see is the rock you hit. Suite green at 131.
   Not done here, deliberately: no racks, well, tow, reserve or tether — `genChamber`
   builds terrain only, and `heights` is absent rather than stubbed so anything
   that secretly wants a heightmap fails loudly. Re-entrant hooks remain
@@ -537,11 +537,52 @@ done, so the chain now starts at P·slice.
   SOLACE's breached intake (beat 1, §11.1) as one of Glycon's plant rooms. It now
   comes from the chamber, and the chamber-terrain render path keys on `level.spans`
   rather than `isPlant` — every chamber is underground, only 2–5 are the plant.
-  **Still open for P·slice/P·content, not guessed at:** whether the chamber should
-  be vertical rather than the current 3.5:1 letterbox (a descent probably wants
-  depth); whether 83px is the right pinch, which needs the tether to judge; and
-  84% of floor being landable under Act One's 0.25 slope rule, which may make the
-  "care" half of hurry-versus-care too cheap.
+  **Owner review, round two (July 2026) — three more, all landed.**
+  4. **Keep "some rock you see is NOT rock you hit."** Correctly flagged: §8's
+     hazards are a false floor (drawn, not there) and painted rock (real, never
+     drawn), and nothing in the model could hold either — a deception would have
+     had to be bolted on outside the terrain system, and a test was asserting
+     drawn-equals-solid *everywhere*, which is the exact opposite invariant. A
+     part now declares a `view` (`drawn`/`solid`) and `genChamber` compiles both
+     `spans` (collision) and `spansDrawn` (rendering) from one definition. They
+     are the same array on an honest chamber; a test asserts the two views differ
+     only inside a part that declared a view, and counts undeclared drift as a
+     failure. The slice chamber carries one of each. The tell — grit off real rock,
+     none off a projection, no lamp shadow on a lie — stays P·systems.
+  5. **Brighter, via many light sources.** `drawChamberLights`: additive radial
+     pools per fixture plus a flat ambient lift, over the terrain and outside the
+     tile cache so nothing needs relighting. Ambient is lifted *alongside* the
+     fixtures deliberately — pools over a dark fill read as a cave with lamps in
+     it, which is what §9.2 explicitly does not want. Cool cyan fixtures are his,
+     warm gold ones the failing original plant, and they double as the points of
+     interest a bare floor lacked. Fixtures snap to a real surface; a test asserts
+     none is buried in rock or hovering, and that the room measures brighter with
+     them than without.
+  6. **A chamber is one FLOOR of a subterranean complex** — wide, cleared
+     entirely, then descend at the far end. The first layout stepped down through
+     three stacked galleries, making every chamber its own mini-descent and
+     leaving the act's structure nothing to do. Re-authored as a 9000×2050 working
+     hall with bays and mezzanines along it and the way down at the right-hand
+     end, which is where the next chamber's entrance and MERCY's well belong
+     (§11.1). Its test now asserts width-to-vertical > 3 rather than a hardcoded
+     size, and every feature test locates its feature by property (first column
+     with two spans, the solid run with hall either side) instead of by
+     coordinate — the chamber has been retuned three times and coordinate
+     literals turned each retune into a puzzle about which number went stale.
+  **Two real bugs came out of that round**, both invisible to Act One:
+  `pickSpan` started `best` at null with a strict `<`, so the no-y sentinel left
+  every candidate at distance Infinity, failed the comparison and returned null
+  for a column that plainly had spans — **`groundAt(x)` with one argument returned
+  the bottom of the world on any chamber**, which would have broken every shipped
+  one-argument call site the moment P·slice loaded one. And the pixel-agreement
+  test parked the ship *at* the probe point with the camera centred there, so it
+  had been sampling the ship's own cyan and calling it rock; there is now one
+  `__doids.samplePixel` that keeps clear of the ship, the HUD and the containment
+  field, used by both pixel tests.
+  **Still open for P·slice/P·content, not guessed at:** whether 98px is the right
+  pinch, which needs the tether to judge; and how much of the floor should be
+  level — landability is high, which may make the "care" half of hurry-versus-care
+  too cheap.
 - [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
   with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
   the rack reads correctly, and that is a design problem before it is a code

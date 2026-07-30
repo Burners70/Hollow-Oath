@@ -383,6 +383,9 @@ function drawWorld(now) {
     // plant — an intake's own wrecked gear is milled too. The function itself
     // walks materials and skips raw rock.
     drawMachinedPanelTicks(cx, cx + viewW);
+    // the fixtures that make the room lit (§9.2). After the terrain so they
+    // light it, before scenery/oids so those are not washed out.
+    drawChamberLights(now);
   } else {
     // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
     // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
@@ -4573,20 +4576,164 @@ window.__doids = {
   // the two properties §11.0 says the heightmap could not express
   spanStats: () => {
     const s = level.spans || [];
-    let overhangs = 0, solidCols = 0, tightest = Infinity, deepest = 0;
+    let overhangs = 0, solidCols = 0, tightest = Infinity, deepest = 0, shallowest = Infinity;
     for (const col of s) {
       if (col.length >= 2) overhangs++;
       if (!col.length) solidCols++;
       for (const sp of col) {
         tightest = Math.min(tightest, sp.bot - sp.top);
         deepest = Math.max(deepest, sp.bot);
+        shallowest = Math.min(shallowest, sp.top);
       }
     }
     return { cols: s.length, overhangs, solidCols, deepest: Math.round(deepest),
+      // how much vertical the open route actually uses — a FLOOR of a complex is
+      // wide against this, not tall (owner steer, July 2026)
+      verticalUsed: Math.round(deepest - (shallowest === Infinity ? 0 : shallowest)),
       tightest: tightest === Infinity ? null : Math.round(tightest) };
   },
   solidAt: (x, y) => solidAt(x, y),
   roofAtY: (x, y) => roofAt(x, y),
+
+  /* §8 — where the drawn view and the solid view deliberately disagree. Every
+     disagreement must be one of the two authored hazards; anything else is the
+     two views having drifted apart, which is a bug and is counted separately. */
+  deceptions: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    /* Classify by measuring AIR, not by counting spans. Painted rock usually
+       shortens an existing span rather than adding one (its mass runs past the
+       hall floor, so no air survives beneath it), which a span-count test misses
+       entirely — it read 0 painted rock on a chamber that has some. */
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    // every difference must fall inside a part that DECLARED a view, or the two
+    // views have drifted apart on their own, which is the bug worth catching
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    const ranges = ((ch && ch.parts) || []).filter(p => p.view)
+      .map(p => [p.x - STEP * 2, p.x + p.w + STEP * 2]);
+    const declared = x => ranges.some(r => x >= r[0] && x <= r[1]);
+    let falseFloors = 0, paintedRock = 0, undeclaredColumns = 0;
+    for (let i = 0; i < sol.length; i++) {
+      const a = openLen(sol[i]), b = openLen(drw[i]);
+      if (Math.abs(a - b) < 0.01) continue;
+      if (!declared(i * STEP)) { undeclaredColumns++; continue; }
+      if (b < a) falseFloors++;      // drawn hides real air → a ledge that isn't there
+      else paintedRock++;            // drawn shows air over real mass → a painted wall
+    }
+    return { falseFloors, paintedRock, undeclaredColumns };
+  },
+  // the first column where a ledge is drawn but nothing is solid: the ledge's y,
+  // the real ground you actually fall to, and whether the ledge holds you
+  falseFloorProbe: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    for (let i = 0; i < sol.length; i++) {
+      // LESS air drawn than exists = a ledge drawn across open space
+      if (openLen(sol[i]) - openLen(drw[i]) < 1) continue;
+      const x = i * STEP;
+      /* Find the FALSE boundary specifically: a drawn floor with no solid rock
+         under it. Taking drw[i][0].bot instead picks the topmost boundary in the
+         column, which on a chamber with a mezzanine is a perfectly real ceiling —
+         it reported ledge === ground and the deception as solid. */
+      for (const sp of drw[i]) {
+        if (solidAt(x, sp.bot + 4)) continue;            // a real floor, keep looking
+        return { x: Math.round(x), drawnLedge: Math.round(sp.bot),
+          realGround: Math.round(groundAt(x, sp.bot + 4)),
+          solidAtLedge: solidAt(x, sp.bot + 4) };
+      }
+    }
+    return null;
+  },
+  // the first column that is solid where the drawn view shows open space
+  paintedRockProbe: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    for (let i = 0; i < sol.length; i++) {
+      // MORE air drawn than exists = mass hidden behind a painted face
+      if (openLen(drw[i]) - openLen(sol[i]) < 1) continue;
+      const x = i * STEP;
+      // a y inside the hidden mass: just below the surviving solid span's floor
+      const y = (sol[i].length ? sol[i][sol[i].length - 1].bot : 0) + 30;
+      const d = pickSpan(drw[i], y);
+      return { x: Math.round(x), y: Math.round(y), solid: solidAt(x, y),
+        drawnOpen: !!(d && y > d.top && y < d.bot) };
+    }
+    return null;
+  },
+  /* Points known to be far from either declared lie, for the pixel-agreement
+     test — derived rather than hardcoded so retuning the chamber can't quietly
+     aim a probe into a deception and make the test contradict itself. */
+  honestProbePoints: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const honest = i => {
+      const a = sol[i] || [], b = drw[i] || [];
+      return a.length === b.length && a.every((sp, k) =>
+        Math.abs(sp.top - b[k].top) < 0.01 && Math.abs(sp.bot - b[k].bot) < 0.01);
+    };
+    /* Stay well clear of the world edges: drawBoundaryField paints a glowing
+       dashed containment line at BOUND_X (40) that brightens as the ship nears
+       it, so a pixel sampled there is reading the overlay, not the terrain. */
+    const EDGE = 240;
+    const iLo = Math.max(3, Math.ceil(EDGE / STEP));
+    const iHi = Math.min(sol.length - 4, Math.floor((level.W - EDGE) / STEP));
+    const clear = i => honest(i - 2) && honest(i - 1) && honest(i) && honest(i + 1) && honest(i + 2);
+    const pts = [];
+    let pillar = null, air = null;
+    for (let i = iLo; i <= iHi; i++) {
+      if (!clear(i)) continue;
+      const col = sol[i];
+      if (!pillar && !col.length && sol[i - 1].length) {
+        let j = i;                                        // a RUN of solid columns
+        while (j < sol.length - 1 && !sol[j].length) j++;  // with hall either side
+        // the MIDDLE of the run, not its first column: a flank carries a violet
+        // rock stroke with a 14px glow, and sampling that returned TOK.VIOLET as
+        // the "rock" reference, which made every genuine rock probe look like air
+        if (sol[j].length) pillar = Math.floor((i + j) / 2) * STEP;
+      }
+      if (!air && col.length === 1) air = i * STEP;
+    }
+    for (let i = iLo; i <= iHi && pts.length < 8; i += 37) {
+      if (!clear(i)) continue;
+      const col = sol[i];
+      const x = i * STEP;
+      if (!col.length) { pts.push(["solid column @" + x, x, 900]); continue; }
+      const sp = col[0];
+      pts.push(["air @" + x, x, (sp.top + sp.bot) / 2]);
+      pts.push(["above ceiling @" + x, x, Math.max(30, sp.top - 90)]);
+      pts.push(["below floor @" + x, x, sp.bot + 90]);
+    }
+    const airCol = sol[Math.round(air / STEP)];
+    const airSp = airCol[airCol.length - 1];
+    return { points: pts,
+      refRock: [pillar != null ? pillar : iLo * STEP, 900],
+      refAir: [air, (airSp.top + airSp.bot) / 2] };
+  },
+  chamberLights: () => (level.lights || []).length,
+
+  /* Sample the RENDERED canvas at a world point — the honest way, which took
+     two attempts. Centring the camera on the point puts it at screen centre,
+     which is exactly where the ship is drawn: the first version of this returned
+     the ship's own cyan (113,170,255) and called it rock. So aim the point at a
+     quiet third of the screen instead, and park the ship a full screen away.
+     Avoids, by construction: the ship and its glow, the top HUD strip, the
+     bottom-right touch buttons, the centre banner text, and drawBoundaryField's
+     glowing containment line at the world edges. */
+  samplePixel: (wx, wy) => {
+    const z = zoomLevel(), cw = (vw - saLeft) / z, ch = vh / z;
+    const wantSx = (vw - saLeft) * 0.32, wantSy = vh * 0.34;
+    camera.x = wx - (wantSx / z - cw / 2);
+    camera.y = wy - (wantSy / z - ch / 2);
+    camera.shake = 0;
+    ship.x = clamp(wx + cw, BOUND_X, level.W - BOUND_X);
+    ship.y = wy; ship.vx = ship.vy = 0; ship.ang = 0;
+    ship.landed = true; ship.dead = false;
+    render(performance.now() / 1000);
+    // recompute the transform exactly as worldTransform does, AFTER its clamps
+    const cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
+    const cy = clamp(camera.y - ch / 2, -100, levelH() - ch);
+    const px = ctx.getImageData(Math.round((saLeft + (wx - cx) * z) * dpr),
+      Math.round((wy - cy) * z * dpr), 1, 1).data;
+    return [px[0], px[1], px[2]];
+  },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
   evalLanding: landingEval,

@@ -237,7 +237,32 @@ function chamberNoise(rng, wl, W) {
 /* compile a chamber definition to level.spans — one array of open intervals per
    column, top to bottom. Slivers thinner than `minGap` are dropped: they would
    read as rendering noise and let collision flicker between two spans. */
-function compileChamber(ch) {
+/* ---- the two views: what is there, and what you can see ------------------
+   §8's hazards are not decoration on top of terrain, they ARE terrain telling
+   you something false, so the representation has to be able to hold a lie:
+
+     false floor  — a ledge that is drawn and is not there. You commit to a
+                    landing and drop through it.
+     painted rock — a real outcrop drawn as empty space. You fly into a wall
+                    that looked like air. The scarier of the two.
+
+   So a part declares which VIEW it belongs to. Everything is in both by
+   default; a part in only one is a deception, and the mismatch between the two
+   views is precisely the hazard rather than a bug:
+
+     view: "drawn" — appears when drawing, absent from collision → false floor
+     view: "solid" — collides, never drawn                       → painted rock
+
+   Both views compile from the same definition through the same code, so a
+   chamber cannot drift out of agreement by accident. It can only lie on
+   purpose, in one declared place, which is the property worth having. The
+   TELL is not here: raising grit off real rock and none off a projection
+   (§8.1) is exhaust-particle work in P·systems. This is the hook it needs. */
+function chamberLies(ch) { return ch.parts.some(p => p.view); }
+function partInView(p, view) { return !p.view || p.view === view; }
+
+function compileChamber(ch, view) {
+  view = view || "solid";
   const cols = Math.floor(ch.W / STEP) + 2;
   const rng = mulberry32(ch.seed);
   // rock wants a coarser, bigger wobble than milled steel does — genLevel stacks
@@ -249,6 +274,7 @@ function compileChamber(ch) {
   const spans = [];
   for (let i = 0; i < cols; i++) spans.push([]);
   for (const p of ch.parts) {
+    if (!partInView(p, view)) continue;
     const i0 = Math.max(0, Math.floor(p.x / STEP));
     const i1 = Math.min(cols - 1, Math.ceil((p.x + p.w) / STEP));
     const mt = p.mt || defTop, mb = p.mb || defBot;
@@ -293,8 +319,22 @@ function spanCountAt(x, spans) {
    a mid corridor squeezes to a PINCH of ~84px, against the 175px every Act One
    cave is guaranteed by construction; that opens into a deep lower gallery with
    a full-height PILLAR and a second shelf to tow a rack around. */
+const SLICE_CHAMBER_V1_LETTERBOX = null;   // (kept as a marker: see the note below)
+
+/* ---- the slice chamber, as a FLOOR ---------------------------------------
+   Owner steer, July 2026: a chamber is **one floor of a subterranean complex**,
+   not a vertical shaft. You clear a whole floor — everyone on it — and then
+   descend to the next. So width is the point, and the descent belongs at the
+   END of a level rather than threaded through it. The first pass had the route
+   stepping down through three stacked galleries, which quietly made every
+   chamber its own mini-descent and left nothing for the act's structure to do.
+
+   So: a long working hall, bays and mezzanines along it, and a shaft at the far
+   right that drops to the next floor's entrance — which is also where MERCY's
+   well pays out to (§11.1: each chamber's exit is the next one's entrance, and
+   she lowers the well deeper as you clear). */
 const SLICE_CHAMBER = {
-  id: "slice", name: "INTAKE", seed: 90210, W: 7600, H: 2400, zone: "cyan",
+  id: "slice", name: "INTAKE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
   /* SOLACE's breached intake is beat 1; the plant proper is 2–5 (spec §11.1), so
      this chamber is NOT dressed as a plant — `plant` stays false and the machined
      surfaces read as her own wrecked intake gear rather than his facility. */
@@ -302,31 +342,61 @@ const SLICE_CHAMBER = {
   // the owner rule: raw rock overhead, mechanical underfoot
   matTop: MAT_ROCK, matBot: MAT_MACH,
   parts: [
-    { op: "room", x: 180,  y: 120,  w: 300,  h: 720, roughTop: 6,  roughBot: 0  },  // entry shaft
-    { op: "room", x: 120,  y: 620,  w: 2600, h: 700, roughTop: 34, roughBot: 30 },  // upper gallery
-    // the overhang shelf: machined on top (you land on it) and rock underneath
-    // (you fly under raw stone) — one part, two materials, which is the point
-    { op: "rock", x: 1500, y: 850,  w: 760,  h: 170, roughTop: 10, roughBot: 22,
-      mt: MAT_MACH, mb: MAT_ROCK },
-    { op: "room", x: 2650, y: 980,  w: 900,  h: 340, roughTop: 14, roughBot: 12 },  // mid corridor
-    { op: "rock", x: 2900, y: 980,  w: 280,  h: 256, roughTop: 0,  roughBot: 8  },  // the pinch (~85px)
-    { op: "room", x: 3400, y: 1300, w: 2450, h: 900, roughTop: 38, roughBot: 34,
-      radius: 90 },                                                                 // lower gallery
-    { op: "rock", x: 4400, y: 1240, w: 200,  h: 1000, roughTop: 0, roughBot: 0,
-      mt: MAT_MACH },                                                               // pillar, floor to ceiling
-    { op: "rock", x: 4950, y: 1620, w: 700,  h: 180, roughTop: 10, roughBot: 16,
-      mt: MAT_MACH, mb: MAT_ROCK },                                                 // tow-around shelf
+    // the way IN, dropping from the floor above
+    { op: "room", x: 240,  y: 60,   w: 300,  h: 560, roughTop: 6,  roughBot: 0 },
+    // THE WORKING HALL — one floor, 8km of it. Rock ceiling, paved floor.
+    { op: "room", x: 150,  y: 520,  w: 8050, h: 620, roughTop: 44, roughBot: 22 },
 
-    /* ---- the shape vocabulary, so P·content isn't authoring against right
-       angles alone (owner note, July 2026). Placed to the right of everything
-       above so the proven overhang/pinch/pillar keep their coordinates. */
-    { op: "room", x: 5700, y: 1300, w: 1200, h: 480, roughTop: 30, roughBot: 10,
-      profBot: { kind: "ramp", dy: 380 }, radius: 80 },        // a ramped machined descent
-    { op: "rock", x: 5950, y: 1240, w: 760,  h: 140, roughBot: 10,
-      profBot: { kind: "teeth", n: 7, dy: 130 }, mt: MAT_ROCK, mb: MAT_ROCK },  // stalactite teeth
-    { op: "room", x: 6800, y: 1700, w: 760,  h: 560, roughTop: 8, roughBot: 8,
-      profTop: { kind: "arc", dy: -190 }, radius: 130,
-      mt: MAT_MACH, mb: MAT_MACH }                            // an immaculate machined bore
+    // mezzanines: milled pad on top to land on, raw rock underneath to fly beneath
+    { op: "rock", x: 1400, y: 700,  w: 900,  h: 150, roughTop: 10, roughBot: 24,
+      mt: MAT_MACH, mb: MAT_ROCK },
+    { op: "rock", x: 5600, y: 720,  w: 850,  h: 150, roughTop: 10, roughBot: 24,
+      mt: MAT_MACH, mb: MAT_ROCK },
+    // stalactite teeth off the raw ceiling
+    { op: "rock", x: 2500, y: 500,  w: 520,  h: 90,  roughBot: 8,
+      profBot: { kind: "teeth", n: 6, dy: 95 }, mt: MAT_ROCK, mb: MAT_ROCK },
+    // the pinch between two bays of the hall — squeeze under it
+    { op: "rock", x: 3100, y: 500,  w: 300,  h: 540, roughBot: 8, mb: MAT_ROCK },
+    // a structural pillar, floor to ceiling
+    { op: "rock", x: 4600, y: 440,  w: 210,  h: 800, mt: MAT_MACH },
+    // a domed machined bay off the hall — the immaculate end of the range
+    { op: "room", x: 6800, y: 560,  w: 800,  h: 560, roughTop: 8, roughBot: 8,
+      profTop: { kind: "arc", dy: -150 }, radius: 110, mt: MAT_MACH, mb: MAT_MACH },
+    // a ramped stretch of floor, so not every landing on this floor is level
+    { op: "room", x: 7450, y: 700,  w: 780,  h: 440, roughTop: 20, roughBot: 8,
+      profBot: { kind: "ramp", dy: 190 }, mt: MAT_ROCK, mb: MAT_MACH },
+    // THE WAY DOWN, at the end of the floor — the next chamber's entrance
+    { op: "room", x: 8250, y: 700,  w: 430,  h: 1250, roughTop: 8, roughBot: 10,
+      radius: 60, mt: MAT_ROCK, mb: MAT_MACH },
+
+    /* ---- §8's two hazards, as the only two parts that differ between the
+       views. Neither has its tell yet (P·systems); what matters here is that
+       the terrain model can hold them at all. */
+    // FALSE FLOOR — drawn as a milled ledge, absent from collision. Commit to
+    // landing on it and you drop to the real hall floor ~140px below.
+    { op: "rock", x: 2050, y: 1000, w: 420,  h: 60, mt: MAT_MACH, mb: MAT_MACH,
+      view: "drawn" },
+    // PAINTED ROCK — a real outcrop that is never drawn. Looks like open hall.
+    { op: "rock", x: 5150, y: 700,  w: 260,  h: 460, roughBot: 10, view: "solid" }
+  ],
+  /* Light sources, because a maintained facility is lit BY something (owner
+     ask, July 2026 — brighter, via lots of light sources). Two jobs at once: it
+     lifts the room, and each fixture is a point of interest in an otherwise even
+     floor. `snap` puts a fixture on the surface it belongs to, so retuning the
+     terrain can't leave one buried in rock or floating in a hall. */
+  lights: [
+    { x: 500,  y: 560,  r: 420, snap: "ceil" },
+    { x: 1150, y: 560,  r: 380, snap: "ceil" },
+    { x: 1850, y: 1100, r: 300, snap: "floor", warm: true },
+    { x: 2750, y: 560,  r: 340, snap: "ceil" },
+    { x: 3550, y: 560,  r: 400, snap: "ceil" },
+    { x: 4300, y: 1100, r: 320, snap: "floor", warm: true },
+    { x: 5000, y: 560,  r: 360, snap: "ceil" },
+    { x: 5900, y: 560,  r: 380, snap: "ceil" },
+    { x: 7150, y: 620,  r: 440, snap: "ceil" },
+    { x: 7800, y: 1100, r: 320, snap: "floor", warm: true },
+    { x: 8450, y: 900,  r: 400, snap: "ceil" },
+    { x: 8450, y: 1850, r: 360, snap: "floor" }
   ],
   /* dressing. These are #69's existing ornaments (js/acttwo-render.js), which
      were built and then never switched on by any level — conduitRun in
@@ -334,13 +404,15 @@ const SLICE_CHAMBER = {
      `snap` sits an ornament on the floor of whatever span its y falls in, so a
      retune of the terrain doesn't leave the furniture hovering. */
   ornaments: [
-    { type: "conduitRun",   x: 600,  y: 1280, w: 420, snap: true },
-    { type: "rackingFrame", x: 1010, y: 1280, w: 90,  h: 140, snap: true },
-    { type: "ventGrate",    x: 2380, y: 1280, w: 70,  h: 90,  snap: true },
-    { type: "conduitRun",   x: 3700, y: 2150, w: 520, snap: true },
-    { type: "junctionTruss",x: 4720, y: 2180, scale: 1.2, snap: true },
-    { type: "rackingFrame", x: 5180, y: 1600, w: 90,  h: 140, snap: true },
-    { type: "conduitRun",   x: 6900, y: 2240, w: 480, snap: true }
+    { type: "conduitRun",   x: 620,  y: 1100, w: 460, snap: "floor" },
+    { type: "rackingFrame", x: 1500, y: 1100, w: 90,  h: 140, snap: "floor" },
+    { type: "ventGrate",    x: 2350, y: 1100, w: 70,  h: 90,  snap: "floor" },
+    { type: "conduitRun",   x: 3600, y: 1100, w: 520, snap: "floor" },
+    { type: "junctionTruss",x: 4950, y: 1100, scale: 1.2, snap: "floor" },
+    { type: "rackingFrame", x: 5750, y: 860,  w: 90,  h: 140, snap: "floor" },
+    { type: "ventGrate",    x: 6500, y: 1100, w: 70,  h: 90,  snap: "floor" },
+    { type: "conduitRun",   x: 7000, y: 1100, w: 480, snap: "floor" },
+    { type: "conduitRun",   x: 8300, y: 1900, w: 320, snap: "floor" }
   ]
 };
 const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
@@ -358,22 +430,32 @@ const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
 /* sit an ornament on the floor of whichever span its y falls in, so terrain
    retuning never leaves the furniture hovering in mid-air. h (or 0) is how far
    above the floor its origin has to sit for the thing to rest ON the floor. */
-function snapOrnaments(list, spans) {
+function snapToSurface(list, spans) {
   return (list || []).map(o => {
     if (!o.snap) return Object.assign({}, o);
     const col = spans[clamp(Math.round(o.x / STEP), 0, spans.length - 1)] || [];
     const sp = pickSpan(col, o.y);
     if (!sp) return Object.assign({}, o);
-    return Object.assign({}, o, { y: sp.bot - (o.h || 0) - 2 });
+    return Object.assign({}, o, o.snap === "ceil"
+      ? { y: sp.top + 10 }                       // hung from the ceiling
+      : { y: sp.bot - (o.h || 0) - 2 });         // standing on the floor
   });
 }
 
 function genChamber(ch) {
-  const spans = compileChamber(ch);
+  /* Two views compiled from one definition (see chamberLies): `spans` is the
+     truth collision uses, `spansDrawn` is what the renderer shows. They are the
+     SAME array unless the chamber declares a deception, so an honest chamber
+     costs nothing and cannot disagree with itself. */
+  const spans = compileChamber(ch, "solid");
+  const drawn = chamberLies(ch) ? compileChamber(ch, "drawn") : spans;
   return {
-    n: 0, W: ch.W, H: ch.H, spans, chamberId: ch.id,
+    n: 0, W: ch.W, H: ch.H, spans, spansDrawn: drawn, chamberId: ch.id,
     isChamber: true, isPlant: !!ch.plant, plantZone: ch.zone, dark: false,
-    plantOrnaments: snapOrnaments(ch.ornaments, spans),
+    // ornaments and lights are placed against what is REALLY there, not against
+    // the lie — a fixture bolted to a floor that doesn't exist would give it away
+    plantOrnaments: snapToSurface(ch.ornaments, spans),
+    lights: snapToSurface(ch.lights, spans),
     oids: [], turrets: [], bullets: [], shots: [], drones: [], pods: [],
     fakePods: [], anomalies: [], scenery: [], fragmentsHere: [],
     blackbox: null, beacon: null, lift: null, shrine: null, roof: null,

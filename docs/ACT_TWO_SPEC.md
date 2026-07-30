@@ -474,6 +474,16 @@ touches the oath, because probing is not shooting.
 It reuses the shipped exhaust-particle system, so the build cost is a response
 test rather than new art.
 
+**The terrain model holds both hazards as of P·terrain.** A chamber part may
+declare a `view` — `drawn` or `solid` — and `genChamber` compiles two span sets
+from the one definition: `spans` is what collision uses, `spansDrawn` is what the
+renderer draws. A false floor is a part in the drawn view only; painted rock is a
+part in the solid view only. Everything else appears in both, so the two views are
+identical on honest terrain and can differ **only** where a deception is declared —
+a test asserts exactly that, and counts any undeclared difference as a bug. What
+is still to come is the tell itself (the grit, the lamp shadow), which is
+P·systems; this is the hook it needs.
+
 **Consequence for §9.1:** Röntgen's RADIOGRAPH sees through solid matter, which
 is a direct counter to both hazards. **It must be limited to one sweep per
 chamber**, or the earned upgrade disables the whole deception layer for the rest

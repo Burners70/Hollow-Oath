@@ -330,14 +330,68 @@ function getSpanTiles(lvl, xLo, xHi, pal) {
   if (!lvl._spanTiles) lvl._spanTiles = new Map();
   const map = lvl._spanTiles;
   const t0 = Math.max(0, Math.floor(xLo / TILE_W)), t1 = Math.floor(clamp(xHi, 0, lvl.W) / TILE_W);
+  // drawn, not solid: §8's false floor is a ledge that renders and isn't there,
+  // and its painted rock is an outcrop that collides and never renders. On an
+  // honest chamber these are the same array (genChamber).
+  const spans = lvl.spansDrawn || lvl.spans;
   const out = [];
   for (let ti = t0; ti <= t1; ti++) {
     const x0 = ti * TILE_W, x1 = Math.min(x0 + TILE_W, lvl.W);
     let tile = map.get(ti);
-    if (!tile) tile = buildSpanTile(x0, x1, lvl.spans, lvl.H || WORLD_H, pal);
+    if (!tile) tile = buildSpanTile(x0, x1, spans, lvl.H || WORLD_H, pal);
     out.push(tileTouch(map, ti, tile));
   }
   return out;
+}
+
+/* ---- the chamber's light sources (§9.2 — a plant is LIT, and lit by
+   something). Additive pools over the terrain: cheap, cache-friendly (the tiles
+   stay untouched, so no relighting invalidates them) and it does the job the
+   owner asked of it twice over — the room gets brighter, and each fixture is a
+   point of interest on a floor that is otherwise evenly surfaced.
+
+   Ambient is lifted alongside them on purpose. Lights alone over a dark fill
+   give pools in blackness, which reads as a cave with lamps in it, not as a
+   maintained facility — the opposite of what §9.2 wants ("a bright, clean,
+   orderly room full of people being read is worse than a dark cave").
+
+   Two flavours, and it is not decoration: cool cyan fixtures are his, warm gold
+   ones are the failing original plant they were bolted into. Under REDUCED
+   FLASH the flicker goes away entirely rather than merely slowing — a fixture
+   that stutters is exactly the cue that setting exists to remove. */
+const LIGHT_AMBIENT = 0.10;
+function drawChamberLights(now) {
+  const lights = level.lights;
+  if (!lights || !lights.length) return;
+  const H = level.H || WORLD_H;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  // a flat ambient lift across the whole chamber, so the room has a floor level
+  // of brightness rather than only the pools
+  ctx.globalAlpha = LIGHT_AMBIENT;
+  ctx.fillStyle = shade(TOK.CYAN_PALE, .5);
+  ctx.fillRect(0, -260, level.W, H + 320);
+  for (let i = 0; i < lights.length; i++) {
+    const L = lights[i];
+    // a slow, shallow breath, out of phase per fixture so the hall never pulses
+    // as one object; dead steady when reduced flash is on
+    const flick = reducedFlash ? 1 : 0.93 + 0.07 * Math.sin(now * 1.7 + i * 2.1);
+    const r = L.r || 340;
+    const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, r);
+    const tint = L.warm ? TOK.GOLD_WARM : TOK.CYAN_PALE;
+    g.addColorStop(0, shade(tint, .40 * flick));
+    g.addColorStop(0.45, shade(tint, .13 * flick));
+    g.addColorStop(1, shade(tint, 0));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = g;
+    ctx.fillRect(L.x - r, L.y - r, r * 2, r * 2);
+    // the fitting itself, so a light source is a thing and not just a glow
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = shade(tint, .85);
+    ctx.fillRect(L.x - 13, L.y - 3, 26, 5);
+    ctx.globalCompositeOperation = "lighter";
+  }
+  ctx.restore();
 }
 
 /* the chamber's rock. Called from drawWorld in place of the heightmap/roof tile
@@ -363,7 +417,7 @@ function drawChamberTerrain(cx, viewW) {
    version did. Spans mean an overhang's underside gets them too, not just the
    column's lowest floor. */
 function drawMachinedPanelTicks(x0, x1) {
-  const spans = level.spans;
+  const spans = level.spansDrawn || level.spans;   // ticks belong to what you SEE
   if (!spans) return;
   const i0 = Math.max(0, Math.floor(x0 / STEP)), i1 = Math.min(spans.length - 1, Math.ceil(x1 / STEP));
   const spacing = Math.max(1, Math.round(90 / STEP));

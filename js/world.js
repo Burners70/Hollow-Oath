@@ -936,11 +936,18 @@ const LEGEND_CARD = { page: 0 };
 // is about to hit, the way a heightmap always had exactly one answer.
 function pickSpan(col, y) {
   if (!col || !col.length) return null;
-  let best = null, bestD = Infinity;
+  /* `best` starts at a real span and the comparison is <=, so a non-empty column
+     can NEVER come back null. It used to start null with a strict <, which meant
+     an infinite or very distant y left every candidate at distance Infinity,
+     failed `d < bestD` every time, and returned null for a column that plainly
+     had spans in it — silently turning groundAt(x) into "the bottom of the
+     world" on any chamber. Act One never saw it (heightmap path), which is
+     exactly why it needed finding before P·slice. */
+  let best = col[0], bestD = Infinity;
   for (const sp of col) {
     if (y > sp.top && y < sp.bot) return sp;
     const d = y <= sp.top ? sp.top - y : y - sp.bot;
-    if (d < bestD) { bestD = d; best = sp; }
+    if (d <= bestD) { bestD = d; best = sp; }
   }
   return best;
 }
@@ -968,7 +975,11 @@ function spanAt(x, y) {
   if (!s) return null;
   const i = clamp(Math.floor(x / STEP), 0, s.length - 2);
   const t = clamp(x / STEP - i, 0, 1);
-  const a = pickSpan(s[i], y == null ? Infinity : y);
+  const col = s[i];
+  if (!col || !col.length) return null;                 // solid rock, floor to roof
+  // y omitted means "the lowest span here" — the heightmap's one answer. Said
+  // outright rather than by passing a sentinel into pickSpan and hoping.
+  const a = y == null ? col[col.length - 1] : pickSpan(col, y);
   if (!a) return null;
   const b = matchSpan(s[i + 1], a) || a;
   // materials come from the span you are actually in, not interpolated: a face is
