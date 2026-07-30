@@ -794,10 +794,13 @@ test("P·terrain: rack scale and the tow envelope, including the momentum pinch"
   expect(t.cage.h).toBeLessThan(t.medianGap / 6);
   expect(t.cage.w).toBeGreaterThan(t.cage.h);
 
-  // the envelope, from PENDULUM_SPEC's own numbers rather than invented ones
-  expect(t.tether).toBe(46);
-  expect(t.atRest).toBe(90);      // hanging straight down
-  expect(t.atSpeed).toBe(66);     // trailing at your own level
+  /* The envelope, asserted as the FORMULA rather than as literals. Writing
+     `atRest === 90` here was the same mistake this file keeps catching elsewhere:
+     it pins a value that follows from a tunable, so it failed the moment the rack
+     was resized — even though the geometry was still perfectly correct. */
+  expect(t.tether).toBe(46);                                    // PENDULUM_SPEC §4.1
+  expect(t.atRest).toBeCloseTo(t.shipDiameter / 2 + t.tether + t.cage.h / 2, 1);
+  expect(t.atSpeed).toBeCloseTo(Math.max(t.shipDiameter, t.cage.h), 1);
   expect(t.atSpeed).toBeLessThan(t.atRest);
 
   // the chamber authors a real momentum pinch, and it sits strictly inside the

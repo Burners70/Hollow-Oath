@@ -33,21 +33,28 @@ const RACK_PULSE_PERIOD = 1.10;   // seconds/cycle — resting pulse, all 4 stat
    lifted through the level it was standing in, which is what the owner spotted
    by eye ("hard to see how you'd have the space").
 
-   Two corrections, not one. Smaller — the owner's ceiling was "no more than a
-   sixth of the height", and a sixth of the hall's 586px median gives ~98px, so
-   66px sits comfortably inside it. And WIDER THAN TALL: a rack is a bank of
+   Two corrections, not one. Smaller, and WIDER THAN TALL: a rack is a bank of
    eight to twelve people read side by side (§6.1), so a portrait box was the
    wrong silhouette for the thing it is. Height is also the axis that costs
-   clearance, and width the axis that buys readability, so landscape is cheaper
-   on both counts. Cage area ends up ~40% down on the first pass.
+   towing clearance, and width the axis that buys readability, so landscape is
+   cheaper on both counts.
+
+   Sized against the SHIP rather than the room, in the end. A sixth of the hall
+   (~98px) was the owner's first ceiling and 66px cleared it, but it still read
+   "out of kilter with the ship" — the room is 586px tall and the ship only 22px
+   across, so the room is the more forgiving reference and the wrong one. At a 70
+   x 48 cage the rack is 3.2x the ship's width: unmistakably a load one ship
+   should struggle with, not a shipping container towed by a dart. That is ~70%
+   off the first pass's cage area.
 
    Authored here rather than as a magic default in drawRacks, so a chamber that
    wants an unusual rack overrides data instead of passing render arguments. */
-const RACK_SIZE = { w: 134, h: 100 };          // nominal → a 96 x 66 cage
+const RACK_SIZE = { w: 97, h: 73 };            // nominal → a 70 x 48 cage
 const RACK_CAGE_W = 0.72, RACK_CAGE_H = 0.66;  // drawRack's insets, named
 // §6.1 — a rack holds eight to twelve. The occupant count is data, so the cells
 // stay legible at any size instead of always being ten of them.
-const RACK_OCCUPANTS_DEFAULT = 10;
+const RACK_OCCUPANTS_DEFAULT = 8;   // the low end of §6.1's eight-to-twelve: at a
+// 70px cage, ten cells come out 7px apart and stop reading as separate people
 
 /* ---- the tow envelope, and the MOMENTUM PINCH ----------------------------
    docs/PENDULUM_SPEC.md §4.1 is the tether reference and survives into Act Two
@@ -61,27 +68,28 @@ const RACK_OCCUPANTS_DEFAULT = 10;
    The envelope depends on how far the load has swung. Hanging straight down the
    stack is tall; trailing at your own level it is short but long:
 
-     swing 0°   vertical = SHIP_R + SLING_L + cage/2   = 11 + 46 + 33 = 90px
-     swing 90°  vertical = max(2·SHIP_R, cage)         =           66px
+     swing 0°   vertical = SHIP_R + SLING_L + cage/2   = 11 + 46 + 24 = 81px
+     swing 90°  vertical = max(2·SHIP_R, cage)         =           48px
 
    Which gives three tiers of gap, and the middle one is the owner's idea
    (July 2026): **a pinch too tight to creep through with the load hanging, but
    passable if you carry enough momentum to trail the rack near your own level.**
 
-     gap ≥ 90      pass at rest, load hanging — an ordinary tight spot
-     66 ≤ gap < 90 MOMENTUM PINCH — you must motor through, load swung up
-     gap < 66      the rack cannot pass at all; unladen route only
+     gap ≥ 81      pass at rest, load hanging — an ordinary tight spot
+     48 ≤ gap < 81 MOMENTUM PINCH — you must motor through, load swung up
+     gap < 48      the rack cannot pass at all; unladen route only
 
    It is a good mechanic because it costs nothing to build (it falls out of the
    sling that already had to exist), and because going fast with a rack is the
    dangerous thing — every turn is felt by everyone in the box — so it prices
    speed against care instead of gating on an upgrade.
 
-   **Note for P·slice:** that middle band is only 24px wide at these numbers, so
-   a momentum pinch is a narrow authoring target. If this is to be a recurring
-   beat rather than a one-off, `SLING_L` probably wants to be longer relative to
-   the rack's height — a 70px sling would widen the band to 48px. Flagged rather
-   than retuned, because tether length is a feel value and belongs on hardware. */
+   The band is 33px wide at these numbers (it was only 24 before the rack came
+   down, so shrinking the rack widened the authoring target as a side effect —
+   the cage height is subtracted from both ends of the band but hurts the top
+   twice as hard). Wide enough to author against; if a momentum pinch turns out to
+   want more room still, `SLING_L` is the dial — a 70px sling gives 57px of band.
+   Not retuned here: tether length is a feel value and belongs on hardware. */
 const SLING_L = 46;                     // PENDULUM_SPEC §4.1, centre-to-centre
 const TOW_SWING_LEVEL = 90;             // degrees from vertical = load at your level
 
@@ -102,6 +110,22 @@ function towTierForGap(gap, tether) {
   if (gap >= towEnvelope(0, tether).vertical) return "rest";
   if (gap >= towEnvelope(TOW_SWING_LEVEL, tether).vertical) return "momentum";
   return "unladen";
+}
+
+/* The gap a momentum pinch should be authored to: the middle of the band, so it
+   is unambiguously both "too tight to creep through" and "passable swung up".
+
+   DERIVED, not a literal, because the rack's height is in the envelope: the cage
+   went 112 → 66 → 48 across three owner rounds, and a hardcoded pinch drifts
+   toward one edge of the band or straight out of it each time. Measured: at a
+   40px cage the at-rest depth falls to 77, so a hardcoded 78px pinch stops being
+   a momentum pinch at all — it becomes an ordinary gap and the mechanic quietly
+   evaporates with nothing failing. Deriving it made the pinch follow the rack from
+   78px to 65px on the last resize, with no edit and the test still green. */
+function momentumGapPx(tether) {
+  const rest = towEnvelope(0, tether).vertical;
+  const swung = towEnvelope(TOW_SWING_LEVEL, tether).vertical;
+  return Math.round((rest + swung) / 2);
 }
 /* base = resting brightness (0-1), amp = how much the beat lifts it, beats =
    how many lobes in the envelope (2 = a double-beat "lub-dub", 1 = a single
@@ -461,8 +485,10 @@ const SLICE_CHAMBER = {
       mb: MAT_MACH },                                     // floor no shallower than 1140
     { op: "rock", x: 6480, y: 1140, w: 340, h: 260, roughTop: 0, roughBot: 0,
       mt: MAT_MACH },                                     // floor no deeper than 1140
-    { op: "rock", x: 6520, y: 500,  w: 260, h: 562, roughTop: 0, roughBot: 0,
-      mb: MAT_ROCK, pinch: "momentum" },                  // ceiling mass to 1062
+    // height derived so the gap below lands mid-band whatever the rack weighs in
+    // at: 1140 (the pinned floor) − 500 (this mass's top) − the wanted gap
+    { op: "rock", x: 6520, y: 500,  w: 260, h: 640 - momentumGapPx(),
+      roughTop: 0, roughBot: 0, mb: MAT_ROCK, pinch: "momentum" },
 
     // a domed machined bay off the hall — the immaculate end of the range
     { op: "room", x: 6800, y: 560,  w: 800,  h: 560, roughTop: 8, roughBot: 8,
