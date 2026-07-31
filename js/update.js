@@ -1643,8 +1643,16 @@ function updateEnemies(dt) {
     const target = Math.atan2(dy, dx);
     t.ang += clamp(target - t.ang, -1.6 * dt, 1.6 * dt);
     t.cd -= dt;
-    if (d < 500 && t.cd <= 0 && !s.dead) {
-      t.cd = 1.5 + Math.random() * 0.9;
+    if (t.hitT) t.hitT = Math.max(0, t.hitT - dt * 4);
+    /* Bundle P (owner feedback) — a plant emplacement is tougher but SLOWER and
+       shorter-reaching than an Act One gun. Tough must not also mean relentless:
+       the owner's objection was to being killed with no way to read it coming,
+       and a heavier gun with a faster cadence would be exactly that. Act One's
+       numbers are untouched (no `heavy` flag, no change). */
+    const range = t.heavy ? EMPLACE_RANGE : 500;
+    if (d < range && t.cd <= 0 && !s.dead) {
+      t.cd = t.heavy ? EMPLACE_CD[0] + Math.random() * EMPLACE_CD[1]
+        : 1.5 + Math.random() * 0.9;
       level.bullets.push({ x: t.x + Math.cos(t.ang) * 14, y: t.y - 10 + Math.sin(t.ang) * 14,
         vx: Math.cos(t.ang) * 150, vy: Math.sin(t.ang) * 150, t: 4 });
       blip(300, 90, 0.18, "square", 0.07);
@@ -1689,8 +1697,17 @@ function updateEnemies(dt) {
     if (b.reflected) {
       let gone = false;
       for (const t of level.turrets) {
-        if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
-          t.alive = false; gone = true; score += 250;
+        if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < (t.heavy ? EMPLACE_R : 18)) {
+          gone = true;
+          // the same HP model as a fired round (above): a parry is a great answer
+          // to an emplacement, not a bypass of the fact that it is armoured
+          t.hp = (t.hp || 1) - 1;
+          if (t.hp > 0) {
+            t.hitT = 1;
+            explode(t.x, t.y - 8, TOK.PARRIED, 10);
+            continue;
+          }
+          t.alive = false; score += 250;
           explode(t.x, t.y - 8, PAL().WARN, 30); addText(t.x, t.y - 40, "REFLECTED +250", TOK.PARRIED);
         }
       }
@@ -1758,8 +1775,20 @@ function updateEnemies(dt) {
        No-op unless the level carries conduits (js/acttwo-update.js). */
     if (level.conduits && !gone && actTwoShotHit(b)) gone = true;
     for (const t of level.turrets) {
-      if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
-        t.alive = false; gone = true; firedAtCombat = true;
+      if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < (t.heavy ? EMPLACE_R : 18)) {
+        gone = true; firedAtCombat = true;
+        /* Bundle P (owner feedback) — "tougher than those guns". `hp` defaults to
+           1, so an Act One turret still dies to one round and nothing about Act
+           One's balance moves; a plant emplacement takes EMPLACE_HP, and says so
+           by flashing rather than by a health bar. */
+        t.hp = (t.hp || 1) - 1;
+        if (t.hp > 0) {
+          t.hitT = 1;
+          explode(t.x, t.y - 8, PAL().WARN, 8);
+          blip(220, 150, 0.09, "square", 0.07);
+          continue;
+        }
+        t.alive = false;
         score += 250;
         explode(t.x, t.y - 8, PAL().WARN, 30);
         addText(t.x, t.y - 40, "+250", PAL().WARN);

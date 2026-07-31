@@ -37,6 +37,13 @@ into a handful of causes.
 - A slam reacts: muffled cry, shudder, haptic. No text, no emoji.
 - Lamp fittings, conduit runs, isolator height, the well's duplicate rack, and
   the flatline banner's design-doc jargon.
+- A plant emplacement: Act One's gun, blockier and armoured (`EMPLACE_HP`), and
+  slower and shorter-reaching to match. Act One's turrets are untouched — `hp`
+  defaults to 1. Placement in the slice chamber is provisional pending level
+  design.
+- §8.1's tell, first pass. The invisible walls stay; dust now settles on what is
+  solid, so it falls through a false floor and rests in mid-air against painted
+  rock. One mechanism, both hazards, and it knows nothing the physics doesn't.
 
 ## Index
 

@@ -379,6 +379,13 @@ function drawWorld(now) {
      it shipped with, untouched — the M1 golden checksum is the proof. */
   if (level.spans) {
     drawChamberTerrain(cx, viewW);
+    /* §8.1's tell, first pass (owner: "we do want some kind of invisible walls…
+       but maybe not quite so completely impossible to spot"). Dust settles on
+       what is SOLID, so it falls through a false floor and rests in mid-air on
+       painted rock. Drawn over the rock and under everything else, because it is
+       terrain information rather than furniture. */
+    updateChamberDust(now, cx, cx + viewW);
+    drawChamberDust();
     // ticks are a property of a MACHINED face now, not of the chamber being a
     // plant — an intake's own wrecked gear is milled too. The function itself
     // walks materials and skips raw rock.
@@ -543,8 +550,36 @@ function drawWorld(now) {
 
   for (const t of level.turrets) {
     if (!t.alive) continue;
+    /* Bundle P (owner feedback) — a plant EMPLACEMENT is "a slightly bigger, more
+       blocky version of the gun emplacements in act one", so it is drawn from the
+       same parts in the same colour and differs only in silhouette: a squared-off
+       housing on a plinth instead of a dome, a heavier barrel, and armour ribs.
+       Same lineage, visibly the heavier cousin — which is what tells the player it
+       will take more than one round before they waste the first one finding out. */
     ctx.save();
     ctx.translate(t.x, t.y);
+    if (t.heavy) {
+      const hit = t.hitT || 0;
+      ctx.fillStyle = hit > 0 ? shade(PAL().WARN, .35 + hit * .4) : "#3a0d24";
+      ctx.beginPath();                     // plinth
+      ctx.moveTo(-17, 0); ctx.lineTo(17, 0); ctx.lineTo(13, -6); ctx.lineTo(-13, -6);
+      ctx.closePath(); ctx.fill();
+      glowStroke(PAL().DANGER, 2);
+      ctx.beginPath();                     // squared housing
+      ctx.rect(-13, -19, 26, 13);
+      ctx.fill();
+      glowStroke(PAL().DANGER, 2.4);
+      ctx.strokeStyle = shade(PAL().DANGER, .5); ctx.lineWidth = 1.4;
+      for (let i = -1; i <= 1; i++) {      // armour ribs
+        ctx.beginPath(); ctx.moveTo(i * 7, -18); ctx.lineTo(i * 7, -7); ctx.stroke();
+      }
+      ctx.beginPath();                     // the heavier barrel
+      ctx.moveTo(Math.cos(t.ang) * 7, -13 + Math.sin(t.ang) * 7);
+      ctx.lineTo(Math.cos(t.ang) * 25, -13 + Math.sin(t.ang) * 25);
+      glowStroke(PAL().DANGER, 4);
+      ctx.restore();
+      continue;
+    }
     ctx.fillStyle = "#3a0d24";
     ctx.beginPath(); ctx.arc(0, 0, 12, Math.PI, 0); ctx.closePath();
     ctx.fill();
@@ -4554,6 +4589,9 @@ window.__doids = {
       give: a2Line ? { rack: a2Line.rack.id, given: +a2Line.given.toFixed(2),
         cap: +a2Line.cap.toFixed(2), stall: !!a2Line.stall } : null,
       giveWanted: giveWanted(),
+      // owner: an emplacement is tougher, so the suite needs to see it take hits
+      turrets: (level.turrets || []).map(t => ({ x: Math.round(t.x), y: Math.round(t.y),
+        heavy: !!t.heavy, hp: t.hp != null ? t.hp : 1, alive: t.alive })),
       // owner: fuel down here is cans plus a drone off the well, so the suite
       // needs to see both the placement and what's left of it
       fuel: (level.fuelCans || []).map(f => ({ id: f.id, x: Math.round(f.x),
@@ -4626,7 +4664,7 @@ window.__doids = {
     const ch = ACT_TWO_CHAMBERS.find(c => c.id === (id || "slice"));
     if (!ch) return null;
     level = genChamber(ch);
-    resetActTwo();       // P·slice — a fresh chamber attempt, and its own tallies
+    resetActTwo(); dustReset();       // P·slice — a fresh chamber attempt, and its own tallies
     // owner: you come in at the well, because that is where MERCY can reach.
     // One shared entry point with the death path — see chamberEntryPos.
     const e = chamberEntryPos();
@@ -5025,6 +5063,10 @@ window.__doids = {
   },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
+  /* §8.1's tell — the settled motes, so a test can assert the PROPERTY (dust
+     rests only on what collision agrees is solid) rather than count particles. */
+  dust: () => (a2Dust || []).filter(d => !d.dead)
+    .map(d => ({ x: Math.round(d.x), y: Math.round(d.y), settled: !!d.settled })),
   // P·slice (owner feedback) — the predicate the hull's new wall collision uses,
   // so a test can ask "is this point rock?" the same way the game does
   solid: solidAt,

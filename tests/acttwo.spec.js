@@ -590,6 +590,71 @@ test("owner: landing beside a decoy box costs vitals, once, and never kills", as
   expect(r.dead).toBe(false);    // a wrong read must never be what kills you
 });
 
+/* Owner feedback, July 2026 — the plant emplacement. Tougher than an Act One gun
+   without being an instakill, and Act One's own turrets must not move an inch. */
+test("owner: a plant emplacement takes several rounds; an Act One turret still takes one", async ({ page }) => {
+  await slice(page);
+  const heavy = await page.evaluate(async () => {
+    const t = level.turrets[0];
+    const shots = [];
+    for (let i = 0; i < 2; i++) {
+      level.shots.push({ x: t.x, y: t.y - 8, vx: 0, vy: 0, t: 1 });
+      await new Promise(k => requestAnimationFrame(k));
+      shots.push({ hp: t.hp, alive: t.alive });
+    }
+    // and the round that finishes it
+    level.shots.push({ x: t.x, y: t.y - 8, vx: 0, vy: 0, t: 1 });
+    await new Promise(k => requestAnimationFrame(k));
+    return { heavy: t.heavy, shots, alive: t.alive };
+  });
+  expect(heavy.heavy).toBe(true);
+  expect(heavy.shots[0].alive).toBe(true);    // survives the first round
+  expect(heavy.shots[1].alive).toBe(true);    // and the second
+  expect(heavy.alive).toBe(false);            // three is enough
+
+  // Act One's guns are untouched: hp defaults to 1, so one round still kills
+  const light = await page.evaluate(async () => {
+    __doids.go(3); __doids.launch();
+    const t = (level.turrets || [])[0];
+    if (!t) return null;
+    level.shots.push({ x: t.x, y: t.y - 8, vx: 0, vy: 0, t: 1 });
+    await new Promise(k => requestAnimationFrame(k));
+    return { heavy: !!t.heavy, alive: t.alive };
+  });
+  if (light) {
+    expect(light.heavy).toBe(false);
+    expect(light.alive).toBe(false);
+  }
+});
+
+/* Owner feedback: the invisible walls STAY — they just must not be impossible to
+   spot. The deceptions are still authored and still lie; what is new is the tell,
+   and it is one mechanism serving both hazards. */
+test("owner: the chamber still lies, and dust is what gives it away", async ({ page }) => {
+  await slice(page);
+  const lies = await page.evaluate(() => {
+    // painted rock: solid where nothing is drawn. false floor: drawn, not solid.
+    const painted = __doids.solid(5280, 900);
+    const drawnOnly = level.spansDrawn !== level.spans;
+    return { painted, drawnOnly };
+  });
+  expect(lies.painted).toBe(true);      // the invisible wall is still there
+  expect(lies.drawnOnly).toBe(true);    // and the two views still differ
+
+  /* The tell: dust settles on what is SOLID, never on what is drawn. Asserted as
+     the property rather than by counting motes — the pool is randomised, and a
+     count would be a tuning number, which this file does not assert. */
+  const dust = await page.evaluate(async () => {
+    __doids.a2Warp(5280, 700, false);
+    for (let i = 0; i < 90; i++) await new Promise(k => requestAnimationFrame(k));
+    return __doids.dust();
+  });
+  expect(dust.length).toBeGreaterThan(0);
+  // every settled mote is resting on something the physics agrees is solid
+  for (const d of dust.filter(m => m.settled))
+    expect(await page.evaluate(p => __doids.solid(p.x, p.y + 2), d)).toBe(true);
+});
+
 /* Owner feedback: fuel down here is cans plus a drone off the well. The rules,
    not the numbers — a can is flown into, it tops up, and it is gone after. */
 test("owner: a chamber carries fuel cans, taken by flying into them", async ({ page }) => {

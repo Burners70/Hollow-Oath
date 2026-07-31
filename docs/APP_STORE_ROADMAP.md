@@ -762,13 +762,41 @@ done, so the chain now starts at P·slice.
     Act One landing pads); conduit-run ornaments follow the floor instead of
     hanging in air where the deck drops away; and the flatline banner says what
     happens rather than quoting the design doc at the player.
-  - **Still open from this round, and both are the owner's to scope:** the
-    **turret** they want (a blockier, tougher Act One gun emplacement, survivable
-    — new Act Two content, closer to P·systems than to a fix), and **floor
-    variety** ("the floor can't all be flat… get this one right so we can cascade
-    those changes across the rest of the levels"), which is a re-author of
-    `SLICE_CHAMBER` under the constraint that `__doids.chamberRoute()` must stay
-    passable laden. Nine tests added; suite green at 165.
+  - **The plant EMPLACEMENT, built to the owner's brief** (second pass of this
+    round): "a slightly bigger, more blocky version of the gun emplacements in
+    act one… tougher than those guns, but not an instakill." Same parts, same
+    colour, squared housing on a plinth with armour ribs instead of a dome —
+    visibly the heavier cousin, which is what tells a player it will take more
+    than one round *before* they spend the first finding out. Tougher is HP
+    (`EMPLACE_HP`), not a bigger gun, and it is slower and shorter-reaching than
+    Act One's: tough must not also mean relentless, since the objection was to
+    dying with no way to read it coming. `hp` defaults to 1 everywhere, so Act
+    One's turrets still die to one round and none of its balance moves — a parry
+    goes through the same HP model, so it stays a great answer without being a
+    bypass of the armour. **Placement is deferred** to level design (owner); the
+    single authored emplacement in `SLICE_CHAMBER` is provisional, sited only so
+    the thing can be flown against on a phone, and nothing else references it.
+  - **§8.1's tell, first pass — the deceptions STAY.** Owner: "we do want some
+    kind of invisible walls, etc (but maybe not quite so completely impossible to
+    spot!)". Nothing was removed: the false floor and the painted rock are still
+    authored, still lie, and the worldgen test still requires the two views to
+    differ only inside a part that declared a `view`. What is new is **settling
+    dust**, and it is one mechanism serving both hazards, which is why it beats a
+    marker per hazard: motes fall and come to rest on the first thing that is
+    actually solid, tested with `solidAt` — the same predicate collision uses, so
+    the dust cannot know anything the physics doesn't. Over a false floor they
+    fall straight through the surface you can see; against painted rock they
+    settle in mid-air on nothing. Honest in both directions, too: an ordinary
+    floor collects dust identically, so the *presence* of motes is never the
+    tell — where they stop is. The remaining channels (no grit off a projection,
+    no lamp shadow on a lie) stay P·systems; this is the readability floor, set
+    at "a careful player can spot a lie before it costs them".
+  - **Still open from this round:** **floor variety** ("the floor can't all be
+    flat… get this one right so we can cascade those changes across the rest of
+    the levels"), held for its own discussion at the owner's request. It is a
+    re-author of `SLICE_CHAMBER` under the constraint that
+    `__doids.chamberRoute()` must stay passable laden. Eleven tests added; suite
+    green at 167.
 - [ ] **P·persist. Persistence and save schema.** Promoted out of
   ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
   than after it. Act Two is a second campaign, not a run mode: per-chamber

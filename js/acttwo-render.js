@@ -818,6 +818,82 @@ function drawPlantOrnaments(now) {
   }
 }
 
+/* ---- §8.1 THE DECEPTION TELL, first pass (owner feedback, July 2026) --------
+   "We do want some kind of invisible walls, etc (but maybe not quite so
+   completely impossible to spot!)" — so the deceptions stay and gain a tell.
+   Both of them are still authored and still lie: SLICE_CHAMBER carries a false
+   floor (drawn, not solid) and painted rock (solid, never drawn), and the
+   worldgen test still requires the two views to differ ONLY inside a part that
+   declared a `view`.
+
+   ONE mechanism gives both tells, which is why it is worth doing this way rather
+   than bolting a marker onto each hazard: settling DUST. Motes drift down and
+   come to rest on the first thing that is actually solid — tested with `solidAt`,
+   the same predicate collision uses, so the dust cannot know anything the physics
+   doesn't. Then:
+
+     a FALSE FLOOR    motes fall straight THROUGH the surface you can see
+     PAINTED ROCK     motes come to rest on nothing, in mid-air
+
+   Both read as wrong without being labelled, which is what §8.1 asks for — it is
+   information, not an arrow. And it is honest in the other direction too: an
+   ordinary floor collects dust exactly the same way, so the presence of motes is
+   never itself a tell. You have to notice where they stop.
+
+   §8.1's other channels — no grit off a projection when you scrape it, no lamp
+   shadow on a lie — remain P·systems. This is the readability floor, not the
+   finished feature: enough that a careful player can spot a lie before it costs
+   them, which is the bar the owner set. */
+const DUST_N = 90;             // motes alive at once across the visible band
+const DUST_FALL = 26;          // px/s — slow enough to watch one land
+let a2Dust = null;
+
+function dustReset() { a2Dust = null; }
+function updateChamberDust(now, viewX0, viewX1) {
+  if (!level.spans) { a2Dust = null; return; }
+  if (!a2Dust) a2Dust = [];
+  const H = level.H || WORLD_H;
+  // recycle anything that has drifted out of the visible band, so the pool
+  // follows the camera down a 9000px floor without growing
+  for (const d of a2Dust) if (d.x < viewX0 - 80 || d.x > viewX1 + 80) d.dead = true;
+  while (a2Dust.length < DUST_N) a2Dust.push({ dead: true });
+  for (const d of a2Dust) {
+    if (d.dead) {
+      d.x = viewX0 + Math.random() * (viewX1 - viewX0);
+      d.y = Math.random() * H * 0.5;
+      d.settled = false; d.dead = false; d.t = 0;
+      d.drift = (Math.random() - 0.5) * 7;
+      d.a = 0.25 + Math.random() * 0.4;
+      continue;
+    }
+    d.t += 1 / 60;
+    if (d.settled) {
+      // rest a while, then fall again from the top — a hazard has to keep
+      // telling on itself, because the player is not looking when it first lands
+      if (d.t > 5 + d.a * 6) d.dead = true;
+      continue;
+    }
+    d.y += DUST_FALL * (1 / 60);
+    d.x += d.drift * (1 / 60);
+    /* The whole tell, in one predicate. Dust settles on what is SOLID, not on
+       what is drawn — so it passes through a false floor and stacks up on a face
+       that was never painted in. */
+    if (solidAt(d.x, d.y)) { d.settled = true; d.y -= 1; d.t = 0; }
+    else if (d.y > H) d.dead = true;
+  }
+}
+function drawChamberDust() {
+  if (!a2Dust) return;
+  ctx.save();
+  for (const d of a2Dust) {
+    if (d.dead) continue;
+    // settled motes are brighter: a resting mote is the one carrying information
+    ctx.fillStyle = shade(TOK.CYAN_PALE, d.settled ? d.a * 0.9 : d.a * 0.45);
+    ctx.fillRect(d.x, d.y, d.settled ? 1.6 : 1.2, d.settled ? 1.6 : 1.2);
+  }
+  ctx.restore();
+}
+
 /* ---- fuel cans (owner feedback, July 2026) --------------------------------
    A jerrican: squat body, a shoulder chamfer and a cap, plus a slow breathing
    glow so it is findable across a dark 9000px floor without a HUD marker. Drawn

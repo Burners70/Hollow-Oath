@@ -226,6 +226,33 @@ const GIVE_WINDOW_R = 78;      // how close you must hover to stay connected
 const GIVE_SNAP_R = 126;       // drift past this and the line parts
 const GIVE_HOVER_V = 95;       // and you must be moving slower than this
 
+/* ---- the plant EMPLACEMENT (owner feedback, July 2026) ---------------------
+   "That laser turret is cool, but brutal… It should look like a slightly bigger,
+   more blocky version of the gun emplacements in act one. And while it should be
+   tougher than those guns, it shouldn't be an instakill."
+
+   Worth recording that the thing being described did not exist: what the owner
+   saw was the junctionTruss ornament, and what killed them was §8's painted rock
+   200px to its right. The turret is therefore NEW, built to that brief — which
+   is the right brief anyway, because Act Two needs something that makes a room
+   hostile without competing with the racks for attention.
+
+   Tougher means HP, not a bigger gun. Act One's turrets die to one round
+   (`t.alive = false` at the shot loop), and that stays exactly true: `hp`
+   defaults to 1 everywhere, so nothing about Act One changes. A plant
+   emplacement takes EMPLACE_HP rounds, flashing on each hit, so the fight is a
+   commitment rather than a reflex — which also prices §10a.2's oath question
+   properly, since every round spent here is a round you chose to fire while a
+   bank was dying.
+
+   PLACEMENT IS DEFERRED (owner: "placement needs to be decided when we have
+   level design"). The one below is provisional, sited only so the thing can be
+   seen and driven on a phone, and it is a single line to move. */
+const EMPLACE_HP = 3;          // rounds to kill a plant emplacement
+const EMPLACE_R = 20;          // hit radius — bigger body, easier to hit
+const EMPLACE_RANGE = 430;     // slightly shorter reach than Act One's 500
+const EMPLACE_CD = [1.9, 1.1]; // [base, jitter] — slower cadence than Act One's
+
 /* ---- the moorings (owner feedback, July 2026) -----------------------------
    "Connected with the rack and it suddenly lifted in the air. (And somersaulted
    over me in one case). Should stay where it is and require my thrust to lift
@@ -794,6 +821,14 @@ const SLICE_CHAMBER = {
     { id: "d2", conduit: "c3", x: 4700, y: 640,  snap: "floor", mount: "wall",
       label: "BANK 3 · 9 SOULS" }
   ],
+  /* PROVISIONAL placement, per the owner: siting is a level-design decision and
+     this is here so the emplacement can be seen and flown against on a phone.
+     Put mid-floor on the laden leg, where it costs you something to deal with
+     while a bank is hanging under you — which is the question it exists to ask.
+     Move or delete this line freely; nothing else references it. */
+  turrets: [
+    { x: 6150, y: 1100, snap: "floor" }
+  ],
   well: { x: 8465, y: 950 },
   /* Fuel along the route (owner feedback). Placed against the SHAPE of the run
      rather than evenly: you enter at the well on the right, so the leftward leg
@@ -978,6 +1013,17 @@ function buildDecoys(ch, spans) {
   }));
 }
 
+/* A chamber's emplacements, in Act One's own turret shape so updateEnemies and
+   the shot loop need no special case — `heavy` and `hp` are the only additions,
+   and both default harmlessly on an Act One turret. */
+function buildEmplacements(ch, spans) {
+  return snapToSurface((ch.turrets || []).map(t =>
+    Object.assign({}, t, { h: 0 })), spans).map(t => ({
+    x: t.x, y: t.y, cd: 1 + Math.random() * 2, alive: true, ang: -Math.PI / 2,
+    heavy: true, hp: EMPLACE_HP, hitT: 0
+  }));
+}
+
 function genChamber(ch) {
   /* Two views compiled from one definition (see chamberLies): `spans` is the
      truth collision uses, `spansDrawn` is what the renderer shows. They are the
@@ -1010,7 +1056,8 @@ function genChamber(ch) {
     fuelCans: snapToSurface((ch.fuel || []).map(f =>
       Object.assign({}, f, { h: 13 })), spans).map((f, i) =>
       ({ id: "f" + i, x: f.x, y: f.y, taken: false })),
-    oids: [], turrets: [], bullets: [], shots: [], drones: [], pods: [],
+    oids: [], turrets: buildEmplacements(ch, spans),
+    bullets: [], shots: [], drones: [], pods: [],
     fakePods: [], anomalies: [], scenery: [], fragmentsHere: [],
     blackbox: null, beacon: null, lift: null, shrine: null, roof: null,
     mx: -9999, my: -9999, mxo: 0, myo: 0,
