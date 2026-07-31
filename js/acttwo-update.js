@@ -683,12 +683,9 @@ function actTwoShipDied() {
    Deliberately does NOT touch the racks: a life costs you the flight back, not
    the room, and the room is P·persist's unit of retry. */
 function respawnInChamber() {
-  const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
-  const entry = ch && ch.parts.find(p => p.op === "room");
-  const x = entry ? entry.x + entry.w / 2 : level.W * 0.05;
-  const sp = spanAt(x, entry ? entry.y + 40 : 200);
+  const e = chamberEntryPos();
   ship = Object.assign({}, ship, {
-    x, y: sp ? Math.min(sp.bot - SHIP_R - 4, sp.top + 60) : 200,
+    x: e.x, y: e.y,
     vx: 0, vy: 0, ang: 0, fuel: maxFuel(), vitals: maxVitals(),
     passengers: [], landed: false, dead: false, fireCd: 0,
     shield: false, parryT: 0, signalT: 0, scuttleT: 0
@@ -696,6 +693,47 @@ function respawnInChamber() {
   camera.x = ship.x; camera.y = ship.y;
   a2FirePrev = true;
   banner("BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING", PAL().WARN);
+}
+
+/* ---- fuel cans (owner feedback, July 2026) --------------------------------
+   Flown into rather than landed on — see the note on FUEL_CAN_GIVE for why a
+   fuel stop must not cost a set-down. Tops the tank up to full at most, so a can
+   taken on a nearly-full tank is wasted and the player learns to leave it where
+   it is until the way back. */
+function updateFuelCans() {
+  if (!level.fuelCans) return;
+  const s = ship;
+  if (s.dead) return;
+  for (const f of level.fuelCans) {
+    if (f.taken) continue;
+    if (Math.hypot(s.x - f.x, s.y - f.y) > FUEL_CAN_R) continue;
+    const before = s.fuel;
+    s.fuel = Math.min(maxFuel(), s.fuel + FUEL_CAN_GIVE);
+    f.taken = true;
+    addText(f.x, f.y - 34, "+" + Math.round(s.fuel - before) + " FUEL", PAL().WARN);
+    blip(420, 700, 0.16, "sine", 0.1);
+    haptic.light();
+  }
+}
+
+/* Where a chamber puts you IN — the well, per the owner's call: MERCY cannot
+   descend, so the shaft she pays her bay down is the only way a hull arrives.
+   It also sets the shape of the run, which is why it is worth more than a spawn
+   point: you enter at the delivery end, fly the floor unladen, and haul back
+   toward the light. Falls back to the authored entrance room for a chamber with
+   no well yet (P·content will have some). */
+function chamberEntryPos() {
+  const w = level.wellDock;
+  if (w) {
+    const y = w.y + 130;                 // clear of the swaying bay itself
+    const sp = spanAt(w.x, y);
+    if (sp) return { x: w.x, y: clamp(y, sp.top + SHIP_R + 6, sp.bot - SHIP_R - 6) };
+  }
+  const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+  const entry = ch && ch.parts.find(p => p.op === "room");
+  const x = entry ? entry.x + entry.w / 2 : level.W * 0.05;
+  const sp = spanAt(x, entry ? entry.y + 40 : 200);
+  return { x, y: sp ? Math.min(sp.bot - SHIP_R - 4, sp.top + 60) : 200 };
 }
 
 /* ---- the hull against SOLID rock (owner feedback, July 2026) --------------
@@ -807,6 +845,7 @@ function updateActTwo(dt) {
   const beat = staticBeat;
 
   updateReserves(dt, beat);
+  updateFuelCans();
   updateTrunkCut(dt);
   /* The winch beat is scripted: while a load is being seated in the bay the
      payload's position comes from wellRackPos (it eases up past the ship's side

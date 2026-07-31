@@ -2592,8 +2592,16 @@ function updateResupplySignal(dt) {
   }
   if (s.signalT >= signalHoldT() && !resupplyDrone) {
     s.signalT = 0;
-    // launched FROM MERCY's recovery bay, bound for a hover point above you
-    const m = mercyPos();
+    /* launched FROM MERCY's recovery bay, bound for a hover point above you —
+       except in a chamber, where she is nine thousand pixels of rock away and
+       `level.mx/my` is -9999. It comes down THE WELL instead (owner feedback:
+       "loooong time for refuel drone to come — needs to start from the well"),
+       which is also the only opening she can physically reach. Not routed
+       through mercyPos(): that function also places her hull and her bays, and
+       moving it would draw the mothership inside the chamber. */
+    const m = level.isChamber && level.wellDock
+      ? { mx: level.wellDock.x, my: level.wellDock.y }
+      : mercyPos();
     resupplyDrone = { x: m.mx, y: m.my + 40, hoverX: s.x, hoverY: s.y - 130, phase: "in", t: 0,
       given: 0, occluded: false, attachedNow: false, everAttached: false,
       dripT: 0, dripFlip: false, firePrev: true };

@@ -226,6 +226,28 @@ const GIVE_WINDOW_R = 78;      // how close you must hover to stay connected
 const GIVE_SNAP_R = 126;       // drift past this and the line parts
 const GIVE_HOVER_V = 95;       // and you must be moving slower than this
 
+/* ---- fuel, down here (owner feedback, July 2026) -------------------------
+   "Obviously we need fuel cans for this to be achievable in one run", and the
+   arithmetic backs it: thrust burns 5.2/s against a 100 tank, so a full tank is
+   about nineteen seconds of engine. The slice chamber is a 9000px floor entered
+   at the well, which means flying its length unladen and then hauling a rack
+   back along it — comfortably more than one tank, and the shipped answer
+   (MERCY's bays) is nine thousand pixels of rock away.
+
+   Two sources, per the owner's call, and they answer different problems. CANS
+   are placed: they make the route itself the fuel plan, and a chamber can be
+   authored so the last one sits before the haul rather than after it. The
+   RESUPPLY DRONE stays the safety net for a hull that is already dry, and it
+   now launches from THE WELL instead of from MERCY (see updateResupplySignal)
+   — it used to fly in from mx/my, which a chamber leaves at -9999, so help
+   took the better part of a minute to cross ten thousand pixels of nothing.
+
+   A can is flown INTO, not landed on. Landing is spoken for down here — it is
+   how you close a feed and how you rig a sling — and a fuel stop that needed a
+   set-down would price a top-up at the same rate as a rescue decision. */
+const FUEL_CAN_GIVE = 34;      // per can — deliberately the XFUSE_FLOOR figure
+const FUEL_CAN_R = 30;         // fly this close and it's yours
+
 /* Hold durations. All three reuse the shipped hold-to-act grammar (updateShrine
    /updateBlackbox: accumulate scanT × scanRate(), draw a progress ring) so
    Virchow's CELL DOCTRINE applies to all of them — diagnosis is diagnosis. */
@@ -732,6 +754,21 @@ const SLICE_CHAMBER = {
      deeper as you clear (§11.1). It sways, and you dock a swinging load into
      it: the mothership is doing exactly what you are doing. */
   well: { x: 8465, y: 950 },
+  /* Fuel along the route (owner feedback). Placed against the SHAPE of the run
+     rather than evenly: you enter at the well on the right, so the leftward leg
+     is unladen and cheap, and the haul back is laden, slow and thirsty. Hence
+     the tighter spacing on the right-hand half — the cans you actually need are
+     the ones on the way home. Deliberately clear of the authored hazards: the
+     painted rock at 5150, the false floor at 2050, the pinch at 6520. */
+  fuel: [
+    { x: 760,  y: 1100, snap: "floor" },
+    { x: 2700, y: 1100, snap: "floor" },
+    { x: 3900, y: 1100, snap: "floor" },
+    { x: 4700, y: 1100, snap: "floor" },
+    { x: 5800, y: 1100, snap: "floor" },
+    { x: 7000, y: 1100, snap: "floor" },
+    { x: 7900, y: 1100, snap: "floor" }
+  ],
   ornaments: [
     { type: "conduitRun",   x: 620,  y: 1100, w: 460, snap: "floor" },
     { type: "rackingFrame", x: 1500, y: 1100, w: 90,  h: 140, snap: "floor" },
@@ -843,6 +880,14 @@ function genChamber(ch) {
     // the lie — a fixture bolted to a floor that doesn't exist would give it away
     plantOrnaments: snapToSurface(ch.ornaments, spans),
     lights: snapToSurface(ch.lights, spans),
+    /* Fuel cans sit ON the deck, so the origin is lifted by the can's own half
+       height — the same correction buildRacks needs, and for the same reason:
+       snapToSurface puts an ORIGIN `h` above the floor, and a can is drawn from
+       its centre. `taken` is per-attempt, which is what makes a chamber retry a
+       genuine reset of the fuel plan rather than a stripped route. */
+    fuelCans: snapToSurface((ch.fuel || []).map(f =>
+      Object.assign({}, f, { h: 13 })), spans).map((f, i) =>
+      ({ id: "f" + i, x: f.x, y: f.y, taken: false })),
     oids: [], turrets: [], bullets: [], shots: [], drones: [], pods: [],
     fakePods: [], anomalies: [], scenery: [], fragmentsHere: [],
     blackbox: null, beacon: null, lift: null, shrine: null, roof: null,

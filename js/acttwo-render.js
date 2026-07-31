@@ -617,6 +617,42 @@ function drawPlantOrnaments(now) {
   }
 }
 
+/* ---- fuel cans (owner feedback, July 2026) --------------------------------
+   A jerrican: squat body, a shoulder chamfer and a cap, plus a slow breathing
+   glow so it is findable across a dark 9000px floor without a HUD marker. Drawn
+   solid rather than as a wireframe, the same call the ornaments made — a thin
+   outline at this size reads as unfinished. Gold, because fuel is the one thing
+   down here that is neither his network (cyan) nor a life (green). */
+function drawFuelCan(f, now) {
+  const w = 20, h = 26, x = f.x, y = f.y;
+  const pulse = 0.72 + 0.28 * Math.sin(now * 1.7 + f.x * 0.01);
+  ctx.save();
+  drawGlow(x, y, 22, TOK.GOLD, 0.32 * pulse);
+  ctx.fillStyle = TOK.VOID;
+  ctx.strokeStyle = TOK.GOLD; ctx.lineWidth = 2;
+  ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 7 * pulse;
+  ctx.beginPath();
+  ctx.moveTo(x - w / 2, y - h / 2 + 5);
+  ctx.lineTo(x - w / 2 + 5, y - h / 2);      // chamfered shoulder
+  ctx.lineTo(x + w / 2 - 5, y - h / 2);
+  ctx.lineTo(x + w / 2, y - h / 2 + 5);
+  ctx.lineTo(x + w / 2, y + h / 2);
+  ctx.lineTo(x - w / 2, y + h / 2);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // the cap, and a band across the body so it doesn't read as a plain box
+  ctx.beginPath();
+  ctx.moveTo(x - 3, y - h / 2 - 3); ctx.lineTo(x + 3, y - h / 2 - 3);
+  ctx.moveTo(x - w / 2 + 3, y + 2); ctx.lineTo(x + w / 2 - 3, y + 2);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawFuelCans(now) {
+  if (!level.fuelCans) return;
+  for (const f of level.fuelCans) if (!f.taken) drawFuelCan(f, now);
+}
+
 /* ---- §6 the sling — tether plus rack, readable at speed without obscuring
    terrain. Modeled on the resupply drone's own line (drawResupplyDrone): same
    sag/quadratic-curve language, but the cable itself is cyan-soft chrome

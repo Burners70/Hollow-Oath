@@ -67,10 +67,17 @@ test("P·slice: the chamber is flyable end to end, laden", async ({ page }) => {
   /* §11.3 — and a load HANGING cannot: the momentum pinch is on the only route,
      deliberately, because the roadmap left "is mid-band right?" open and a route
      that let you avoid the pinch would never answer it. So the at-rest fill must
-     stop somewhere short of the well while the swung fill does not — that is the
-     mechanic existing, expressed as a difference between two flood fills. */
-  expect(r.rest.well).toBe(false);
-  expect(r.rest.maxX).toBeLessThan(r.swung.maxX);
+     stop short while the swung fill does not — the mechanic existing, expressed
+     as a difference between two flood fills.
+
+     Stated against the RACK, and this is the owner-feedback change: the ship now
+     enters at the well, so a fill seeded at the ship starts on the well's side of
+     the pinch and reaches the well trivially. Connectivity is undirected, so
+     "a hanging load can't get from the well to the rack" is the same claim the
+     old assertion was making from the other end — and it is the one that
+     survives moving the entrance again. */
+  expect(r.rest.racks.every(k => k.reachable)).toBe(false);
+  expect(r.rest.minX).toBeGreaterThan(r.swung.minX);
 });
 
 test("P·slice: a rack on mains cannot be moved — the feed comes first (§7.1)", async ({ page }) => {
@@ -473,6 +480,39 @@ test("owner: a hull already buried in rock is put back into open air", async ({ 
     return { inRock: __doids.solid(ship.x, ship.y), dead: ship.dead };
   });
   expect(out.inRock).toBe(false);
+});
+
+/* Owner feedback: fuel down here is cans plus a drone off the well. The rules,
+   not the numbers — a can is flown into, it tops up, and it is gone after. */
+test("owner: a chamber carries fuel cans, taken by flying into them", async ({ page }) => {
+  await slice(page);
+  const cans = (await a2(page)).fuel;
+  expect(cans.length).toBeGreaterThan(2);
+  expect(cans.every(c => !c.taken)).toBe(true);
+  // every can must sit on real ground, not hover — the same rule the fixtures have
+  const grounded = await page.evaluate(() =>
+    __doids.get().actTwo.fuel.every(c => !__doids.solid(c.x, c.y) &&
+      Math.abs(__doids.ground(c.x, c.y) - c.y) < 40));
+  expect(grounded).toBe(true);
+  const got = await page.evaluate(async () => {
+    const c = __doids.get().actTwo.fuel[0];
+    ship.fuel = 20;
+    __doids.a2Warp(c.x, c.y, false);
+    for (let i = 0; i < 4; i++) await new Promise(k => requestAnimationFrame(k));
+    return { fuel: ship.fuel, taken: __doids.get().actTwo.fuel[0].taken };
+  });
+  expect(got.taken).toBe(true);
+  expect(got.fuel).toBeGreaterThan(20);
+});
+
+test("owner: you enter a chamber at the well, and so does the resupply drone", async ({ page }) => {
+  await slice(page);
+  const r = await page.evaluate(() => ({
+    shipX: ship.x, wellX: __doids.get().actTwo.well.x, W: level.W
+  }));
+  // the delivery end, not the far end: the floor is flown unladen and hauled back
+  expect(Math.abs(r.shipX - r.wellX)).toBeLessThan(200);
+  expect(r.shipX).toBeGreaterThan(r.W * 0.8);
 });
 
 test("P·slice: the 41-second clock runs in a chamber at all", async ({ page }) => {

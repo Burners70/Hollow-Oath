@@ -435,6 +435,7 @@ function drawWorld(now) {
   if (level.plantOrnaments) drawPlantOrnaments(now);
   // P·slice — trunks under the racks they feed, so a line never covers the box
   drawConduits(now);
+  drawFuelCans(now);
   drawRacks(now);
   if (level.wellDock) drawWellDock(now);
   /* Owner feedback ("a dupe rack hanging there") — the towed rack is NOT drawn
@@ -4545,6 +4546,10 @@ window.__doids = {
       give: a2Line ? { rack: a2Line.rack.id, given: +a2Line.given.toFixed(2),
         cap: +a2Line.cap.toFixed(2), stall: !!a2Line.stall } : null,
       giveWanted: giveWanted(),
+      // owner: fuel down here is cans plus a drone off the well, so the suite
+      // needs to see both the placement and what's left of it
+      fuel: (level.fuelCans || []).map(f => ({ id: f.id, x: Math.round(f.x),
+        y: Math.round(f.y), taken: f.taken })),
       well: level.wellDock ? { x: Math.round(level.wellDock.x),
         y: Math.round(level.wellDock.y), docking: level.wellDock.docking,
         winchT: +level.wellDock.winchT.toFixed(2), taken: level.wellDock.taken,
@@ -4614,8 +4619,10 @@ window.__doids = {
     if (!ch) return null;
     level = genChamber(ch);
     resetActTwo();       // P·slice — a fresh chamber attempt, and its own tallies
-    const sp = spanAt(400, 700);
-    ship.x = 400; ship.y = sp ? (sp.top + sp.bot) / 2 : 700;
+    // owner: you come in at the well, because that is where MERCY can reach.
+    // One shared entry point with the death path — see chamberEntryPos.
+    const e = chamberEntryPos();
+    ship.x = e.x; ship.y = e.y;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
     ship.vitals = maxVitals(); ship.fuel = maxFuel();
     camera.x = ship.x; camera.y = ship.y;
@@ -4750,8 +4757,16 @@ window.__doids = {
       return (S[i] || []).some((sp, j) => seen.has(key(i, j)));
     };
     let maxX = 0;
-    for (let i = 0; i < S.length; i++) if ((S[i] || []).some((sp, j) => seen.has(key(i, j)))) maxX = i * STEP;
-    return { gap: +gap.toFixed(1), spansReached: seen.size, maxX,
+    /* minX as well as maxX: the fill is seeded at the ship, and the ship now
+       enters at THE WELL (owner: that is where MERCY can reach), so the run goes
+       right-to-left and back. "How far did the fill get" is a minimum in that
+       direction — reporting only a maximum silently answered a question about
+       the old left-hand entrance. */
+    let minX = level.W;
+    for (let i = 0; i < S.length; i++) if ((S[i] || []).some((sp, j) => seen.has(key(i, j)))) {
+      maxX = i * STEP; minX = Math.min(minX, i * STEP);
+    }
+    return { gap: +gap.toFixed(1), spansReached: seen.size, maxX, minX,
       fromX: Math.round(ship.x),
       racks: (level.racks || []).map(r => ({ id: r.id, reachable: at(r.x) })),
       conduits: (level.conduits || []).map(c => ({ id: c.id, reachable: at(c.x) })),
