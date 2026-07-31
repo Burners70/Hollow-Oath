@@ -682,6 +682,93 @@ done, so the chain now starts at P·slice.
     P·persist/P·content, so the harness is the only way in and every Act Two button
     is feature-detected against the build. Its chrome floats over the game and
     hides to a tab, because the old layout shrank the iframe and with it the game.
+- [x] **P·feedback. The first on-device round on the slice.** *(Owner, July
+  2026 — played on a phone through `tests/qa-harness.html`, which is the only
+  route in.)* Twenty notes. Most collapsed into a handful of causes, which is
+  the value of the round and the reason they are recorded rather than just fixed.
+  - **Act One's sector logic was running in the chamber.** A chamber holds no
+    Scions, so the manifest is trivially closed on frame one: `checkSectorClear`
+    concluded the sector was clear and flashed `MANIFEST CLOSED — FLY INTO HER
+    VENTRAL HANGAR` at a mothership nine thousand pixels above the rock, for the
+    whole descent. The HUD read `SCIONS ABOARD 0 · SECTOR 0/0` throughout. One
+    `level.isChamber` guard, and a bank tally in place of the sector one.
+  - **The hull had no lateral collision at all.** Act One's terrain is a
+    heightmap — one floor, one ceiling per column — so `updatePlay` only ever
+    tested vertically, and `solidAt` was used for nothing but bullets. Spans
+    express pillars, column flanks and §8's painted rock, and the dart flew
+    through all three. `shipSolidCollide` adds the test, chamber-only.
+  - **And a chamber impact now hurts rather than kills.** Act One's cave-roof
+    rule is untouched, but it cannot survive overhangs, a pinch you are asked to
+    carry speed through, and a load on a rope. Capped just under a hard landing,
+    so no single impact is fatal from full health — an uncapped ramp billed 137
+    vitals against a pool of 100, which is the instakill the owner objected to.
+  - **The "laser turret" does not exist.** What the owner saw was the
+    `junctionTruss` ornament — two rails and an A-frame, a trestle in
+    silhouette, hence "the blue thing that looks like a picnic table" — and what
+    killed them was the painted rock 200px to its right. An invisible wall that
+    kills on contact has no other available explanation, which is worth
+    recording: **an untelegraphed hazard gets blamed on the nearest visible
+    object.** The truss is redrawn as a junction cabinet. §8's actual tell is
+    still P·systems, and it is now load-bearing rather than polish.
+  - **Contact damping was dead code.** Both payload integrators recompute
+    velocity from displacement — which is what makes the rope swing — and that
+    overwrote every friction value `towCollide` set. A dropped rack slid on
+    `SLING_DAMP` alone. Applied after the Verlet step now, with the rest deadband
+    gated on a contact frame so it cannot eat gravity's per-frame increment.
+  - **The somersault was pure pendulum, and the fix is that a rack is BOLTED
+    IN.** You cradle from beside the box, so the rope starts near horizontal, and
+    a point mass released from horizontal swings down, under you and up the far
+    side. A moored rack is not simulated at all; the rope pulls the *hull*
+    instead, and sustained thrust parts the mounts (free, per the owner —
+    what it costs is a moment of thrust against something that will not move).
+    Timing that pull is the one non-obvious bit: stretch cannot measure it, since
+    the constraint removes the stretch every frame, and stretch-plus-thrust
+    cannot either, since the hull sits in equilibrium and `d` lands either side
+    of the rope's length alternately. Measured as "at full extension, within a
+    hair, with thrust held".
+  - **You land ON the rack to rig the sling.** There was no input at all —
+    `updateCradle` accumulated on proximity while landed, so the sling rigged
+    itself, hence "how am I meant to connect to rack at the moment?". The cage
+    lid is a landable pad, and there is a prompt.
+  - **Feed lines run under the deck, and every one ends in a box.** A trunk was
+    one straight segment across open air (870px of diagonal here), and a decoy
+    ran to `c.x + 240, c.y - 300` — a line to literally nowhere. Trunks are
+    polylines now, buried between risers, drawn dimmer where you see them
+    through rock. Decoys terminate in boxes of the same size, mounting and beat
+    as a real bank: if any of that differed, a decoy would be identifiable by
+    looking and §7.1's deduction would be decoration. Landing beside one costs
+    **vitals** (owner's call — you are the blood supply, so it comes out of the
+    pool a real bank will need), once, floored above zero.
+  - **Fuel, and where a run starts.** Thrust burns 5.2/s against a 100 tank, and
+    this floor is 9000px flown unladen then hauled back: not achievable in one
+    run. Cans are placed along the route, tighter on the laden leg; the resupply
+    drone stays the net for a dry hull but launches from **the well**, having
+    previously flown in from `mercyPos()` — which a chamber leaves at -9999. The
+    chamber is entered at the well too, which is structure rather than a spawn
+    point: you arrive where MERCY can reach, fly out unladen, haul back.
+  - **That moved the traversability invariant**, and the reason is worth keeping:
+    `chamberRoute` seeds its fill at the ship, so with the entrance on the well's
+    side of the momentum pinch, "a hanging load cannot reach the well" became
+    trivially false. Connectivity is undirected, so it is restated against the
+    rack — the same claim from the other end, and the one that survives moving
+    the entrance again. `minX` is reported beside `maxX` for the same reason.
+  - **A slam now has a reaction:** a muffled cry (noise through a low bandpass —
+    a voice with none of its detail, heard through a hull), the shudder `slamT`
+    was already tracking with nothing drawing it, and a haptic. **No text, no
+    emoji** — owner's call, and the right one: this game reads lives off rhythm.
+  - Smaller: the winch no longer draws a second rack over the slung one at the
+    well; isolators sit on the deck instead of hovering 28px clear; light
+    fittings are lamp housings rather than bare bars (the warm floor ones read as
+    Act One landing pads); conduit-run ornaments follow the floor instead of
+    hanging in air where the deck drops away; and the flatline banner says what
+    happens rather than quoting the design doc at the player.
+  - **Still open from this round, and both are the owner's to scope:** the
+    **turret** they want (a blockier, tougher Act One gun emplacement, survivable
+    — new Act Two content, closer to P·systems than to a fix), and **floor
+    variety** ("the floor can't all be flat… get this one right so we can cascade
+    those changes across the rest of the levels"), which is a re-author of
+    `SLICE_CHAMBER` under the constraint that `__doids.chamberRoute()` must stay
+    passable laden. Nine tests added; suite green at 165.
 - [ ] **P·persist. Persistence and save schema.** Promoted out of
   ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
   than after it. Act Two is a second campaign, not a run mode: per-chamber

@@ -11,6 +11,33 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## Act Two — P·feedback (the first on-device round on the slice), July 2026
+
+Twenty notes off a phone pass through the QA harness, most of which collapsed
+into a handful of causes.
+
+- Act One's sector logic no longer runs in a chamber: the extraction banner was
+  firing on frame one, because a chamber has no Scions and the manifest is
+  therefore trivially closed. The HUD counts banks down here.
+- The hull collides with walls. Act One's heightmap has none, so `updatePlay`
+  only ever tested vertically and the dart flew through pillars, column flanks
+  and §8's painted rock. Chamber impacts hurt instead of killing, capped below a
+  hard landing.
+- The "laser turret" was the junction-truss ornament being blamed for a death
+  caused by invisible painted rock 200px away. Truss redrawn as a cabinet.
+- A rack is bolted in. The somersault on cradling was a pendulum released from
+  horizontal; a moored rack is not simulated, and sustained thrust parts the
+  mounts. You land on the rack to rig its sling.
+- Contact damping is applied after the Verlet step, so friction exists at all —
+  a dropped rack used to slide frictionlessly.
+- Feed lines run buried between risers and every one, decoy included, ends in a
+  box; landing beside a decoy costs vitals.
+- Fuel cans along the route, the resupply drone launched from the well instead of
+  from a mothership at -9999, and the chamber entered at the well.
+- A slam reacts: muffled cry, shudder, haptic. No text, no emoji.
+- Lamp fittings, conduit runs, isolator height, the well's duplicate rack, and
+  the flatline banner's design-doc jargon.
+
 ## Index
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.

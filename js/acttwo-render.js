@@ -610,6 +610,37 @@ function getSpanTiles(lvl, xLo, xHi, pal) {
    FLASH the flicker goes away entirely rather than merely slowing — a fixture
    that stutters is exactly the cue that setting exists to remove. */
 const LIGHT_AMBIENT = 0.10;
+/* A fixture, drawn as plant hardware rather than a highlight. Ceiling fittings
+   hang from a short stem under a cowl that throws the light down; floor fittings
+   are uplighters on a squat base with an angled head. Both silhouettes are
+   deliberately NOT a plain horizontal bar — see the note at the call site. */
+function drawLightFitting(L, tint) {
+  const ceil = L.snap === "ceil";
+  ctx.save();
+  ctx.strokeStyle = shade(tint, .55); ctx.lineWidth = 2;
+  ctx.fillStyle = shade(TOK.VOID, .95);
+  if (ceil) {
+    ctx.beginPath(); ctx.moveTo(L.x, L.y - 12); ctx.lineTo(L.x, L.y - 3); ctx.stroke();
+    ctx.beginPath();                       // the cowl: wider at the bottom
+    ctx.moveTo(L.x - 7, L.y - 3); ctx.lineTo(L.x + 7, L.y - 3);
+    ctx.lineTo(L.x + 12, L.y + 4); ctx.lineTo(L.x - 12, L.y + 4);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = shade(tint, .9);       // the lamp behind it
+    ctx.fillRect(L.x - 9, L.y + 3, 18, 3);
+  } else {
+    ctx.beginPath();                       // base
+    ctx.moveTo(L.x - 10, L.y + 5); ctx.lineTo(L.x + 10, L.y + 5);
+    ctx.lineTo(L.x + 6, L.y - 4); ctx.lineTo(L.x - 6, L.y - 4);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = shade(tint, .9);       // head, aimed up and away
+    ctx.beginPath();
+    ctx.moveTo(L.x - 6, L.y - 4); ctx.lineTo(L.x + 6, L.y - 4);
+    ctx.lineTo(L.x + 9, L.y - 11); ctx.lineTo(L.x - 3, L.y - 11);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawChamberLights(now) {
   const lights = level.lights;
   if (!lights || !lights.length) return;
@@ -635,10 +666,13 @@ function drawChamberLights(now) {
     ctx.globalAlpha = 1;
     ctx.fillStyle = g;
     ctx.fillRect(L.x - r, L.y - r, r * 2, r * 2);
-    // the fitting itself, so a light source is a thing and not just a glow
+    /* The fitting itself. It used to be a bare 26x5 bar, which is what the owner
+       saw as an "odd artefact" — and the warm floor-mounted ones read as a yellow
+       LANDING PAD, because a short horizontal gold bar on a deck is exactly what
+       Act One's pads look like. A lamp has to look like a lamp: a housing with a
+       cowl, oriented by what it is bolted to. */
     ctx.globalCompositeOperation = "source-over";
-    ctx.fillStyle = shade(tint, .85);
-    ctx.fillRect(L.x - 13, L.y - 3, 26, 5);
+    drawLightFitting(L, tint);
     ctx.globalCompositeOperation = "lighter";
   }
   ctx.restore();
@@ -689,25 +723,64 @@ function drawMachinedPanelTicks(x0, x1) {
 /* ---- §5 ornamentation — decorative first, some becomes solid later; solid/
    filled forms rather than thin wireframes, which read as unfinished at a
    glance. World-space furniture dressing a plant chamber. */
+/* Owner feedback: this is the "blue thing that looks like a picnic table", and it
+   was being read as a gun that shoots you — two horizontal rails with an A-frame
+   between them is a trestle in silhouette, and the eye fills in the rest. It has
+   never had any code that can fire; what killed the owner near it was §8's
+   painted rock 200px to its right.
+
+   Redrawn as what it is: a junction cabinet, boxy and solid, with cable stubs
+   leaving it at the bottom. A closed box with conduits entering it cannot be
+   mistaken for something with a barrel. */
 function drawJunctionTruss(x, y, scale, color) {
-  const w = 64 * scale, h = 46 * scale;
+  const w = 46 * scale, h = 40 * scale;
   ctx.save();
-  ctx.strokeStyle = color; ctx.lineWidth = 2.5 * scale;
-  ctx.shadowColor = color; ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.moveTo(x, y); ctx.lineTo(x + w, y);
-  ctx.moveTo(x, y - h); ctx.lineTo(x + w, y - h);
-  ctx.moveTo(x, y); ctx.lineTo(x + w * 0.5, y - h); ctx.lineTo(x + w, y);
-  ctx.stroke();
+  ctx.fillStyle = TOK.VOID;
+  ctx.strokeStyle = color; ctx.lineWidth = 2.2 * scale;
+  ctx.shadowColor = color; ctx.shadowBlur = 5;
+  ctx.fillRect(x, y - h, w, h);
+  ctx.strokeRect(x, y - h, w, h);
   ctx.shadowBlur = 0;
+  // a door seam and two latches, so it reads as something openable
+  ctx.strokeStyle = shade(color, .45); ctx.lineWidth = 1.4 * scale;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.5, y - h + 3); ctx.lineTo(x + w * 0.5, y - 3);
+  ctx.moveTo(x + w * 0.5 - 5, y - h * 0.62); ctx.lineTo(x + w * 0.5 + 5, y - h * 0.62);
+  ctx.moveTo(x + w * 0.5 - 5, y - h * 0.38); ctx.lineTo(x + w * 0.5 + 5, y - h * 0.38);
+  ctx.stroke();
+  // cable stubs into the deck
+  ctx.strokeStyle = shade(color, .6); ctx.lineWidth = 2 * scale;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.22, y); ctx.lineTo(x + w * 0.22, y + 7 * scale);
+  ctx.moveTo(x + w * 0.78, y); ctx.lineTo(x + w * 0.78, y + 7 * scale);
+  ctx.stroke();
   ctx.restore();
 }
+/* Owner feedback ("some odd artefacts like this line above the dart") — a conduit
+   run FOLLOWS THE FLOOR. It was one straight horizontal line snapped only at its
+   left-hand end, so over a hall with 22px of roughness, a ramp, or the drop into
+   the shaft, the right-hand end hung in mid-air: a perfectly straight line across
+   open space, which is unreadable as anything. Sampled along its length instead,
+   the same fix trunkPath makes for the same reason. */
 function drawConduitRunOrnament(x, y, w, now) {
+  const at = px => {
+    if (!level.spans) return y;
+    const col = level.spans[clamp(Math.round(px / STEP), 0, level.spans.length - 1)] || [];
+    const sp = pickSpan(col, y);
+    return sp ? sp.bot - 4 : y;
+  };
+  const step = 48, pts = [];
+  for (let px = x; px < x + w; px += step) pts.push({ x: px, y: at(px) });
+  pts.push({ x: x + w, y: at(x + w) });
   ctx.save();
   ctx.strokeStyle = shade(TOK.CYAN, .4); ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
   const phase = (now % RACK_PULSE_PERIOD) / RACK_PULSE_PERIOD;
-  drawGlow(x + w * phase, y, 6, TOK.CYAN, 1);
+  const gi = clamp(Math.floor(phase * (pts.length - 1)), 0, pts.length - 1);
+  drawGlow(pts[gi].x, pts[gi].y, 6, TOK.CYAN, 1);
   ctx.restore();
 }
 function drawRackingFrameOrnament(x, y, w, h, color) {

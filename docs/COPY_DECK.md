@@ -588,11 +588,17 @@ clinical than Act One's, and they name the cost out loud. Nothing here says
 | Closing one of his decoy lines | `DEAD LINE — NOTHING WAS ON THE END OF IT` / `HE KNOWS SOMEONE IS DOWN HERE NOW` |
 | Cradling a rack for the first time | `CRADLED — SHE HANGS BELOW YOU NOW` / `FIRE RELEASES. EVERY SLAM IS FELT BY EVERYONE IN THE BOX.` |
 | First transfusion into a rack | `YOUR OWN VITALS, INTO THEIRS` / `THERE IS NO MERCY DOWN HERE. YOU ARE THE SUPPLY.` |
-| Reserve reaches zero | `FLATLINE — THE BANK IS GONE` + `THE CHAMBER IS THE UNIT OF RETRY` |
-| A slam finishes a failing rack | `THE LAST SLAM DID IT — THE BANK IS GONE` + `THE CHAMBER IS THE UNIT OF RETRY` |
-| Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THE CHAMBER IS THE UNIT OF RETRY` |
+| Reserve reaches zero | `FLATLINE — THE BANK IS GONE` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
+| A slam finishes a failing rack | `THE LAST SLAM DID IT — THE BANK IS GONE` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
+| Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
+| Landing beside one of his decoy boxes | `NOBODY IN IT — AND IT WAS WAITING FOR YOU` / `HIS BOXES BLEED YOU FOR LOOKING` |
+
+The flatline line was `THE CHAMBER IS THE UNIT OF RETRY` until the July 2026
+owner round, which is a sentence out of the design doc and meant nothing read off
+a phone. It now says what it was shorthand for. Worth keeping as a reminder that
+internal vocabulary reads as jargon the moment it reaches a banner.
 
 ### Floating texts (`addText()`)
 
@@ -608,6 +614,22 @@ clinical than Act One's, and they name the cost out loud. Nothing here says
 | Drifting off the line | `LINE PARTED — YOU DRIFTED` |
 | Hitting the vitals floor mid-transfusion | `YOU ARE THE CASUALTY NOW — LINE CLOSED` |
 | One line's ceiling reached (§7.4's diminishing returns) | `THAT IS ALL THIS LINE WILL CARRY` |
+| Taking a fuel can | `+<n> FUEL` |
+| The moorings give way under sustained thrust | `MOUNTS PARTED` |
+| Putting the hull into rock in a chamber | `IMPACT -<n>` |
+| Landing beside a decoy box | `-<n> VITALS` |
+
+And one PROMPT, drawn on the rack rather than pushed through `addText` — the
+owner asked how you were even meant to connect, because proximity-while-landed
+rigged the sling with no act on the player's part:
+
+| Where | Copy |
+|---|---|
+| Above a cut, moored rack you are not standing on | `LAND ON IT TO RIG THE SLING` |
+
+A slam's "yells from within" are deliberately **not** copy: the owner chose an
+audio cue, a shudder and haptics over text or emoji (`muffledCry`, js/audio.js).
+The game reads lives off rhythm, never captions.
 
 Those four are all closing lines for the same transfusion, so `endGive` appends
 the same suffix to whichever one fired: ` · +` and the reserve actually delivered,
