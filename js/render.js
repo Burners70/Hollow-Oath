@@ -435,6 +435,7 @@ function drawWorld(now) {
   if (level.plantOrnaments) drawPlantOrnaments(now);
   // P·slice — trunks under the racks they feed, so a line never covers the box
   drawConduits(now);
+  drawDecoys(now);
   drawFuelCans(now);
   drawRacks(now);
   if (level.wellDock) drawWellDock(now);
@@ -4531,7 +4532,14 @@ window.__doids = {
         delivered: r.delivered, lost: r.lost, gives: r.gives,
         occupants: r.occupants, cradleT: +r.cradleT.toFixed(2) })),
       conduits: level.conduits.map(c => ({ id: c.id, rack: c.rack, real: c.real,
-        x: Math.round(c.x), cut: c.cut, scanT: +c.scanT.toFixed(2) })),
+        x: Math.round(c.x), cut: c.cut, scanT: +c.scanT.toFixed(2),
+        // owner: a trunk runs DOWN and along under the deck now, so the suite
+        // needs the route, not just its endpoints
+        path: (c.path || []).map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })) })),
+      // owner: every decoy feed ends in a box, and landing beside one costs vitals
+      decoys: (level.decoys || []).map(d => ({ id: d.id, conduit: d.conduit,
+        x: Math.round(d.x), y: Math.round(d.y), mount: d.mount,
+        penalised: d.penalised })),
       towing: towing(),
       tow: level.towedRack ? { x: Math.round(level.towedRack.x),
         y: Math.round(level.towedRack.y),

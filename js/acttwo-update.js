@@ -566,7 +566,14 @@ function towContact(r, vn) {
   r.reserve = Math.max(0, r.reserve - dmg);
   r.slamT = 1;
   addText(r.x, r.y - 40, "-" + Math.max(1, Math.round(dmg)), PAL().DANGER);
-  dullThud(); haptic.medium();
+  /* Owner feedback: "hitting the ground and walls should damage the rack. Maybe
+     there are even yells or something from within" — answered as audio, a
+     shudder and haptics, with no text and no emoji (owner's call, and the right
+     one: the game reads lives off rhythm, never captions). The knock is the hull
+     and the cry is what is inside it, scaled by how hard you hit. */
+  dullThud();
+  muffledCry(clamp(dmg / 12, 0.15, 1));
+  haptic.medium();
   camera.shake += Math.min(7, dmg * 0.35);
   if (r.reserve <= 0) loseRack(r, "THE LAST SLAM DID IT — THE BANK IS GONE");
 }
@@ -809,6 +816,35 @@ function respawnInChamber() {
   banner("BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING", PAL().WARN);
 }
 
+/* ---- the decoy boxes (owner feedback, July 2026) --------------------------
+   Landing beside one costs vitals, once. See the note on DECOY_VITALS for why
+   vitals and not score: you are the blood supply down here, so it is taken out of
+   the same pool a real bank will need later — the cost is real without inventing
+   a ladder Act Two does not have yet.
+
+   Once per box, deliberately. A repeating charge for standing in the wrong place
+   would turn a wrong read into a bleed you cannot walk away from, and the lesson
+   is already taught the first time. */
+function updateDecoys() {
+  if (!level.decoys) return;
+  const s = ship;
+  if (!s.landed || s.dead) return;
+  for (const d of level.decoys) {
+    if (d.penalised) continue;
+    if (Math.hypot(s.x - d.x, s.y - d.y) > DECOY_R) continue;
+    d.penalised = true;
+    s.vitals = Math.max(1, s.vitals - (easyMode ? DECOY_VITALS * 0.5 : DECOY_VITALS));
+    /* Never below 1: the clinical floor GIVE_FLOOR exists for, applied here for
+       the same reason. A wrong read must never be the thing that kills you — it
+       costs you what you had to give someone else. */
+    banner("NOBODY IN IT — AND IT WAS WAITING FOR YOU\nHIS BOXES BLEED YOU FOR LOOKING", PAL().DANGER);
+    addText(d.x, d.y - 46, "-" + Math.round(easyMode ? DECOY_VITALS * 0.5 : DECOY_VITALS) + " VITALS",
+      PAL().DANGER);
+    staticTick(); staticSurge = Math.max(staticSurge, 0.7);
+    camera.shake += 6; haptic.heavy();
+  }
+}
+
 /* ---- fuel cans (owner feedback, July 2026) --------------------------------
    Flown into rather than landed on — see the note on FUEL_CAN_GIVE for why a
    fuel stop must not cost a set-down. Tops the tank up to full at most, so a can
@@ -960,6 +996,7 @@ function updateActTwo(dt) {
 
   updateReserves(dt, beat);
   updateFuelCans();
+  updateDecoys();
   updateTrunkCut(dt);
   /* The winch beat is scripted: while a load is being seated in the bay the
      payload's position comes from wellRackPos (it eases up past the ship's side

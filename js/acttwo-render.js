@@ -39,6 +39,18 @@ function pathRoundRect(x, y, w, h, r) {
    beat. Its glow IS its pulse — no HUD readout, state reads from the room. */
 function drawRack(cx, cy, w, h, stateKey, now, opts) {
   opts = opts || {};
+  /* THE SHUDDER (owner feedback) — the visual half of what a slam costs, beside
+     the muffled cry and the haptic. `slamT` was already being set and decayed by
+     towContact and nothing ever drew it, so the hit had no visible reaction at
+     all. A short, high-frequency judder that dies with the timer: the box
+     absorbing an impact, not a screen effect. Kept as motion under REDUCED
+     FLASH, which exists for flashing rather than movement (see rackEnvelope). */
+  const slam = clamp(opts.slam || 0, 0, 1);
+  if (slam > 0) {
+    const a = slam * slam * 4;
+    cx += Math.sin(now * 96) * a;
+    cy += Math.sin(now * 71 + 1.7) * a * 0.7;
+  }
   const color = rackColor(stateKey, now);
   let brightness = rackBrightness(stateKey, now, opts.cutT01 != null ? opts.cutT01 : null);
   // §4 open question 1 (Option B, the trunk-ripple pick) — every rack takes a
@@ -93,25 +105,82 @@ function drawRack(cx, cy, w, h, stateKey, now, opts) {
   ctx.restore();
 }
 
+/* The decoy boxes (owner feedback) — drawn by the SAME function as a real bank,
+   at the same size, on the same beat. That is the requirement, not a shortcut:
+   if a decoy were drawn even slightly differently it would be identifiable by
+   looking, and §7.1's whole deduction (read the pulse, find the real feed) would
+   be decoration. It is always in the `reserve` state, because a box on his
+   network is neither on the plant's mains nor dying — and `networked: false` so
+   it does not dip with the racks that genuinely share the tap. */
+function drawDecoys(now) {
+  if (!level.decoys) return;
+  for (const d of level.decoys) {
+    drawRack(d.x, d.y, RACK_SIZE.w, RACK_SIZE.h, "reserve", now,
+      { label: d.label, occupants: d.occupants, networked: false });
+    drawRackMounts(d);
+  }
+}
+
 /* ---- conduit real-vs-fake tell (§5 open question 2, Option A — the pick):
    a living line's beat stays a soft round glow (the rack's own disc
    language); a faked line's beat is a rounded-corner square — still clearly
    not a circle, not a harsh cutout either. Same timing on both; the tell is
    silhouette alone, so it survives colourblind mode untouched. `rippleDelayFrac`
    (0..1, optional) layers the §4 Option B network ripple on the same trunk. */
-function drawConduitTrunk(x0, y0, x1, y1, real, now, rippleDelayFrac) {
+/* The run itself, as a path. `trunkPath` (js/acttwo-data.js) routes it down into
+   the deck, along under the floor and back up at the far end — see the note there
+   for why a single straight segment across open air was wrong on three counts.
+   Buried sections are drawn dimmer, because you are seeing them THROUGH rock:
+   that is what makes it read as a service run rather than a wire in the air. */
+function trunkPts(c) {
+  return c.path && c.path.length > 1 ? c.path
+    : [{ x: c.x, y: c.y0 }, { x: c.x1, y: c.y1 }];   // pre-path chambers, if any
+}
+function strokeTrunkPath(c) {
+  const pts = trunkPts(c);
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
+}
+// where along the whole run a fraction 0..1 falls, and whether it is underground
+function trunkPointAt(c, f) {
+  const pts = trunkPts(c);
+  let total = 0;
+  const seg = [];
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    seg.push(d); total += d;
+  }
+  let want = clamp(f, 0, 1) * total;
+  for (let i = 0; i < seg.length; i++) {
+    if (want > seg[i] && i < seg.length - 1) { want -= seg[i]; continue; }
+    const t = seg[i] > 0 ? want / seg[i] : 0;
+    return { x: lerp(pts[i].x, pts[i + 1].x, t), y: lerp(pts[i].y, pts[i + 1].y, t),
+      buried: i > 0 && i < seg.length - 1 };
+  }
+  return { x: pts[0].x, y: pts[0].y, buried: false };
+}
+function drawConduitTrunk(c, real, now, rippleDelayFrac) {
   ctx.save();
   ctx.strokeStyle = shade(TOK.CYAN, .25); ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  strokeTrunkPath(c);
   const phase = (now % RACK_PULSE_PERIOD) / RACK_PULSE_PERIOD;
-  const px = lerp(x0, x1, phase), py = lerp(y0, y1, phase);
-  ctx.fillStyle = TOK.CYAN; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 12;
-  if (real) { ctx.beginPath(); ctx.arc(px, py, 6, 0, 7); ctx.fill(); }
-  else { ctx.beginPath(); pathRoundRect(px - 5.5, py - 5.5, 11, 11, 4); ctx.fill(); }
-  ctx.shadowBlur = 0;
+  const p = trunkPointAt(c, phase);
+  // the beat dims where the run passes under the deck — the same current, seen
+  // through rock, which is exactly what tells you the line is buried
+  const a = p.buried ? 0.45 : 1;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = TOK.CYAN; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 12 * a;
+  if (real) { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); }
+  else { ctx.beginPath(); pathRoundRect(p.x - 5.5, p.y - 5.5, 11, 11, 4); ctx.fill(); }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
   if (rippleDelayFrac != null) {
     const rt = networkRippleT(rippleDelayFrac);
-    if (rt > 0 && rt < 1) drawGlow(lerp(x0, x1, rt), lerp(y0, y1, rt), 9, TOK.CYAN, 0.7 * rt);
+    if (rt > 0 && rt < 1) {
+      const q = trunkPointAt(c, rt);
+      drawGlow(q.x, q.y, 9, TOK.CYAN, 0.7 * rt * (q.buried ? 0.45 : 1));
+    }
   }
   ctx.restore();
 }
@@ -122,7 +191,8 @@ function drawRacks(now) {
     // delivered one is aboard MERCY and must not still be sitting in the room
     if (r.towed || r.delivered) return;
     drawRack(r.x, r.y, r.w || RACK_SIZE.w, r.h || RACK_SIZE.h, r.state || "mains", now,
-      { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label, occupants: r.occupants });
+      { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label,
+        occupants: r.occupants, slam: r.slamT });
     // P·slice — the reserve's own trace, on the box rather than in a HUD strip
     // (§7.5 explicitly refuses a strip of ECGs along the top of the screen)
     if (r.cut && !r.delivered) drawRackECG(r, now);
@@ -263,10 +333,10 @@ function drawConduits(now) {
       ctx.save();
       ctx.strokeStyle = shade(TOK.CYAN, .12); ctx.lineWidth = 2.5;
       ctx.setLineDash([5, 9]);
-      ctx.beginPath(); ctx.moveTo(c.x, c.y0); ctx.lineTo(c.x1, c.y1); ctx.stroke();
+      strokeTrunkPath(c);
       ctx.restore();
     } else {
-      drawConduitTrunk(c.x, c.y0, c.x1, c.y1, c.real, now, (i % 4) / 4);
+      drawConduitTrunk(c, c.real, now, (i % 4) / 4);
     }
     drawIsolator(c, now);
     if (c.scanT > 0) drawHoldRing(c.x, c.y - 40, c.scanT, TRUNK_CUT_T, "CLOSING…", PAL().WARN);
@@ -800,7 +870,7 @@ function drawTowedRack(now) {
   const r = level.towedRack;
   drawSlingLine(ship.x, ship.y, r.x, r.y, r.tension != null ? r.tension : .55, now);
   drawRack(r.x, r.y, r.w || RACK_SIZE.w, r.h || RACK_SIZE.h, rackStateFor(r), now,
-    { occupants: r.occupants });
+    { occupants: r.occupants, slam: r.slamT });
   drawRackECG(r, now);
   drawSlingTell(ship.x, ship.y, r);
 }

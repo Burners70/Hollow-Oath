@@ -538,6 +538,58 @@ test("owner: a moored rack does not move, and a sustained pull parts the mounts"
   expect(r.frames).toBeGreaterThan(4);      // never on the first frame — it resists
 });
 
+/* Owner feedback, July 2026 — every feed line ends in a box, runs under the deck,
+   and a decoy box costs you vitals to go and look at. */
+test("owner: every trunk ends in a box, and none of them goes nowhere", async ({ page }) => {
+  await slice(page);
+  const s = await a2(page);
+  // one real bank plus a decoy box per dead line — so counting boxes tells you
+  // nothing, which is what keeps §7.1 a matter of reading rather than looking
+  expect(s.decoys.length).toBe(s.conduits.filter(c => !c.rack).length);
+  const ends = await page.evaluate(() => {
+    const a = __doids.get().actTwo;
+    const targets = a.racks.map(r => ({ x: r.x, y: r.y }))
+      .concat(a.decoys.map(d => ({ x: d.x, y: d.y })));
+    return a.conduits.map(c => {
+      const end = c.path[c.path.length - 1];
+      return Math.min(...targets.map(t => Math.hypot(t.x - end.x, t.y - end.y)));
+    });
+  });
+  // every run terminates AT something, real or bait
+  for (const d of ends) expect(d).toBeLessThan(60);
+});
+
+test("owner: a feed line runs below ground, not across open air", async ({ page }) => {
+  await slice(page);
+  const buried = await page.evaluate(() => {
+    const c = __doids.get().actTwo.conduits.find(k => k.rack);
+    // drop the two risers at each end; the run between them is the buried part
+    const mid = c.path.slice(2, -2);
+    return { n: mid.length, allSolid: mid.every(p => __doids.solid(p.x, p.y)) };
+  });
+  expect(buried.n).toBeGreaterThan(3);
+  expect(buried.allSolid).toBe(true);   // in the structure, which is where services go
+});
+
+test("owner: landing beside a decoy box costs vitals, once, and never kills", async ({ page }) => {
+  await slice(page);
+  const r = await page.evaluate(async () => {
+    const d = __doids.get().actTwo.decoys[0];
+    ship.vitals = 30;
+    __doids.a2Warp(d.x, __doids.ground(d.x, d.y) - 12, true);
+    for (let i = 0; i < 10; i++) await new Promise(k => requestAnimationFrame(k));
+    const first = ship.vitals;
+    // and again: the lesson is taught once, not billed forever
+    level.decoys[0].penalised = true;
+    ship.vitals = 5;
+    for (let i = 0; i < 10; i++) await new Promise(k => requestAnimationFrame(k));
+    return { first, second: ship.vitals, dead: ship.dead };
+  });
+  expect(r.first).toBeLessThan(30);
+  expect(r.second).toBe(5);      // charged once
+  expect(r.dead).toBe(false);    // a wrong read must never be what kills you
+});
+
 /* Owner feedback: fuel down here is cans plus a drone off the well. The rules,
    not the numbers — a can is flown into, it tops up, and it is gone after. */
 test("owner: a chamber carries fuel cans, taken by flying into them", async ({ page }) => {

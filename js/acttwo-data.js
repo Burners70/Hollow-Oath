@@ -785,6 +785,15 @@ const SLICE_CHAMBER = {
      which is where the next chamber's entrance is and where she lowers it
      deeper as you clear (§11.1). It sways, and you dock a swinging load into
      it: the mothership is doing exactly what you are doing. */
+  /* One box per decoy feed (owner feedback), same size and same mounting as the
+     real bank, so the two cannot be told apart by looking — only by reading. One
+     of the two is wall-mounted, which is the mount the owner opened up and which
+     a real plant would use for a bank it did not want on the walking floor. */
+  decoys: [
+    { id: "d1", conduit: "c2", x: 3560, y: 1100, snap: "floor", label: "BANK 2 · 10 SOULS" },
+    { id: "d2", conduit: "c3", x: 4700, y: 640,  snap: "floor", mount: "wall",
+      label: "BANK 3 · 9 SOULS" }
+  ],
   well: { x: 8465, y: 950 },
   /* Fuel along the route (owner feedback). Placed against the SHAPE of the run
      rather than evenly: you enter at the well on the right, so the leftward leg
@@ -874,7 +883,44 @@ function buildRacks(ch, spans) {
   }));
 }
 
-function buildConduits(ch, spans, racks) {
+/* ---- where a feed line RUNS (owner feedback, July 2026) --------------------
+   Three complaints, one cause. "What do the lines represent — don't really make
+   sense", "why does the feed line to the left go nowhere", and "the feed lines
+   keeping them alive should run at — or maybe better, below — ground level."
+
+   All three were true. A trunk was a single straight segment from its isolator to
+   the rack it fed, drawn across whatever open air lay between: at the slice
+   chamber's spacing that is an 870px diagonal through the middle of the room,
+   which reads as a laser or a tether and not as plumbing. And a decoy had no
+   destination at all — `x1 = c.x + 240, y1 = c.y - 300` — so it was a line to
+   literally nowhere, which is exactly what the owner saw.
+
+   Now a trunk is a POLYLINE that goes down into the deck, runs buried along the
+   floor, and comes back up at the far end. That is what makes it read as a feed:
+   services are routed in the structure, not strung through the air. Buried depth
+   is derived from the floor at each sample rather than a constant offset, so it
+   follows the terrain over rough ground and through the hall's dips instead of
+   diving through rock. */
+const TRUNK_BURY = 26;         // px below the deck the run sits
+const TRUNK_STEP = 64;         // sample spacing of the buried run
+
+function trunkPath(x0, y0, x1, y1, spans) {
+  const pts = [{ x: x0, y: y0 }];
+  const floorAt = x => {
+    const col = spans[clamp(Math.round(x / STEP), 0, spans.length - 1)] || [];
+    const sp = pickSpan(col, y0);
+    return sp ? sp.bot : y0;
+  };
+  const dir = x1 >= x0 ? 1 : -1;
+  pts.push({ x: x0, y: floorAt(x0) + TRUNK_BURY });          // down into the deck
+  for (let x = x0 + dir * TRUNK_STEP; dir > 0 ? x < x1 : x > x1; x += dir * TRUNK_STEP)
+    pts.push({ x, y: floorAt(x) + TRUNK_BURY });             // along, under the floor
+  pts.push({ x: x1, y: floorAt(x1) + TRUNK_BURY });
+  pts.push({ x: x1, y: y1 });                                // and up to what it feeds
+  return pts;
+}
+
+function buildConduits(ch, spans, racks, decoys) {
   /* h is how far above the floor the ORIGIN sits so the thing rests ON it, and
      drawIsolator draws its box from `y - 22` up to `y` — so the origin is the
      box's BASE and wants h = 0, not 26. At 26 every breaker in the chamber
@@ -882,16 +928,54 @@ function buildConduits(ch, spans, racks) {
      wall or floor, not floating"). */
   return snapToSurface((ch.conduits || []).map(c =>
     Object.assign({}, c, { h: 0 })), spans).map(c => {
+    const lid = RACK_SIZE.h * RACK_CAGE_H / 2 + 8;
     const rk = racks.find(r => r.id === c.rack);
+    /* Every trunk ends at a BOX, real feed or decoy (owner feedback: "false
+       feeds need a box too, same placement rules"). Which is also what makes the
+       deduction honest — if only the real line terminated in something, the
+       decoys would be identifiable by geometry rather than by reading a pulse,
+       and §7.1's whole mechanic would be decorative. */
+    const box = rk || (decoys || []).find(d => d.conduit === c.id);
+    const x1 = box ? box.x : c.x + 240;
+    const y1 = box ? box.y - lid : c.y - 120;
     return { id: c.id, rack: c.rack, real: !!c.real, label: c.label,
       // the isolator, stood on the floor
       x: c.x, y: c.y, cut: false, scanT: 0,
-      /* the trunk itself: up off the isolator, then across to whatever it
-         feeds. A decoy runs to nothing in particular — it just leaves the
-         room, which is exactly what a line of his looks like from here. */
-      y0: c.y - 18, y1: rk ? rk.y - RACK_SIZE.h * RACK_CAGE_H / 2 - 8 : c.y - 300,
-      x1: rk ? rk.x : c.x + 240 };
+      // kept for the shot test and anything that wants the run's endpoints
+      y0: c.y - 18, x1, y1,
+      // and the route it actually takes: down, along under the deck, and up
+      path: trunkPath(c.x, c.y - 18, x1, y1, spans) };
   });
+}
+
+/* ---- the decoy boxes (owner feedback, July 2026) ---------------------------
+   "False feeds need a box too. (Same placement rules). Landing beside a false
+   feed box needs a penalty. Therefore the false pulse needs to be a similar size
+   to the real one."
+
+   Read as one requirement rather than three, because they only work together: if
+   a decoy box were smaller, or unmounted, or free to inspect, then telling it
+   from a real bank would be a matter of looking rather than of reading a pulse —
+   and §7.1's deduction is the act this whole chamber is built around. So a decoy
+   is the same size, bolted the same way, pulsing on the same clock, and
+   approaching one costs you.
+
+   What it costs is VITALS (owner's call). It is the right currency: you are the
+   blood supply down here, so anything that takes vitals takes reserve you could
+   have given a real bank later. Never score — Act Two has no ladder yet, and
+   billing points for reading a room wrong is not the pressure this act runs on
+   (the same reasoning closeTrunk already applies to cutting a dead line). */
+const DECOY_VITALS = 12;       // the cost of going to have a look
+const DECOY_R = 104;           // how close is "beside it"
+
+function buildDecoys(ch, spans) {
+  const cage = RACK_SIZE.h * RACK_CAGE_H;
+  return snapToSurface((ch.decoys || []).map(d =>
+    Object.assign({}, d, { h: cage / 2 })), spans).map(d => ({
+    id: d.id, conduit: d.conduit, x: d.x, y: d.y,
+    mount: d.mount || "floor", occupants: d.occupants || RACK_OCCUPANTS_DEFAULT,
+    label: d.label, penalised: false
+  }));
 }
 
 function genChamber(ch) {
@@ -902,8 +986,9 @@ function genChamber(ch) {
   const spans = compileChamber(ch, "solid");
   const drawn = chamberLies(ch) ? compileChamber(ch, "drawn") : spans;
   const racks = buildRacks(ch, spans);
+  const decoys = buildDecoys(ch, spans);
   return {
-    racks, conduits: buildConduits(ch, spans, racks),
+    racks, decoys, conduits: buildConduits(ch, spans, racks, decoys),
     /* §7.6 — the bay hangs and sways; `docking` and `winchT` are the beat that
        seats a load in it, driven by updateWellDock. `phase` offsets the sway so
        a chamber with more than one well never pulses as one object. */
