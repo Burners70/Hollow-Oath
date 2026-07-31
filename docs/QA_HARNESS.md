@@ -29,7 +29,8 @@ commands, the harness gives you both:
 1. Open `tests/qa-harness.html` (via a raw.githack link, or any static host —
    it's a plain file, no build step).
 2. The **src box** lives in the menu's **Build** group and remembers the last
-   build you loaded. Paste a link and tap **Load** to point it at another build —
+   build you loaded (see the Home Screen note below for how that interacts with
+   `?src=`). Paste a link and tap **Load** to point it at another build —
    the harness page itself never needs to change for this. `?src=<url>` on the
    harness's own URL does the same thing without any typing, which is the easiest
    way to open a specific build from a message or a note.
@@ -91,7 +92,21 @@ have first on a phone and can't otherwise answer from inside the game.
 Add the harness (not the game) to your Home Screen for one-tap access. The
 harness loads the game inside itself, so you get the full game plus the menu
 in one place. To test a new build later, there's no need to re-add anything —
-just paste the new link into the src box and tap Load.
+just paste the new link into the **Build** box and tap Load.
+
+That last sentence is load-bearing, and the harness is built to honour it. An
+icon relaunches the same URL every time, so if `?src=` won unconditionally your
+next launch would snap back to whatever build was frozen in the icon's query
+string — silently undoing the link you had just pasted. Instead the harness
+remembers which `?src=` it has already seen: **a link you have not opened before
+wins (that is intent), and otherwise your own last Load wins.** So sending
+someone a link works, going back to an old link works, and the build you chose
+sticks across relaunches.
+
+Practical consequence: the *game* build is overridable forever from the Build
+box, but the **harness page itself** is pinned by the icon. Re-add the icon only
+when the harness gains something you want (a new section, a new button) — not
+when the game changes.
 
 ### Cache gotcha: use SHA-pinned links, not branch links
 

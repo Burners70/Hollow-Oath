@@ -92,6 +92,23 @@ test("the harness stays branch-agnostic and SHA-pinned", () => {
   expect(/claude\/[a-z0-9-]+/.test(HARNESS), "no branch names in the harness").toBe(false);
 });
 
+test("a Home-Screen icon cannot clobber a build you loaded yourself", () => {
+  /* The rig is meant to live on a phone's Home Screen, and an icon relaunches the
+     same URL every time — so `?src=` winning unconditionally silently breaks the
+     documented workflow (add the icon once, paste newer builds in later): the next
+     launch snaps back to the build frozen in the icon's query string.
+
+     A newly pasted link is intent; an icon relaunching is not. So the harness
+     remembers which `?src=` it has already seen and yields to your own last load
+     for that one, while still honouring a link it hasn't seen before. Asserted on
+     the source because the behaviour is invisible until it bites, months later, as
+     "why is it showing me the old build". */
+  expect(HARNESS).toMatch(/pref\("urlsrc"\)/);
+  expect(HARNESS).toMatch(/urlSrc\s*&&\s*urlSrc\s*!==\s*seen/);
+  // and the fallback order after that is: your last load, then the link, then built-in
+  expect(HARNESS).toMatch(/pref\("src"\)\s*\|\|\s*urlSrc\s*\|\|\s*BUILT_IN/);
+});
+
 test("harness preference keys never collide with the game's save format", () => {
   /* The harness and the game share an origin on purpose (that is what makes
      driving the iframe legal), so they share one localStorage. Harness keys must

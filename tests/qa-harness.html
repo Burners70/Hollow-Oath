@@ -285,11 +285,25 @@
   }
 
   var qs = new URLSearchParams(location.search);
-  /* ?src= wins, then whatever you last loaded, then a default. The default is a
-     starting point only — it is SHA-pinned so it can't rot into a different
-     build, but it will get old; pass ?src= or paste into the box (Build). */
-  var DEFAULT_SRC = qs.get("src") || pref("src") ||
-    "https://raw.githack.com/Burners70/Hollow-Oath/e82b461fff012fb311d14f39d86011ec261e6ba2/index.html";
+  var BUILT_IN =
+    "https://raw.githack.com/Burners70/Hollow-Oath/10e575f467d934bcc60bcede90e27b298295a130/index.html";
+
+  /* ---- which build to load, and why it is not just `?src= wins` -------------
+     This page is meant to live on a phone's Home Screen (docs/QA_HARNESS.md), and
+     a Home-Screen icon relaunches the SAME url every time. So "?src= always wins"
+     quietly breaks the one workflow that matters: you add the icon, later paste a
+     newer build into the Build box, and the next launch snaps back to the build
+     frozen in the icon's query string — with nothing on screen to say why.
+
+     A newly pasted link IS intent; the icon relaunching is not. So `?src=` is
+     honoured when it is one we have not seen before, and otherwise yields to
+     whatever you last loaded yourself. Sending someone a link still works, going
+     back to a link still works, and your own choice sticks. */
+  var urlSrc = qs.get("src");
+  var seen = pref("urlsrc");
+  var DEFAULT_SRC;
+  if (urlSrc && urlSrc !== seen) { DEFAULT_SRC = urlSrc; pref("urlsrc", urlSrc); }
+  else DEFAULT_SRC = pref("src") || urlSrc || BUILT_IN;
   srcInput.value = DEFAULT_SRC;
 
   function doids() {
