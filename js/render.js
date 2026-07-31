@@ -4634,11 +4634,62 @@ window.__doids = {
     return true;
   },
   a2SetReserve: (id, v) => {
-    const r = (level.racks || []).find(k => k.id === id);
+    const r = (level.racks || []).find(k => k.id === (id || (level.racks[0] || {}).id));
     if (!r) return false;
     r.reserve = v; return true;
   },
   a2Vitals: v => { ship.vitals = v; },
+
+  /* ---- the on-device rig's entry points (tests/qa-harness.html) ------------
+     Act Two is tuned by hand on a phone, so the tap-driven QA harness needs to
+     reach the same places the suite does. These exist rather than having the
+     harness read internals through `frame.contentWindow` because **a top-level
+     `const` is NOT a property of `window`.** Classic scripts put `let`/`const`
+     in the global *lexical* environment, so `contentWindow.SLING_L` is
+     `undefined` while `contentWindow.markTrained` (a function declaration) works
+     — a trap worth naming, since the harness already uses the second form and
+     the first would have failed silently. */
+  // every chamber the build knows about, so the rig's picker fills itself in as
+  // P·content adds the other nine rather than needing an edit per chamber
+  a2Chambers: () => ACT_TWO_CHAMBERS.map(c => ({ id: c.id, name: c.name })),
+  // park the ship where a slung load hangs at the bay's own slot — the dock
+  // window is measured on the RACK, so this is the pose that matters
+  a2WarpWell: () => {
+    const w = level.wellDock;
+    if (!w) return false;
+    const slot = wellSlotPos(w, performance.now() / 1000);
+    ship.x = slot.x; ship.y = slot.y - SLING_L;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
+    if (level.towedRack) seatPayload(level.towedRack, true);
+    camera.x = ship.x; camera.y = ship.y;
+    return true;
+  },
+  // land beside a rack, inside cradle reach
+  a2WarpRack: id => {
+    const r = (level.racks || []).find(k => k.id === id) || (level.racks || [])[0];
+    if (!r) return false;
+    ship.x = r.x; ship.y = r.y - 40;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; ship.dead = false;
+    if (level.towedRack) seatPayload(level.towedRack, true);
+    camera.x = ship.x; camera.y = ship.y;
+    return true;
+  },
+  /* The feel values, live. The whole point of a device pass is deciding these by
+     hand, and the first question on a phone is always "what is it set to right
+     now" — which is unanswerable from inside the game otherwise. */
+  a2Dials: () => ({
+    slingVisible: SLING_VISIBLE, slingL: +SLING_L.toFixed(1),
+    shipShare: SLING_SHIP_W, safeV: SLING_SAFE_V, dmgK: SLING_DMG_K,
+    reserveMax: RACK_RESERVE_MAX, drain: RACK_DRAIN, beatBite: RACK_BEAT_BITE,
+    failingAt: RACK_FAILING_AT,
+    giveRate: GIVE_RATE, givePerLine: GIVE_PER_LINE, giveFloor: GIVE_FLOOR,
+    wellDockR: WELL_DOCK_R, wellDockV: WELL_DOCK_V,
+    cradleT: CRADLE_T, recradleT: RECRADLE_T, trunkCutT: TRUNK_CUT_T,
+    // and the geometry they imply, which is what a chamber is authored against
+    envelopeAtRest: +towEnvelope(0).vertical.toFixed(1),
+    envelopeSwung: +towEnvelope(TOW_SWING_LEVEL).vertical.toFixed(1),
+    momentumGap: momentumGapPx(), restGap: restGapPx()
+  }),
 
   /* ---- the traversability invariant -------------------------------------
      GAME_DESIGN's no-trolley-problem pillar says every chamber must be

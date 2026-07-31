@@ -17,7 +17,7 @@ npx playwright test -g "V12" # one test, by title
 
 ## Which file holds what
 
-150 tests, split by concern so an edit loads one small file instead of the whole
+155 tests, split by concern so an edit loads one small file instead of the whole
 suite. `harness.js` holds the shared per-test guard — navigate to the game, wait
 for `__doids`, and fail the test on any console error or uncaught exception.
 
@@ -33,6 +33,7 @@ for `__doids`, and fail the test on any console error or uncaught exception.
 | `story.spec.js` | Briefings, the 41-second clock, recovered logs and the codex archive, Game Center facade |
 | `acttwo.spec.js` | **Act Two's mechanics** (Bundle P, P·slice): the trunk cut, the cradle, the tether and its damage model, the draining reserve and its bite on the 41s beat, the inverted transfusion, THE WELL, death-while-towing — plus the **traversability invariant** (every chamber must be flyable laden). Act Two's *terrain* stays in `worldgen.spec.js` with the other generation invariants. Nothing here asserts a tuning number: Act Two's feel values are tuned on hardware, so the tests assert the rules |
 | `copy-deck.spec.js` | Guards `docs/COPY_DECK.md` against drift — see below |
+| `qa-harness.spec.js` | Guards `tests/qa-harness.html` (the on-device tap rig) against drift: every button maps to an action, every `__doids` driver it calls still exists, the `contentWindow` calls are function declarations, the default build URL is SHA-pinned. Static — the rig can't be driven live here, because that needs same-origin and the suite is `file://`. See `docs/QA_HARNESS.md` |
 
 Adding a test: pick the file by concern, follow the pattern in it
 (`page.evaluate(() => __doids.go(n))`, then assert on `__doids.get()`), and when

@@ -7,17 +7,37 @@
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; background: #05060f; font-family: -apple-system, Menlo, monospace; color: #dff8ff; }
-  #wrap { display: flex; flex-direction: column; height: 100%; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #05060f; font-family: -apple-system, Menlo, monospace; color: #dff8ff; overflow: hidden; }
+
+  /* ---- THE STAGE IS THE WHOLE VIEWPORT ----------------------------------
+     The chrome used to be flex rows ABOVE the iframe, so the bar permanently
+     stole ~40px and an open menu up to 46vh. In landscape on a phone (~390px
+     tall) that squeezed the game to a third of the screen and pushed its own
+     bottom controls off the bottom — the game is laid out against the iframe's
+     viewport, so shrinking the iframe shrinks the game.
+     Now the iframe always gets the full viewport and the chrome floats OVER it.
+     Opening the menu no longer resizes the game at all, which also means it
+     can't re-run its own resize()/re-layout in the middle of something you are
+     mid-way through testing. */
+  #stage { position: fixed; inset: 0; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+
+  #chrome { position: absolute; top: 0; left: 0; right: 0; z-index: 20; }
+  body.hidden #chrome { display: none; }
+
   #bar {
     display: flex; align-items: center; gap: 6px;
     /* clear the notch/camera housing in landscape, whichever side it's on —
        same env(safe-area-inset-*) pattern the game itself uses (css/game.css) */
-    padding: 6px calc(8px + env(safe-area-inset-right)) 6px calc(8px + env(safe-area-inset-left));
-    background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.3); flex-wrap: wrap;
+    padding: 5px calc(8px + env(safe-area-inset-right)) 5px calc(8px + env(safe-area-inset-left));
+    background: rgba(10,14,26,.94); border-bottom: 1px solid rgba(0,229,255,.3);
   }
+  /* One compact line, deliberately: the chrome overlays the game's top HUD band
+     now, so every pixel of bar height is a pixel of game you can't read. The src
+     box moved into the menu (Build) — it's a once-per-session field, and left in
+     the bar it wrapped onto a second line on a narrow phone. */
   #bar input[type=text] {
-    flex: 1; min-width: 120px; background: #111726; border: 1px solid rgba(0,229,255,.4);
+    flex: 1; min-width: 100px; background: #111726; border: 1px solid rgba(0,229,255,.4);
     color: #dff8ff; padding: 6px 8px; border-radius: 6px; font-size: 12px;
   }
   button {
@@ -27,12 +47,15 @@
   button:active { background: #17324a; }
   button.warn { border-color: rgba(255,109,0,.6); color: #ffab73; }
   button.danger { border-color: rgba(255,64,129,.6); color: #ff8fab; }
-  #menuToggle { font-size: 16px; padding: 6px 12px; }
+  button.a2 { border-color: rgba(105,240,174,.6); color: #9df3c8; }
+  #menuToggle { font-size: 15px; padding: 6px 11px; }
+  #hideBtn { font-size: 13px; padding: 6px 10px; margin-left: auto; }
   #menu {
     display: none;
-    padding: 8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left));
-    background: #0a0e1a; border-bottom: 1px solid rgba(0,229,255,.2);
-    overflow-y: auto; max-height: 46vh;
+    padding: 8px calc(8px + env(safe-area-inset-right)) 10px calc(8px + env(safe-area-inset-left));
+    background: rgba(10,14,26,.96); border-bottom: 1px solid rgba(0,229,255,.2);
+    overflow-y: auto; max-height: calc(100vh - 42px);
+    -webkit-overflow-scrolling: touch;
   }
   #menu.open { display: block; }
   .grp { margin-bottom: 10px; }
@@ -40,107 +63,179 @@
     margin: 0 0 6px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
     color: rgba(174,244,255,.6); font-weight: 700;
   }
-  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .grp.act2 h3 { color: rgba(105,240,174,.75); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .row label { font-size: 10px; color: rgba(174,244,255,.55); }
   select {
     background: #111726; border: 1px solid rgba(0,229,255,.4); color: #dff8ff;
     padding: 6px 8px; border-radius: 6px; font-size: 12px; font-family: inherit;
   }
-  #status { font-size: 11px; color: rgba(255,255,255,.5); padding: 0 4px; white-space: nowrap; }
-  #stage { position: relative; flex: 1; min-height: 0; }
-  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+  #status { font-size: 11px; color: rgba(255,255,255,.55); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 42vw; }
+
+  /* ---- the reveal tab -------------------------------------------------
+     With the chrome hidden the game is completely unobstructed, so there has to
+     be one small thing left to tap to get it back. Mid-RIGHT edge, vertically
+     centred: it is the only region of the screen the game doesn't use — the HUD
+     owns the top 62px band, and every touch control sits along the bottom
+     (css/game.css: #btnL/#btnR bottom-left, FIRE/THRUST/SHIELD bottom-right).
+     Faint until touched, so it doesn't read as part of the game. */
+  #peek {
+    position: absolute; z-index: 21; top: 50%; transform: translateY(-50%);
+    right: calc(0px + env(safe-area-inset-right));
+    width: 26px; height: 52px; padding: 0;
+    border-radius: 8px 0 0 8px; border-right: 0;
+    background: rgba(10,14,26,.55); border-color: rgba(0,229,255,.35);
+    color: rgba(174,244,255,.6); font-size: 13px; opacity: .45;
+  }
+  #peek:active { opacity: 1; background: #17324a; }
+  body.hidden #peek { opacity: .75; }
+
   #dump {
     display: none; position: absolute; inset: 0; margin: 0; overflow: auto;
     padding: 10px calc(10px + env(safe-area-inset-right)) 10px calc(10px + env(safe-area-inset-left));
-    background: rgba(5,6,15,.96); font-size: 11px; white-space: pre-wrap; z-index: 5;
+    background: rgba(5,6,15,.96); font-size: 11px; white-space: pre-wrap; z-index: 25;
+    -webkit-overflow-scrolling: touch;
   }
   #dump.open { display: block; }
 </style>
 </head>
 <body>
-<div id="wrap">
-  <div id="bar">
-    <button id="menuToggle">☰ menu</button>
-    <input id="srcInput" type="text" placeholder="game index.html URL (raw.githack link)">
-    <button id="loadBtn">Load</button>
-    <span id="status">not loaded</span>
+<div id="stage">
+  <iframe id="gameFrame"></iframe>
+
+  <div id="chrome">
+    <div id="bar">
+      <button id="menuToggle">☰ menu</button>
+      <span id="status">not loaded</span>
+      <button id="hideBtn">▲ hide</button>
+    </div>
+
+    <div id="menu">
+      <div class="grp act2">
+        <h3>Act Two — the descent (Bundle P)</h3>
+        <div class="row">
+          <select id="chamberSel"><option value="slice">slice</option></select>
+          <button class="a2" data-run="loadChamber">Load chamber</button>
+          <button class="a2" data-run="a2Dials">Dials</button>
+          <button class="a2" data-run="a2State">Act Two state</button>
+          <button class="a2" data-run="a2Route">Route check</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button class="a2" data-run="a2WarpRack">Warp to rack</button>
+          <button class="a2" data-run="a2CutReal">Close the real feed</button>
+          <button class="warn" data-run="a2CutDecoy">Close a decoy</button>
+          <button class="a2" data-run="a2Cradle">Cradle</button>
+          <button class="warn" data-run="a2Release">Release</button>
+          <button class="a2" data-run="a2WarpWell">Warp to the well</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label for="reserveSel">reserve</label>
+          <select id="reserveSel">
+            <option value="100">100 · full</option>
+            <option value="60">60 · on reserve</option>
+            <option value="30" selected>30 · failing</option>
+            <option value="8">8 · about to go</option>
+            <option value="0.05">0.05 · flatline now</option>
+          </select>
+          <button class="a2" data-run="a2SetReserve">Set</button>
+          <label for="vitalsSel">vitals</label>
+          <select id="vitalsSel">
+            <option value="100">100</option>
+            <option value="40" selected>40</option>
+            <option value="20">20 · near the floor</option>
+          </select>
+          <button class="a2" data-run="a2Vitals">Set</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Jump to sector (Act One)</h3>
+        <div class="row">
+          <select id="sectorSel">
+            <option value="0">0 · Asclepion (tutorial)</option>
+            <option value="1">1 · Vesalius Ridge</option>
+            <option value="2">2 · Nightingale Basin</option>
+            <option value="3">3 · Semmelweis Deep</option>
+            <option value="4">4 · Curie Fields</option>
+            <option value="5">5 · Avicenna Shoals</option>
+            <option value="6">6 · Jenner Terraces</option>
+            <option value="7">7 · The Nullwave (finale)</option>
+          </select>
+          <button data-run="go">Go + Launch</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Story / testing flags</h3>
+        <div class="row">
+          <button data-run="setVeteran">Set veteran</button>
+          <button data-run="setHusksKnown">Set husks known</button>
+          <button data-run="checkHusksKnown">Check husks known</button>
+          <button data-run="markTrained">Mark trained</button>
+          <button data-run="markIntroSeen">Mark intro seen</button>
+          <button data-run="startFreshRun">Start fresh run (title flow)</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Finale (sector 7 only)</h3>
+        <div class="row">
+          <button data-run="warpBeacon">Warp to beacon</button>
+          <button class="warn" data-run="fireSolace">Fire Solace (bad ending)</button>
+          <button data-run="answerBeacon">Answer beacon (good ending)</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Warp / give</h3>
+        <div class="row">
+          <button data-run="warpLift">Warp to lift</button>
+          <button data-run="warpShrine">Warp to shrine</button>
+          <select id="upgradeSel">
+            <option value="gentle">gentle (Hippocrates)</option>
+            <option value="fabrica">fabrica (Vesalius)</option>
+            <option value="lamp">lamp (Nightingale)</option>
+            <option value="antisepsis">antisepsis (Semmelweis)</option>
+            <option value="radiosense">radiosense (Curie)</option>
+            <option value="canon">canon (Avicenna)</option>
+            <option value="inoculation">inoculation (Jenner)</option>
+            <option value="doors">doors (Blackwell)</option>
+            <option value="pathology">pathology (Virchow)</option>
+            <option value="penicillin">penicillin (Fleming)</option>
+            <option value="growth">growth (Levi-Montalcini)</option>
+          </select>
+          <button data-run="give">Give upgrade</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Utilities</h3>
+        <div class="row">
+          <button data-run="dumpState">Show state</button>
+          <button data-run="reset">Reset run</button>
+          <button class="danger" data-run="clearSave">Clear save + reload</button>
+          <button id="consoleToggle">Toggle console</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Build</h3>
+        <div class="row">
+          <input id="srcInput" type="text" placeholder="game index.html URL (raw.githack link)">
+          <button id="loadBtn">Load</button>
+        </div>
+        <div class="row" style="margin-top:4px">
+          <span style="font-size:10px;color:rgba(174,244,255,.45)">
+            Pin a commit SHA, not a branch — see docs/QA_HARNESS.md. Remembered between visits.
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="menu">
-    <div class="grp">
-      <h3>Jump to sector</h3>
-      <div class="row">
-        <select id="sectorSel">
-          <option value="0">0 · Asclepion (tutorial)</option>
-          <option value="1">1 · Vesalius Ridge</option>
-          <option value="2">2 · Nightingale Basin</option>
-          <option value="3">3 · Semmelweis Deep</option>
-          <option value="4">4 · Curie Fields</option>
-          <option value="5">5 · Avicenna Shoals</option>
-          <option value="6">6 · Jenner Terraces</option>
-          <option value="7">7 · The Nullwave (finale)</option>
-        </select>
-        <button data-run="go">Go + Launch</button>
-      </div>
-    </div>
-
-    <div class="grp">
-      <h3>Story / testing flags</h3>
-      <div class="row">
-        <button data-run="setVeteran">Set veteran</button>
-        <button data-run="setHusksKnown">Set husks known</button>
-        <button data-run="checkHusksKnown">Check husks known</button>
-        <button data-run="markTrained">Mark trained</button>
-        <button data-run="markIntroSeen">Mark intro seen</button>
-        <button data-run="startFreshRun">Start fresh run (title flow)</button>
-      </div>
-    </div>
-
-    <div class="grp">
-      <h3>Finale (sector 7 only)</h3>
-      <div class="row">
-        <button data-run="warpBeacon">Warp to beacon</button>
-        <button class="warn" data-run="fireSolace">Fire Solace (bad ending)</button>
-        <button data-run="answerBeacon">Answer beacon (good ending)</button>
-      </div>
-    </div>
-
-    <div class="grp">
-      <h3>Warp / give</h3>
-      <div class="row">
-        <button data-run="warpLift">Warp to lift</button>
-        <button data-run="warpShrine">Warp to shrine</button>
-        <select id="upgradeSel">
-          <option value="gentle">gentle (Hippocrates)</option>
-          <option value="fabrica">fabrica (Vesalius)</option>
-          <option value="lamp">lamp (Nightingale)</option>
-          <option value="antisepsis">antisepsis (Semmelweis)</option>
-          <option value="radiosense">radiosense (Curie)</option>
-          <option value="canon">canon (Avicenna)</option>
-          <option value="inoculation">inoculation (Jenner)</option>
-          <option value="doors">doors (Blackwell)</option>
-          <option value="pathology">pathology (Virchow)</option>
-          <option value="penicillin">penicillin (Fleming)</option>
-          <option value="growth">growth (Levi-Montalcini)</option>
-        </select>
-        <button data-run="give">Give upgrade</button>
-      </div>
-    </div>
-
-    <div class="grp">
-      <h3>Utilities</h3>
-      <div class="row">
-        <button data-run="dumpState">Show state</button>
-        <button data-run="reset">Reset run</button>
-        <button class="danger" data-run="clearSave">Clear save + reload</button>
-        <button id="consoleToggle">Toggle console</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="stage">
-    <iframe id="gameFrame"></iframe>
-    <pre id="dump"></pre>
-  </div>
+  <button id="peek" title="show/hide the harness chrome">◧</button>
+  <pre id="dump"></pre>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
@@ -151,7 +246,18 @@
    that's what makes reaching into the iframe's window legal) and drives
    its window.__doids debug handle from a tap menu instead of a console.
    Point `src` at any branch's index.html — nothing here is branch-specific,
-   so this file is meant to be reused as-is for future branches. */
+   so this file is meant to be reused as-is for future branches.
+
+   ONE FILE, NOT ONE PER ACT. Act Two got a new section rather than a new
+   harness: the iframe plumbing, the same-origin trick, the Eruda fallback, the
+   src box and the dump overlay are the bulk of this page and would have to be
+   duplicated and then kept in step. docs/QA_HARNESS.md already says to reuse
+   this file rather than fork it, and a second copy is exactly how a rig starts
+   lying about which build it is driving.
+
+   Everything Act Two calls is feature-detected (`d.loadChamber` etc.), so this
+   page still works unchanged against a build from before Bundle P — those
+   buttons just report that the build doesn't have them. */
 (function () {
   // the CDN script can fail to load (flaky network, ad blocker, offline) —
   // that must never take the rest of the harness down with it
@@ -163,9 +269,27 @@
   var dump = document.getElementById("dump");
   var menu = document.getElementById("menu");
 
+  /* Harness preferences. NOTE the same-origin consequence: this page and the
+     game are served from the same host on purpose, so they share one
+     localStorage — which is why these keys are `hoqa_`-prefixed and never
+     `doids_`, and why clearSave below has to preserve them (a bare
+     localStorage.clear() wipes the harness's own settings along with the save,
+     and used to lose the build URL you had just pasted in). */
+  var PREF = "hoqa_";
+  function pref(k, v) {
+    try {
+      if (v === undefined) return localStorage.getItem(PREF + k);
+      localStorage.setItem(PREF + k, v);
+    } catch (e) {}
+    return v;
+  }
+
   var qs = new URLSearchParams(location.search);
-  var DEFAULT_SRC = qs.get("src") ||
-    "https://raw.githack.com/Burners70/Hollow-Oath/claude/build-2-3-handover-8nr0q5/index.html";
+  /* ?src= wins, then whatever you last loaded, then a default. The default is a
+     starting point only — it is SHA-pinned so it can't rot into a different
+     build, but it will get old; pass ?src= or paste into the box (Build). */
+  var DEFAULT_SRC = qs.get("src") || pref("src") ||
+    "https://raw.githack.com/Burners70/Hollow-Oath/e82b461fff012fb311d14f39d86011ec261e6ba2/index.html";
   srcInput.value = DEFAULT_SRC;
 
   function doids() {
@@ -177,16 +301,35 @@
     status.textContent = "loading…";
     dump.classList.remove("open");
     frame.src = url;
+    pref("src", url);
     clearInterval(pollT);
     pollT = setInterval(function () {
       var d = doids();
-      if (d) { status.textContent = "ready ✓"; clearInterval(pollT); }
+      if (d) { status.textContent = "ready ✓"; clearInterval(pollT); fillChambers(d); }
     }, 200);
   }
   document.getElementById("loadBtn").onclick = function () { load(srcInput.value.trim()); };
   load(DEFAULT_SRC);
 
+  /* ---- showing and hiding the chrome ---------------------------------------
+     Three states, and the distinction matters on a 390px-tall landscape phone:
+     menu open (driving), bar only (glancing at status), and nothing at all but
+     the reveal tab (reviewing). The third is the one this page lacked, and it is
+     the one you want for most of a device pass. Remembered, so a reload comes
+     back the way you left it rather than re-covering the HUD every time. */
+  function setHidden(on) {
+    document.body.classList.toggle("hidden", !!on);
+    if (on) menu.classList.remove("open");
+    document.getElementById("peek").textContent = on ? "◨" : "◧";
+    pref("hidden", on ? "1" : "0");
+  }
+  setHidden(pref("hidden") === "1");
+
   document.getElementById("menuToggle").onclick = function () { menu.classList.toggle("open"); };
+  document.getElementById("hideBtn").onclick = function () { setHidden(true); };
+  document.getElementById("peek").onclick = function () {
+    setHidden(!document.body.classList.contains("hidden"));
+  };
   document.getElementById("consoleToggle").onclick = function () {
     var el = document.getElementById("eruda");
     if (el) el.style.display = (el.style.display === "none") ? "" : "none";
@@ -196,11 +339,133 @@
     if (!d) { status.textContent = "not ready — load the game first"; return false; }
     return true;
   }
+  // Act Two arrived in Bundle P; an older build simply doesn't have these
+  function needA2(d, fn) {
+    if (typeof d[fn] !== "function") {
+      status.textContent = fn + "() not in this build — load a P·slice build or later";
+      return false;
+    }
+    return true;
+  }
+  function a2(d) {
+    var s = d.get().actTwo;
+    if (!s) { status.textContent = "not in a chamber — Load chamber first"; return null; }
+    return s;
+  }
+  function firstRackId(d) { var s = a2(d); return s && s.racks.length ? s.racks[0].id : null; }
+
+  function fillChambers(d) {
+    if (typeof d.a2Chambers !== "function") return;
+    try {
+      var sel = document.getElementById("chamberSel");
+      var list = d.a2Chambers();
+      if (!list || !list.length) return;
+      sel.innerHTML = "";
+      list.forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c.id; o.textContent = c.id + (c.name ? " · " + c.name : "");
+        sel.appendChild(o);
+      });
+    } catch (e) {}
+  }
+
+  function showDump(obj, note) {
+    dump.textContent = JSON.stringify(obj, function (k, v) {
+      return (v && v.buffer instanceof ArrayBuffer) ? "[typed array]" : v;
+    }, 2);
+    dump.classList.add("open");
+    status.textContent = note || "tap the dump to dismiss";
+    dump.onclick = function () { dump.classList.remove("open"); };
+  }
 
   var actions = {
+    /* ---- Act Two ---- */
+    loadChamber: function (d) {
+      if (!needA2(d, "loadChamber")) return;
+      var id = document.getElementById("chamberSel").value;
+      var info = d.loadChamber(id);
+      if (!info) { status.textContent = "no chamber '" + id + "' in this build"; return; }
+      setHidden(true);   // you loaded it to fly it
+      status.textContent = id + " · " + info.W + "x" + info.H + " · " +
+        info.racks + " rack(s), " + info.conduits + " feed(s)" + (info.well ? ", well" : "");
+    },
+    a2Dials: function (d) {
+      if (!needA2(d, "a2Dials")) return;
+      showDump(d.a2Dials(), "the feel values, live — tap to dismiss");
+    },
+    a2State: function (d) {
+      var s = a2(d); if (!s) return;
+      showDump(s, "Act Two state — tap to dismiss");
+    },
+    /* The invariant worth checking on a phone as well as in CI: can this chamber
+       actually be flown, unladen and laden? Reported at all three envelope
+       heights, because the interesting answer is the difference between them —
+       a load hanging fits fewer gaps than a load swung up, and that gap IS
+       §11.3's momentum pinch. */
+    a2Route: function (d) {
+      if (!needA2(d, "chamberRoute")) return;
+      var dials = d.a2Dials();
+      showDump({
+        ship: d.chamberRoute(),
+        swungUp: d.chamberRoute(dials.envelopeSwung),
+        hanging: d.chamberRoute(dials.envelopeAtRest),
+        note: "well:false on 'hanging' is expected — that's the momentum pinch"
+      }, "route check — tap to dismiss");
+    },
+    a2WarpRack: function (d) {
+      if (!needA2(d, "a2WarpRack")) return;
+      if (!d.a2WarpRack(firstRackId(d))) { status.textContent = "no rack here"; return; }
+      setHidden(true);
+      status.textContent = "landed beside the rack — hold to cradle (needs the feed closed)";
+    },
+    a2WarpWell: function (d) {
+      if (!needA2(d, "a2WarpWell")) return;
+      if (!d.a2WarpWell()) { status.textContent = "no well in this chamber"; return; }
+      setHidden(true);
+      status.textContent = "at the well — hold the load still in the slot";
+    },
+    a2CutReal: function (d) {
+      var s = a2(d); if (!s) return;
+      var c = s.conduits.filter(function (k) { return k.rack && !k.cut; })[0];
+      if (!c) { status.textContent = "no live feed left to close"; return; }
+      d.a2Cut(c.id);
+      status.textContent = c.id + " closed — the bank is on reserve and dying";
+    },
+    a2CutDecoy: function (d) {
+      var s = a2(d); if (!s) return;
+      var c = s.conduits.filter(function (k) { return !k.rack && !k.cut; })[0];
+      if (!c) { status.textContent = "no decoy left to close"; return; }
+      d.a2Cut(c.id);
+      status.textContent = c.id + " was his — he knows someone is down here";
+    },
+    a2Cradle: function (d) {
+      if (!needA2(d, "a2Cradle")) return;
+      var ok = d.a2Cradle(firstRackId(d));
+      status.textContent = ok ? "cradled — FIRE releases"
+        : "can't cradle: close its feed first (a rack on mains can't be moved)";
+    },
+    a2Release: function (d) {
+      if (!needA2(d, "a2Release")) return;
+      status.textContent = d.a2Release() ? "released — it falls from here" : "nothing in tow";
+    },
+    a2SetReserve: function (d) {
+      if (!needA2(d, "a2SetReserve")) return;
+      var v = +document.getElementById("reserveSel").value;
+      var ok = d.a2SetReserve(firstRackId(d), v);
+      status.textContent = ok ? "reserve = " + v : "no rack here";
+    },
+    a2Vitals: function (d) {
+      if (!needA2(d, "a2Vitals")) return;
+      var v = +document.getElementById("vitalsSel").value;
+      d.a2Vitals(v);
+      status.textContent = "your vitals = " + v;
+    },
+
+    /* ---- Act One ---- */
     go: function (d) {
       var n = +document.getElementById("sectorSel").value;
       d.go(n); d.launch();
+      setHidden(true);
       status.textContent = "sector " + n + " launched";
     },
     setVeteran: function (d) { d.setVeteran(); status.textContent = "veteran set"; },
@@ -227,19 +492,24 @@
       var k = document.getElementById("upgradeSel").value;
       d.give(k); status.textContent = "gave " + k;
     },
-    dumpState: function (d) {
-      dump.textContent = JSON.stringify(d.get(), function (k, v) {
-        return (v && v.buffer instanceof ArrayBuffer) ? "[typed array]" : v;
-      }, 2);
-      dump.classList.add("open");
-      status.textContent = "tap the dump to dismiss";
-      dump.onclick = function () { dump.classList.remove("open"); };
-    },
+    dumpState: function (d) { showDump(d.get()); },
     reset: function (d) { d.reset(); status.textContent = "run reset"; },
     clearSave: function (d) {
-      try { frame.contentWindow.localStorage.clear(); } catch (e) {}
+      /* The game and this page share an origin (that is what makes driving the
+         iframe legal), so a bare localStorage.clear() takes the harness's own
+         settings with it — including the build URL you just pasted. Keep ours,
+         drop the game's. */
+      try {
+        var keep = {};
+        for (var i = 0; i < frame.contentWindow.localStorage.length; i++) {
+          var k = frame.contentWindow.localStorage.key(i);
+          if (k && k.indexOf(PREF) === 0) keep[k] = frame.contentWindow.localStorage.getItem(k);
+        }
+        frame.contentWindow.localStorage.clear();
+        Object.keys(keep).forEach(function (k) { frame.contentWindow.localStorage.setItem(k, keep[k]); });
+      } catch (e) {}
       load(srcInput.value.trim());
-      status.textContent = "save cleared, reloaded";
+      status.textContent = "save cleared, reloaded (harness settings kept)";
     }
   };
 
