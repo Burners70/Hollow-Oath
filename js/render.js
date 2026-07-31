@@ -437,7 +437,13 @@ function drawWorld(now) {
   drawConduits(now);
   drawRacks(now);
   if (level.wellDock) drawWellDock(now);
-  if (level.towedRack) drawTowedRack(now);
+  /* Owner feedback ("a dupe rack hanging there") — the towed rack is NOT drawn
+     during the winch beat. It isn't the warp: `partSling` doesn't run until
+     deliverRack, so through the whole seating animation drawWellDock's winch
+     rack and the slung rack were both on screen, in nearly the same place. The
+     winch drawing owns the payload while wellDock.docking is true, exactly as
+     updateActTwo hands it the physics. */
+  if (level.towedRack && !(level.wellDock && level.wellDock.docking)) drawTowedRack(now);
   // §7.4 — your own vitals going into theirs, drawn last so the line reads over
   // both the rack and the hull it comes out of
   if (giving()) drawGiveLine(a2Line, now);
@@ -2758,10 +2764,23 @@ function drawHUD(now) {
   // resets every sector, including on RESUME); the run's career total uses the
   // word "saved" at game over/win (drawGameOver, rankLine) and must stay
   // visibly distinct so the two never read as contradicting each other.
-  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SECTOR " + tl.delivered + "/" + savable;
+  /* P·slice (owner feedback) — a chamber has no Scions aboard and no sector
+     tally, so Act One's line read "SCIONS ABOARD 0 · SECTOR 0/0" underground
+     for the whole descent. Act Two counts BANKS, and its own tallies are
+     a2Saved/a2Lost (js/acttwo-update.js) — never MERCY's manifest. */
+  const rescueLine = level.isChamber
+    ? "BANKS OUT " + a2Saved + "/" + (level.racks ? level.racks.length : 0) +
+      (towing() ? "  ·  UNDER TOW" : "")
+    : "SCIONS ABOARD " + s.passengers.length + "  ·  SECTOR " + tl.delivered + "/" + savable;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
-  if (tl.lost > 0) {
+  if (level.isChamber) {
+    if (a2Lost > 0) {
+      ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER;
+      ctx.fillText("  ·  ✝ LOST " + a2Lost, hx + tallyOff, topPad + 34);
+    }
+    ctx.shadowBlur = 0;
+  } else if (tl.lost > 0) {
     ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER;
     const lostStr = "  ·  ✝ LOST " + tl.lost;
     ctx.fillText(lostStr, hx + tallyOff, topPad + 34);
@@ -4962,6 +4981,9 @@ window.__doids = {
   },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
+  // P·slice (owner feedback) — the predicate the hull's new wall collision uses,
+  // so a test can ask "is this point rock?" the same way the game does
+  solid: solidAt,
   evalLanding: landingEval,
   landingGuideVisible,   // owner fix: ASSIST off hides the landing-guide visuals
   logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body

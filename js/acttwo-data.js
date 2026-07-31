@@ -801,8 +801,13 @@ function buildRacks(ch, spans) {
 }
 
 function buildConduits(ch, spans, racks) {
+  /* h is how far above the floor the ORIGIN sits so the thing rests ON it, and
+     drawIsolator draws its box from `y - 22` up to `y` — so the origin is the
+     box's BASE and wants h = 0, not 26. At 26 every breaker in the chamber
+     hovered a clear 28px off the deck (owner feedback: "should be attached to a
+     wall or floor, not floating"). */
   return snapToSurface((ch.conduits || []).map(c =>
-    Object.assign({}, c, { h: 26 })), spans).map(c => {
+    Object.assign({}, c, { h: 0 })), spans).map(c => {
     const rk = racks.find(r => r.id === c.rack);
     return { id: c.id, rack: c.rack, real: !!c.real, label: c.label,
       // the isolator, stood on the floor

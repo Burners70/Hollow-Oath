@@ -445,6 +445,36 @@ test("P·slice: a released load falls and settles instead of hanging in the air 
   expect(fell.y1).toBeLessThanOrEqual(fell.floor + 1);    // and never through the deck
 });
 
+/* Owner feedback, July 2026 — the hull against solid rock. Act One's terrain has
+   no walls, so updatePlay only ever tested vertically and the dart flew straight
+   through pillars, column flanks and §8's painted rock. These two assert the
+   rule, not a tuning number: a wall stops you, and it does not kill you. */
+test("owner: the hull cannot fly through a wall, and a chamber impact is survivable", async ({ page }) => {
+  await slice(page);
+  const hit = await page.evaluate(async () => {
+    // §8's painted rock — drawn as open air, solid to collide with. Authored at
+    // x 5150 w 260, so approach it from the left along the hall at speed.
+    __doids.a2Warp(4980, 900, false);
+    ship.vx = 320; ship.vy = 0;
+    for (let i = 0; i < 70; i++) await new Promise(k => requestAnimationFrame(k));
+    return { x: ship.x, dead: ship.dead, vitals: ship.vitals,
+      inRock: __doids.solid(ship.x, ship.y) };
+  });
+  expect(hit.x).toBeLessThan(5150);      // stopped at the face, never through it
+  expect(hit.inRock).toBe(false);        // and never left resting inside rock
+  expect(hit.dead).toBe(false);          // an impact bills you; it doesn't kill
+});
+
+test("owner: a hull already buried in rock is put back into open air", async ({ page }) => {
+  await slice(page);
+  const out = await page.evaluate(async () => {
+    __doids.a2Warp(5280, 900, false);    // dead centre of the painted rock
+    for (let i = 0; i < 20; i++) await new Promise(k => requestAnimationFrame(k));
+    return { inRock: __doids.solid(ship.x, ship.y), dead: ship.dead };
+  });
+  expect(out.inRock).toBe(false);
+});
+
 test("P·slice: the 41-second clock runs in a chamber at all", async ({ page }) => {
   await slice(page);
   // §3 — the forty-one seconds turn out to be a heartbeat, and §7.3 hangs the

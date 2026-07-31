@@ -168,7 +168,10 @@ function loseRack(r, why) {
   r.lost = true; r.reserve = 0; r.state = "gone"; r.towed = false;
   if (level.towedRack === r) level.towedRack = null;
   a2Lost++;
-  banner(why + "\nTHE CHAMBER IS THE UNIT OF RETRY", PAL().DANGER);
+  /* Owner feedback: the second line used to read "THE CHAMBER IS THE UNIT OF
+     RETRY", which is a sentence from the design doc and meant nothing to the
+     person reading it off a phone. Say the thing it was shorthand for. */
+  banner(why + "\nTHEY DON'T COME BACK. THIS FLOOR STARTS OVER.", PAL().DANGER);
   /* §7.5's last row is the whole grammar of the game in one cue: a steady,
      unbroken glow with NO beat at all. Absence of rhythm has always meant
      something is wrong; here it means someone died. So the sound is the
@@ -334,6 +337,7 @@ function updateTow(dt) {
   // rope sheds the radial component it just cancelled and the load swings
   // instead of pumping itself. This is what makes it a pendulum.
   r.vx = (r.x - px) / dt; r.vy = (r.y - py) / dt;
+  applyContactDamping(r);      // the drag the Verlet step used to throw away
   r.tension = clamp(1 - (SLING_L - Math.hypot(r.x - s.x, r.y - (s.y + SLING_SHIP_ANCHOR))) / 44, 0, 1);
   r.swing = Math.abs(Math.atan2(r.x - s.x, Math.max(1, r.y - s.y)) * 180 / Math.PI);
 }
@@ -356,6 +360,7 @@ function updateLooseRacks(dt) {
     r.x += r.vx * dt; r.y += r.vy * dt;
     towCollide(r, dt);
     r.vx = (r.x - px) / dt; r.vy = (r.y - py) / dt;
+    applyContactDamping(r);    // §4.2 — dropped where it fell, and it STAYS there
   }
 }
 
@@ -373,6 +378,39 @@ function updateLooseRacks(dt) {
    two unrelated ones. `integrity` is the RECORD of how much of their life you
    spent by handling, never touched by the drain, so GENTLE HANDS (§10a.4) means
    "never slammed" and not "arrived quickly". */
+/* Contact damping, applied AFTER the Verlet step (owner feedback: a dropped rack
+   "sliding frictionlessly back toward me").
+
+   towCollide's `r.vx *= 0.86` was dead code. Both integrators recompute velocity
+   from actual displacement on the next line — `r.vx = (r.x - px) / dt` — which is
+   what makes the rope shed its radial component and swing, but it also overwrote
+   every friction and restitution value the collision had just set. So a rack
+   slid on SLING_DAMP (0.999) alone: effectively frictionless, on a box the owner
+   rightly points out weighs enough that it "wouldn't move far".
+
+   The fix keeps the Verlet recompute authoritative for *position*-derived motion
+   and then applies contact damping to the result, in the same order a solver
+   would: resolve, derive, damp. towCollide records what it wants here rather
+   than assigning to r.vx, so there is one place that owns the payload's
+   velocity and no second writer to go stale. */
+function applyContactDamping(r) {
+  const touched = r.dampX != null || r.dampY != null || r.clampVx || r.clampVy;
+  if (r.dampX != null) { r.vx *= r.dampX; r.dampX = null; }
+  if (r.dampY != null) { r.vy *= r.dampY; r.dampY = null; }
+  if (r.clampVy === "down") { r.vy = Math.min(0, r.vy); r.clampVy = null; }
+  else if (r.clampVy === "up") { r.vy = Math.max(0, r.vy); r.clampVy = null; }
+  if (r.clampVx === "left") { r.vx = Math.min(0, r.vx); r.clampVx = null; }
+  else if (r.clampVx === "right") { r.vx = Math.max(0, r.vx); r.clampVx = null; }
+  /* A load at rest stays at rest: without a deadband the 0.72 tail leaves it
+     creeping for seconds, which is the owner's complaint in slow motion.
+     ONLY on a contact frame, though — applied unconditionally it also eats
+     gravity's per-frame increment (~1.5px/s at 60fps), which pins a rack in
+     mid-air and makes a dropped one hover. Free fall is not a contact. */
+  if (!touched) return;
+  if (Math.abs(r.vx) < 3) r.vx = 0;
+  if (Math.abs(r.vy) < 3) r.vy = 0;
+}
+
 function towCollide(r, dt) {
   const cage = towedCage(), hw = cage.w / 2, hh = cage.h / 2;
   const sp = spanAt(r.x, r.y);
@@ -386,20 +424,21 @@ function towCollide(r, dt) {
   if (r.y + hh > sp.bot) {                       // floor
     towContact(r, Math.max(0, r.vy));
     r.y = sp.bot - hh;
-    r.vy = Math.min(0, r.vy) * 0.2;
-    r.vx *= 0.86;                                // it drags, it doesn't skate
+    r.clampVy = "down"; r.dampY = 0.2;
+    r.dampX = 0.72;                              // it drags, it doesn't skate
   }
   if (r.y - hh < sp.top) {                       // ceiling
     towContact(r, Math.max(0, -r.vy));
     r.y = sp.top + hh;
-    r.vy = Math.max(0, r.vy) * 0.2;
-    r.vx *= 0.9;
+    r.clampVy = "up"; r.dampY = 0.2;
+    r.dampX = 0.9;
   }
   for (const side of [-1, 1]) {                  // walls, and a pillar's flank
     if (!solidAt(r.x + side * hw, r.y)) continue;
     towContact(r, Math.max(0, r.vx * side));
     r.x -= side * 3;
-    r.vx = side > 0 ? Math.min(0, r.vx) * 0.3 : Math.max(0, r.vx) * 0.3;
+    r.clampVx = side > 0 ? "left" : "right";
+    r.dampX = 0.3;
   }
 }
 
@@ -657,6 +696,103 @@ function respawnInChamber() {
   camera.x = ship.x; camera.y = ship.y;
   a2FirePrev = true;
   banner("BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING", PAL().WARN);
+}
+
+/* ---- the hull against SOLID rock (owner feedback, July 2026) --------------
+   Act One's terrain is a heightmap — exactly one floor and one ceiling per
+   column — so updatePlay only ever tested the hull VERTICALLY. There was no
+   such thing as a wall to hit, and `solidAt` was used for nothing but bullets.
+   Spans express pillars, the flanks of a structural column and §8's painted
+   rock, and with no lateral test the hull flew straight through all three
+   ("shouldn't be able to fly through the steel surface").
+
+   A chamber impact HURTS rather than killing outright, which is the same
+   round's other note. Act One's cave-roof rule is untouched — instant death
+   unless the field is up — because down here there are overhangs, a pinch the
+   design asks you to carry speed through, and a load on a rope: an unforgiving
+   ceiling would make the tether unflyable. It is also what made §8's painted
+   rock read as a turret that shoots you, since an invisible wall that kills on
+   contact has no other available explanation. */
+const HULL_SAFE_V = 46;        // a brush below this costs nothing
+const HULL_DMG_K = 0.28;       // vitals per px/s of normal closing speed over it
+/* Capped, and the cap is the whole point of the change. Act One's worst landing
+   costs a flat 35 of a 100-vitals pool, so an uncapped linear ramp is off that
+   scale immediately: at K=0.5 a 320px/s wall hit billed 137 and killed outright
+   from full health, which is the instakill this was written to remove. One
+   impact can now never be fatal on its own — it takes a run of bad flying, or a
+   hull already hurt, which is the difference between a punishing wall and a
+   trap. Deliberately just under a hard landing: you were, after all, flying. */
+const HULL_DMG_MAX = 30;
+
+/* The cost of putting the hull into rock. Returns FALSE if it killed you, so
+   callers inside updatePlay can bail exactly the way the `shipDie(); return;`
+   paths they replace do. */
+function hullImpact(vn) {
+  const s = ship;
+  const safe = easyMode ? HULL_SAFE_V * 1.3 : HULL_SAFE_V;   // §4.4's FIELD MEDIC contract
+  if (vn <= safe) { camera.shake += 1.5; return true; }
+  const dmg = Math.round(Math.min(HULL_DMG_MAX,
+    (vn - safe) * HULL_DMG_K * (easyMode ? 0.5 : 1)));
+  camera.shake += Math.min(9, 2 + dmg * 0.3);
+  blip(150, 60, 0.22, "sawtooth", 0.16);
+  haptic.medium();
+  if (dmg < 1) return true;
+  s.vitals -= dmg;
+  addText(s.x, s.y - 30, "IMPACT -" + dmg, PAL().DANGER);
+  if (s.vitals <= 0) { shipDie(); return false; }
+  return true;
+}
+
+/* The ceiling, in a chamber only — shoved back down off the rock and billed for
+   it, where Act One dies. Called from updatePlay's existing roof block so the
+   span-picking `roofAt(s.x, s.y)` above it is not duplicated here. */
+function hullCeilingImpact(rY) {
+  const s = ship;
+  const vn = Math.max(0, -s.vy);
+  s.y = rY + SHIP_R + 1;
+  s.vy = Math.abs(s.vy) * 0.35 + 12;
+  return hullImpact(vn);
+}
+
+/* Walls, pillar flanks and painted rock. Called from updatePlay AFTER the
+   vertical resolution, so it corrects a hull that has already settled onto a
+   floor instead of fighting the code that put it there.
+
+   `a2FreeX/Y` is the recovery for a hull that is already buried. Resolving a
+   burial by pushing to the nearest span's edge takes its direction from
+   geometry that has already been violated, and on the flank of a tall column
+   that can eject you out the FAR side — through the very wall you just failed
+   to fly through. Backing up to the last position that was genuinely open air
+   cannot do that, because you were demonstrably there. */
+function shipSolidCollide() {
+  const s = ship;
+  if (!level.spans || s.dead) return true;
+  if (!solidAt(s.x, s.y)) {
+    /* Lateral faces, sampled at hull-centre height. Skipped while landed: on
+       rough ground the deck itself is solid at centre height on the downhill
+       side, and nudging a settled hull every frame reads as jitter. */
+    if (!s.landed) {
+      for (const side of [-1, 1]) {
+        if (!solidAt(s.x + side * SHIP_R, s.y)) continue;
+        const vn = Math.max(0, s.vx * side);
+        s.x -= side * 4;
+        s.vx = side > 0 ? Math.min(0, s.vx) * 0.3 : Math.max(0, s.vx) * 0.3;
+        if (!hullImpact(vn)) return false;
+      }
+    }
+    s.a2FreeX = s.x; s.a2FreeY = s.y;
+    return true;
+  }
+  const vn = Math.hypot(s.vx, s.vy);
+  if (s.a2FreeX != null && !solidAt(s.a2FreeX, s.a2FreeY)) { s.x = s.a2FreeX; s.y = s.a2FreeY; }
+  else {
+    const col = level.spans[clamp(Math.round(s.x / STEP), 0, level.spans.length - 1)] || [];
+    const sp = pickSpan(col, s.y);
+    if (sp) s.y = clamp(s.y, sp.top + SHIP_R + 1, sp.bot - SHIP_R - 1);
+  }
+  s.vx *= 0.2; s.vy *= 0.2;
+  s.landed = false;
+  return hullImpact(vn);
 }
 
 /* ---- the dispatch -------------------------------------------------------

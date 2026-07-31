@@ -344,7 +344,14 @@ function checkSectorClear() {
   // X2b — the trainee sector never ends on its own; the player leaves via
   // the pause menu's END TRAINING row.
   if (runMode === "training") return;
-  if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach || pendingBreach) return;
+  /* P·slice (owner feedback) — and never in an Act Two chamber. A chamber holds
+     no Scions, so `total` is 0 and the manifest is trivially closed on frame
+     one: Act One concluded the sector was clear and flashed "MANIFEST CLOSED —
+     FLY INTO HER VENTRAL HANGAR" underground, at a mothership that is nine
+     thousand pixels up and cannot be reached. The racks are Act Two's own
+     accounting (a2Saved/a2Lost) and they close nothing of MERCY's. */
+  if (state !== "play" || level.isCave || level.isFinale || level.isChamber ||
+    level.extraction || mercyBreach || pendingBreach) return;
   if (level.delivered + level.lost + level.contained + provenLeftBehind() < level.total) return;
   beginExtraction(false);
 }
@@ -1323,6 +1330,11 @@ function updatePlay(dt) {
         s.fuel = Math.max(0, s.fuel - 4);
         camera.shake += 6;
         blip(240, 420, 0.12, "sine", 0.1);
+      } else if (level.isChamber) {
+        /* P·slice (owner feedback) — a chamber ceiling HURTS, it does not kill:
+           see hullCeilingImpact (js/acttwo-update.js) for why the Act One rule
+           can't survive contact with overhangs and a load on a rope. */
+        if (!hullCeilingImpact(rY)) return;
       } else { shipDie(); return; }
     }
   }
@@ -1372,6 +1384,12 @@ function updatePlay(dt) {
       if (s.vitals <= 0) { shipDie(); return; }
     } else { shipDie(); return; }
   }
+
+  /* P·slice (owner feedback) — the hull against a WALL. Act One has none, so
+     this is a no-op on every heightmap level; in a chamber it is what stops the
+     dart flying through a pillar, a column's flank or §8's painted rock.
+     Deliberately after the vertical resolution above (see shipSolidCollide). */
+  if (level.spans && !shipSolidCollide()) return;
 
   sectorT += dt;
   updateNightfall(dt);    // T6 — dusk → full dark on the Basin
