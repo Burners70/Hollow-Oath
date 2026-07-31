@@ -674,6 +674,14 @@ done, so the chain now starts at P·slice.
     the momentum band and both authored gaps — a one-number change, never a
     re-author), `RACK_DRAIN`/`RACK_BEAT_BITE`, `GIVE_RATE`/`GIVE_PER_LINE`, and
     `WELL_DOCK_R`/`WELL_DOCK_V`. No test asserts a tuning number, on purpose.
+  - **The rig for that pass is ready.** `tests/qa-harness.html` has an Act Two
+    section (see [QA_HARNESS.md](QA_HARNESS.md)): load a chamber, warp to the rack
+    or the well, close the real feed or a decoy, cradle/release, force a reserve or
+    a vitals level, read the live dials, and run the clearable-laden route check on
+    the device. **Act Two has no route from the title screen** — that arrives with
+    P·persist/P·content, so the harness is the only way in and every Act Two button
+    is feature-detected against the build. Its chrome floats over the game and
+    hides to a tab, because the old layout shrank the iframe and with it the game.
 - [ ] **P·persist. Persistence and save schema.** Promoted out of
   ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
   than after it. Act Two is a second campaign, not a run mode: per-chamber

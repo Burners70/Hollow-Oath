@@ -16,6 +16,7 @@ file; the *plan* they came from is
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
 **1.1 — Act Two (building; not reachable in normal play)**
+- [The QA harness gets an Act Two section, and chrome that hides](#the-qa-harness-gets-an-act-two-section-and-chrome-that-hides-july-2026) — the on-device rig for tuning the slice
 - [P·slice — the Act Two loop, end to end in one chamber](#pslice--the-act-two-loop-end-to-end-in-one-chamber-july-2026) — the tether, the trunk cut, the reserve, the inverted transfusion and THE WELL; plus the pillar that turned out to be a wall
 - [P·terrain — span terrain and the chamber authoring grammar](#pterrain--span-terrain-and-the-chamber-authoring-grammar-july-2026) — the heightmap generalised to columns of spans, so an overhang is expressible at all
 - [1.1 planning round: span terrain, the reversed deception tell, ten new minds, and Mary Seacole](#11-planning-round-span-terrain-the-reversed-deception-tell-ten-new-minds-and-mary-seacole) — the round that phased Bundle P, and the two places the spec was wrong against the code
@@ -59,6 +60,60 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## The QA harness gets an Act Two section, and chrome that hides (July 2026)
+
+**Release:** tooling — no game behaviour, beyond four read-only `__doids` drivers.
+
+Act Two is tuned by hand on a phone, and `tests/qa-harness.html` had no way into
+it: every button drove Act One, so reaching the slice meant opening the Eruda
+console and typing `__doids.loadChamber("slice")` by thumb — exactly the friction
+the rig exists to remove. It now has an Act Two section: load any chamber (the
+picker fills itself from the build, so it grows as P·content adds the other nine),
+warp to the rack or the well, close the real feed or one of his decoys, cradle and
+release, force a reserve or a vitals level, read the live dials, and run the
+clearable-laden route check at three envelope heights on the device.
+
+**Adapted, not forked.** The file is deliberately decoupled from any branch and
+meant to be reused; a second rig would duplicate the iframe plumbing, the
+same-origin trick, the Eruda fallback, the src box and the dump overlay, then have
+to be kept in step — which is how one of two rigs starts lying about which build
+it is driving.
+
+**The chrome no longer shrinks the game.** It sat above the iframe as flex rows,
+so the bar permanently took ~40px and an open menu up to 46vh. The game lays
+itself out against the iframe's viewport, so that didn't merely cover the game, it
+*shrank* it — on a landscape phone squeezing it to a third of the screen and
+pushing its own bottom controls off the bottom edge. The chrome now floats over a
+full-viewport iframe, and hides entirely to a small tab at the middle of the right
+edge — the only region the game doesn't use, since the HUD owns the top band and
+every touch control runs along the bottom.
+
+**A Home-Screen icon can no longer clobber the build you loaded.** The rig is
+meant to live on a Home Screen, and an icon relaunches the same URL every time, so
+`?src=` winning unconditionally silently broke the one workflow the docs promise:
+add the icon once, paste newer builds in later. The next launch snapped back to
+the build frozen in the query string. A newly pasted link is intent and an icon
+relaunching is not, so a link the harness has not seen before wins and otherwise
+your own last Load does.
+
+Two smaller fixes: "Clear save + reload" called `localStorage.clear()` on an
+origin the harness *shares* with the game, taking its own settings — including the
+build URL just pasted — so harness keys are now `hoqa_`-prefixed and preserved.
+And the four new drivers exist because **a classic script's top-level `const` is
+not a property of `window`**: `contentWindow.SLING_L` is `undefined` while
+`contentWindow.markTrained` works, so reading the dials the way the harness
+already reads those functions would have failed silently.
+
+New `tests/qa-harness.spec.js`, a static drift guard. The rig is the one file the
+suite cannot drive live — that needs same-origin, and the suite loads the game over
+`file://` where an iframe is an opaque origin; an HTTP server for one file would
+give up the no-server property the rest of the suite is built on. So it
+cross-checks the two sources as text: every button maps to an action, every
+`__doids` method the harness calls still exists, the `contentWindow` calls are all
+function *declarations*, the default build URL is SHA-pinned rather than a branch,
+the load precedence holds, and the preference keys cannot collide with `doids_`.
+Mutation-tested. Suite green at 156.
 
 ## P·slice — the Act Two loop, end to end in one chamber (July 2026)
 
