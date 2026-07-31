@@ -117,14 +117,129 @@ function drawConduitTrunk(x0, y0, x1, y1, real, now, rippleDelayFrac) {
 }
 function drawRacks(now) {
   if (!level.racks) return;
-  level.racks.forEach((r, i) => {
-    if (r.conduit) {
-      const c = r.conduit;
-      drawConduitTrunk(c.x0, c.y0, c.x1, c.y1, c.real !== false, now, (i % 4) / 4);
-    }
+  level.racks.forEach(r => {
+    // the slung one is drawn with its sling instead, over everything else; a
+    // delivered one is aboard MERCY and must not still be sitting in the room
+    if (r.towed || r.delivered) return;
     drawRack(r.x, r.y, r.w || RACK_SIZE.w, r.h || RACK_SIZE.h, r.state || "mains", now,
       { cutT01: r.cutT01 != null ? r.cutT01 : null, label: r.label, occupants: r.occupants });
+    // P·slice — the reserve's own trace, on the box rather than in a HUD strip
+    // (§7.5 explicitly refuses a strip of ECGs along the top of the screen)
+    if (r.cut && !r.delivered) drawRackECG(r, now);
+    if (r.cradleT > 0) drawHoldRing(r.x, r.y - r.h * 0.5 - 26, r.cradleT,
+      r.everTowed ? RECRADLE_T : CRADLE_T, "CRADLING…", PAL().SAFE);
   });
+}
+
+/* ---- §7.3/§4.4 the reserve's trace — "not faster as it fails, but WEAKER: the
+   same trace, going flat." So the rate is fixed (RACK_PULSE_PERIOD governs the
+   glow; this trace runs on the same clock) and only the AMPLITUDE collapses.
+   The game's one health language reused, deliberately small and in the world:
+   §7.5 rules out a HUD ward, and PENDULUM_SPEC §4.4 wants it "shown only when
+   towing or after first damage, to keep the dark caves clean" — here, once the
+   feed is cut, which is the moment it starts to matter.
+   Under REDUCED FLASH the trace still moves (motion is not the problem the
+   setting exists for) but the spike is rounded off rather than sharp. */
+function drawRackECG(r, now) {
+  const frac = clamp(r.reserve / RACK_RESERVE_MAX, 0, 1);
+  const w = 56, h = 15;
+  const x = r.x - w / 2, y = r.y - r.h * 0.5 - 16;
+  const color = rackColor(rackStateFor(r), now);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.beginPath();
+  const mid = y + h * 0.62;
+  for (let px = 0; px <= w; px += 2) {
+    const t = (now - (w - px) / 90) / RACK_PULSE_PERIOD;
+    const ph = ((t % 1) + 1) % 1;
+    let v = 0;
+    if (ph < 0.07) v = -0.18;
+    else if (ph < 0.13) v = 1.0;
+    else if (ph < 0.17) v = -0.4;
+    else if (ph < 0.28) v = 0.16;
+    // the flatlining: amplitude, never rate. A gone rack draws a dead flat line.
+    v *= r.lost ? 0 : (0.18 + 0.82 * frac);
+    if (reducedFlash) v *= 0.8;
+    const yy = mid - v * h * 0.5;
+    px === 0 ? ctx.moveTo(x + px, yy) : ctx.lineTo(x + px, yy);
+  }
+  ctx.strokeStyle = color; ctx.shadowColor = color;
+  ctx.shadowBlur = 6; ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+  ctx.shadowBlur = 0;
+}
+/* the shipped hold-to-act progress ring (updateBlackbox's, verbatim in shape) —
+   one helper because P·slice has three of them: the trunk cut, the cradle and
+   (as a countdown) the well's winch. */
+function drawHoldRing(x, y, t, need, label, color) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 10;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, 16, -Math.PI / 2, -Math.PI / 2 + clamp(t / need, 0, 1) * Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.font = mono(10); ctx.textAlign = "center";
+  ctx.fillStyle = color;
+  ctx.fillText(label, x, y - 24);
+  ctx.restore();
+}
+
+/* ---- §7.1 the trunks, and the isolators that close them ------------------
+   Several conduits run through a chamber; one is the rack's. The trunk is drawn
+   as a line from its ISOLATOR (a floor-mounted breaker you land beside) to
+   whatever it feeds, so in the teaching chambers it is traceable by eye —
+   §7.1's own sequencing, "placed-and-visible for the first chamber or two…
+   found-by-pulse everywhere after."
+
+   drawConduitTrunk already carries the silhouette tell (a round beat on a
+   living line, a rounded square on a faked one), and it is switched on here, so
+   the decoys read as his the moment a player learns to look. The
+   honest-versus-metronomic layer on top of it is P·systems. */
+function drawConduits(now) {
+  if (!level.conduits) return;
+  level.conduits.forEach((c, i) => {
+    if (c.cut) {
+      // a closed feed: the line goes dark and slack, with the break visible
+      ctx.save();
+      ctx.strokeStyle = shade(TOK.CYAN, .12); ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 9]);
+      ctx.beginPath(); ctx.moveTo(c.x, c.y0); ctx.lineTo(c.x1, c.y1); ctx.stroke();
+      ctx.restore();
+    } else {
+      drawConduitTrunk(c.x, c.y0, c.x1, c.y1, c.real, now, (i % 4) / 4);
+    }
+    drawIsolator(c, now);
+    if (c.scanT > 0) drawHoldRing(c.x, c.y - 40, c.scanT, TRUNK_CUT_T, "CLOSING…", PAL().WARN);
+  });
+}
+
+// the breaker itself — a squat floor-standing box with a throw handle, so the
+// thing you land beside is visibly a thing you operate rather than a hotspot
+function drawIsolator(c, now) {
+  const live = !c.cut;
+  const col = c.cut ? shade(TOK.CYAN_TEXT, .3) : TOK.CYAN;
+  ctx.save();
+  ctx.fillStyle = TOK.VOID;
+  ctx.fillRect(c.x - 12, c.y - 22, 24, 22);
+  ctx.strokeStyle = col; ctx.lineWidth = 1.8;
+  if (live) { ctx.shadowColor = col; ctx.shadowBlur = 6; }
+  ctx.strokeRect(c.x - 12, c.y - 22, 24, 22);
+  // the handle: up while live, thrown down once the feed is closed
+  ctx.beginPath();
+  ctx.moveTo(c.x, c.y - 11);
+  ctx.lineTo(c.x + (c.cut ? 8 : 0), c.y - (c.cut ? 4 : 20));
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // named, because a chamber has several and "which one did I already try" is a
+  // question the player should never have to hold in their head
+  if (c.label) {
+    ctx.font = mono(9, 700); ctx.textAlign = "center";
+    ctx.fillStyle = shade(c.cut ? TOK.CYAN_TEXT : TOK.CYAN, c.cut ? .35 : .7);
+    ctx.fillText(c.cut ? c.label + " · CLOSED" : c.label, c.x, c.y + 12);
+  }
+  ctx.restore();
 }
 
 /* ---- §4 open question 1 (Option B — the pick): a current runs the trunk a
@@ -544,6 +659,91 @@ function drawSlingLine(shipX, shipY, rackX, rackY, tension, now, rackTopOffset) 
   drawAnchorRing(rackX, rackAnchorY);
 }
 
+/* ---- §4.4 always readable: the swing tell -------------------------------
+   A glyph at the tether's midpoint, because that is where the player's eye
+   already is when a load is swinging. Three states, and they carry SHAPE as
+   well as colour per the H2 redundancy rule, so the tell survives colourblind
+   mode with the colour channel removed entirely:
+
+     ✓  docile      — the load is following you
+     !  swinging    — fast enough that a contact would now cost integrity
+     ✕  about to hurt — swinging fast AND close to rock
+
+   The threshold is the damage threshold itself (SLING_SAFE_V, widened by FIELD
+   MEDIC exactly as the damage is), so the warning cannot drift out of step with
+   what actually costs. */
+function slingTellState(r) {
+  const safe = easyMode ? SLING_SAFE_V * 1.3 : SLING_SAFE_V;
+  const v = Math.hypot(r.vx || 0, r.vy || 0);
+  if (v <= safe * 0.75) return "ok";
+  const cage = { w: RACK_SIZE.w * RACK_CAGE_W, h: RACK_SIZE.h * RACK_CAGE_H };
+  const ahead = 0.16;   // where the load will be in a sixth of a second
+  const nx = r.x + (r.vx || 0) * ahead, ny = r.y + (r.vy || 0) * ahead;
+  const close = solidAt(nx, ny + cage.h / 2) || solidAt(nx, ny - cage.h / 2) ||
+    solidAt(nx + cage.w / 2, ny) || solidAt(nx - cage.w / 2, ny);
+  return close && v > safe ? "hurt" : "warn";
+}
+function drawSlingTell(shipX, shipY, r) {
+  const st = slingTellState(r);
+  const glyph = st === "hurt" ? "✕" : st === "warn" ? "!" : "✓";
+  const color = st === "hurt" ? PAL().DANGER : st === "warn" ? PAL().WARN : PAL().SAFE;
+  // docile is the resting state and must not nag: it draws faint, the warnings bright
+  const alpha = st === "ok" ? 0.32 : 0.95;
+  const mx = (shipX + r.x) / 2, my = (shipY + SLING_SHIP_ANCHOR + r.y) / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = mono(13, 700); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = color;
+  if (st !== "ok") { ctx.shadowColor = color; ctx.shadowBlur = 8; }
+  ctx.fillText(glyph, mx + 13, my);
+  ctx.restore();
+  ctx.textBaseline = "alphabetic";
+}
+
+/* the slung load, its cable, its tell and its trace — one call, drawn over the
+   world so a swinging rack is never lost behind terrain it is about to hit. */
+function drawTowedRack(now) {
+  const r = level.towedRack;
+  drawSlingLine(ship.x, ship.y, r.x, r.y, r.tension != null ? r.tension : .55, now);
+  drawRack(r.x, r.y, r.w || RACK_SIZE.w, r.h || RACK_SIZE.h, rackStateFor(r), now,
+    { occupants: r.occupants });
+  drawRackECG(r, now);
+  drawSlingTell(ship.x, ship.y, r);
+}
+
+/* ---- §7.4 the transfusion line, inverted. Act One's resupply line runs FROM
+   the drone INTO you; this one runs from you into the box. Same visual language
+   as drawSlingLine (a sagging cyan cable) turned the other way up, with the
+   travelling bead running DOWN it — the direction of flow is the whole point of
+   the inversion and it should be readable without a word of text. Stalls (the
+   line stretched but not parted) drop to a dashed line with no bead: stretched,
+   no flow, exactly as Act One's occluded state reads. */
+function drawGiveLine(line, now) {
+  const r = line.rack;
+  const x0 = ship.x, y0 = ship.y + SLING_SHIP_ANCHOR;
+  const x1 = r.x, y1 = r.y - RACK_SIZE.h * RACK_CAGE_H / 2 - 4;
+  const col = PAL().DANGER;   // it is blood, and it is yours
+  ctx.save();
+  ctx.strokeStyle = shade(col, line.stall ? .3 : .8);
+  ctx.lineWidth = 2;
+  if (line.stall) ctx.setLineDash([4, 7]);
+  ctx.shadowColor = col; ctx.shadowBlur = line.stall ? 2 : 9;
+  const midX = (x0 + x1) / 2 + 16, midY = (y0 + y1) / 2 + 14;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.quadraticCurveTo(midX, midY, x1, y1);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  if (line.stall) return;
+  // the bead, travelling from you toward them
+  const p = (now * 1.6) % 1;
+  const bx = lerp(lerp(x0, midX, p), lerp(midX, x1, p), p);
+  const by = lerp(lerp(y0, midY, p), lerp(midY, y1, p), p);
+  drawGlow(bx, by, 5, col, .9);
+  drawAnchorRing(x0, y0);
+}
+
 /* ---- §6 the well — not a gravity well: the mothership's own docking bay,
    lowered on a cable, swaying independently of the player's own tether. The
    ship holds position BELOW the bay with its rack slung underneath exactly as
@@ -583,7 +783,10 @@ function wellRackPos(well, shipX, shipY, now) {
   const winchT = clamp(well.winchT || 0, 0, 1);
   const eased = winchT < 0.5 ? 2 * winchT * winchT : 1 - Math.pow(-2 * winchT + 2, 2) / 2;
   const slot = wellSlotPos(well, now);
-  const idleX = shipX, idleY = shipY + 66;
+  // idle is where the load actually hangs: SLING_L below the hull, not the magic
+  // 66 this shipped with (which predated the derived sling and left the winch
+  // starting from a point the rack was never at)
+  const idleX = shipX, idleY = shipY + SLING_L;
   // swings out to the ship's side on the way up, so it never reads as passing through the hull
   const x = lerp(idleX, slot.x, eased) + Math.sin(eased * Math.PI) * 44;
   const y = lerp(idleY, slot.y, eased);
@@ -592,9 +795,14 @@ function wellRackPos(well, shipX, shipY, now) {
 function drawWellDock(now) {
   const well = level.wellDock;
   drawWellBay(well, now);
+  /* The winch beat is drawn only while a load is actually being seated. It used
+     to draw unconditionally, which put a phantom rack under the ship any time a
+     level carried a well — invisible while nothing set level.wellDock, and
+     wrong the moment P·slice did. */
+  if (!well.docking) return;
   const rackPos = wellRackPos(well, ship.x, ship.y, now);
-  drawSlingLine(ship.x, ship.y, rackPos.x, rackPos.y, well.tension != null ? well.tension : 0.6, now, 26);
-  drawRack(rackPos.x, rackPos.y, RACK_SIZE.w * 0.7, RACK_SIZE.h * 0.7,
+  drawSlingLine(ship.x, ship.y, rackPos.x, rackPos.y, well.tension != null ? well.tension : 0.6, now);
+  drawRack(rackPos.x, rackPos.y, RACK_SIZE.w, RACK_SIZE.h,
     well.rackState || "reserve", now, { occupants: well.occupants });
   if (rackPos.eased >= 1) {
     ctx.save();

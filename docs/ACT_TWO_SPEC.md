@@ -945,23 +945,61 @@ Seacole rather than an Act Two rescue, so V1 ships in 1.01 ahead of Bundle P) ·
 narrower and listed below) · ~~**terrain representation**~~ (§11.0, spans) ·
 ~~**the §8 tell**~~ (§8.1, replaced).
 
+Resolved by P·slice (July 2026): ~~**is mid-band right for a momentum pinch?**~~
+(yes — the derived 77px sits between the 105px a hanging load needs and the 48px a
+load trailing at your own level needs, and steady-state thrust puts the load at
+~72° off vertical, a 57px envelope, so it passes under power with ~20px of margin
+and cannot be crept through) · ~~**how much of a chamber floor should be
+level?**~~ (less than the first pass had — the slice floor gained a structural
+column to climb over, and the momentum pinch now sits on the only route to the
+well so the hurry-versus-care question cannot be dodged).
+
 Still open:
 
 1. **The name of the act**, and with it the What's-New line that does the
    price-move work in the store. Owner steer: it comes out of the work, so it is
    written last. **This is the only open owner decision on the forward plan.**
 2. **Scoring numbers** — the shape is decided (§10a.4); the table isn't. Write
-   it from what the vertical slice proves, in the form of PENDULUM_SPEC §5.
-3. **Chamber pacing** — racks per chamber, and how long one takes. Deliberately
-   left until the slice; guessing now would be fiction.
+   it from what the vertical slice proves, in the form of PENDULUM_SPEC §5. The
+   slice deliberately touches `score` nowhere, so Act Two's ladder starts from a
+   clean sheet; it tracks `a2Saved`/`a2Lost` only (§7.3's separate bucket).
+3. **Chamber pacing** — racks per chamber, and how long one takes. Still open,
+   and now answerable: the slice is one rack across a 9000px floor, and what a
+   device pass measures is how long that actually takes against the reserve.
 4. **One save or bests alongside it** — the narrow remainder of the persistence
-   question (§11.2). The slice decides.
+   question (§11.2). Two narrower questions came out of the slice and are on
+   P·persist in the roadmap: whether a rack's **position** is checkpointed (a rack
+   set down past the momentum pinch is real progress), and whether `integrity`
+   survives a retry — which is really "is GENTLE HANDS per-attempt or per-run?"
 
 ## 16. Next step
 
-**P·terrain, then P·slice** (roadmap Bundle P). Span terrain and the chamber
-authoring format come first because the slice cannot prove the tether without an
-overhang to swing it under (§11.0); then one chamber, one rack, end to end, tuned
-on a phone. After the slice signs off, this document gets its scoring table, its
-copy-deck entries and its implementation checklist in the shape of PENDULUM_SPEC
-§7. Nothing is authored at scale until one chamber feels right in the hand.
+~~**P·terrain, then P·slice**~~ — **both have landed** (roadmap Bundle P). Span
+terrain and the chamber authoring format came first because the slice could not
+prove the tether without an overhang to swing it under (§11.0); the slice then
+built the loop end to end in one chamber: the trunk cut, the cradle, the tether,
+the draining reserve, the inverted transfusion and THE WELL. Its copy is now in
+[COPY_DECK.md](COPY_DECK.md) §12a. **What it has not had is a phone** — every feel
+value is authored, exposed and defaulted, and none of it is tuned; the dials are
+named in one block at the top of `js/acttwo-data.js` and no test asserts a tuning
+number, deliberately.
+
+**Next is a device pass, then P·persist and P·systems.** This document still owes
+its scoring table (§15 q2) and its implementation checklist in the shape of
+PENDULUM_SPEC §7, both of which want the hardware round first. Nothing is
+authored at scale until one chamber feels right in the hand — that constraint has
+not moved.
+
+**One thing the slice changed about how §11.1's ten chambers can be authored,**
+because it is a property of the terrain model rather than a preference: **a
+fully-solid column and a route past it are mutually exclusive.** A span-less
+column means no air at that x, and a route from one side of it to the other has to
+pass through every intermediate x. The slice chamber's "floor-to-ceiling pillar"
+was therefore a wall, and it sealed the only route to the well — which every
+P·terrain test missed, because each asserted a local property and none asked
+whether the room could be flown. A structural column you fly *around* must be
+flanked by air: the hall is locally taller than the column, which is also how a
+real plant hall carries one. The whole-room question is now an assertion
+(`__doids.chamberRoute`, run at three envelope heights in `tests/acttwo.spec.js`),
+and it is the form §7's "the player must always be able to save everyone" takes in
+geometry.

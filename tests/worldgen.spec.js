@@ -521,17 +521,33 @@ test("P·terrain: spans express an overhang, a pinch and a pillar", async ({ pag
      puzzle about which number went stale. */
   const found = await page.evaluate(() => {
     const s = level.spans;
+    const deepest = col => col.reduce((a, sp) => Math.max(a, sp.bot), 0);
     let overhang = null, pillar = null, tightest = null, tg = Infinity;
     for (let i = 1; i < s.length - 1; i++) {
       const col = s[i];
       if (!overhang && col.length >= 2) overhang = i * STEP;
-      // a pillar is a RUN of solid columns with hall either side of the run —
-      // not a single column (the pillar is 13 columns wide) and not the
-      // chamber's own sealed ends, which are also span-less
-      if (!pillar && !col.length && s[i - 1].length) {
-        let j = i;
-        while (j < s.length - 1 && !s[j].length) j++;
-        if (s[j].length) pillar = i * STEP;
+      /* A PILLAR is a run of columns where rock reaches the floor — so the open
+         space stops at a capital far above the floor the columns either side of
+         the run have. Found by that property rather than by "a run of columns
+         with NO open span at all", which is how this was written under P·terrain.
+         That older definition was satisfiable only by a WALL, and provably so: a
+         span-less column means no air at that x, and any route from one side of
+         it to the other has to pass through every intermediate x. It passed
+         happily while the slice chamber was unflyable — see the traversability
+         invariant in tests/acttwo.spec.js, which is the assertion that was
+         missing.
+
+         A structural column you fly over is the useful version of the feature,
+         and it still exercises exactly what §11.0 says the heightmap cannot do:
+         rock with air above it AND the floor beneath it in the same column. */
+      if (!pillar && col.length) {
+        const here = deepest(col);
+        const left = s[i - 1] && s[i - 1].length ? deepest(s[i - 1]) : 0;
+        if (left - here > 200) {
+          let j = i;
+          while (j < s.length - 1 && s[j].length && deepest(s[j]) < left - 200) j++;
+          if (j > i + 4) pillar = Math.floor((i + j) / 2) * STEP;   // its middle
+        }
       }
       for (const sp of col) if (sp.bot - sp.top < tg) { tg = sp.bot - sp.top; tightest = i * STEP; }
     }
@@ -567,10 +583,29 @@ test("P·terrain: spans express an overhang, a pinch and a pillar", async ({ pag
   expect(st.tightest).toBeLessThan(175);
   expect(st.tightest).toBeGreaterThan(2 * 11);   // wider than the ship (SHIP_R 11)
 
-  // a PILLAR is a column with no open span at all, with hall either side
+  /* The model can still hold a column with no open span at all — the chamber's
+     own sealed ends are exactly that, and it is what makes a pillar expressible
+     in the first place. */
   expect(st.solidCols).toBeGreaterThan(0);
+
+  // a PILLAR: rock standing on the floor, with clear air over its capital
   expect(found.pillar).not.toBeNull();
-  expect(await page.evaluate(x => __doids.spans(x), found.pillar)).toEqual([]);
+  const pillarCol = await page.evaluate(x => __doids.spans(x), found.pillar);
+  expect(pillarCol.length).toBe(1);                 // only the air above it
+  const pillarProbe = await page.evaluate(x => {
+    const c = __doids.spans(x);
+    const capital = c[c.length - 1].bot;
+    return {
+      overCapital: __doids.solidAt(x, capital - 40),   // you can fly over it
+      inMass: __doids.solidAt(x, capital + 120),       // and it is solid below
+      // the hall either side of it runs far deeper than the capital does
+      besideDeep: __doids.spans(x - 260).slice(-1)[0].bot,
+      capital
+    };
+  }, found.pillar);
+  expect(pillarProbe.overCapital).toBe(false);
+  expect(pillarProbe.inMass).toBe(true);
+  expect(pillarProbe.besideDeep).toBeGreaterThan(pillarProbe.capital + 200);
 });
 
 test("P·terrain: a chamber compiles deterministically", async ({ page }) => {

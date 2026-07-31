@@ -161,6 +161,81 @@ function momentumGapPx(tether) {
 function restGapPx(tether) {
   return Math.round(towEnvelope(0, tether).vertical + 30);
 }
+
+/* ---- P·slice: the tether's feel dials ------------------------------------
+   docs/PENDULUM_SPEC.md §4.1 is the model and it carries over unchanged: the
+   payload is ONE point mass on a rope of length SLING_L anchored under the
+   ship's centre, integrated like the ship and pulled back onto length by a
+   distance constraint run twice a frame. What makes it feel like a pendulum
+   rather than a rigid stick is that the correction is SPLIT — the payload takes
+   most of it, the ship takes the rest, so towing genuinely tugs you.
+
+   A ROPE, not a rod: the constraint only resists stretch, never compression.
+   That is what makes §4.2's "the payload settles onto terrain first, the sling
+   goes slack" and "taking off re-tensions" fall out for free instead of needing
+   a special case, and it is why a rack resting on the floor doesn't lever the
+   ship down onto it.
+
+   Every number here is a FEEL value and belongs on hardware, not in a browser
+   (Bundle P: the slice "genuinely needs a device"). SLING_VISIBLE is the one
+   worth reaching for first, because SLING_L is derived from it and the momentum
+   band plus both authored pinch gaps follow SLING_L automatically — see
+   momentumGapPx/restGapPx above. Moving it is a one-number change, never a
+   re-author of the chamber. */
+const SLING_SHIP_W = 0.3;      // §4.1 — correction split: 30% ship, 70% payload
+const SLING_DAMP = 0.999;      // §4.1 — per-frame velocity damping on the payload
+const SLING_ITER = 2;          // §4.1 — constraint iterations per frame
+/* Contact BELOW this costs nothing (§4.3: "gentle set-downs and brushes cost
+   nothing… never a hair-trigger"). Measured on the NORMAL component of the
+   payload's velocity, not its speed: a rack sliding along a floor at cruise is
+   a graze and a rack driven into that same floor at cruise is a slam, and only
+   the normal component tells those apart. Speed alone would bill you for every
+   fast pass through the momentum pinch, which is the one place the design
+   actively wants you to carry speed. */
+const SLING_SAFE_V = 40;
+const SLING_DMG_K = 0.25;      // §4.3 — cost per px/s of normal speed over SAFE
+const SLING_SURGE_KICK = 70;   // §4.1 — the 41s surge shoves the PAYLOAD, not you
+
+/* ---- P·slice: the reserve, and what your blood buys -----------------------
+   §7.3's drain model: continuous so it is legible (you can judge how long
+   you've got), PLUS a bite on the Static's beat, because every rack in the
+   network is on the same tap. The bite is what turns the 41 seconds from a
+   shove into "can I reach the well before the next beat, or do I give now?".
+
+   §7.5's states are already in RACK_STATES; these are the thresholds that pick
+   between them. Note what does NOT happen here: the drain never speeds up. A
+   failing rack reads WEAKER, never faster (§7.3) — the same trace going flat —
+   so degradation lives entirely in the beat's SHAPE (RACK_STATES.beats) and
+   RACK_PULSE_PERIOD is constant across all four states. */
+const RACK_RESERVE_MAX = 100;
+const RACK_DRAIN = 1.2;        // reserve/second once the trunk is cut
+const RACK_BEAT_BITE = 7;      // the network's simultaneous bite, per 41s beat
+const RACK_FAILING_AT = 34;    // below this the beat drops to a single flicker
+
+/* The transfusion, inverted (§7.4). Same machinery as Act One's resupply line
+   (updateTransfusion, js/update.js) and the exact opposite direction: MERCY is
+   not here, so you are the supply. The floor is the clinical rule — you cannot
+   treat if you are the casualty — and it is what makes an unwinnable state
+   impossible without softening anything. */
+const GIVE_RATE = 9;           // reserve units/second down the line
+const GIVE_COST = 1.0;         // YOUR vitals per reserve unit (FIELD MEDIC halves it)
+const GIVE_FLOOR = 15;         // vitals at which the line auto-detaches
+const GIVE_PER_LINE = 40;      // reserve one line-out can deliver, before falloff
+const GIVE_FALLOFF = 0.9;      // §7.4 — the shipped 0.9^n shape, per rack
+const GIVE_WINDOW_R = 78;      // how close you must hover to stay connected
+const GIVE_SNAP_R = 126;       // drift past this and the line parts
+const GIVE_HOVER_V = 95;       // and you must be moving slower than this
+
+/* Hold durations. All three reuse the shipped hold-to-act grammar (updateShrine
+   /updateBlackbox: accumulate scanT × scanRate(), draw a progress ring) so
+   Virchow's CELL DOCTRINE applies to all of them — diagnosis is diagnosis. */
+const TRUNK_CUT_T = 1.6;       // landed at an isolator, closing the feed
+const CRADLE_T = 2.5;          // §4.2 — rigging the sling the first time
+const RECRADLE_T = 0.8;        // re-hooking a rack already on reserve
+const WELL_WINCH_T = 1.5;      // §4.2's winch beat, reused at THE WELL
+const WELL_DOCK_R = 72;        // hover window around the bay's own swinging slot
+const WELL_DOCK_V = 70;        // and how still you must hold it
+
 /* base = resting brightness (0-1), amp = how much the beat lifts it, beats =
    how many lobes in the envelope (2 = a double-beat "lub-dub", 1 = a single
    thin flicker, 0 = no beat at all — degrading SHAPE, not rate, is the point:
@@ -172,6 +247,21 @@ const RACK_STATES = {
   failing: { base: .18, amp: .28, beats: 1, token: "ramp" },
   gone:    { base: .5,  amp: 0,   beats: 0, token: "DANGER" }
 };
+/* §7.5's table as a function of a rack's actual reserve — DERIVED, never stored,
+   so the box's look cannot drift out of step with the number driving it. It lives
+   here in the data layer because that is where the state table itself lives; the
+   simulation (js/acttwo-update.js) and the renderer (js/acttwo-render.js) both
+   call it rather than each keeping their own copy of the thresholds.
+
+   RACK_PULSE_PERIOD is constant across all four states: what degrades as a rack
+   fails is the beat's SHAPE, never its rate (§7.3 — "not faster as it fails, but
+   weaker… the same trace, going flat"). */
+function rackStateFor(r) {
+  if (r.lost) return "gone";
+  if (!r.cut) return "mains";
+  return r.reserve <= RACK_FAILING_AT ? "failing" : "reserve";
+}
+
 /* the beat envelope shapes: a tight gaussian lobe normally, a raised-cosine
    (smooth oscillation, no sharp edge) under REDUCED FLASH — trading sharp
    pulses for smooth ones is the accessibility rule (never a slower motion). */
@@ -497,8 +587,32 @@ const SLICE_CHAMBER = {
        rack are tuned to — see restGapPx. */
     { op: "rock", x: 3100, y: 500,  w: 300,  h: 640 - restGapPx(),
       roughBot: 8, mb: MAT_ROCK },
-    // a structural pillar, floor to ceiling
-    { op: "rock", x: 4600, y: 440,  w: 210,  h: 800, mt: MAT_MACH },
+    /* ---- THE STRUCTURAL COLUMN (re-authored, P·slice) ------------------
+       This was a rock from y 440 to 1240 against a hall of 520–1140, i.e. it
+       covered every open interval in its own columns. P·slice flew the chamber
+       and could not get past it: the flood fill stopped dead at x 4592 for a
+       laden ship, an unladen ship and a bare point alike. It was not a pillar.
+       It was a wall, and it sealed the only route to THE WELL.
+
+       The conflict is provable rather than a tuning slip, which is why it
+       survived P·terrain's tests: a fully-solid column means no air at that x,
+       and a route from left of it to right of it must pass through every
+       intermediate x. So "a run of columns with no open span, hall either side"
+       and "a chamber you can fly through" cannot both be true of the same
+       feature. P·terrain's pillar test asserted exactly the first, so it
+       passed — nothing was checking the second. Now something is (see
+       tests/acttwo.spec.js, the traversability invariant).
+
+       A structural column you fly AROUND therefore has to be flanked by air,
+       which means the hall is locally taller than the column: a tall structural
+       bay, with the column standing in it from the floor to a capital, and
+       clear air over the top. That is also how a real plant hall carries a
+       column, and it gives the tow a routing problem — lift the load over it —
+       rather than a dead end. Its flanks are still cut rock, so the render's
+       flank stroke still has something to draw. */
+    { op: "room", x: 4380, y: 300,  w: 660,  h: 840, roughTop: 14, roughBot: 22,
+      mt: MAT_ROCK, mb: MAT_MACH },
+    { op: "rock", x: 4600, y: 470,  w: 210,  h: 800, mt: MAT_MACH, mb: MAT_ROCK },
     /* ---- THE MOMENTUM PINCH (owner idea, July 2026) --------------------
        78px: below the 90px a hanging load needs, above the 66px a load
        trailing at your own level needs. So you cannot creep through it with
@@ -571,6 +685,53 @@ const SLICE_CHAMBER = {
      particular runs a light along its length on the rack's own heartbeat.
      `snap` sits an ornament on the floor of whatever span its y falls in, so a
      retune of the terrain doesn't leave the furniture hovering. */
+  /* ---- P·slice: one rack, its feed, and THE WELL ---------------------------
+     "One chamber, one rack, the trunk cut, the tow, THE WELL, the reserve, the
+     vitals transfusion" (Bundle P). One rack exactly, because the slice exists
+     to prove the loop feels good in one room before any of it is authored ten
+     times over.
+
+     The rack sits near the START of the floor and the well at the END of it, so
+     the tow is the whole vocabulary in one haul: the ordinary tight spot, the
+     structural column, the painted rock, a mezzanine, and then the momentum
+     pinch. That is deliberate and it is the point — the roadmap left "is
+     mid-band right for a momentum pinch?" open because it needs the tether in
+     hand, and a route that lets you avoid the pinch would never answer it. */
+  racks: [
+    { id: "r1", x: 1150, y: 1100, occupants: 10, label: "BANK 1 · 10 SOULS", snap: "floor" }
+  ],
+  /* Several conduits run through each chamber; one is the rack's (§7.1). You
+     close a feed at its ISOLATOR — a floor-mounted breaker you land beside and
+     hold, which is the shipped deliberate-act grammar (updateLift/updateBlackbox)
+     and needs no new control.
+
+     TEACHING PLACEMENT, per §7.1's own sequencing ("placed-and-visible for the
+     first chamber or two… found-by-pulse everywhere after"): the real trunk is
+     drawn as a line running from its isolator to the rack it feeds, so it is
+     traceable by eye. What is NOT here is the deduction layer — a faked pulse
+     that is metronomic where a real one drifts — because that is P·systems and
+     guessing it here is what the phased plan says not to do. The silhouette
+     tell drawConduitTrunk already carries (round beat = living line, square
+     beat = faked) is switched on, so the two decoys read as his the moment a
+     player learns to look, and the honest-versus-metronomic layer lands on top
+     of it later without moving anything.
+
+     The isolators sit well away from the rack on purpose: if the breaker were
+     beside the box there would be nothing to read. */
+  conduits: [
+    { id: "c1", rack: "r1", real: true,  x: 2020, y: 1100, snap: "floor",
+      label: "ISOLATOR 1" },
+    { id: "c2", rack: null, real: false, x: 3250, y: 1100, snap: "floor",
+      label: "ISOLATOR 2" },
+    { id: "c3", rack: null, real: false, x: 4450, y: 1100, snap: "floor",
+      label: "ISOLATOR 3" }
+  ],
+  /* THE WELL (§7.6) — MERCY cannot land and cannot descend, so she pays out a
+     docking bay on a cable. It hangs in the shaft at the END of the floor,
+     which is where the next chamber's entrance is and where she lowers it
+     deeper as you clear (§11.1). It sways, and you dock a swinging load into
+     it: the mothership is doing exactly what you are doing. */
+  well: { x: 8465, y: 950 },
   ornaments: [
     { type: "conduitRun",   x: 620,  y: 1100, w: 460, snap: "floor" },
     { type: "rackingFrame", x: 1500, y: 1100, w: 90,  h: 140, snap: "floor" },
@@ -610,6 +771,50 @@ function snapToSurface(list, spans) {
   });
 }
 
+/* ---- P·slice: the rack network, built from the chamber's own authoring ----
+   Racks, their isolators and the well are all snapped onto real surfaces by the
+   same snapToSurface the ornaments use, for the same reason: the chamber has
+   been retuned four times now and a hand-typed y goes stale silently. A rack
+   floating 40px off the deck is the exact bug that got the fixtures snapped.
+
+   All the mutable per-run state a rack carries is initialised here in one
+   place, which is also what P·persist needs: a chamber checkpoint (§11.2) is a
+   shallow copy of these objects plus the ship pose, and nothing about a rack's
+   state lives anywhere else. */
+function buildRacks(ch, spans) {
+  const cage = { w: RACK_SIZE.w * RACK_CAGE_W, h: RACK_SIZE.h * RACK_CAGE_H };
+  /* snapToSurface puts an object's ORIGIN `h` above the floor, which is right for
+     the ornaments it was written for (they draw down-right from a top-left
+     corner). A rack's x/y is its CENTRE, so it wants half a cage, not a whole
+     one — passing the full height left the box floating a cage-height clear of
+     the deck. */
+  return snapToSurface((ch.racks || []).map(r =>
+    Object.assign({}, r, { h: cage.h / 2 })), spans).map(r => ({
+    id: r.id, x: r.x, y: r.y, w: RACK_SIZE.w, h: RACK_SIZE.h,
+    occupants: r.occupants || RACK_OCCUPANTS_DEFAULT, label: r.label,
+    // §7.5 — on mains it is bright and steady. Cutting the feed is what starts
+    // the dying, and the player watches it happen because they caused it.
+    state: "mains", reserve: RACK_RESERVE_MAX, integrity: 100,
+    cut: false, cutT01: null, towed: false, delivered: false, lost: false,
+    gives: 0, vx: 0, vy: 0, cradleT: 0, slamT: 0
+  }));
+}
+
+function buildConduits(ch, spans, racks) {
+  return snapToSurface((ch.conduits || []).map(c =>
+    Object.assign({}, c, { h: 26 })), spans).map(c => {
+    const rk = racks.find(r => r.id === c.rack);
+    return { id: c.id, rack: c.rack, real: !!c.real, label: c.label,
+      // the isolator, stood on the floor
+      x: c.x, y: c.y, cut: false, scanT: 0,
+      /* the trunk itself: up off the isolator, then across to whatever it
+         feeds. A decoy runs to nothing in particular — it just leaves the
+         room, which is exactly what a line of his looks like from here. */
+      y0: c.y - 18, y1: rk ? rk.y - RACK_SIZE.h * RACK_CAGE_H / 2 - 8 : c.y - 300,
+      x1: rk ? rk.x : c.x + 240 };
+  });
+}
+
 function genChamber(ch) {
   /* Two views compiled from one definition (see chamberLies): `spans` is the
      truth collision uses, `spansDrawn` is what the renderer shows. They are the
@@ -617,7 +822,16 @@ function genChamber(ch) {
      costs nothing and cannot disagree with itself. */
   const spans = compileChamber(ch, "solid");
   const drawn = chamberLies(ch) ? compileChamber(ch, "drawn") : spans;
+  const racks = buildRacks(ch, spans);
   return {
+    racks, conduits: buildConduits(ch, spans, racks),
+    /* §7.6 — the bay hangs and sways; `docking` and `winchT` are the beat that
+       seats a load in it, driven by updateWellDock. `phase` offsets the sway so
+       a chamber with more than one well never pulses as one object. */
+    wellDock: ch.well ? Object.assign({ phase: 0, winchT: 0, tension: 0,
+      docking: false, rackState: "reserve", occupants: RACK_OCCUPANTS_DEFAULT,
+      taken: 0 }, ch.well) : null,
+    towedRack: null,
     n: 0, W: ch.W, H: ch.H, spans, spansDrawn: drawn, chamberId: ch.id,
     isChamber: true, isPlant: !!ch.plant, plantZone: ch.zone, dark: false,
     // ornaments and lights are placed against what is REALLY there, not against

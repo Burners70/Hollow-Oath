@@ -6,6 +6,14 @@
    hazard — the player's reward for noticing is understanding, not damage. */
 const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
+/* Bundle P — did the 41s beat land THIS frame? Act Two's reserve takes a
+   simultaneous bite out of every rack on the beat (docs/ACT_TWO_SPEC.md §7.3),
+   and that has to be an exact signal rather than something inferred from the
+   clock's value: `staticClock` wrapping to near-zero is indistinguishable from a
+   fresh clock, so reading "it got smaller" gets the answer wrong exactly when
+   the wrap lands early in a period. Set and cleared by updateStaticClock, read
+   by updateActTwo in the same frame. */
+let staticBeat = false;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: FIELD MEDIC parry window (forgiving)
@@ -68,12 +76,20 @@ const BREACH_REVEAL_DELAY = 3.5;
 // them mid-fall. (Vectors aboard YOUR ship no longer throw; they cut fuel lines.)
 const MERCY_THROW_FIRST = 2.2, MERCY_THROW_GAP = 6;
 function updateStaticClock(dt) {
+  staticBeat = false;   // cleared every frame, before any early return
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
-  if (runMode === "training" || !(levelIdx >= 4 || level.isCave || dailyMod("surge"))) return;
+  /* Bundle P — a chamber always runs the clock. The 41 seconds turn out to be a
+     heartbeat (docs/ACT_TWO_SPEC.md §3) and the network's bite on the beat is
+     the reserve's whole pacing (§7.3), so Act Two cannot be one of the levels
+     the clock sits out. Act One's own gate (sector 4 onward, or any Hollow, or
+     the DAILY surge modifier) is untouched. */
+  if (runMode === "training" ||
+      !(levelIdx >= 4 || level.isCave || level.isChamber || dailyMod("surge"))) return;
   staticClock += dt;
   if (staticClock < STATIC_PERIOD) return;
   staticClock -= STATIC_PERIOD;
+  staticBeat = true;
   staticTick();
   // a "wrong" double-tick, distinct from the heartbeat's lub-dub (F2)
   haptic.pattern([{ delay: 0, style: "light" }, { delay: 40, style: "light" }]);
@@ -275,6 +291,12 @@ function landingEval() {
 function shipDie() {
   if (ship.dead) return;
   ship.dead = true;
+  /* Bundle P (P·slice) — PENDULUM_SPEC §4.3: "Ship death while towing: the sling
+     parts, the payload drops where it fell… and can be re-cradled on the next
+     life." So the load survives the hull, and the respawn does not drag a rack
+     across the chamber behind a ship that has been re-placed by spawnShip.
+     A no-op on every Act One level. */
+  if (level.racks) actTwoShipDied();
   haptic.heavy();
   explode(ship.x, ship.y, PAL().DANGER, 60);
   explode(ship.x, ship.y, PAL().WARN, 40);
@@ -706,7 +728,18 @@ function update(dt) {
           // would. Untouched once the decoy's already been resolved (dead) —
           // nothing left to protect at that point.
           if (level.fakeMercy && !level.fakeMercy.dead) rollMercyTwin(level, Math.random);
-          spawnShip(); state = "play"; stateT = 0; checkSectorClear();
+          spawnShip();
+          /* Bundle P (P·slice) — AFTER spawnShip, which places the ship relative
+             to level.mx/my; a chamber has no mothership and leaves those at
+             -9999, so a life lost dropped the hull clean off the world. Re-enter
+             at the chamber's own entrance instead, with the rack network left
+             exactly as it was — a life costs you the flight back, not the room.
+             FULL chamber checkpointing (rack reserves, which trunks are cut, what
+             the well has already taken, and the save schema that has to hold it)
+             is P·persist; this is the floor that keeps the slice flyable until it
+             lands. */
+          if (level.isChamber) respawnInChamber();
+          state = "play"; stateT = 0; checkSectorClear();
         }
       }
       input.tap = false;
@@ -1200,7 +1233,16 @@ function updatePlay(dt) {
   // Not while the transfusion line is out — the field would sever it, and (owner
   // steer) you shouldn't be able to parry mid-refuel.
   const refuelling = !!(resupplyDrone && resupplyDrone.phase === "line");
-  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead && !refuelling;
+  /* Bundle P (P·slice) — down in Act Two the shield button IS the transfusion
+     (docs/ACT_TWO_SPEC.md §7.4): hold it over a dying rack and you open a vein
+     instead of raising a field. Gated here, the way `refuelling` already is, so
+     the field never flickers on for the frames before updateActTwo runs.
+     giveWanted()/giving() (js/acttwo-update.js) answer from current state only,
+     so this gate and the transfusion itself can never disagree about what the
+     button meant. Both are false on every Act One level. */
+  const a2Giving = giveWanted() || giving();
+  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead &&
+    !refuelling && !a2Giving;
   // E3 — the parry: for a brief window right after the field snaps up, a bullet
   // caught in it is REFLECTED, not just absorbed. Timed on the rising edge.
   // Owner steer: the window is tight (skill), and only FIELD MEDIC keeps the
@@ -1351,6 +1393,14 @@ function updatePlay(dt) {
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
+  /* Bundle P (P·slice) — the whole Act Two loop: the trunk cut, the cradle, the
+     tether, the reserve, the transfusion and THE WELL (js/acttwo-update.js).
+     Placed here on purpose: AFTER the ship's own integration and collision above
+     (so the tether corrects against a hull that has already settled) and AFTER
+     updateStaticClock (so the network's bite on the 41s beat lands in the same
+     frame the beat fires). A no-op on every Act One level — it returns
+     immediately unless the level carries racks. */
+  updateActTwo(dt);
   // V13 — the twin's staged reveal: decrement the countdown, then fire the two
   // one-shot signal-pulse cues at the instants drawMercySplit's rings mark
   // (elapsed crossing TWIN_PULSE1 / TWIN_PULSE2), each exactly once. This is
@@ -1663,7 +1713,11 @@ function updateEnemies(dt) {
 
   s.fireCd -= dt;
   // while the transfusion line is caught, FIRE means "detach", never "shoot"
-  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead && !tethered()) {
+  /* Bundle P (P·slice) — while towing, FIRE is the RELEASE and never a shot
+     (docs/PENDULUM_SPEC.md §4.2: you cannot fire a weapon and carry a patient
+     with the same hand). §10a.2 is the point of it: the Act Two oath question is
+     not "shoot or don't" but "put them down, in this room, and pick up a gun." */
+  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead && !tethered() && !towing()) {
     s.fireCd = 0.22;
     acctLevel().firedShots++; runFired++;
     level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
@@ -1676,6 +1730,11 @@ function updateEnemies(dt) {
     // P·terrain — solidAt is the same test on both models: past the floor, into
     // the roof, or (chambers only) buried in a pillar or an overhang's mass
     let gone = b.t <= 0 || solidAt(b.x, b.y);
+    /* Bundle P (P·slice) — §7.1: "Shooting a feed dumps the rack." A live trunk
+       IS the bank's life support, so a round through it kills everyone in the
+       box. The oath has teeth again, and it's a wire rather than a lecture.
+       No-op unless the level carries conduits (js/acttwo-update.js). */
+    if (level.conduits && !gone && actTwoShotHit(b)) gone = true;
     for (const t of level.turrets) {
       if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
         t.alive = false; gone = true; firedAtCombat = true;

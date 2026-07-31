@@ -15,7 +15,9 @@ file; the *plan* they came from is
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
 
-**1.1 — Act Two (planning; nothing built)**
+**1.1 — Act Two (building; not reachable in normal play)**
+- [P·slice — the Act Two loop, end to end in one chamber](#pslice--the-act-two-loop-end-to-end-in-one-chamber-july-2026) — the tether, the trunk cut, the reserve, the inverted transfusion and THE WELL; plus the pillar that turned out to be a wall
+- [P·terrain — span terrain and the chamber authoring grammar](#pterrain--span-terrain-and-the-chamber-authoring-grammar-july-2026) — the heightmap generalised to columns of spans, so an overhang is expressible at all
 - [1.1 planning round: span terrain, the reversed deception tell, ten new minds, and Mary Seacole](#11-planning-round-span-terrain-the-reversed-deception-tell-ten-new-minds-and-mary-seacole) — the round that phased Bundle P, and the two places the spec was wrong against the code
 
 **1.01 (queued for the first post-launch update)**
@@ -57,6 +59,151 @@ Grouped by phase, newest phase first. Don't read the whole file — jump.
 - [Rename: DOIDS → Hollow Oath](#rename-doids--hollow-oath-july-2026) — full scope, and what was deliberately kept (`doids_` keys, internal identifiers)
 
 ---
+
+## P·slice — the Act Two loop, end to end in one chamber (July 2026)
+
+**Release:** 1.1. **Not reachable in normal play** — Act Two is behind
+`__doids.loadChamber("slice")` until P·content and P·persist wire it into the
+campaign, and `main` stays releasable for a 1.01 hotfix throughout, which is what
+Bundle P's phasing is for.
+
+The vertical slice the whole bundle was gated on: one chamber, one rack, and the
+loop from end to end. Read which trunk feeds the rack, land at its isolator and
+hold to close it, watch the bank drop off mains and start dying, cradle it, tow it
+the length of the floor on a swinging sling, give it your own vitals when it won't
+make the trip, and dock a swinging load into the swinging bay MERCY lowers down
+the shaft. New file `js/acttwo-update.js` (the approved Act Two exception), plus
+the readability layer it needs in `js/acttwo-render.js` and its feel dials in
+`js/acttwo-data.js`. 17 tests in a new `tests/acttwo.spec.js`; suite green at 150,
+M1 golden checksum unchanged.
+
+**Three controls, no new buttons.** The cut and the cradle are landed holds, which
+is the shipped `updateBlackbox` grammar, so Virchow's CELL DOCTRINE applies to
+both. FIRE is the release and never a shot while towing — which is the Act Two
+oath question made kinetic: not *shoot or don't* but *put them down, in this room,
+and pick up a gun.* And the transfusion is a **held SHIELD**, because every other
+input is already spoken for while you hover over a dying rack and the shield is the
+one that is semantically free: the field would sever the line anyway. The hand
+that shields you is the hand that gives.
+
+**The tether, with one correction found by flying it.** PENDULUM_SPEC §4.1's model
+throughout — a point mass on a rope, verlet integration, a distance constraint run
+twice a frame — but the ship's 30% share of the correction is applied as an
+impulse against the *radial closing speed* rather than as `err/dt`. The latter
+makes the coupling stiffness proportional to `1/dt`, so the same flight feels
+different at 60 and 120fps, which for a value being tuned on hardware is worse
+than useless; it is also unbounded on a long frame, which is how the first version
+threw a rack the length of the hall. Position on the load, velocity on the hull.
+
+**Slams cost the reserve as well as integrity, and that is the design, not a
+double charge.** The reserve is the resource under pressure, so the drain and rough
+flying pull on one needle — which is what makes hurry-versus-care a single
+allocation problem instead of two unrelated meters. Integrity is the record of what
+your handling cost, never touched by the drain, so GENTLE HANDS means "never
+slammed" rather than "arrived quickly". Damage is measured on the **normal**
+component of the payload's velocity, not its speed, because a rack sliding along a
+floor at cruise is a graze and a rack driven into that same floor at cruise is a
+slam — and speed alone would bill the player for every fast pass through the
+momentum pinch, the one place the design actively wants speed carried.
+
+**The pillar was a wall.** The slice chamber could not be flown: a flood fill over
+its open spans stopped dead at x 4592 for a laden ship, an unladen ship and a bare
+point alike, because P·terrain's "floor-to-ceiling pillar" covered every open
+interval in its own columns and sealed the only route to the well. Every terrain
+test passed anyway — each asserted a *local* property (an overhang exists, a pinch
+exists, a pillar exists) and nothing asked the whole-room question.
+
+The conflict is provable rather than a tuning slip, and it constrains how all ten
+chambers can be authored: **a fully-solid column and a route past it are mutually
+exclusive**, since a span-less column means no air at that x and a route must pass
+through every intermediate x. So the column was re-authored the way a real plant
+hall carries one — a taller structural bay, with the mass standing from the floor
+to a capital and clear air over the top, which turns a dead end into a routing
+problem: lift the load over it. The pillar test now locates the feature by the
+property that actually defines it, and the whole-room question is an assertion
+(`__doids.chamberRoute`, run at three envelope heights).
+
+**Two more bugs, both invisible before there was a tether.** `seatPayload` forced
+a *slack* sling taut, which drove the load into the deck on the frame you cradled
+it — a sling being fastened does not shove the box away from you. And the 41s beat
+was inferred from `staticClock` getting smaller, which is wrong exactly when the
+wrap lands early in a period; there is now an explicit `staticBeat` flag set by
+`updateStaticClock`. A third was a gap rather than a bug: only the *towed* rack was
+simulated, so a released load hung in mid-air and §4.2's drop damage was
+unreachable.
+
+**Death in a chamber was off-world.** `spawnShip` places the ship relative to
+`level.mx/my`, which a chamber leaves at `-9999`, so a life lost dropped the hull
+clean out of the world — the single most common thing a player does while a slice is
+being hand-tuned. `respawnInChamber` re-enters at the chamber's own entrance with
+the rack network untouched: a life costs you the flight back, not the room. Full
+per-chamber checkpointing is still P·persist, and the slice was built to hand it a
+clean shape — all per-chamber state lives on `level.racks`/`level.conduits`/
+`level.wellDock`, with nothing hiding in module scope.
+
+**Two open design questions closed, and the answers were "yes" and "no".**
+Mid-band *is* right for a momentum pinch: the derived 77px sits between the 105px a
+hanging load needs and the 48px a load trailing at your own level needs, and
+steady-state thrust puts the load at ~72° off vertical (a 57px envelope), so it
+passes under power with about 20px of margin and cannot be crept through. And the
+floor *was* too landable — it gained the structural column, and the pinch now sits
+on the only route to the well so the question cannot be dodged.
+
+**What it has not had is a phone.** Every feel value is authored, exposed through
+`__doids.get().actTwo` and defaulted; none of it is tuned. The dials sit in one
+block at the top of `js/acttwo-data.js` — `SLING_VISIBLE` first, because it derives
+`SLING_L` and with it the momentum band and both authored gaps, so moving it is a
+one-number change rather than a re-author. No test asserts a tuning number, on
+purpose: the suite proves the rules.
+
+## P·terrain — span terrain and the chamber authoring grammar (July 2026)
+
+**Release:** 1.1. Not reachable in normal play. *(Recorded here retrospectively —
+the bundle landed in PR #70 without its changelog line, which the per-bundle
+convention at the top of this file asks for.)*
+
+**The shipped terrain model could not express an overhang.** Terrain was a
+heightmap — `heights[]`, one floor per column every 16px — plus at most one
+parallel ceiling for caves, clamped so every Act One cave is a tube with a
+guaranteed 175px gap. No overhangs, no pinch points, by construction. Act Two's
+chambers are specified as larger than any surface sector with overhangs and tight
+spaces authored for a tether, so the representation had to change before the slice
+could prove anything.
+
+**Generalised to columns of spans** rather than moved to polygon terrain: each
+column carries N open `{top, bot}` intervals instead of one floor, which is a
+strict superset of what shipped. Collision stays an O(1) column lookup, `STEP`
+survives, the tile cache survives, and `groundAt`/`roofAt` keep their shape with an
+optional second argument saying which span you mean — every Act One call site
+passes `x` alone and takes the heightmap path completely unchanged, which is how
+the M1 golden checksum stayed at `1090254029`. Two spans in a column *is* an
+overhang; a short span is a pinch; a column with none is solid rock. A true
+re-entrant hook remains unexpressible, and that was accepted rather than paying to
+invalidate every terrain helper, the landing maths and the fairness passes.
+
+Ten large chambers cannot be hand-typed as columns, so the bundle also brought the
+**authoring grammar**: a chamber is a short ordered list of coarse `room`/`rock`
+parts, compiled to spans at load, deterministic from the chamber's own seed and
+therefore checksummable exactly as the heightmap is. Rock inside a room is how you
+author an overhang. Boundaries carry a **material** (raw rock or milled, so "rock
+overhead, mechanical underfoot" is expressible per surface rather than per chamber)
+and a **profile** (ramp, arc, teeth, plus corner fillets, so a chamber is not
+condemned to right angles). A part may also declare a **view**, which is how §8's
+false floor and painted rock are held: `spans` is collision truth and `spansDrawn`
+is what you see, compiled from one definition and identical unless a deception is
+declared.
+
+`SLICE_CHAMBER` is the one authored chamber and exists to prove the format rather
+than to be content — a 9000×2050 working floor with bays and mezzanines and the way
+down at the far end, plus the tow-envelope geometry (`towEnvelope`/`towTierForGap`)
+that classifies every gap as passable at rest, a momentum pinch, or unladen-only.
+Drawing is the complement of the spans through Act One's own per-512px tile cache
+contract, with additive light pools over it so a plant reads as lit *by* something.
+
+Two bugs came out of it, both invisible to Act One: `pickSpan` returned null for a
+column that plainly had spans, which silently made `groundAt(x)` return the bottom
+of the world on any chamber; and the pixel-agreement test had been parking the ship
+at its own probe point and reading the hull's cyan as rock.
 
 ## 1.1 planning round: span terrain, the reversed deception tell, ten new minds, and Mary Seacole
 

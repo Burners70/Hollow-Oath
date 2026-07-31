@@ -433,14 +433,14 @@ function drawWorld(now) {
   // furniture, and the tow/dock pieces; each a no-op until Bundle P's
   // chamber authoring sets the field.
   if (level.plantOrnaments) drawPlantOrnaments(now);
+  // P·slice — trunks under the racks they feed, so a line never covers the box
+  drawConduits(now);
   drawRacks(now);
   if (level.wellDock) drawWellDock(now);
-  if (level.towedRack) {
-    const tr = level.towedRack;
-    drawSlingLine(ship.x, ship.y, tr.x, tr.y, tr.tension != null ? tr.tension : .55, now);
-    drawRack(tr.x, tr.y, tr.w || RACK_SIZE.w, tr.h || RACK_SIZE.h, tr.state || "reserve", now,
-      { occupants: tr.occupants });
-  }
+  if (level.towedRack) drawTowedRack(now);
+  // §7.4 — your own vitals going into theirs, drawn last so the line reads over
+  // both the rack and the hull it comes out of
+  if (giving()) drawGiveLine(a2Line, now);
 
   // fuel pods — real ones flicker like fire, alive and irregular
   for (const p of level.pods) {
@@ -4496,7 +4496,42 @@ window.__doids = {
     training: runMode === "training", trainingShown: Object.assign({}, trainingShown),
     coach: { active: state === "coach", text: coachText },
     currentHint, codex: [...codex],
-    everParried, everScanned, metFake }),
+    everParried, everScanned, metFake,
+    /* ---- Bundle P (P·slice) — Act Two's own state ----
+       Exposed from day one, per Bundle P's instruction, so the slice is testable
+       headlessly WHILE it is being felt by hand on a phone: every number here is
+       a feel value and the suite's job is to prove the machinery, not the tuning.
+       null on every Act One level. */
+    actTwo: actTwoActive() ? {
+      chamberId: level.chamberId,
+      saved: a2Saved, lost: a2Lost,
+      racks: level.racks.map(r => ({ id: r.id, x: Math.round(r.x), y: Math.round(r.y),
+        state: rackStateFor(r), reserve: +r.reserve.toFixed(2),
+        integrity: +r.integrity.toFixed(2), cut: r.cut, towed: r.towed,
+        delivered: r.delivered, lost: r.lost, gives: r.gives,
+        occupants: r.occupants, cradleT: +r.cradleT.toFixed(2) })),
+      conduits: level.conduits.map(c => ({ id: c.id, rack: c.rack, real: c.real,
+        x: Math.round(c.x), cut: c.cut, scanT: +c.scanT.toFixed(2) })),
+      towing: towing(),
+      tow: level.towedRack ? { x: Math.round(level.towedRack.x),
+        y: Math.round(level.towedRack.y),
+        vx: Math.round(level.towedRack.vx), vy: Math.round(level.towedRack.vy),
+        speed: Math.round(Math.hypot(level.towedRack.vx, level.towedRack.vy)),
+        // how far the load has swung off vertical, and therefore which tow tier
+        // it currently fits through (§11.3's momentum pinch is exactly this)
+        swing: Math.round(level.towedRack.swing || 0),
+        envelope: +towEnvelope(level.towedRack.swing || 0).vertical.toFixed(1),
+        tell: slingTellState(level.towedRack),
+        tension: +(level.towedRack.tension || 0).toFixed(2) } : null,
+      give: a2Line ? { rack: a2Line.rack.id, given: +a2Line.given.toFixed(2),
+        cap: +a2Line.cap.toFixed(2), stall: !!a2Line.stall } : null,
+      giveWanted: giveWanted(),
+      well: level.wellDock ? { x: Math.round(level.wellDock.x),
+        y: Math.round(level.wellDock.y), docking: level.wellDock.docking,
+        winchT: +level.wellDock.winchT.toFixed(2), taken: level.wellDock.taken,
+        slot: (() => { const s = wellSlotPos(level.wellDock, performance.now() / 1000);
+          return { x: Math.round(s.x), y: Math.round(s.y) }; })() } : null
+    } : null }),
   go: toBriefing,
   // Y1 — the foreground tile-cache invalidation, plus a peek at the current
   // cache sizes so a test can assert the caches drop and then repaint.
@@ -4559,12 +4594,98 @@ window.__doids = {
     const ch = ACT_TWO_CHAMBERS.find(c => c.id === (id || "slice"));
     if (!ch) return null;
     level = genChamber(ch);
+    resetActTwo();       // P·slice — a fresh chamber attempt, and its own tallies
     const sp = spanAt(400, 700);
     ship.x = 400; ship.y = sp ? (sp.top + sp.bot) / 2 : 700;
     ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
+    ship.vitals = maxVitals(); ship.fuel = maxFuel();
     camera.x = ship.x; camera.y = ship.y;
     state = "play";
-    return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length };
+    return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length,
+      racks: level.racks.length, conduits: level.conduits.length,
+      well: !!level.wellDock };
+  },
+
+  /* ---- P·slice drivers. Every feel value in Act Two is tuned on hardware, so
+     the suite's job is the machinery: reach a state in one call and assert the
+     rules hold. These skip the HOLD, never the rule — a2Cut still routes through
+     closeTrunk, so a decoy still alerts him and a real feed still starts the
+     dying. */
+  a2Cut: id => {
+    const c = (level.conduits || []).find(k => k.id === id);
+    if (!c || c.cut) return false;
+    closeTrunk(c); return true;
+  },
+  a2Cradle: id => {
+    const r = (level.racks || []).find(k => k.id === id);
+    if (!r || !r.cut || r.lost || r.delivered || level.towedRack) return false;
+    cradleRack(r); return true;
+  },
+  a2Release: () => { if (!towing()) return false; releaseRack(); return true; },
+  // put the ship (and, if it is slung, its load) somewhere, so a test can reach
+  // the far end of a 9000px floor without flying it
+  a2Warp: (x, y, landed) => {
+    ship.x = x; ship.y = y; ship.vx = ship.vy = 0; ship.ang = 0;
+    ship.landed = !!landed; ship.dead = false;
+    // re-hang the load under the hull's new position rather than leaving it a
+    // room behind — the same seating the cradle and the lift beats use
+    if (level.towedRack) seatPayload(level.towedRack, true);
+    camera.x = x; camera.y = y;
+    return true;
+  },
+  a2SetReserve: (id, v) => {
+    const r = (level.racks || []).find(k => k.id === id);
+    if (!r) return false;
+    r.reserve = v; return true;
+  },
+  a2Vitals: v => { ship.vitals = v; },
+
+  /* ---- the traversability invariant -------------------------------------
+     GAME_DESIGN's no-trolley-problem pillar says every chamber must be
+     clearable with everyone alive, and Bundle P says that "wants an assertion,
+     not a playtest opinion." This is the assertion's floor: a flood fill over
+     the open spans, connecting two columns only where their intervals overlap
+     by at least `need`, so the same code answers "can a bare ship get through"
+     and "can a ship get through with a rack hanging under it" just by changing
+     the number passed in.
+
+     It exists because P·terrain's chamber could NOT be flown: its structural
+     column was solid floor-to-ceiling and sealed the only route to the well, and
+     every terrain test passed anyway because each one asserted a local property.
+     Nothing was asking the whole-room question. */
+  chamberRoute: need => {
+    const S = level.spans;
+    if (!S) return null;
+    const gap = need != null ? need : 2 * SHIP_R + 4;
+    const key = (i, j) => i * 16 + j;
+    const seen = new Set(), stack = [];
+    const push = (i, j) => { if (!seen.has(key(i, j))) stack.push([i, j]); };
+    const startI = clamp(Math.round(ship.x / STEP), 0, S.length - 1);
+    (S[startI] || []).forEach((sp, j) => { if (sp.bot - sp.top >= gap) push(startI, j); });
+    while (stack.length) {
+      const [i, j] = stack.pop();
+      if (seen.has(key(i, j))) continue;
+      seen.add(key(i, j));
+      const sp = S[i][j];
+      for (const n of [i - 1, i + 1]) {
+        if (n < 0 || n >= S.length) continue;
+        (S[n] || []).forEach((q, qj) => {
+          if (q.bot - q.top < gap) return;
+          if (Math.min(q.bot, sp.bot) - Math.max(q.top, sp.top) >= gap) push(n, qj);
+        });
+      }
+    }
+    const at = x => {
+      const i = clamp(Math.round(x / STEP), 0, S.length - 1);
+      return (S[i] || []).some((sp, j) => seen.has(key(i, j)));
+    };
+    let maxX = 0;
+    for (let i = 0; i < S.length; i++) if ((S[i] || []).some((sp, j) => seen.has(key(i, j)))) maxX = i * STEP;
+    return { gap: +gap.toFixed(1), spansReached: seen.size, maxX,
+      fromX: Math.round(ship.x),
+      racks: (level.racks || []).map(r => ({ id: r.id, reachable: at(r.x) })),
+      conduits: (level.conduits || []).map(c => ({ id: c.id, reachable: at(c.x) })),
+      well: level.wellDock ? at(level.wellDock.x) : null };
   },
   // the same stable fingerprint idea as heightChecksum, over spans: a chamber
   // must compile identically every load or the authoring format isn't authoring
@@ -4678,17 +4799,33 @@ window.__doids = {
     const iHi = Math.min(sol.length - 4, Math.floor((level.W - EDGE) / STEP));
     const clear = i => honest(i - 2) && honest(i - 1) && honest(i) && honest(i + 1) && honest(i + 2);
     const pts = [];
-    let pillar = null, air = null;
+    let rock = null, air = null;
+    /* The ROCK reference is a point buried DEEP in the mass — solid, and at least
+       DEEP_CLEAR px from every surface in its column. It used to be the middle of
+       a fully-solid column run (the old floor-to-ceiling pillar), which broke the
+       moment that pillar was re-authored into something you can fly over
+       (P·slice): with no span-less run to find, the reference fell back to a
+       hardcoded x at y 900, which in this chamber is open hall. Both references
+       then sampled AIR, the rock/air distance collapsed, and every probe
+       misclassified — a test failing for a reason that had nothing to do with
+       what it tests.
+
+       Deep rock is the better anchor anyway, and not only because it always
+       exists: it is far from the surface strokes, so it cannot pick up a flank's
+       violet rock glow or a milled face's accent, which is the other way this
+       reference has gone wrong before. */
+    const DEEP_CLEAR = 140;
     for (let i = iLo; i <= iHi; i++) {
       if (!clear(i)) continue;
       const col = sol[i];
-      if (!pillar && !col.length && sol[i - 1].length) {
-        let j = i;                                        // a RUN of solid columns
-        while (j < sol.length - 1 && !sol[j].length) j++;  // with hall either side
-        // the MIDDLE of the run, not its first column: a flank carries a violet
-        // rock stroke with a 14px glow, and sampling that returned TOK.VIOLET as
-        // the "rock" reference, which made every genuine rock probe look like air
-        if (sol[j].length) pillar = Math.floor((i + j) / 2) * STEP;
+      if (!rock) {
+        const x = i * STEP;
+        for (let y = 200; y < (level.H || WORLD_H) - 60; y += 40) {
+          if (!solidAt(x, y)) continue;
+          if (col.some(sp => Math.abs(y - sp.top) < DEEP_CLEAR || Math.abs(y - sp.bot) < DEEP_CLEAR)) continue;
+          rock = [x, y];
+          break;
+        }
       }
       if (!air && col.length === 1) air = i * STEP;
     }
@@ -4704,8 +4841,7 @@ window.__doids = {
     }
     const airCol = sol[Math.round(air / STEP)];
     const airSp = airCol[airCol.length - 1];
-    return { points: pts,
-      refRock: [pillar != null ? pillar : iLo * STEP, 900],
+    return { points: pts, refRock: rock,
       refAir: [air, (airSp.top + airSp.bot) / 2] };
   },
   chamberLights: () => (level.lights || []).length,

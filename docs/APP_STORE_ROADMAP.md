@@ -90,7 +90,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 8 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain has landed** (span terrain + the chamber grammar), so **P·slice is next and gates the rest** |
+| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain and P·slice have both landed** — the loop runs end to end in one chamber, so the gate is open. Next is **P·persist** (designed during the slice, per §11.2) and **P·systems**; P·content authors chambers only against proven systems |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -579,10 +579,25 @@ done, so the chain now starts at P·slice.
   had been sampling the ship's own cyan and calling it rock; there is now one
   `__doids.samplePixel` that keeps clear of the ship, the HUD and the containment
   field, used by both pixel tests.
-  **Still open for P·slice/P·content, not guessed at:** whether 98px is the right
-  pinch, which needs the tether to judge; and how much of the floor should be
-  level — landability is high, which may make the "care" half of hurry-versus-care
-  too cheap.
+  **Both questions this left open were answered by P·slice** (see that item):
+  mid-band is right for a momentum pinch, and the floor *was* too landable — it
+  gained a structural column to climb over.
+  **And P·slice found the chamber was not flyable at all.** The "floor-to-ceiling
+  pillar" above covered every open interval in its own columns, so it sealed the
+  only route to the well: a flood fill stopped dead at x 4592 for a laden ship, an
+  unladen ship and a bare point alike. Every test here passed anyway, because each
+  asserted a *local* property — an overhang exists, a pinch exists, a pillar
+  exists — and nothing asked the whole-room question.
+  The conflict is provable rather than a tuning slip, which is worth writing down
+  because it constrains how every one of P·content's ten chambers can be authored:
+  **a fully-solid column and a route past it are mutually exclusive.** A span-less
+  column means no air at that x, and a route from one side to the other must pass
+  through every intermediate x. So a structural column you fly *around* has to be
+  flanked by air — the hall is locally taller than the column, which is also how a
+  real plant hall carries one. The chamber now has that, the pillar test locates
+  the feature by the property that actually defines it (rock reaching the floor,
+  with air over the capital), and the whole-room question is asserted in
+  `tests/acttwo.spec.js`.
 - [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
   with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
   the rack reads correctly, and that is a design problem before it is a code
@@ -595,7 +610,7 @@ done, so the chain now starts at P·slice.
   demo video and the marketing stills instead. Only two real image files come out
   of it: the twelfth star on `the_full_codex.png` (a **1.01** item, independent of
   everything else — see V1) and, later, the two Act Two achievement badges.
-- [ ] **P·slice. Vertical slice before content.** One chamber, one rack, the
+- [x] **P·slice. Vertical slice before content.** One chamber, one rack, the
   trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
   end and tuned on a phone, **before a single additional level is authored.**
   If hurry-versus-care doesn't feel good in one room, no amount of level
@@ -606,9 +621,59 @@ done, so the chain now starts at P·slice.
   prevent. Expose the new state through `__doids.get()` from day one so the
   slice is testable headlessly while it is being felt by hand.
   *P·terrain delivered that geometry:* `SLICE_CHAMBER` (`js/acttwo-data.js`) is
-  6000×2400 with 96 overhang columns, an 85px pinch and a floor-to-ceiling
-  pillar, loadable with `__doids.loadChamber("slice")`. It is terrain only — the
-  rack, trunk cut, tow, well, reserve and transfusion are this item's work.
+  a 9000×2050 working floor with overhangs, an ordinary tight spot, a momentum
+  pinch and a structural column, loadable with `__doids.loadChamber("slice")`.
+  **Landed.** The loop runs end to end in `js/acttwo-update.js` (new file, the
+  Act Two exception): read which trunk feeds the rack → land at its isolator and
+  hold to close it → the rack drops to internal reserve and starts dying →
+  cradle it → tow it the length of the floor → give it your own vitals when it
+  won't make the trip → dock a swinging load into MERCY's swinging bay. 17 tests
+  in `tests/acttwo.spec.js`; suite green at 150.
+  - **The tether** is PENDULUM_SPEC §4.1's model with one correction found by
+    flying it. The ship's 30% share of the constraint is applied as an impulse
+    against the **radial closing speed**, not as `err/dt`: the latter makes the
+    coupling stiffness proportional to `1/dt`, so the tug's strength depends on
+    the framerate — useless for a value being tuned on hardware — and is
+    unbounded on a long frame, which is how the first version threw a rack the
+    length of the hall. Position on the load, velocity on the hull.
+  - **Three controls, no new buttons.** The cut and the cradle are landed holds
+    (the shipped `updateBlackbox` grammar, so CELL DOCTRINE applies). FIRE is the
+    release and never a shot while towing (§10a.2). **The transfusion is a held
+    SHIELD** — every other input is spoken for while hovering over a dying rack,
+    and the shield is the one that is *semantically* free, because the field
+    would sever the line anyway. The hand that shields you is the hand that gives.
+  - **Slams cost the reserve as well as integrity, and that is the design.**
+    `reserve` is the resource under pressure, so the drain and rough flying pull
+    on ONE needle — which is what makes hurry-versus-care a single allocation
+    problem instead of two unrelated meters. `integrity` is the record of what
+    your handling cost, never touched by the drain, so GENTLE HANDS (§10a.4)
+    means "never slammed" rather than "arrived quickly". Damage is measured on
+    the **normal** component of the payload's velocity, not its speed, or every
+    fast pass through the momentum pinch would be billed as a slam.
+  - **The two open questions are answered, and the answers were "yes" and "no".**
+    *Mid-band is right for a momentum pinch:* the derived 77px sits between the
+    105px a hanging load needs and the 48px a load trailing at your own level
+    needs, and steady-state thrust puts the load at ~72° off vertical (a 57px
+    envelope), so it passes under power with ~20px of margin and cannot be crept
+    through. *The floor was too landable:* it now has the structural column to
+    climb over, and the pinch is on the only route to the well — deliberately, so
+    the question cannot be dodged.
+  - **Three bugs, all invisible before there was a tether.** `seatPayload`
+    forced a *slack* sling taut, which drove the load into the deck on the frame
+    you cradled it. The 41s beat was inferred from `staticClock` getting smaller,
+    which is wrong exactly when the wrap lands early in a period — there is now
+    an explicit `staticBeat` flag. And a released load hung in mid-air, because
+    only the *towed* rack was simulated; §4.2's drop damage was unreachable.
+  - **Death in a chamber was off-world.** `spawnShip` places the ship relative to
+    `level.mx/my`, which a chamber leaves at `-9999`. A life lost dropped the hull
+    clean out of the world — the most common thing a player does while a slice is
+    being hand-tuned. `respawnInChamber` re-enters at the chamber's own entrance
+    with the rack network untouched: a life costs you the flight back, not the room.
+  - **Still to tune on hardware**, and the dials are named in one block at the top
+    of `js/acttwo-data.js`: `SLING_VISIBLE` (which derives `SLING_L`, and with it
+    the momentum band and both authored gaps — a one-number change, never a
+    re-author), `RACK_DRAIN`/`RACK_BEAT_BITE`, `GIVE_RATE`/`GIVE_PER_LINE`, and
+    `WELL_DOCK_R`/`WELL_DOCK_V`. No test asserts a tuning number, on purpose.
 - [ ] **P·persist. Persistence and save schema.** Promoted out of
   ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
   than after it. Act Two is a second campaign, not a run mode: per-chamber
@@ -618,6 +683,22 @@ done, so the chain now starts at P·slice.
   E4 iCloud mirror considered in the same pass (`cloud.set`/`cloud.get`), a
   forward-compatible version field, and a test that an Act One 1.01 save still
   loads.
+  **What P·slice settled, which is what §11.2 said to design it during.** All
+  per-chamber state lives on three arrays hanging off `level` — `level.racks`,
+  `level.conduits`, `level.wellDock` — deliberately, with nothing hiding in module
+  scope: a chamber checkpoint is a shallow copy of those plus the ship pose. The
+  only module-scope state is `a2Saved`/`a2Lost` (§7.3's separate loss tracking)
+  and the transfusion line, and both are per-attempt rather than persistent.
+  A rack's full state is `{ reserve, integrity, cut, towed, delivered, lost, gives,
+  everTowed, x, y }`; a conduit's is `{ cut }`; the well's is `{ taken }`. Two
+  things to decide that the slice does *not* answer: whether a rack's **position**
+  is checkpointed (it matters — a rack set down past the momentum pinch is real
+  progress), and whether `integrity` survives a retry or resets with the room,
+  which is really the question of whether GENTLE HANDS is per-attempt or per-run.
+  The death path is already the right shape to build on: `respawnInChamber`
+  (`js/acttwo-update.js`) is called from the `"dead"` case in `update()` beside
+  Act One's `if (level.isCave) exitCave()`, which is where chamber checkpointing
+  belongs too.
 - [ ] **P·systems. The rest of the mechanics**, in the spec's order and only
   after the slice signs off: pulse-reading with the honest-versus-metronomic
   layer, the deception hazards on the **revised** tell (see below), deep
@@ -649,6 +730,20 @@ done, so the chain now starts at P·slice.
   no-trolley-problem pillar is a generation invariant here exactly as V2's scan
   fairness is on the surface: **every chamber must be clearable with everyone
   alive**, and that wants an assertion, not a playtest opinion.
+  **The assertion exists now, and it earned its keep immediately.**
+  `__doids.chamberRoute(need)` (`js/render.js`) floods the open spans, connecting
+  two columns only where their intervals overlap by at least `need` — so the same
+  code answers "can a bare ship get through", "can a ship get through with the
+  load trailing at its own level" and "…with it hanging" just by passing
+  `2·SHIP_R`, `towEnvelope(90).vertical` or `towEnvelope(0).vertical`. Every one of
+  the ten chambers gets the same three-tier check, and the laden one is the one
+  that matters: a chamber clearable unladen but not with a rack is a trolley
+  problem with extra steps. It caught the slice chamber being unflyable on the
+  first run (see P·terrain), which is exactly the class of bug a playtest opinion
+  finds late and expensively.
+  Note what it does *not* yet check, and should before ten chambers exist: that
+  every unladen-only gap has a parallel laden route (§11.3), which is a
+  per-gap question rather than a whole-room one.
 - [ ] **P·guard. Regression gate.** The full smoke suite green, the M1 golden
   heightmap checksum unchanged (P·terrain must not perturb surface generation),
   a new `tests/acttwo.spec.js` for the tether, reserve, transfusion floor and
