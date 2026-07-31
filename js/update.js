@@ -1390,6 +1390,10 @@ function updatePlay(dt) {
      dart flying through a pillar, a column's flank or §8's painted rock.
      Deliberately after the vertical resolution above (see shipSolidCollide). */
   if (level.spans && !shipSolidCollide()) return;
+  /* P·slice (owner feedback) — and a moored rack is a landable surface, because
+     landing on it is how you connect the cable. After the wall test so the pad
+     wins over a wall the box happens to be bolted against. */
+  if (level.racks && !shipRackLanding()) return;
 
   sectorT += dt;
   updateNightfall(dt);    // T6 — dusk → full dark on the Basin

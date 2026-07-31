@@ -4645,17 +4645,38 @@ window.__doids = {
   a2Cradle: id => {
     const r = (level.racks || []).find(k => k.id === id);
     if (!r || !r.cut || r.lost || r.delivered || level.towedRack) return false;
-    cradleRack(r); return true;
+    cradleRack(r);
+    /* …and parts the moorings, because they are the second HOLD on the same
+       action (0.55s of taut pull, see updateMooring) and this driver's contract
+       is "reach the state in one call, skipping holds and never rules". Every
+       caller means "the load is on the rope and free to move" by cradled. The
+       mounts' own behaviour — that a bolted rack does NOT move, and what it
+       takes to free it — is asserted through the real path instead. */
+    r.moored = false; r.moorT = 0;
+    return true;
   },
   a2Release: () => { if (!towing()) return false; releaseRack(); return true; },
+  /* The moorings, parted. Skips the HOLD (0.55s of taut pull) and never the
+     rule — same contract as a2Cut: the rack ends up seated on the rope exactly
+     as updateMooring leaves it, so a test of the tether isn't also a test of
+     how long the owner wants the mounts to resist. */
+  a2Unmoor: id => {
+    const r = (level.racks || []).find(k => k.id === (id || (level.racks[0] || {}).id));
+    if (!r || !r.moored) return false;
+    r.moored = false; r.moorT = 0;
+    if (level.towedRack === r) seatPayload(r);
+    return true;
+  },
   // put the ship (and, if it is slung, its load) somewhere, so a test can reach
   // the far end of a 9000px floor without flying it
   a2Warp: (x, y, landed) => {
     ship.x = x; ship.y = y; ship.vx = ship.vy = 0; ship.ang = 0;
     ship.landed = !!landed; ship.dead = false;
-    // re-hang the load under the hull's new position rather than leaving it a
-    // room behind — the same seating the cradle and the lift beats use
-    if (level.towedRack) seatPayload(level.towedRack, true);
+    /* re-hang the load under the hull's new position rather than leaving it a
+       room behind — the same seating the cradle and the lift beats use. NOT a
+       rack that is still bolted in, though: a moored rack is part of the
+       structure, and dragging it to the hull would quietly unbolt it. */
+    if (level.towedRack && !level.towedRack.moored) seatPayload(level.towedRack, true);
     camera.x = x; camera.y = y;
     return true;
   },

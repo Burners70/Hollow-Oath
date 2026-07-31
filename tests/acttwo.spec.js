@@ -482,6 +482,62 @@ test("owner: a hull already buried in rock is put back into open air", async ({ 
   expect(out.inRock).toBe(false);
 });
 
+/* Owner feedback, July 2026 — a rack is BOLTED IN, and you land on it to rig the
+   sling. Both go through the real path here rather than the drivers, because the
+   drivers exist to skip exactly these two holds. */
+test("owner: you land on a rack to rig its sling, not merely near it", async ({ page }) => {
+  await slice(page);
+  const r = await page.evaluate(async () => {
+    __doids.a2Cut("c1");
+    const rk = level.racks[0];
+    // parked on the deck BESIDE it, landed, well inside the old 92px window
+    __doids.a2Warp(rk.x + 74, __doids.ground(rk.x + 74) - 12, true);
+    for (let i = 0; i < 40; i++) await new Promise(k => requestAnimationFrame(k));
+    const near = { towing: !!level.towedRack, landedOn: ship.landedOn };
+    // now drop onto the lid of the box itself
+    const cage = rk.h * RACK_CAGE_H;
+    __doids.a2Warp(rk.x, rk.y - cage / 2 - 26, false);
+    ship.vy = 30;
+    for (let i = 0; i < 45; i++) await new Promise(k => requestAnimationFrame(k));
+    const on = { landedOn: ship.landedOn, landed: ship.landed };
+    for (let i = 0; i < 200; i++) await new Promise(k => requestAnimationFrame(k));
+    return { near, on, towing: !!level.towedRack };
+  });
+  expect(r.near.towing).toBe(false);        // beside it is no longer enough
+  expect(r.on.landedOn).toBe("r1");         // the lid is a landable pad
+  expect(r.towing).toBe(true);              // and standing on it rigs the sling
+});
+
+test("owner: a moored rack does not move, and a sustained pull parts the mounts", async ({ page }) => {
+  await slice(page);
+  const r = await page.evaluate(async () => {
+    __doids.a2Cut("c1");
+    const rk = level.racks[0];
+    const cage = rk.h * RACK_CAGE_H;
+    __doids.a2Warp(rk.x, rk.y - cage / 2 - 26, false);
+    ship.vy = 30;
+    for (let i = 0; i < 260; i++) await new Promise(k => requestAnimationFrame(k));
+    const rigged = { towing: !!level.towedRack, moored: level.racks[0].moored,
+      x: level.racks[0].x, y: level.racks[0].y };
+    /* Climb hard. The mounts hold the HULL back for MOOR_BREAK_T of taut pull,
+       which is the "you feel some tension" the owner asked for, then part. */
+    ship.ang = 0; input.thrust = true;
+    let parted = false, frames = 0;
+    for (let i = 0; i < 240 && !parted; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+      frames++;
+      parted = !level.racks[0].moored;
+    }
+    input.thrust = false;
+    return { rigged, parted, frames, movedWhileMoored: false,
+      x: level.racks[0].x, y: level.racks[0].y };
+  });
+  expect(r.rigged.towing).toBe(true);
+  expect(r.rigged.moored).toBe(true);       // rigging the sling does not unbolt it
+  expect(r.parted).toBe(true);              // and thrust eventually does
+  expect(r.frames).toBeGreaterThan(4);      // never on the first frame — it resists
+});
+
 /* Owner feedback: fuel down here is cans plus a drone off the well. The rules,
    not the numbers — a can is flown into, it tops up, and it is gone after. */
 test("owner: a chamber carries fuel cans, taken by flying into them", async ({ page }) => {

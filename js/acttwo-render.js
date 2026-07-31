@@ -126,9 +126,67 @@ function drawRacks(now) {
     // P·slice — the reserve's own trace, on the box rather than in a HUD strip
     // (§7.5 explicitly refuses a strip of ECGs along the top of the screen)
     if (r.cut && !r.delivered) drawRackECG(r, now);
+    if (r.moored) drawRackMounts(r);
     if (r.cradleT > 0) drawHoldRing(r.x, r.y - r.h * 0.5 - 26, r.cradleT,
       r.everTowed ? RECRADLE_T : CRADLE_T, "CRADLING…", PAL().SAFE);
+    /* Owner feedback: there was no way to know how to connect, because there was
+       no act to perform — the sling rigged itself on proximity. Landing on the
+       box is the act now, so it has to be ASKED for. Only once the feed is cut,
+       because a plugged-in rack cannot be moved and prompting for it would teach
+       the sequence backwards. */
+    else if (r.cut && !r.lost && !level.towedRack && ship.landedOn !== r.id)
+      drawRackPrompt(r, now);
   });
+}
+
+/* ---- the moorings (owner feedback) — a rack is BOLTED to the structure ------
+   Drawn as real fixings rather than a highlight: two brackets into the surface it
+   is mounted on, and a strain reading while you are pulling against them. It has
+   to be legible as "this is attached", or the moment where thrust does nothing
+   looks like the tether being broken again. */
+function drawRackMounts(r) {
+  const cage = { w: (r.w || RACK_SIZE.w) * RACK_CAGE_W, h: (r.h || RACK_SIZE.h) * RACK_CAGE_H };
+  const strain = clamp((r.moorT || 0) / MOOR_BREAK_T, 0, 1);
+  // yielding mounts colour toward the warning as they go, so the break is earned
+  const col = strain > 0.02 ? shade(PAL().WARN, .45 + strain * .55) : shade(TOK.CYAN_TEXT, .5);
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2 + strain * 1.6;
+  if (strain > 0.02) { ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 8 * strain; }
+  if (r.mount === "wall") {
+    // a bracket off the rock on each side, at the cage's shoulders
+    for (const side of [-1, 1]) {
+      const x = r.x + side * cage.w / 2;
+      ctx.beginPath();
+      ctx.moveTo(x, r.y - cage.h * 0.3); ctx.lineTo(x + side * 11, r.y - cage.h * 0.3);
+      ctx.moveTo(x, r.y + cage.h * 0.3); ctx.lineTo(x + side * 11, r.y + cage.h * 0.3);
+      ctx.stroke();
+    }
+  } else {
+    // feet into the deck, splayed the way a bolted-down frame's are
+    for (const side of [-1, 1]) {
+      const x = r.x + side * cage.w * 0.36;
+      ctx.beginPath();
+      ctx.moveTo(x, r.y + cage.h / 2 - 1);
+      ctx.lineTo(x + side * 7, r.y + cage.h / 2 + 10);
+      ctx.moveTo(x + side * 7 - 6, r.y + cage.h / 2 + 10);
+      ctx.lineTo(x + side * 7 + 6, r.y + cage.h / 2 + 10);
+      ctx.stroke();
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+/* What to do with the box you are looking at. Deliberately the shipped hint
+   register (short, imperative, no button glyph — the game has never drawn one). */
+function drawRackPrompt(r, now) {
+  const cage = (r.h || RACK_SIZE.h) * RACK_CAGE_H;
+  const a = 0.5 + 0.3 * Math.sin(now * 2.4);
+  ctx.save();
+  ctx.font = mono(9, 700); ctx.textAlign = "center";
+  ctx.fillStyle = shade(PAL().SAFE, a);
+  ctx.fillText("LAND ON IT TO RIG THE SLING", r.x, r.y - cage / 2 - 40);
+  ctx.restore();
 }
 
 /* ---- §7.3/§4.4 the reserve's trace — "not faster as it fails, but WEAKER: the

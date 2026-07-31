@@ -226,6 +226,38 @@ const GIVE_WINDOW_R = 78;      // how close you must hover to stay connected
 const GIVE_SNAP_R = 126;       // drift past this and the line parts
 const GIVE_HOVER_V = 95;       // and you must be moving slower than this
 
+/* ---- the moorings (owner feedback, July 2026) -----------------------------
+   "Connected with the rack and it suddenly lifted in the air. (And somersaulted
+   over me in one case). Should stay where it is and require my thrust to lift
+   them. Maybe even a slight extra thrust needed to break the moorings."
+
+   The somersault was real and it was pure pendulum: you cradle from beside the
+   box, so the rope starts near HORIZONTAL, and a point mass released from
+   horizontal on a slack rope swings down, through underneath you, and up the far
+   side. Nothing was wrong with the tether — the rack simply had nothing holding
+   it down, so the first frame of physics was a release from the worst possible
+   starting angle.
+
+   A rack is BOLTED IN. It is life support for eight to twelve people (§6.1), so
+   of course it is fixed to the structure rather than parked on a floor. While
+   moored it does not move at all — which is the somersault gone, not damped —
+   and the rope coming taut pulls on the SHIP instead. Hold that pull and the
+   mounts part.
+
+   Free, per the owner's call: breaking the moorings costs no reserve and no
+   integrity. What it costs is a moment of thrust against something that will not
+   move, which is the whole sensation asked for ("you feel some tension"). */
+const MOOR_BREAK_T = 0.55;     // seconds of taut pull before the mounts let go
+/* Barely more than zero, and that is not a fudge. The mounts cannot be timed
+   against how far the rope STRETCHES, because the constraint pulls the hull back
+   onto the circle every frame — the stretch is gone as fast as it appears, so a
+   threshold of even a few px never accumulates and the mounts hold forever. Held
+   at the rope's limit the hull hovers in equilibrium and moves a fraction of a
+   pixel per frame, so even 0.5 was above the noise floor. What TAUT means here is
+   "the line is doing work" — which is the correct reading of pulling anyway: let
+   go and the rope goes slack, and the timer falls back. */
+const MOOR_TAUT = 3;           // px short of full extension that still counts as taut
+
 /* ---- fuel, down here (owner feedback, July 2026) -------------------------
    "Obviously we need fuel cans for this to be achievable in one run", and the
    arithmetic backs it: thrust burns 5.2/s against a 100 tank, so a full tank is
@@ -833,7 +865,12 @@ function buildRacks(ch, spans) {
     // the dying, and the player watches it happen because they caused it.
     state: "mains", reserve: RACK_RESERVE_MAX, integrity: 100,
     cut: false, cutT01: null, towed: false, delivered: false, lost: false,
-    gives: 0, vx: 0, vy: 0, cradleT: 0, slamT: 0
+    gives: 0, vx: 0, vy: 0, cradleT: 0, slamT: 0,
+    /* Bolted to the structure until you pull it off (owner feedback). `mount`
+       is which surface it is fixed to, and it is authoring rather than
+       geometry — a wall-mounted bank hangs off the rock beside it, which is how
+       a real plant racks something it does not want on the walking floor. */
+    mount: r.mount || "floor", moored: true, moorT: 0
   }));
 }
 

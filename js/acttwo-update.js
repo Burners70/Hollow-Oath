@@ -181,6 +181,56 @@ function loseRack(r, why) {
   explode(r.x, r.y, PAL().DANGER, 22, true);
 }
 
+/* ---- landing ON the rack (owner feedback, July 2026) ----------------------
+   "To keep some of the previous functionality, you should land on the rack to
+   connect your cable." Which is right on two counts: Act One's whole grammar is
+   that you land on the thing you are here for, and the shipped version had NO
+   input at all — updateCradle accumulated on mere proximity while landed, so the
+   sling rigged itself and the owner reasonably asked how you were meant to
+   connect.
+
+   So a moored rack is a landable surface. Its cage top is the pad, and the
+   landing is billed exactly like any other: a soft touch sets you down, a hard
+   one costs the hull. Only while moored — a rack on a rope is not somewhere to
+   put a spacecraft. */
+function rackPad(r) {
+  const cage = { w: (r.w || RACK_SIZE.w) * RACK_CAGE_W, h: (r.h || RACK_SIZE.h) * RACK_CAGE_H };
+  return { top: r.y - cage.h / 2, hw: cage.w / 2 };
+}
+function landableRacks() {
+  return (level.racks || []).filter(r => r.moored && !r.towed && !r.delivered && !r.lost);
+}
+/* Returns false if the touchdown killed the hull, matching shipSolidCollide's
+   contract so updatePlay can bail the same way. */
+function shipRackLanding() {
+  const s = ship;
+  if (s.dead) return true;
+  /* Only ever ACQUIRES a pad, exactly like the terrain path's `if (!s.landed &&
+     …)`. Re-running while landed would re-zero vy every frame and pin the hull to
+     the lid: thrust adds about 3px/s per frame, so it could never build the climb
+     needed to leave. `landedOn` therefore survives until the takeoff clears
+     s.landed, which is also what the cradle wants to read. */
+  if (s.landed) return true;
+  s.landedOn = null;
+  for (const r of landableRacks()) {
+    const pad = rackPad(r);
+    if (Math.abs(s.x - r.x) > pad.hw + SHIP_R * 0.5) continue;
+    if (s.y + SHIP_R < pad.top || s.y > r.y) continue;      // on the lid, not inside the cage
+    if (s.vy < 4) continue;                                 // must be settling ONTO it
+    const vn = Math.max(0, s.vy);
+    s.y = pad.top - SHIP_R; s.vy = 0; s.vx = 0;
+    s.landed = true; s.landedOn = r.id;
+    s.ang = assist ? normAngle(s.ang) : 0;
+    /* The same free band the hull gets against rock, so setting down on a bank of
+       people is not held to a stricter standard than setting down on stone —
+       what it costs above that is the hull's, never the rack's. Slamming INTO a
+       rack is towContact's business and always was. */
+    if (vn > HULL_SAFE_V) return hullImpact(vn);
+    return true;
+  }
+  return true;
+}
+
 /* ---- §4.2 the cradle -----------------------------------------------------
    Land within reach of a rack already on internal reserve and hold. Only a cut
    rack can be cradled, which sequences the whole loop for free: the rack IS
@@ -195,8 +245,12 @@ function updateCradle(dt) {
   if (level.towedRack) { for (const r of level.racks) r.cradleT = 0; return; }
   const s = ship;
   for (const r of level.racks) {
+    /* Landed ON it, not merely near it (owner feedback). Proximity-while-landed
+       meant the sling rigged itself with no act on the player's part; standing on
+       the box is an act, it is Act One's own grammar, and it gives the hold ring
+       somewhere to be that reads as "this one". */
     const ok = r.cut && !r.delivered && !r.lost && s.landed && !s.dead &&
-      Math.hypot(s.x - r.x, s.y - r.y) < 92;
+      s.landedOn === r.id;
     if (!ok) { r.cradleT = 0; continue; }
     r.cradleT += dt * scanRate();
     if (r.cradleT >= (r.everTowed ? RECRADLE_T : CRADLE_T)) {
@@ -279,6 +333,64 @@ function seatPayload(r, down) {
   r.vx = 0; r.vy = 0;
 }
 
+/* ---- the moorings (owner feedback) ----------------------------------------
+   A moored rack is not simulated: it is part of the structure, so it does not
+   fall, swing or drift, and the rope coming taut pulls the SHIP instead. That is
+   the somersault fixed at the cause rather than damped — see the note on
+   MOOR_BREAK_T for why cradling from beside the box was a pendulum release from
+   horizontal.
+
+   The ship is held ON the rope's circle while the mounts hold, which is what
+   makes "requires my thrust to lift them" true without a special input: you
+   climb, the line stops you, and you hold that against the mounts until they go.
+   Returns true while it is still holding, so updateTow can skip the tether. */
+function updateMooring(dt, r) {
+  const s = ship;
+  r.vx = 0; r.vy = 0;
+  const ax = s.x, ay = s.y + SLING_SHIP_ANCHOR;
+  const dx = r.x - ax, dy = r.y - ay;
+  const d = Math.hypot(dx, dy);
+  /* THRUST against a line at full extension is the signal — not stretch, and not
+     stretch plus thrust either. Held at the rope's limit the hull sits in
+     equilibrium and moves a fraction of a pixel per frame, so `d` falls either
+     side of SLING_L frame by frame: gravity wins one frame, thrust the next.
+     Any test of the form "d is BEYOND its length" therefore alternates, and the
+     timer is wiped by its own decay before it can fill. Measured instead as "the
+     line is at its length, within a hair" plus a held thrust — which is what is
+     actually being asked of the player, and what they can see themselves doing:
+     "require my thrust to lift them, maybe a slight extra thrust to break the
+     moorings." */
+  const taut = d >= SLING_L - MOOR_TAUT;
+  const pulling = taut && (input.thrust || pad.thrust);
+  if (pulling) { r.moorT += dt; camera.shake += 0.6; }   // the strain, felt not told
+  else r.moorT = Math.max(0, r.moorT - dt * 1.5);
+
+  /* Taut against a bolted rack: the whole correction goes on the hull, because
+     the other end genuinely cannot move — the inverse of the towing case, where
+     the payload takes the position and the ship takes a share as an impulse.
+     Only ever pulling the hull IN, never pushing it out: still a rope. */
+  if (d > SLING_L) {
+    const ux = dx / d, uy = dy / d, err = d - SLING_L;
+    s.x += ux * err; s.y += uy * err;
+    const vr = s.vx * -ux + s.vy * -uy;   // how fast the hull is pulling away
+    if (vr > 0) { s.vx += ux * vr; s.vy += uy * vr; }   // the line takes it out
+    s.landed = false;
+  }
+
+  if (r.moorT < MOOR_BREAK_T) return true;
+
+  r.moored = false; r.moorT = 0;
+  /* Free of the mounts, and NOT flung: the load is placed on the rope's circle
+     with no velocity, hanging straight below. Letting the constraint take up the
+     slack on the frame it comes free would read as a yank — the same reason
+     cradleRack seats it rather than letting frame one do the work. */
+  seatPayload(r);
+  addText(r.x, r.y - 44, "MOUNTS PARTED", PAL().WARN);
+  hydraulic(); haptic.heavy();
+  camera.shake += 5;
+  return false;
+}
+
 function updateTow(dt) {
   const r = level.towedRack;
   if (!r) return;
@@ -289,6 +401,8 @@ function updateTow(dt) {
   s.shield = false;
 
   if (dt <= 0) return;
+  // still bolted in? then nothing about the tether runs yet — see updateMooring
+  if (r.moored && updateMooring(dt, r)) return;
   const px = r.x, py = r.y;
   r.vy += grav() * dt;
   r.vx *= SLING_DAMP; r.vy *= SLING_DAMP;
