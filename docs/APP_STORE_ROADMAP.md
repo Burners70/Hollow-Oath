@@ -791,10 +791,31 @@ done, so the chain now starts at P·slice.
     tell — where they stop is. The remaining channels (no grit off a projection,
     no lamp shadow on a lie) stay P·systems; this is the readability floor, set
     at "a careful player can spot a lie before it costs them".
-  - **Still open from this round:** **floor variety** ("the floor can't all be
-    flat… get this one right so we can cascade those changes across the rest of
-    the levels"), held for its own discussion at the owner's request. It is a
-    re-author of `SLICE_CHAMBER` under the constraint that
+  - **Owner decisions taken at the end of this round (July 2026), all four of
+    which unblock work that was waiting on them:**
+    1. **A slung rack is INVULNERABLE to enemy fire.** All of it lands on the
+       pilot. The consequence is recorded here because it decides how
+       emplacements can be sited: while towing you can neither shoot (FIRE
+       releases) nor shield (the field would sever the sling), so a gun on the
+       laden route is damage you have **no answer to** except to have dealt with
+       it beforehand. That is coherent — it routes §10a.2's oath question through
+       *your* vitals rather than the bank's, and vitals are also what a
+       transfusion spends, so it deepens the single allocation problem instead of
+       adding a second one. It does mean an emplacement on the laden leg with no
+       cover is unavoidable damage, and placement must be authored knowing it.
+    2. **Floor variety is "both, flying first."** Re-author the shape — varied
+       clearances, ledges, steps, shelves at different heights, so the ground
+       changes the route and the swing — prove it with the flood fill, then dress
+       it with materials and ornament. Two passes, in that order.
+    3. **A chamber retry resets integrity**, so GENTLE HANDS is **per-attempt** —
+       a goal worth chasing rather than a run abandoned after one bad clip, and it
+       matches "a life costs you the flight back, not the room". A rack's
+       **position** resets with the room too. Both of P·persist's open questions
+       are closed by this; see that item.
+    4. **Act Two gets a full score ladder**, like Act One's and feeding the same
+       hiscore. See P·systems for the one thing it still has to settle.
+  - **Still open from this round:** **floor variety**, now briefed by decision 2
+    above. A re-author of `SLICE_CHAMBER` under the constraint that
     `__doids.chamberRoute()` must stay passable laden. Eleven tests added; suite
     green at 167.
 - [ ] **P·persist. Persistence and save schema.** Promoted out of
@@ -813,11 +834,17 @@ done, so the chain now starts at P·slice.
   only module-scope state is `a2Saved`/`a2Lost` (§7.3's separate loss tracking)
   and the transfusion line, and both are per-attempt rather than persistent.
   A rack's full state is `{ reserve, integrity, cut, towed, delivered, lost, gives,
-  everTowed, x, y }`; a conduit's is `{ cut }`; the well's is `{ taken }`. Two
-  things to decide that the slice does *not* answer: whether a rack's **position**
-  is checkpointed (it matters — a rack set down past the momentum pinch is real
-  progress), and whether `integrity` survives a retry or resets with the room,
-  which is really the question of whether GENTLE HANDS is per-attempt or per-run.
+  everTowed, x, y, moored, mount }`; a conduit's is `{ cut }`; the well's is
+  `{ taken }`; and P·feedback added `level.fuelCans` (`{ taken }`), `level.decoys`
+  (`{ penalised }`) and `level.turrets` (`{ alive, hp }`) on the same pattern —
+  every piece of per-chamber state still hangs off `level`, which is exactly what
+  a shallow-copy checkpoint needs.
+  **Both open questions are now answered (owner, July 2026):** a retry **resets
+  integrity**, so GENTLE HANDS is per-attempt, and a rack's **position resets with
+  the room** rather than being checkpointed. So a chamber checkpoint is the room's
+  *progress* — which feeds are cut, which banks are delivered or lost, which cans
+  are gone — and never a rack's pose or its accumulated harm. A simpler snapshot
+  than this item was originally scoped for.
   The death path is already the right shape to build on: `respawnInChamber`
   (`js/acttwo-update.js`) is called from the `"dead"` case in `update()` beside
   Act One's `if (level.isCave) exitCave()`, which is where chamber checkpointing
@@ -828,7 +855,15 @@ done, so the chain now starts at P·slice.
   readers, the well deepening per chamber, the ward's four readability channels
   under `PAL()`/`reducedFlash`, anomaly geology reusing Bundle Z's gravity
   scale, handling machinery and unfinished husks, and Act Two's own score and
-  rank ladder.
+  rank ladder — **a full ladder feeding the same hiscore as Act One** (owner
+  decision, July 2026). One thing it still has to settle, because two shipped
+  choices point the other way on purpose: cutting a dead line and landing beside
+  a decoy box cost **no score at all** today (they cost time, his attention, and
+  vitals), and `acttwo.spec.js` asserts `score` stays 0 after a decoy cut. Decide
+  whether the ladder adds penalties there or stays awards-only on top of them.
+  **§8.1's tell has had its first pass** in P·feedback — settling dust, which
+  reads both hazards off `solidAt` — so what remains here are the grit and
+  lamp-shadow channels layered on that, not the tell from scratch.
   **§8's tell has changed and the spec is now authoritative:** "a projected
   ledge is perfectly flat and perfectly level" was **false against the code** —
   `flatten()` sets every sample in a span to exactly one height, so every
