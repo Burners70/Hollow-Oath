@@ -129,13 +129,21 @@ test("P·slice: a dead line costs you time and tells him you are here (§7.1)", 
   expect(s.actTwo.conduits.find(c => c.id === decoy).cut).toBe(true);
   expect(s.actTwo.racks[0].cut).toBe(false);       // the rack is still on mains
   expect(s.staticSurge).toBeGreaterThan(0);        // he is listening now
-  /* No score was taken for it — and this assertion is now KNOWN TO BE WRONG for
-     the finished game, kept green only because the ladder does not exist yet. It
-     encoded an assistant's assumption that Act Two never bills the player; the
-     owner overturned it (July 2026) and a dead line will carry a penalty. When
-     P·systems builds the ladder, INVERT this: assert the misread costs points,
-     on top of the time and his attention. Left as a marker rather than deleted,
-     so the ladder cannot land without someone meeting it. */
+  /* TRIPWIRE. This assertion is KNOWN TO BE WRONG for the finished game and is
+     kept green only because the ladder does not exist yet. It encoded an
+     assistant's assumption that Act Two never bills the player; the owner
+     overturned it (July 2026) and a dead line carries a −100 penalty.
+
+     When P·systems builds the ladder, INVERT it — and note the trap, because
+     zero is the floor (`score = Math.max(0, score - penalty)`, owner decision):
+     a fresh chamber starts at 0, so a penalty applied here changes nothing and
+     an assertion against 0 would still pass while proving nothing. Seed a score
+     first and assert the DIFFERENCE:
+         await page.evaluate(() => { score = 500; });
+         … cut the decoy …
+         expect(s.score).toBe(400);
+     Left as a marker rather than deleted, so the ladder cannot land without
+     someone meeting it. */
   expect(s.score).toBe(0);
 });
 

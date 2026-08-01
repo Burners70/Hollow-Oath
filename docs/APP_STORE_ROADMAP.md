@@ -905,11 +905,10 @@ done, so the chain now starts at P·slice.
      Misreading a room — cutting a dead line, landing beside a decoy box — is
      therefore scored, and the question this item previously left open is closed.
 
-  **A proposed table, anchored on Act One's own values rather than invented.**
-  Needs the owner's sign-off on the numbers; the shape follows rules 1–6 above.
-  Act One's precedents, for reference: sector clear +1000, cleared without firing
-  +2000, a lost Scion −250 (−500 if famous), a Scion killed by your own hand
-  −1000, turret +250, drone +150.
+  **THE TABLE, DECIDED** (owner sign-off, July 2026 — these are the numbers, not
+  a proposal). Anchored on Act One's own values rather than invented: sector clear
+  +1000, cleared without firing +2000, a lost Scion −250 (−500 if famous), a Scion
+  killed by your own hand −1000, turret +250, drone +150.
 
   | Event | Proposed | Anchored on |
   |---|---|---|
@@ -935,6 +934,19 @@ done, so the chain now starts at P·slice.
      number silently stops being true the next time content changes around it.
      At +120 per emplacement a chamber would need seventeen of them to threaten a
      flat 2000, but derived, it can never happen at all.
+  8. **ZERO IS THE FLOOR** (owner, July 2026): *"keep zero as the base. You can't
+     go lower than zero."* Act Two clamps exactly as Act One already does
+     (`score = Math.max(0, score - penalty)`), so the ladder never goes negative.
+     **The consequence is accepted, and is recorded here so nobody "fixes" it
+     later:** a player already sitting at zero can misread every room in the game
+     for free, and a penalty taken early in a run bites less than the same penalty
+     taken late. That is the deliberate trade for a score that can always be read
+     as an achievement rather than a debt.
+
+  **Implementation note for whoever builds this:** the floor makes penalties
+  invisible at zero, so every test of a penalty must seed a score first and assert
+  the *difference*. Asserting against 0 proves nothing — see the decoy tripwire in
+  `tests/acttwo.spec.js`.
 
   **Corrections this decision forces.** These are live in code and in the docs,
   and every one of them was an assistant's inference presented as design:
@@ -1122,12 +1134,18 @@ narrative beats; no shared dependency between them or with V1–V14.
     `crowded` daily modifier's +2 drones, all of which push it further
   So on the back half of the campaign the ladder currently rewards clearing the
   room with the gun, which is the opposite of what the game is about.
-  **Fix by deriving, not by re-pricing.** Make the no-harm award a function of
-  what was passed up — the sector's own gun value, times a factor above one — so
-  restraint always pays more *and cannot be overtaken by a future content
-  change*. Re-pricing kills downward would work today and rot the moment Bundle W
-  or a veteran return adds guns. Act Two's rule 7 (see Bundle P · P·systems) is
-  the same invariant, and both should use the same helper.
+  **DECIDED (owner, July 2026): fix by deriving, not by re-pricing.** Make the
+  no-harm award a function of what was passed up — the sector's own gun value,
+  times a factor above one — so restraint always pays more *and cannot be
+  overtaken by a future content change*. Re-pricing kills downward would work
+  today and rot the moment Bundle W or a veteran return adds guns. Act Two's
+  rule 7 (Bundle P · P·systems) is the same invariant, and **both acts use one
+  shared helper** — something of the shape `noFireAward(level)` returning
+  `BASE + gunValue(level) * FACTOR`, with `gunValue` summing the same per-target
+  prices the kill awards pay. One function, so the invariant cannot hold in one
+  act and quietly fail in the other.
+  Scoped as a **1.01** change: it moves a shipped number, so it is not a 1.0
+  hotfix. Zero stays the floor here too (P·systems rule 8).
   **Worth knowing before touching it:** a *parried* kill pays full price and does
   **not** set `firedShots`, so a player who reflects everything already collects
   both the kills and the no-harm bonus. That looks intentional and good — a parry

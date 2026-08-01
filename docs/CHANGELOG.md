@@ -45,6 +45,22 @@ into a handful of causes.
   solid, so it falls through a false floor and rests in mid-air against painted
   rock. One mechanism, both hazards, and it knows nothing the physics doesn't.
 
+### Act Two's score ladder, specified (no code yet — P·systems builds it)
+
+Settled with the owner after the feedback round, and recorded because several
+code comments asserted the opposite on my authority rather than theirs. Failures
+cost points; integrity does not scale the delivery award but every impact on a
+rack does, per impact; a chamber cleared without firing pays the same award a
+sector does; zero stays the floor. The governing principle is the owner's: *your
+score is the only permanent record of your success — the others just make your
+game harder*, so a failure that already costs vitals costs points as well.
+
+The same round found a live scoring bug in **Act One**: the flat +2000 no-harm
+bonus is already beaten by clearing a late sector's guns (8 turrets + 2 drones =
+2300), so restraint currently pays worse than shooting on the back half of the
+campaign. Filed as V·pacifism for 1.01, to be fixed by deriving the award from
+the guns you passed up rather than by re-pricing kills.
+
 ## Index
 
 Grouped by phase, newest phase first. Don't read the whole file — jump.
