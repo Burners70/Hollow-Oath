@@ -880,6 +880,194 @@ test("P·terrain: an authored pinch compiles to the tier it claims", async ({ pa
   for (const d of r) expect(d.tier, `pinch at x=${d.x} claims ${d.kind}`).toBe(d.kind);
 });
 
+/* P·floor (owner, August 2026) — "the floor can't all be flat. Need lots more
+   variety for interest", and on scoping it, "get this one right so we can
+   cascade those changes across the rest of the levels."
+
+   These four assert the DECISIONS, not the shape, because the shape is going to
+   be retuned and the other nine chambers are going to be authored against the
+   same vocabulary. Numbers here are floors and ratios chosen to fail flatness,
+   never to pin the current layout — the chamber has been re-authored five times
+   and every coordinate literal turned a retune into a puzzle about which number
+   went stale. */
+test("P·floor: the deck is not flat, the roof is not flat, and they move independently", async ({ page }) => {
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  const r = await page.evaluate(() => {
+    const S = level.spans;
+    // the walking floor is the LOWEST span's bottom — the same answer
+    // groundAt(x) gives with one argument — and the roof is the topmost top.
+    // Measured over the hall only: the entry shaft and the well shaft are
+    // vertical by definition and would answer the question for free.
+    let deckLo = 1e9, deckHi = 0, roofLo = 1e9, roofHi = 0;
+    const pinches = __doids.declaredPinches().map(d => [d.x, d.x + d.w]);
+    const bands = [];
+    for (let i = 0; i < S.length; i++) {
+      const x = i * STEP;
+      if (x < 700 || x > 8250 || !S[i].length) continue;
+      const col = S[i];
+      const deck = col[col.length - 1].bot, roof = col[0].top;
+      deckLo = Math.min(deckLo, deck); deckHi = Math.max(deckHi, deck);
+      roofLo = Math.min(roofLo, roof); roofHi = Math.max(roofHi, roof);
+      // the clear band, ignoring the gaps somebody authored on purpose — a
+      // pinch is the mechanic, not evidence that the floor has variety
+      if (!pinches.some(([a, b]) => x >= a - STEP && x <= b + STEP))
+        bands.push({ x, b: col.reduce((m, sp) => Math.max(m, sp.bot - sp.top), 0) });
+    }
+    // how many disjoint stretches of at least 200px are tight, and how many wide
+    const stretches = pred => {
+      let n = 0, run = 0;
+      for (const z of bands) { if (pred(z.b)) run += STEP; else { if (run >= 200) n++; run = 0; } }
+      return run >= 200 ? n + 1 : n;
+    };
+    return { deckRange: Math.round(deckHi - deckLo), roofRange: Math.round(roofHi - roofLo),
+      bandMin: Math.round(Math.min(...bands.map(z => z.b))),
+      bandMax: Math.round(Math.max(...bands.map(z => z.b))),
+      tight: stretches(b => b < 450), wide: stretches(b => b > 650) };
+  });
+  /* BOTH SURFACES ROAM. The floor this replaced was one 8050x620 room with
+     ±22px of noise on the deck: a deck range under 50px and a band range of
+     effectively nothing, which is why the whole haul happened at one altitude.
+     A ship is 22px across, so 350px of deck movement is fifteen ship-heights
+     of climbing and dropping with a load on a rope. */
+  expect(r.deckRange).toBeGreaterThan(350);
+  expect(r.roofRange).toBeGreaterThan(250);
+  // and the clearance varies, which is the other half of "not flat" — a roomy
+  // floor with a constant ceiling still flies as a corridor
+  expect(r.bandMax / r.bandMin).toBeGreaterThan(2);
+  /* RHYTHM. The owner asked for altitude AND tempo: wide stretches you can
+     build speed and swing in, alternating with tight ones where the load has to
+     be settled first. Two of each is the minimum that reads as alternation
+     rather than as one narrow bit. */
+  expect(r.tight).toBeGreaterThanOrEqual(2);
+  expect(r.wide).toBeGreaterThanOrEqual(2);
+});
+
+test("P·floor: every gap too tight for a hanging load is one somebody authored", async ({ page }) => {
+  /* THE GUARD THAT MATTERS FOR THE OTHER NINE CHAMBERS. Re-authoring this floor
+     produced four accidental pinches on the first compile, none of them visible
+     in the data: a shelf whose underside starved as the deck rose under it, a
+     plinth standing beneath a mezzanine, and a rock hung from a roof that a
+     later room lifted above its root — that last one left a 40px slot nobody
+     authored and nothing would have reported.
+
+     An accidental pinch is worse than a wrong number, because it silently
+     re-prices the tow: a gap under the at-rest envelope forces the momentum
+     read whether or not the level meant to ask for it, and one under the swung
+     envelope makes a stretch unladen-only, which is a trolley problem with
+     extra steps (§11.3). So: find every run of columns whose air is tighter
+     than a hanging load, and require each one to lie inside a declared pinch. */
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  const r = await page.evaluate(() => {
+    const S = level.spans, need = towEnvelope(0).vertical;
+    const declared = __doids.declaredPinches();
+    const runs = []; let cur = null;
+    for (let i = 0; i < S.length; i++) {
+      const tight = (S[i] || []).filter(sp => sp.bot - sp.top < need);
+      if (!tight.length) { cur = null; continue; }
+      const g = Math.min(...tight.map(sp => sp.bot - sp.top));
+      if (cur) { cur.x1 = i * STEP; cur.min = Math.min(cur.min, g); }
+      else { cur = { x0: i * STEP, x1: i * STEP, min: g }; runs.push(cur); }
+    }
+    return { need: +need.toFixed(1), declared,
+      runs: runs.map(z => Object.assign({ min: Math.round(z.min) }, z, {
+        // the declared pinch this run sits inside, if any
+        owner: (declared.find(d => z.x0 >= d.x - STEP && z.x1 <= d.x + d.w + STEP) || {}).kind || null
+      })) };
+  });
+  expect(r.declared.length).toBeGreaterThan(0);
+  for (const z of r.runs)
+    expect(z.owner, `gap of ${z.min}px at x ${z.x0}–${z.x1} is not inside a declared pinch`).not.toBeNull();
+  // and the authored momentum pinch is still the tightest air on the floor —
+  // if something accidental were tighter, the mechanic would have moved
+  expect(Math.min(...r.runs.map(z => z.min))).toBe(
+    Math.min(...r.runs.filter(z => z.owner === "momentum").map(z => z.min)));
+});
+
+test("P·floor: every fixture is placed against the profile, never at a typed y", async ({ page }) => {
+  /* The other half of what cascades. Each chamber's furniture takes its y from
+     `hallAt` (via onDeck/onRoof) and is then snapped to the compiled surface, so
+     moving a station moves the furniture with it. The failure this catches is
+     the one the fixtures were snapped for in the first place: a retune that
+     leaves a bank floating off the deck or a breaker buried in rock. Asserted
+     over EVERY placed object rather than only the lights, because P·floor moved
+     all of them. */
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  const r = await page.evaluate(() => {
+    const out = [];
+    const check = (kind, list) => (list || []).forEach((o, i) => out.push({
+      kind, i, x: Math.round(o.x), y: Math.round(o.y),
+      buried: __doids.solidAt(o.x, o.y),
+      // how far the surface it stands on is below its own origin. Objects drawn
+      // from a centre or a top-left corner sit their own height clear, so this
+      // is a "resting on something" test, not an exact offset.
+      drop: Math.round(__doids.ground(o.x, o.y) - o.y)
+    }));
+    check("rack", level.racks);
+    check("isolator", level.conduits);
+    check("decoy", level.decoys);
+    check("can", level.fuelCans);
+    check("ornament", level.plantOrnaments);
+    check("emplacement", level.turrets);
+    return out;
+  });
+  expect(r.length).toBeGreaterThan(20);
+  for (const o of r) {
+    expect(o.buried, `${o.kind}[${o.i}] at ${o.x},${o.y} is inside rock`).toBe(false);
+    expect(o.drop, `${o.kind}[${o.i}] at ${o.x},${o.y} hangs clear of its surface`)
+      .toBeLessThan(200);
+    expect(o.drop, `${o.kind}[${o.i}] at ${o.x},${o.y} is below its surface`)
+      .toBeGreaterThanOrEqual(0);
+  }
+});
+
+test("P·floor: the vocabulary cannot author a column that seals the room", async ({ page }) => {
+  /* Rule 1 of the kit, asserted against the kit rather than against the one
+     chamber that uses it. P·terrain's pillar covered every open interval in its
+     own columns and sealed the only route to the well; three tests passed
+     because each asserted a local property. `column()` opens the bay's ceiling
+     above the capital first, and derives the headroom from the tow envelope, so
+     neither an unlucky capital nor a change to SLING_VISIBLE can close it.
+
+     Compiled through the real compiler on ad-hoc chambers, including two the
+     author would be wrong to write — a capital jammed against the roof, and a
+     column as tall as the hall — because "you would not do that" is exactly the
+     assurance P·terrain had. */
+  const r = await page.evaluate(() => {
+    const need = towEnvelope(0).vertical;
+    const cases = [
+      { capital: 600, floor: 1200 },
+      { capital: 420, floor: 1200 },   // capital up against the authored roof
+      { capital: 460, floor: 1900 },   // and a column most of the hall's height
+      { capital: 900, floor: 1000 }    // a stump
+    ];
+    return cases.map(c => {
+      const parts = partList([
+        hall([{ x: 0, ceil: 420, floor: c.floor }, { x: 2400, ceil: 420, floor: c.floor }]),
+        column(1100, 200, c)
+      ]);
+      const spans = compileChamber({ W: 2400, H: c.floor + 400, seed: 11, parts });
+      // over the middle of the column: air above the capital, rock below it
+      const col = spans[Math.round(1200 / STEP)] || [];
+      const air = col.reduce((m, sp) => Math.max(m, sp.bot - sp.top), 0);
+      const lowest = col.length ? col[col.length - 1].bot : null;
+      return { capital: c.capital, spans: col.length, air: Math.round(air),
+        // and the hall either side is deeper than the column's capital, which is
+        // what "you fly around it" means and what a sealed column cannot have
+        besideDeep: Math.round(((spans[Math.round(700 / STEP)] || []).slice(-1)[0] || {}).bot || 0),
+        capitalReached: lowest !== null && lowest <= c.capital + 2, need: +need.toFixed(1) };
+    });
+  });
+  for (const c of r) {
+    expect(c.spans, `capital ${c.capital}: the column's own columns still hold air`).toBeGreaterThan(0);
+    expect(c.air, `capital ${c.capital}: a hanging load clears the capital`).toBeGreaterThanOrEqual(c.need);
+    expect(c.capitalReached, `capital ${c.capital}: rock actually reaches the capital`).toBe(true);
+    // and there is hall deeper than the capital either side, which is what "you
+    // fly around it" means. Stated against the capital rather than against a
+    // margin: a stump's capital sits close to the deck by definition.
+    expect(c.besideDeep, `capital ${c.capital}: the hall beside it runs deeper`).toBeGreaterThan(c.capital);
+  }
+});
+
 /* V·pacifism (owner, July 2026) — restraint must always outscore shooting.
    Act One failed this before the fix: the no-harm bonus was a flat +2000 while
    the late sectors' guns were worth 2300. The assertion is the PROPERTY over

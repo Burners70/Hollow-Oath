@@ -613,6 +613,285 @@ function spanCountAt(x, spans) {
   return (s[clamp(Math.round(x / STEP), 0, s.length - 1)] || []).length;
 }
 
+/* ================================================================
+   P·floor — THE CHAMBER FEATURE VOCABULARY.
+
+   Owner decision, August 2026, on the on-device note "the floor can't all be
+   flat — need lots more variety for interest… get this one right so we can
+   cascade those changes across the rest of the levels". Asked what should
+   cascade — the shape, or the means of making it — the answer was **the means**:
+   a named kit the other nine chambers compose from, rather than a worked example
+   they copy coordinates out of.
+
+   So this is the layer between `compileChamber`'s two primitives (open a
+   rectangle of air, put rock back) and an authored chamber. The primitives stay
+   exactly as they were; nothing here is a new terrain capability. What it adds
+   is that a feature is declared by NAME, with its materials and its safety
+   margins already right, so authoring a chamber is a list of features rather
+   than a list of rectangles whose interactions you have to hold in your head.
+
+   THE SPLIT WORTH KNOWING, because it decides which tool to reach for:
+
+     the HALL carries the floor and the ceiling.  Both surfaces roam (owner,
+       August 2026) — the deck steps, dips and climbs, the roof rises and falls
+       with it, and the clear band between them varies by a factor of three
+       along the floor. That is one continuous profile, authored as STATIONS
+       and interpolated between them, not as a pile of overlapping boxes.
+
+     the FEATURES carry what a profile cannot express: an overhang, a column,
+       an authored gap, a lie, a shaft. Each is one call.
+
+   Three rules are enforced BY CONSTRUCTION here, because each one has already
+   cost this project a bug that every local test passed through:
+
+   1. **A fully-solid column and a route past it are mutually exclusive.**
+      P·terrain's "pillar" covered every open interval in its own columns, so it
+      sealed the only route to the well; the flood fill stopped dead and three
+      tests still went green because each asserted a local property. `column()`
+      cannot author that shape: it opens the bay's ceiling above the capital
+      first, and the headroom is DERIVED from the tow envelope, so retuning the
+      sling can never quietly seal it either.
+
+   2. **An authored gap has to be pinned from BOTH ops.** A rock alone leaves
+      the hall's own floor roughness underneath it, which swung the momentum
+      pinch between 54 and 106px — i.e. randomly between "unladen only" and
+      "just fly through". `pinch()` emits the pinning pair and the mass overhead
+      as one call, with zero roughness on every boundary, and derives the gap
+      from the tier rather than taking a number.
+
+   3. **The flood fill joins two columns only where their spans overlap by the
+      clearance being tested.** So a band that is BOTH narrow and climbing can
+      break a route that is plainly flyable by eye: a 90px passage whose floor
+      rises 20px per column overlaps by only 70, and `chamberRoute` calls that a
+      wall. `hall()` therefore interpolates between stations instead of stepping
+      between them — a 300px climb spread over 400px of floor moves 12px per
+      column, which nothing notices. Author elevation change as stations; author
+      cliffs only where you mean a cliff.
+
+   And one ordering rule that is not enforceable here, so it is written down
+   instead: **the structural column must be the first feature in the chamber
+   that raises the deck by more than 200px between adjacent columns.** The
+   pillar test in tests/worldgen.spec.js finds the feature by exactly that
+   property and takes the first match, and §8's painted rock — real outcrop,
+   never drawn — has the same signature. Column left of painted rock. */
+
+// Authoring returns single parts and groups of parts interchangeably; this is
+// what flattens them back into the flat array compileChamber, chamberLies and
+// __doids.declaredPinches all read. Nulls drop out, so a feature can opt out.
+function partList(items) {
+  const out = [];
+  (function walk(v) {
+    if (!v) return;
+    if (Array.isArray(v)) { for (const k of v) walk(k); return; }
+    out.push(v);
+  })(items);
+  return out;
+}
+
+/* ---- the hall ------------------------------------------------------------
+   STATIONS are `{ x, ceil, floor }`, in increasing x, and the hall is the
+   ruled surface between them: one room per interval, with a `ramp` profile on
+   each boundary carrying it to the next station's height. Two consequences
+   worth knowing:
+
+     - the boundaries are continuous across a station, because the value noise
+       is a function of absolute x and the amplitude is the same on every
+       segment. Vary the roughness per segment and you author a step you did
+       not mean.
+     - the deck and the roof are independent, so "wide here, tight there" and
+       "high here, low there" are separate axes. Rhythm is the band; altitude
+       is the floor. The owner asked for both (August 2026), which is what the
+       station list is for.
+     - a station may carry `mt`/`mb`, which changes that boundary's MATERIAL
+       from there eastward. That is the dressing pass in the same list as the
+       shape, and it has a visible consequence beyond colour: a milled face
+       takes one quiet octave of noise and raw rock takes two coarse ones, so
+       the seam where paving ends is a small lip in the deck. Deliberate — a
+       working floor stops being finished somewhere, and you can see where. */
+function hall(stations, opts) {
+  const o = opts || {};
+  const rT = o.roughTop != null ? o.roughTop : 40;
+  const rB = o.roughBot != null ? o.roughBot : 20;
+  const out = [];
+  let mt = o.mt, mb = o.mb;
+  for (let i = 0; i < stations.length - 1; i++) {
+    const a = stations[i], b = stations[i + 1];
+    if (a.mt) mt = a.mt;
+    if (a.mb) mb = a.mb;
+    out.push({
+      op: "room", x: a.x, y: a.ceil, w: b.x - a.x, h: a.floor - a.ceil,
+      roughTop: rT, roughBot: rB,
+      profTop: b.ceil !== a.ceil ? { kind: "ramp", dy: b.ceil - a.ceil } : null,
+      profBot: b.floor !== a.floor ? { kind: "ramp", dy: b.floor - a.floor } : null,
+      mt, mb
+    });
+  }
+  return out;
+}
+
+/* Read the hall back at any x — the same interpolation `hall()` compiles, so a
+   fixture placed with it is placed against the profile rather than against a
+   number that goes stale the next time the floor is retuned.
+
+   This is the other half of what makes a re-author cheap. Every light, can,
+   ornament, rack, isolator and decoy in a chamber is positioned by x and takes
+   its y from here; `snapToSurface` then puts it exactly on the compiled
+   surface, roughness and all. Moving a station moves the furniture with it. */
+function hallAt(stations, x) {
+  let a = stations[0], b = stations[1] || stations[0];
+  for (let i = 0; i < stations.length - 1; i++) {
+    if (x >= stations[i].x && x <= stations[i + 1].x) { a = stations[i]; b = stations[i + 1]; break; }
+    if (x > stations[i + 1].x) { a = stations[i]; b = stations[i + 1]; }
+  }
+  const u = b.x === a.x ? 0 : clamp((x - a.x) / (b.x - a.x), 0, 1);
+  const ceil = lerp(a.ceil, b.ceil, u), floor = lerp(a.floor, b.floor, u);
+  return { ceil, floor, mid: (ceil + floor) / 2, band: floor - ceil };
+}
+
+/* ---- features ------------------------------------------------------------ */
+
+/* A SHELF: rock hanging in the hall with air above and below it — the shape a
+   heightmap cannot hold at all, and the one that makes a column carry two
+   spans. Milled pad on top (you land on it), raw stone underneath (you fly
+   beneath it), which is the owner's "rock overhead, mechanical underfoot" rule
+   applied to a single object that is both. */
+function shelf(x, w, o) {
+  o = o || {};
+  return { op: "rock", x, y: o.y, w, h: o.h != null ? o.h : 150,
+    roughTop: o.roughTop != null ? o.roughTop : 10,
+    roughBot: o.roughBot != null ? o.roughBot : 24,
+    radius: o.radius, mt: o.mt || MAT_MACH, mb: o.mb || MAT_ROCK, view: o.view };
+}
+
+/* A BENCH: a plinth standing ON the deck, to land on and to fly over. Filleted
+   at both ends by default, which is cosmetic and also load-bearing — the
+   fillet spreads its rise over a few columns instead of authoring a vertical
+   face, and a vertical face taller than 200px reads to the pillar finder as a
+   structural column (see the ordering rule above). Keep a bench under that. */
+function bench(x, w, o) {
+  o = o || {};
+  return { op: "rock", x, y: o.y, w, h: o.h != null ? o.h : 420,
+    roughTop: o.roughTop != null ? o.roughTop : 6,
+    radius: o.radius != null ? o.radius : 60,
+    mt: o.mt || MAT_MACH, mb: o.mb || MAT_ROCK, view: o.view };
+}
+
+/* A STRUCTURAL COLUMN, and the bay that carries it. Two parts, always: the bay
+   raises the hall's ceiling locally so there is air over the capital, then the
+   column stands in it from the capital down through the deck. That is how a
+   real plant hall carries a column and it is the only way a column and a route
+   past it can both exist (rule 1 above).
+
+   `headroom` is DERIVED from the tow envelope rather than typed, so the clear
+   air over the capital survives a change to SLING_VISIBLE the same way the
+   authored gaps do — restGapPx() plus margin for the bay's own roughness. */
+function column(x, w, o) {
+  o = o || {};
+  const head = o.headroom != null ? o.headroom : restGapPx() + 45;
+  const bayW = o.bayW != null ? o.bayW : w + 450;
+  const bayTop = o.capital - head;
+  return [
+    { op: "room", x: x - (bayW - w) / 2, y: bayTop, w: bayW, h: o.floor - bayTop,
+      roughTop: o.roughTop != null ? o.roughTop : 14,
+      roughBot: o.roughBot != null ? o.roughBot : 22,
+      mt: o.bayMt || MAT_ROCK, mb: o.bayMb || MAT_MACH },
+    { op: "rock", x, y: o.capital, w, h: (o.floor - o.capital) + (o.base != null ? o.base : 130),
+      radius: o.radius, mt: o.mt || MAT_MACH, mb: o.mb || MAT_ROCK }
+  ];
+}
+
+/* An AUTHORED GAP, at a named tier rather than a number (rule 2 above).
+
+     "rest"      an ordinary tight spot — thread it, the load can hang
+     "momentum"  too tight to creep through with a load hanging; passable only
+                 with it swung up to your own level, which means carrying speed
+
+   Three parts, because pinning takes both ops: a room forces the deck no
+   shallower than `floor`, a rock immediately below forces it no deeper, and
+   the mass overhead is cut to leave exactly the tier's gap. Every boundary is
+   zero-roughness — a gap that IS the mechanic is authored, not sampled. `ceil`
+   only has to start above the hall's roof here; it is not a visible surface. */
+function pinch(x, w, tier, o) {
+  o = o || {};
+  const gap = tier === "momentum" ? momentumGapPx() : restGapPx();
+  const floor = o.floor, inset = o.inset != null ? o.inset : 40;
+  const ceil = o.ceil != null ? o.ceil : floor - 700;
+  const deckMat = o.deck || MAT_MACH;
+  return [
+    { op: "room", x, y: floor - (o.lift != null ? o.lift : 240), w,
+      h: o.lift != null ? o.lift : 240, roughTop: 0, roughBot: 0, mb: deckMat },
+    { op: "rock", x, y: floor, w, h: o.base != null ? o.base : 260,
+      roughTop: 0, roughBot: 0, mt: deckMat },
+    { op: "rock", x: x + inset, y: ceil, w: w - 2 * inset, h: floor - gap - ceil,
+      roughTop: 0, roughBot: 0, mt: o.mt || MAT_ROCK, mb: o.mb || MAT_ROCK,
+      pinch: tier }
+  ];
+}
+
+/* A GALLERY: the ceiling lifted over a stretch, optionally domed. The wide half
+   of the rhythm — where you can build speed and let the load swing. `rise` is
+   how far the dome climbs above `top` at its centre. */
+function gallery(x, w, o) {
+  o = o || {};
+  return { op: "room", x, y: o.top, w, h: o.floor - o.top,
+    roughTop: o.roughTop != null ? o.roughTop : 34,
+    roughBot: o.roughBot != null ? o.roughBot : 18,
+    profTop: o.rise ? { kind: "arc", dy: -o.rise } : null,
+    radius: o.radius, mt: o.mt || MAT_ROCK, mb: o.mb };
+}
+
+/* A BORE: the machined end of the range — a cut bay, filleted, milled on both
+   boundaries. The counterpoint to `gallery`, and the one place the "rock
+   overhead" default is deliberately broken, because a bore is cut, not found. */
+function bore(x, w, o) {
+  o = o || {};
+  return { op: "room", x, y: o.top, w, h: o.floor - o.top,
+    roughTop: o.roughTop != null ? o.roughTop : 8,
+    roughBot: o.roughBot != null ? o.roughBot : 8,
+    profTop: o.rise ? { kind: "arc", dy: -o.rise } : null,
+    radius: o.radius != null ? o.radius : 110,
+    mt: o.mt || MAT_MACH, mb: o.mb || MAT_MACH };
+}
+
+/* STALACTITES, or a cut comb in steel — teeth off a boundary. Shallow on
+   purpose: a spike that seals a passage is a bug and not a hazard, and one
+   that leaves less than the swung tow envelope makes a stretch unladen-only
+   without anybody authoring it. */
+function stalactites(x, w, o) {
+  o = o || {};
+  return { op: "rock", x, y: o.y, w, h: o.h != null ? o.h : 90,
+    roughBot: o.roughBot != null ? o.roughBot : 8,
+    profBot: { kind: "teeth", n: o.n || 6, dy: o.dy != null ? o.dy : 95 },
+    mt: o.mt || MAT_ROCK, mb: o.mb || MAT_ROCK };
+}
+
+/* A SHAFT: vertical space, for the way in and the way down. §11.1 — a chamber's
+   exit is the next chamber's entrance, and it is where MERCY's well pays out. */
+function shaft(x, w, o) {
+  o = o || {};
+  return { op: "room", x, y: o.top, w, h: o.bot - o.top,
+    roughTop: o.roughTop != null ? o.roughTop : 8,
+    roughBot: o.roughBot != null ? o.roughBot : 10,
+    radius: o.radius != null ? o.radius : 60,
+    mt: o.mt || MAT_ROCK, mb: o.mb || MAT_MACH };
+}
+
+/* §8's two hazards, as the only parts that differ between the two views. Named
+   rather than left as `view:` on a raw rock, because what makes them safe to
+   author is that the lie is declared in one place and the worldgen test counts
+   any undeclared drift between the views as a failure. */
+// drawn as a ledge, absent from collision — commit to it and you drop through
+function falseFloor(x, w, o) {
+  return shelf(x, w, Object.assign({ h: 60, mt: MAT_MACH, mb: MAT_MACH }, o, { view: "drawn" }));
+}
+// a real outcrop that is never drawn — open hall, right up until it isn't
+function paintedRock(x, w, o) {
+  return { op: "rock", x, y: o.y, w, h: o.h,
+    roughTop: o.roughTop != null ? o.roughTop : 0,
+    roughBot: o.roughBot != null ? o.roughBot : 10,
+    mt: o.mt || MAT_ROCK, mb: o.mb || MAT_ROCK, view: "solid" };
+}
+
 /* ---- the slice chamber ---------------------------------------------------
    ONE chamber, and it exists to prove the format, not to be content — the ten
    authored chambers are P·content and are deliberately not guessed at here.
@@ -627,8 +906,6 @@ function spanCountAt(x, spans) {
    a mid corridor squeezes to a PINCH of ~84px, against the 175px every Act One
    cave is guaranteed by construction; that opens into a deep lower gallery with
    a full-height PILLAR and a second shelf to tow a rack around. */
-const SLICE_CHAMBER_V1_LETTERBOX = null;   // (kept as a marker: see the note below)
-
 /* ---- the slice chamber, as a FLOOR ---------------------------------------
    Owner steer, July 2026: a chamber is **one floor of a subterranean complex**,
    not a vertical shaft. You clear a whole floor — everyone on it — and then
@@ -640,7 +917,76 @@ const SLICE_CHAMBER_V1_LETTERBOX = null;   // (kept as a marker: see the note be
    So: a long working hall, bays and mezzanines along it, and a shaft at the far
    right that drops to the next floor's entrance — which is also where MERCY's
    well pays out to (§11.1: each chamber's exit is the next one's entrance, and
-   she lowers the well deeper as you clear). */
+   she lowers the well deeper as you clear).
+
+   ---- P·floor (owner, August 2026) ----------------------------------------
+   Re-authored against the on-device note that "the floor can't all be flat".
+   It was, near enough: one 8050x620 room with ±22px of noise on the deck, so
+   the entire haul happened at one altitude with obstacles beside it. Three
+   decisions shaped the replacement:
+
+     BOTH SURFACES ROAM. The deck and the roof are independent profiles now,
+       and the clear band between them runs from 260px to 870px along the
+       floor — a factor of more than three, against a factor of one before.
+
+     THE HAUL ASKS FOR ALTITUDE **AND** RHYTHM. Both, not either: the deck
+       falls 280px into the sump and climbs 540px back out to the creep, so
+       carrying a swinging load is a vertical problem; and wide stretches you
+       can build speed in alternate with tight ones where the load has to be
+       settled first, so the floor sets a tempo. Reading west to east — the
+       laden direction — it goes muster, stoop, sump, gallery, structural bay,
+       climb, creep, pinch, domed bay, well head: W t W W T t P W.
+
+     IT IS AUTHORED FROM THE VOCABULARY, not from rectangles. That is the part
+       meant to cascade to the other nine chambers (P·content): the shape here
+       is one chamber's answer, but `hall`/`shelf`/`column`/`pinch`/… is the
+       means of making any of them, and every fixture below takes its y from
+       `hallAt` so retuning a station moves the furniture with it. */
+const SLICE_CHAMBER_V1_LETTERBOX = null;   // (kept as a marker: see the note above)
+
+/* THE PROFILE. Stations are `{x, ceil, floor}` and the hall is ruled between
+   them (see `hall`). This list *is* the level design — everything else is
+   features hung on it — so it is worth reading as a sequence rather than as
+   numbers. `band` is the clear air at each station, and it is the rhythm.
+
+   One rule constrains it and only one: the deck may not rise by more than
+   200px between adjacent columns anywhere left of the structural column, or
+   the pillar test in tests/worldgen.spec.js finds the wrong feature. Stations
+   interpolate, so every climb here is 12px a column or gentler; the column and
+   §8's painted rock are the only cliffs, and the column is first. */
+const SLICE_HALL = [
+  { x:  120, ceil: 470, floor: 1180, mt: MAT_MACH, mb: MAT_MACH },   // the west wall
+  { x:  520, ceil: 430, floor: 1210 },   // THE MUSTER — widest air      band 780
+  { x: 1000, ceil: 440, floor: 1180, mt: MAT_ROCK },   //   the bank stands   band 740
+  { x: 1560, ceil: 480, floor: 1160 },   // THE RACK BAY                 band 680
+  { x: 1980, ceil: 720, floor: 1120 },   //   the roof comes down        band 400
+  { x: 2420, ceil: 820, floor: 1120 },   // THE STOOP — flat, and low    band 300
+  { x: 2760, ceil: 720, floor: 1300, mb: MAT_ROCK },   //   deck falls away   band 580
+  { x: 3160, ceil: 700, floor: 1460 },   // THE SUMP — 280 below the     band 760
+  { x: 3560, ceil: 690, floor: 1440 },   //   muster, and domed over it  band 750
+  { x: 3820, ceil: 960, floor: 1320 },   // THE NECK — the way out of it band 360
+  { x: 3980, ceil: 560, floor: 1260, mb: MAT_MACH },   //   climbing out      band 700
+  { x: 4380, ceil: 430, floor: 1180 },   // THE LONG GALLERY             band 750
+  { x: 4720, ceil: 300, floor: 1170 },   // THE STRUCTURAL BAY — tallest band 870
+  { x: 5060, ceil: 400, floor: 1160 },   //                              band 760
+  { x: 5420, ceil: 520, floor: 1060, mb: MAT_ROCK },   //   deck starts up    band 540
+  { x: 5820, ceil: 620, floor:  930 },   // THE CLIMB                    band 310
+  { x: 6240, ceil: 630, floor:  920 },   // THE CREEP — tightest air     band 290
+  { x: 6480, ceil: 620, floor: 1000, mb: MAT_MACH },   //   into the pinch    band 380
+  { x: 6820, ceil: 600, floor: 1000 },   //   (the pinch is pinned here) band 400
+  { x: 7240, ceil: 470, floor: 1060 },   // THE DOMED BAY                band 590
+  { x: 7700, ceil: 450, floor: 1120 },   //                              band 670
+  { x: 8120, ceil: 510, floor: 1300 },   //   the ramp down              band 790
+  { x: 8680, ceil: 560, floor: 1420 }    // THE WELL HEAD                band 860
+];
+const hallCeil  = x => Math.round(hallAt(SLICE_HALL, x).ceil);
+const hallFloor = x => Math.round(hallAt(SLICE_HALL, x).floor);
+// where a fixture that stands on the deck wants to be told to look, and where
+// one hung from the roof does. snapToSurface does the rest, so these only have
+// to land inside the right span — never on the surface itself.
+const onDeck = x => hallFloor(x) - 40;
+const onRoof = x => hallCeil(x) + 40;
+
 const SLICE_CHAMBER = {
   id: "slice", name: "INTAKE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
   /* SOLACE's breached intake is beat 1; the plant proper is 2–5 (spec §11.1), so
@@ -649,123 +995,123 @@ const SLICE_CHAMBER = {
   plant: false,
   // the owner rule: raw rock overhead, mechanical underfoot
   matTop: MAT_ROCK, matBot: MAT_MACH,
-  parts: [
-    // the way IN, dropping from the floor above
-    { op: "room", x: 240,  y: 60,   w: 300,  h: 560, roughTop: 6,  roughBot: 0 },
-    // THE WORKING HALL — one floor, 8km of it. Rock ceiling, paved floor.
-    { op: "room", x: 150,  y: 520,  w: 8050, h: 620, roughTop: 44, roughBot: 22 },
+  /* ORDER IS THE GRAMMAR: rooms open air, rocks put it back, and a rock only
+     bites the rooms declared before it. So every room-shaped feature is listed
+     first and every rock-shaped one after — which also means the structural
+     bay cannot erase a mezzanine that overlaps it, and the mezzanine cuts into
+     the bay instead, which is what a mezzanine running into a bay should do. */
+  parts: partList([
+    /* --- the air ------------------------------------------------------- */
+    // the way IN, dropping from the floor above — SOLACE's breach (§11.1 beat 1)
+    shaft(240, 300, { top: 60, bot: 640 }),
+    // THE WORKING HALL — one floor, 8.5km of it, and both its surfaces roam
+    hall(SLICE_HALL, { roughTop: 40, roughBot: 20 }),
+    // a domed cavern over the sump: the roof lifts where the deck falls, so the
+    // low ground reads as a big room rather than as a ditch
+    gallery(2760, 800, { top: 660, floor: 1420, rise: 90 }),
+    // and the immaculate end of the range — a machined bore off the hall
+    bore(6900, 800, { top: 470, floor: 1100, rise: 60 }),
+    // THE WAY DOWN, at the end of the floor — the next chamber's entrance, and
+    // where MERCY pays the well out
+    shaft(8300, 380, { top: 900, bot: 1950 }),
 
-    // mezzanines: milled pad on top to land on, raw rock underneath to fly beneath
-    { op: "rock", x: 1400, y: 700,  w: 900,  h: 150, roughTop: 10, roughBot: 24,
-      mt: MAT_MACH, mb: MAT_ROCK },
-    { op: "rock", x: 5600, y: 720,  w: 850,  h: 150, roughTop: 10, roughBot: 24,
-      mt: MAT_MACH, mb: MAT_ROCK },
-    // stalactite teeth off the raw ceiling
-    { op: "rock", x: 2500, y: 500,  w: 520,  h: 90,  roughBot: 8,
-      profBot: { kind: "teeth", n: 6, dy: 95 }, mt: MAT_ROCK, mb: MAT_ROCK },
-    /* an ordinary tight spot: you must slow down and thread it, but the load can
-       hang. Height derived so it stays in the "rest" tier whatever the sling and
-       rack are tuned to — see restGapPx. */
-    { op: "rock", x: 3100, y: 500,  w: 300,  h: 640 - restGapPx(),
-      roughBot: 8, mb: MAT_ROCK },
-    /* ---- THE STRUCTURAL COLUMN (re-authored, P·slice) ------------------
-       This was a rock from y 440 to 1240 against a hall of 520–1140, i.e. it
-       covered every open interval in its own columns. P·slice flew the chamber
-       and could not get past it: the flood fill stopped dead at x 4592 for a
-       laden ship, an unladen ship and a bare point alike. It was not a pillar.
-       It was a wall, and it sealed the only route to THE WELL.
-
-       The conflict is provable rather than a tuning slip, which is why it
-       survived P·terrain's tests: a fully-solid column means no air at that x,
-       and a route from left of it to right of it must pass through every
-       intermediate x. So "a run of columns with no open span, hall either side"
-       and "a chamber you can fly through" cannot both be true of the same
-       feature. P·terrain's pillar test asserted exactly the first, so it
-       passed — nothing was checking the second. Now something is (see
-       tests/acttwo.spec.js, the traversability invariant).
-
-       A structural column you fly AROUND therefore has to be flanked by air,
-       which means the hall is locally taller than the column: a tall structural
-       bay, with the column standing in it from the floor to a capital, and
-       clear air over the top. That is also how a real plant hall carries a
-       column, and it gives the tow a routing problem — lift the load over it —
-       rather than a dead end. Its flanks are still cut rock, so the render's
-       flank stroke still has something to draw. */
-    { op: "room", x: 4380, y: 300,  w: 660,  h: 840, roughTop: 14, roughBot: 22,
-      mt: MAT_ROCK, mb: MAT_MACH },
-    { op: "rock", x: 4600, y: 470,  w: 210,  h: 800, mt: MAT_MACH, mb: MAT_ROCK },
-    /* ---- THE MOMENTUM PINCH (owner idea, July 2026) --------------------
-       78px: below the 90px a hanging load needs, above the 66px a load
-       trailing at your own level needs. So you cannot creep through it with
-       a rack swinging under you — you have to carry speed and take it with
-       the load swung up beside you, which is the expensive way to fly a box
-       of people. See the tow-envelope note above for the tiers.
-
-       Both boundaries are pinned with zero roughness and the floor is cut to
-       an exact height, because the hall's own ±22px floor noise would
-       otherwise swing this gap between 54 and 106px — i.e. randomly between
-       "unladen only" and "just fly through it". A gap that IS the mechanic
-       has to be authored, not sampled.
-
-       Pinning takes BOTH ops, which is worth knowing when authoring another:
-       a room whose floor is at 1140 forces the floor no shallower than that
-       (union keeps the deeper bot), and a rock below 1140 forces it no deeper
-       (subtraction cuts the rest away). With only the rock the hall's own
-       roughness still made the gap 75 rather than 78 here, and a reseed could
-       have dropped it out of the momentum band entirely. */
-    { op: "room", x: 6480, y: 900,  w: 340, h: 240, roughTop: 0, roughBot: 0,
-      mb: MAT_MACH },                                     // floor no shallower than 1140
-    { op: "rock", x: 6480, y: 1140, w: 340, h: 260, roughTop: 0, roughBot: 0,
-      mt: MAT_MACH },                                     // floor no deeper than 1140
-    // height derived so the gap below lands mid-band whatever the rack weighs in
-    // at: 1140 (the pinned floor) − 500 (this mass's top) − the wanted gap
-    { op: "rock", x: 6520, y: 500,  w: 260, h: 640 - momentumGapPx(),
-      roughTop: 0, roughBot: 0, mb: MAT_ROCK, pinch: "momentum" },
-
-    // a domed machined bay off the hall — the immaculate end of the range
-    { op: "room", x: 6800, y: 560,  w: 800,  h: 560, roughTop: 8, roughBot: 8,
-      profTop: { kind: "arc", dy: -150 }, radius: 110, mt: MAT_MACH, mb: MAT_MACH },
-    // a ramped stretch of floor, so not every landing on this floor is level
-    { op: "room", x: 7450, y: 700,  w: 780,  h: 440, roughTop: 20, roughBot: 8,
-      profBot: { kind: "ramp", dy: 190 }, mt: MAT_ROCK, mb: MAT_MACH },
-    // THE WAY DOWN, at the end of the floor — the next chamber's entrance
-    { op: "room", x: 8250, y: 700,  w: 430,  h: 1250, roughTop: 8, roughBot: 10,
-      radius: 60, mt: MAT_ROCK, mb: MAT_MACH },
-
-    /* ---- §8's two hazards, as the only two parts that differ between the
-       views. Neither has its tell yet (P·systems); what matters here is that
-       the terrain model can hold them at all. */
-    // FALSE FLOOR — drawn as a milled ledge, absent from collision. Commit to
-    // landing on it and you drop to the real hall floor ~140px below.
-    { op: "rock", x: 2050, y: 1000, w: 420,  h: 60, mt: MAT_MACH, mb: MAT_MACH,
-      view: "drawn" },
-    // PAINTED ROCK — a real outcrop that is never drawn. Looks like open hall.
-    { op: "rock", x: 5150, y: 700,  w: 260,  h: 460, roughBot: 10, view: "solid" }
-  ],
+    /* --- the rock ------------------------------------------------------ */
+    /* THE STRUCTURAL COLUMN. Listed first among the rock so its bay is opened
+       before anything cuts into it. It was authored floor-to-ceiling under
+       P·terrain and sealed the only route to the well — a fully-solid column
+       and a route past it are mutually exclusive, since a route must cross
+       every intermediate x. `column()` cannot express that mistake any more:
+       it opens headroom over the capital, derived from the tow envelope. */
+    column(4600, 210, { capital: 470, floor: 1170 }),
+    /* THE ENTRY MEZZANINE — the first overhang on the floor, and the shape a
+       heightmap cannot hold: air above it, rock inside it, air below it again.
+       It is WEST of the bank, and that is the P·floor correction rather than a
+       preference. Authored east of it first, and the sling test found the
+       problem before a person could have: a mezzanine 80px along from the rack,
+       at exactly the height a hanging load rides at, means you clip the deck of
+       it in the first metre of every haul. An overhang belongs where you meet it
+       unladen — on the way in — with the bay itself left clear so a fresh load
+       has a thousand pixels of room to settle before the floor asks anything. */
+    shelf(300, 400, { y: 800, h: 130 }),
+    // a landing plinth in the muster, so the widest room still offers a choice
+    bench(760, 300, { y: 1090 }),
+    /* THE STOOP's slot — an ordinary tight spot at the derived rest gap. You
+       meet it immediately after cradling the bank, which is the teaching: the
+       first thing a laden run asks is that you stop barrelling along. */
+    pinch(2140, 280, "rest", { floor: 1120 }),
+    // stalactites off the raw roof on the way down into the sump
+    stalactites(2460, 240, { y: 620, h: 170, n: 4, dy: 95 }),
+    /* §8 — FALSE FLOOR: drawn as a milled ledge, absent from collision. Sited
+       in the sump, where a deck 190px below is exactly what you were trying to
+       avoid. The tell is the settling dust (P·feedback); the remaining
+       channels are P·systems. */
+    falseFloor(3020, 420, { y: 1250 }),
+    // the gallery mezzanine, running on into the structural bay
+    shelf(3980, 640, { y: 800, h: 140 }),
+    /* §8 — PAINTED ROCK: a real outcrop that is never drawn. It has the same
+       silhouette to the pillar finder as a structural column, which is why the
+       column is authored to its left — see the ordering rule on partList. */
+    paintedRock(5150, 260, { y: 700, h: 460 }),
+    // a landing plinth on the climb, so the tight half of the floor still offers
+    // somewhere to set down and think
+    bench(5480, 300, { y: 940 }),
+    /* THE MOMENTUM PINCH (owner idea, July 2026) — the mid-band gap you cannot
+       creep through with a load hanging and can carry through with it swung up
+       to your own level. Derived from the tow envelope, pinned from both ops,
+       zero roughness on every boundary: the hall's own ±20px deck noise would
+       otherwise swing this gap in and out of the band it exists to sit in.
+       It is on the only route to the rack, deliberately — a route that let you
+       avoid it would never answer whether mid-band is the right idea. */
+    pinch(6480, 340, "momentum", { floor: 1000 }),
+    // the bore's own mezzanine — milled, because a bore is cut and not found
+    shelf(7150, 700, { y: 760, h: 140, mb: MAT_MACH })
+  ]),
   /* Light sources, because a maintained facility is lit BY something (owner
      ask, July 2026 — brighter, via lots of light sources). Two jobs at once: it
      lifts the room, and each fixture is a point of interest in an otherwise even
-     floor. `snap` puts a fixture on the surface it belongs to, so retuning the
-     terrain can't leave one buried in rock or floating in a hall. */
+     floor. Placed by x against the hall profile rather than by a typed y, so a
+     retune of a station carries the lighting with it; `snap` then puts each one
+     exactly on the compiled surface. Cool cyan fixtures are his; the warm ones
+     on the deck are the failing original plant. */
   lights: [
-    { x: 500,  y: 560,  r: 420, snap: "ceil" },
-    { x: 1150, y: 560,  r: 380, snap: "ceil" },
-    { x: 1850, y: 1100, r: 300, snap: "floor", warm: true },
-    { x: 2750, y: 560,  r: 340, snap: "ceil" },
-    { x: 3550, y: 560,  r: 400, snap: "ceil" },
-    { x: 4300, y: 1100, r: 320, snap: "floor", warm: true },
-    { x: 5000, y: 560,  r: 360, snap: "ceil" },
-    { x: 5900, y: 560,  r: 380, snap: "ceil" },
-    { x: 7150, y: 620,  r: 440, snap: "ceil" },
-    { x: 7800, y: 1100, r: 320, snap: "floor", warm: true },
-    { x: 8450, y: 900,  r: 400, snap: "ceil" },
-    { x: 8450, y: 1850, r: 360, snap: "floor" }
+    { x:  380, y:  300, r: 380, snap: "ceil" },          // down the entry shaft
+    { x:  700, y: onDeck(700),  r: 320, snap: "floor", warm: true },
+    { x:  900, y: onRoof(900),  r: 420, snap: "ceil" },
+    { x: 1700, y: onRoof(1700), r: 380, snap: "ceil" },
+    { x: 2250, y: onDeck(2250), r: 300, snap: "floor", warm: true },
+    { x: 2600, y: onRoof(2600), r: 340, snap: "ceil" },
+    { x: 3400, y: onRoof(3400), r: 420, snap: "ceil" },
+    { x: 3760, y: onDeck(3760), r: 320, snap: "floor", warm: true },
+    { x: 4200, y: onRoof(4200), r: 400, snap: "ceil" },
+    { x: 4800, y: onRoof(4800), r: 360, snap: "ceil" },  // the top of the bay
+    { x: 5450, y: onDeck(5450), r: 300, snap: "floor", warm: true },
+    { x: 5600, y: onRoof(5600), r: 340, snap: "ceil" },
+    { x: 6350, y: onRoof(6350), r: 300, snap: "ceil" },
+    { x: 6900, y: onDeck(6900), r: 320, snap: "floor", warm: true },
+    { x: 7300, y: onRoof(7300), r: 440, snap: "ceil" },
+    { x: 8150, y: onRoof(8150), r: 400, snap: "ceil" },
+    { x: 8480, y: 1850, r: 360, snap: "floor" }          // the bottom of the well shaft
   ],
   /* dressing. These are #69's existing ornaments (js/acttwo-render.js), which
      were built and then never switched on by any level — conduitRun in
      particular runs a light along its length on the rack's own heartbeat.
      `snap` sits an ornament on the floor of whatever span its y falls in, so a
      retune of the terrain doesn't leave the furniture hovering. */
+  ornaments: [
+    { type: "conduitRun",   x:  620, y: onDeck(620),  w: 460, snap: "floor" },
+    { type: "rackingFrame", x: 1560, y: onDeck(1560), w: 90, h: 140, snap: "floor" },
+    { type: "ventGrate",    x: 2350, y: onDeck(2350), w: 70, h: 90,  snap: "floor" },
+    { type: "conduitRun",   x: 1900, y: onDeck(1900), w: 300, snap: "floor" },
+    { type: "conduitRun",   x: 3300, y: onDeck(3300), w: 520, snap: "floor" },
+    { type: "ventGrate",    x: 3880, y: onDeck(3880), w: 70, h: 90,  snap: "floor" },
+    { type: "rackingFrame", x: 4260, y: onDeck(4260), w: 90, h: 140, snap: "floor" },
+    { type: "junctionTruss",x: 4950, y: onDeck(4950), scale: 1.2, snap: "floor" },
+    { type: "rackingFrame", x: 5600, y: onDeck(5600), w: 90, h: 140, snap: "floor" },
+    { type: "ventGrate",    x: 6350, y: onDeck(6350), w: 70, h: 90,  snap: "floor" },
+    { type: "conduitRun",   x: 7150, y: onDeck(7150), w: 480, snap: "floor" },
+    { type: "ventGrate",    x: 7500, y: onDeck(7500), w: 70, h: 90,  snap: "floor" },
+    { type: "conduitRun",   x: 8340, y: 1900, w: 300, snap: "floor" }
+  ],
   /* ---- P·slice: one rack, its feed, and THE WELL ---------------------------
      "One chamber, one rack, the trunk cut, the tow, THE WELL, the reserve, the
      vitals transfusion" (Bundle P). One rack exactly, because the slice exists
@@ -773,13 +1119,14 @@ const SLICE_CHAMBER = {
      times over.
 
      The rack sits near the START of the floor and the well at the END of it, so
-     the tow is the whole vocabulary in one haul: the ordinary tight spot, the
-     structural column, the painted rock, a mezzanine, and then the momentum
-     pinch. That is deliberate and it is the point — the roadmap left "is
-     mid-band right for a momentum pinch?" open because it needs the tether in
-     hand, and a route that lets you avoid the pinch would never answer it. */
+     the tow is the whole vocabulary in one haul: the stoop's slot, the drop into
+     the sump, the climb out, the structural column, the painted rock, two
+     mezzanines and then the momentum pinch. That is deliberate and it is the
+     point — the roadmap left "is mid-band right for a momentum pinch?" open
+     because it needs the tether in hand, and a route that lets you avoid the
+     pinch would never answer it. */
   racks: [
-    { id: "r1", x: 1150, y: 1100, occupants: 10, label: "BANK 1 · 10 SOULS", snap: "floor" }
+    { id: "r1", x: 1150, y: onDeck(1150), occupants: 10, label: "BANK 1 · 10 SOULS", snap: "floor" }
   ],
   /* Several conduits run through each chamber; one is the rack's (§7.1). You
      close a feed at its ISOLATOR — a floor-mounted breaker you land beside and
@@ -798,64 +1145,65 @@ const SLICE_CHAMBER = {
      of it later without moving anything.
 
      The isolators sit well away from the rack on purpose: if the breaker were
-     beside the box there would be nothing to read. */
+     beside the box there would be nothing to read. Each also sits in air the
+     hall gives you room to land in — the stoop and the creep are deliberately
+     not places you are asked to set down. */
   conduits: [
-    { id: "c1", rack: "r1", real: true,  x: 2020, y: 1100, snap: "floor",
+    { id: "c1", rack: "r1", real: true,  x: 2000, y: onDeck(2000), snap: "floor",
       label: "ISOLATOR 1" },
-    { id: "c2", rack: null, real: false, x: 3250, y: 1100, snap: "floor",
+    { id: "c2", rack: null, real: false, x: 3250, y: onDeck(3250), snap: "floor",
       label: "ISOLATOR 2" },
-    { id: "c3", rack: null, real: false, x: 4450, y: 1100, snap: "floor",
+    { id: "c3", rack: null, real: false, x: 4450, y: onDeck(4450), snap: "floor",
       label: "ISOLATOR 3" }
+  ],
+  /* One box per decoy feed (owner feedback), same size and same mounting as the
+     real bank, so the two cannot be told apart by looking — only by reading. One
+     of the two is wall-mounted, which is the mount the owner opened up and which
+     a real plant would use for a bank it did not want on the walking floor —
+     here, up on the gallery mezzanine, where getting a look at it costs a climb
+     as well as the vitals. */
+  decoys: [
+    { id: "d1", conduit: "c2", x: 3560, y: onDeck(3560), snap: "floor", label: "BANK 2 · 10 SOULS" },
+    { id: "d2", conduit: "c3", x: 4180, y: 660, snap: "floor", mount: "wall",
+      label: "BANK 3 · 9 SOULS" }
+  ],
+  /* PROVISIONAL placement, per the owner: siting is a level-design decision and
+     this is here so the emplacement can be seen and flown against on a phone.
+     Moved to the sump for P·floor, and for the reason the feedback round gave:
+     the objection was never that it was hard, it was dying with no way to read
+     it coming. The sump is the widest, best-lit air on the floor and you look
+     down into it on the way west, so it can be seen, circled and dealt with
+     unladen — which is the only answer available, since a slung rack cannot be
+     shot for or shielded. Move or delete this line freely; nothing references it. */
+  turrets: [
+    { x: 3760, y: onDeck(3760), snap: "floor" }
   ],
   /* THE WELL (§7.6) — MERCY cannot land and cannot descend, so she pays out a
      docking bay on a cable. It hangs in the shaft at the END of the floor,
      which is where the next chamber's entrance is and where she lowers it
      deeper as you clear (§11.1). It sways, and you dock a swinging load into
      it: the mothership is doing exactly what you are doing. */
-  /* One box per decoy feed (owner feedback), same size and same mounting as the
-     real bank, so the two cannot be told apart by looking — only by reading. One
-     of the two is wall-mounted, which is the mount the owner opened up and which
-     a real plant would use for a bank it did not want on the walking floor. */
-  decoys: [
-    { id: "d1", conduit: "c2", x: 3560, y: 1100, snap: "floor", label: "BANK 2 · 10 SOULS" },
-    { id: "d2", conduit: "c3", x: 4700, y: 640,  snap: "floor", mount: "wall",
-      label: "BANK 3 · 9 SOULS" }
-  ],
-  /* PROVISIONAL placement, per the owner: siting is a level-design decision and
-     this is here so the emplacement can be seen and flown against on a phone.
-     Put mid-floor on the laden leg, where it costs you something to deal with
-     while a bank is hanging under you — which is the question it exists to ask.
-     Move or delete this line freely; nothing else references it. */
-  turrets: [
-    { x: 6150, y: 1100, snap: "floor" }
-  ],
   well: { x: 8465, y: 950 },
   /* Fuel along the route (owner feedback). Placed against the SHAPE of the run
      rather than evenly: you enter at the well on the right, so the leftward leg
      is unladen and cheap, and the haul back is laden, slow and thirsty. Hence
      the tighter spacing on the right-hand half — the cans you actually need are
-     the ones on the way home. Deliberately clear of the authored hazards: the
-     painted rock at 5150, the false floor at 2050, the pinch at 6520. */
+     the ones on the way home, and P·floor added the climb out of the sump,
+     which is the thirstiest stretch on the floor. Deliberately clear of the
+     authored hazards: the painted rock at 5150, the false floor at 3020, and
+     both pinches. */
   fuel: [
-    { x: 760,  y: 1100, snap: "floor" },
-    { x: 2700, y: 1100, snap: "floor" },
-    { x: 3900, y: 1100, snap: "floor" },
-    { x: 4700, y: 1100, snap: "floor" },
-    { x: 5800, y: 1100, snap: "floor" },
-    { x: 7000, y: 1100, snap: "floor" },
-    { x: 7900, y: 1100, snap: "floor" }
-  ],
-  ornaments: [
-    { type: "conduitRun",   x: 620,  y: 1100, w: 460, snap: "floor" },
-    { type: "rackingFrame", x: 1500, y: 1100, w: 90,  h: 140, snap: "floor" },
-    { type: "ventGrate",    x: 2350, y: 1100, w: 70,  h: 90,  snap: "floor" },
-    { type: "conduitRun",   x: 3600, y: 1100, w: 520, snap: "floor" },
-    { type: "junctionTruss",x: 4950, y: 1100, scale: 1.2, snap: "floor" },
-    { type: "rackingFrame", x: 5750, y: 860,  w: 90,  h: 140, snap: "floor" },
-    { type: "ventGrate",    x: 6500, y: 1100, w: 70,  h: 90,  snap: "floor" },
-    { type: "conduitRun",   x: 7000, y: 1100, w: 480, snap: "floor" },
-    { type: "conduitRun",   x: 8300, y: 1900, w: 320, snap: "floor" }
-  ]
+    { x:  620, y: onDeck(620)  },
+    { x: 1780, y: onDeck(1780) },
+    { x: 2700, y: onDeck(2700) },
+    { x: 3420, y: onDeck(3420) },
+    { x: 4300, y: onDeck(4300) },
+    { x: 5300, y: onDeck(5300) },
+    { x: 6300, y: onDeck(6300) },
+    { x: 7060, y: onDeck(7060) },
+    { x: 7620, y: onDeck(7620) },
+    { x: 8200, y: onDeck(8200) }
+  ].map(f => Object.assign(f, { snap: "floor" }))
 };
 const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
 
@@ -875,8 +1223,9 @@ const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
 function snapToSurface(list, spans) {
   return (list || []).map(o => {
     if (!o.snap) return Object.assign({}, o);
-    const col = spans[clamp(Math.round(o.x / STEP), 0, spans.length - 1)] || [];
-    const sp = pickSpan(col, o.y);
+    // the INTERPOLATED surface, i.e. the one collision and groundAt see — not
+    // the nearest sampled column, which is a fraction of a slope away from it
+    const sp = spanAt(o.x, o.y, spans);
     if (!sp) return Object.assign({}, o);
     return Object.assign({}, o, o.snap === "ceil"
       ? { y: sp.top + 10 }                       // hung from the ceiling
@@ -942,8 +1291,7 @@ const TRUNK_STEP = 64;         // sample spacing of the buried run
 function trunkPath(x0, y0, x1, y1, spans) {
   const pts = [{ x: x0, y: y0 }];
   const floorAt = x => {
-    const col = spans[clamp(Math.round(x / STEP), 0, spans.length - 1)] || [];
-    const sp = pickSpan(col, y0);
+    const sp = spanAt(x, y0, spans);      // the same interpolated floor as above
     return sp ? sp.bot : y0;
   };
   const dir = x1 >= x0 ? 1 : -1;

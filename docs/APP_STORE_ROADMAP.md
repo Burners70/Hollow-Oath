@@ -119,7 +119,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 8 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice and P·feedback have landed** — the loop runs end to end in one chamber and has had its first on-device round. **The owner's next topic is P·floor** (floor variety, awaiting a conversation they asked to have separately); then **P·persist** and **P·systems**, both fully specified by the feedback round. P·content authors chambers only after P·floor sets the pattern |
+| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback and P·floor have landed** — the loop runs end to end in one chamber, has had its first on-device round, and that chamber is now a floor with shape. Next are **P·systems** (the ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors the other nine against P·floor's vocabulary |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -1004,6 +1004,13 @@ done, so the chain now starts at P·slice.
   **§8.1's tell has had its first pass** in P·feedback — settling dust, which
   reads both hazards off `solidAt` — so what remains here are the grit and
   lamp-shadow channels layered on that, not the tell from scratch.
+  **Check the false floor's own silhouette before adding a channel** (found
+  while flying P·floor, and present on `main` too, so it is old): the end faces
+  of a drawn-only ledge render as full-height vertical walls up to the ceiling.
+  That is a louder tell than the dust and it is the wrong kind — it gives the
+  hazard away by drawing something that is not there, rather than by the world
+  failing to respond to you. Worth settling what a projected ledge's edge should
+  look like before layering grit and shadow on top of it.
   **§8's tell has changed and the spec is now authoritative:** "a projected
   ledge is perfectly flat and perfectly level" was **false against the code** —
   `flatten()` sets every sample in a span to exactly one height, so every
@@ -1022,12 +1029,12 @@ done, so the chain now starts at P·slice.
   interaction with V1: Mary Seacole is a *1.0.1* addition and the twelfth entry,
   so Act Two's ten start from 13 — check the codex pagination
   (`MINDS_PER_PAGE`, `js/render.js`) still lays out cleanly at 22.
-- [ ] **P·floor. Floor variety, and the pattern it sets for the other nine.**
+- [x] **P·floor. Floor variety, and the pattern it sets for the other nine.**
   *(Owner, July 2026, from the on-device round: "the floor can't all be flat.
   Need lots more variety for interest" — and, on scoping it: "I think we should
   get this one right so we can cascade those changes across the rest of the
-  levels." The owner asked to discuss it separately from the feedback fixes, so
-  it is **awaiting that conversation**, not blocked on code.)*
+  levels." The owner asked to discuss it separately from the feedback fixes; that
+  conversation happened in August 2026 and is recorded below.)*
   **The brief, as decided:** *both, flying first.* Re-author `SLICE_CHAMBER`'s
   shape — varied clearances, ledges, steps, shelves at different heights, so the
   ground changes the route and the swing — prove it, then dress it with materials
@@ -1040,6 +1047,98 @@ done, so the chain now starts at P·slice.
   **Why it precedes P·content:** whatever this chamber does becomes the pattern
   for the other nine, so authoring content first would mean re-authoring it
   afterwards. Sequenced deliberately.
+
+  **THE CONVERSATION (owner, August 2026) — three decisions, and the first is
+  the one that shapes the other nine chambers.**
+  1. **What cascades is the MEANS, not the shape.** Asked whether "get this one
+     right so we can cascade it" meant a worked example the other chambers copy
+     or a kit they compose from, the answer was the kit. So P·floor's real
+     deliverable is a **named feature vocabulary** in `js/acttwo-data.js`, and
+     the chamber is its first customer rather than its purpose.
+  2. **Both surfaces roam.** Not "the deck gets bumpy under a fixed roof" — the
+     floor and the ceiling are independent profiles and the clear band between
+     them varies along the floor.
+  3. **The laden haul asks for altitude AND rhythm**, both, not either. Deliberate
+     lifts and drops of a swinging load *and* an alternation of wide stretches you
+     can build speed in with tight ones where the load has to be settled first.
+
+  **Landed.** The vocabulary sits between `compileChamber`'s two primitives and
+  an authored chamber: `partList`, `hall`/`hallAt`, `gallery`, `bore`, `shaft`,
+  `shelf`, `bench`, `column`, `pinch`, `stalactites`, `falseFloor`,
+  `paintedRock`. It adds no terrain capability — every helper emits the same
+  `room`/`rock` parts by hand-authoring — and what it buys is that a feature is
+  declared by name with its materials and its safety margins already right.
+  Three rules are enforced **by construction**, each one a bug this project has
+  already paid for:
+  - `column()` cannot author a sealed column. It opens the bay's ceiling above
+    the capital first, and the headroom is **derived from the tow envelope**, so
+    neither an unlucky capital nor a change to `SLING_VISIBLE` can close it.
+  - `pinch()` emits the pinning pair *and* the mass overhead in one call, at a
+    named tier (`"rest"`/`"momentum"`) rather than a number, with zero roughness
+    on every boundary.
+  - `hall()` interpolates between **stations** rather than stepping between
+    them, which is what keeps a climbing floor from breaking a route: the flood
+    fill joins two columns only where their spans overlap by the clearance being
+    tested, so a passage that is both narrow and rising can read as a wall to
+    `chamberRoute` while looking perfectly flyable. Stations spread a 300px
+    climb over 400px of floor — 12px a column, which nothing notices.
+
+  The chamber is re-authored from it: a 22-station profile whose deck moves 540px
+  (a 280px sump, a 540px climb out of it) and whose clear band runs 260–870px
+  against a constant 620px before. Reading west to east — the laden direction —
+  it is muster, stoop, sump, neck, gallery, structural bay, climb, creep, pinch,
+  domed bay, well head. Every fixture in the chamber — rack, isolators, decoys,
+  cans, ornaments, emplacement, lights — is now placed **by x**, taking its y
+  from `hallAt`, so moving a station moves the furniture with it.
+  Pass two, the dressing, is in the same station list: a station may carry
+  `mt`/`mb`, which changes that boundary's material from there eastward. Paving
+  ends where the sump begins and where the climb starts, and the seam is visible
+  — a milled face takes one quiet octave of noise and raw rock two coarse ones,
+  so the deck steps by a few px where the floor stops being finished.
+
+  **Four tests, and they assert the decisions rather than the shape** (the
+  chamber has now been re-authored five times and every coordinate literal turned
+  a retune into a puzzle about which number went stale): the deck and the roof
+  each move and the band varies by more than 2×, with at least two tight and two
+  wide stretches; **every gap tighter than a hanging load is one somebody
+  declared**; every fixture is in open air and resting on a surface; and
+  `column()` cannot seal a room, exercised on four ad-hoc chambers including two
+  an author would be wrong to write. Suite 169 → 173.
+
+  **The accidental-pinch guard earned its keep on the first compile.** The
+  re-author produced four gaps nobody authored, none of them visible in the
+  data: a shelf whose underside starved as the deck rose under it, a plinth
+  standing beneath a mezzanine, and a rock hung from a roof that a later room
+  lifted above its root — that last left a 40px slot. An accidental pinch is
+  worse than a wrong number because it silently re-prices the tow, and an
+  unladen-only one is a trolley problem with extra steps (§11.3). The chamber now
+  has exactly **one** run of sub-envelope air in 9000px: the declared momentum
+  pinch.
+
+  **And flying it found a design error a test could not have.** The first pass
+  put the rack-bay mezzanine 80px east of the bank, at exactly the height a
+  hanging load rides at, so you clipped the deck of it in the first metre of
+  every haul — the sling test failed by draining the rack against it. The
+  overhang moved **west** of the bank: you meet it unladen, on the way in, and
+  the bay itself is left clear so a fresh load has a thousand pixels to settle
+  before the floor asks anything.
+
+  **One real bug fixed on the way, in shipped code.** `snapToSurface` and
+  `trunkPath` placed things against the **nearest sampled column** while
+  `groundAt`/`solidAt` read the **interpolated** surface between two columns.
+  On the hall's ±20px deck that is a couple of px and invisible; on the well
+  shaft's steep roughness it put a conduit run 2.5px *under* the floor. `spanAt`
+  (js/world.js) now takes an optional `spans` array so code that is still
+  building a level can ask the same question collision asks — one code path,
+  same predicate, which is the discipline §8.1's dust already follows.
+
+  **One observation handed to P·systems, not fixed here.** The end faces of a
+  drawn-only ledge render as full-height vertical walls rising to the ceiling,
+  which is a far louder tell than the settling dust and arguably gives §8's
+  false floor away for the wrong reason. It is **not** a P·floor regression —
+  the same artefact is on `main` at the old chamber's false floor — and the
+  deception tells are P·systems' item, so guessing at the intended look here
+  would be the same overreach this bundle keeps recording.
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The

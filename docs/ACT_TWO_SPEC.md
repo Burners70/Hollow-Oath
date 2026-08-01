@@ -711,6 +711,20 @@ question about what the surface *is*. Each boundary can also take a **profile** 
 `ramp`, `arc` or `teeth` — plus a corner radius, so an authored chamber is not
 condemned to right angles. Both are `js/acttwo-data.js`.
 
+**And the layer P·content actually authors against is the feature vocabulary**
+(owner decision, August 2026 — see APP_STORE_ROADMAP.md, P·floor). The parts
+grammar above is the compiler's input, not the author's: a chamber is written as
+a `hall` of **stations** (`{x, ceil, floor}`, with the deck and the roof roaming
+independently and materials changing per station) with named features hung on
+it — `shelf`, `bench`, `column`, `pinch`, `gallery`, `bore`, `shaft`,
+`stalactites`, `falseFloor`, `paintedRock`. It adds no terrain capability; what
+it adds is that the three rules this chapter learned the expensive way are
+enforced by construction rather than remembered: a column always opens headroom
+over its capital, an authored gap is pinned from both ops at a derived tier, and
+elevation change is interpolated so a narrow climbing passage cannot read as a
+wall to the flood fill. Fixtures take their y from `hallAt`, so retuning a
+station moves the furniture with it.
+
 ### 11.1 The descent, and where the checkpoint lives
 
 The act is a descent, so the structure is one: **each chamber's exit is the next
