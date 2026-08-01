@@ -443,6 +443,18 @@ both stagecraft (§2):
 
 ### 8.1 The tell — reversed, July 2026
 
+> **Status, August 2026 — the tell now GATES the hazard.** After the second
+> on-device round the owner removed §8's painted rock from chamber one ("we need
+> to give some sort of clue to the invisible walls so they aren't unfair… we
+> wouldn't want any on this first level anyway"). There was a 440px undrawn wall
+> sitting on the only route west, which is a trap rather than a hazard in a
+> tutorial floor. So the deception layer is currently one-sided: chamber one has
+> a false floor and no invisible wall. The terrain model still expresses both and
+> `paintedRock()` is still in the authoring vocabulary — the capability keeps its
+> own test against a purpose-built chamber — but authored content does not get
+> another one until the channels below exist. See APP_STORE_ROADMAP.md, P·systems.
+
+
 **The first draft's tell was false against the code, and had to go.** It read:
 *"a projected ledge is perfectly flat and perfectly level — nothing in this
 game's terrain is level except things he made."* Two things kill it:

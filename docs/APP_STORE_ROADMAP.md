@@ -1004,9 +1004,16 @@ done, so the chain now starts at P·slice.
   **§8.1's tell has had its first pass** in P·feedback — settling dust, which
   reads both hazards off `solidAt` — so what remains here are the grit and
   lamp-shadow channels layered on that, not the tell from scratch.
-  **Check the false floor's own silhouette before adding a channel** (found
-  while flying P·floor, and present on `main` too, so it is old): the end faces
-  of a drawn-only ledge render as full-height vertical walls up to the ceiling.
+  **§8's PAINTED ROCK IS NOW GATED ON THIS ITEM.** Owner, August 2026: "we need
+  to give some sort of clue to the invisible walls so they aren't unfair… we
+  wouldn't want any on this first level anyway." Chamber one's was removed, so
+  the deception layer is currently one-sided — a false floor and no invisible
+  wall. The tell is what unblocks putting them back, which makes this item
+  content-gating rather than polish.
+  **The false floor's silhouette bug is fixed** (it was the same
+  `matchSpan` fault as the missing wall outlines — see P·floor's second round):
+  the end faces of a drawn-only ledge used to render as full-height vertical
+  walls up to the ceiling.
   That is a louder tell than the dust and it is the wrong kind — it gives the
   hazard away by drawing something that is not there, rather than by the world
   failing to respond to you. Worth settling what a projected ledge's edge should
@@ -1139,6 +1146,80 @@ done, so the chain now starts at P·slice.
   the same artefact is on `main` at the old chamber's false floor — and the
   deception tells are P·systems' item, so guessing at the intended look here
   would be the same overreach this bundle keeps recording.
+  **THE SECOND ON-DEVICE ROUND (owner, August 2026), and it found more than the
+  first.** Played on a phone through the QA harness, on the re-authored floor.
+  Thirteen notes; the two that mattered most were both cases of the chamber
+  being *provably* fine and *actually* unflyable.
+  - **"I couldn't get any further west. Everything seemed solid."** It was
+    solid, at the altitude they were flying. The gallery mezzanine ended at
+    exactly the x where the neck's roof was descending to meet it, so the upper
+    corridor tapered into a wedge and closed; the way on was a blind 400px dive
+    underneath. Every guard passed, because the corridor overlapped the space
+    beyond it by 113px — comfortably more than the 105.2 a hanging load needs.
+    **Traversable and findable are different properties and only one had a
+    test.** The neck is re-cut as a floor hump instead of a roof plunge (same
+    360px band, same tempo beat, roof now continuous), and there is a new guard:
+    outside a declared pinch, no transition between adjacent columns may be
+    tighter than 1.4× the at-rest tow envelope. Derived, so it moves with the
+    sling; above the 113 that failed, below the 172 of the tightest legitimate
+    feature in the chamber.
+  - **"There's a dodgy thing going on with the outline. Missing for part of the
+    wall."** Correct, and it is a shipped bug rather than an authoring slip:
+    `matchSpan` never returns null for a non-empty column (it falls back to
+    nearest-midpoint, which is what stitches a sloping floor), so where a column
+    holds two spans and its neighbour holds one, BOTH answer with that one. The
+    rock between them is then drawn — and collided — as if it tapered into
+    nothing. `matchSpanMutual` requires the match to be mutual, so the losing
+    span terminates in a face. Used by `spanAt` and the tile builder from the
+    same call, deliberately: the rock you see and the rock you hit have to end
+    in the same place. It also fixes the full-height verticals at a drawn-only
+    ledge, which were the same bug from the other side.
+  - **Impacts kill the hull again** (`hullImpact`), reversing July's cap. Not a
+    change of mind: the July objection was to dying with no way to read it
+    coming, and this arrives paired with the two calls that remove the
+    unreadable half. **The rack is explicitly not covered** — `towContact` is
+    untouched, so clipping a wall kills you and not the people in the box. One
+    thing had to be pulled out of the blast radius: setting down on a rack's lid
+    was routed through `hullImpact`, which made the most-repeated act in the
+    loop lethal. It uses Act One's own hard-landing rule now (35 vitals, 12 with
+    GENTLE HANDS, fatal only at zero).
+  - **§8's painted rock is out of chamber one** — "we wouldn't want any on this
+    first level anyway", pending a tell. There was a 440px undrawn wall on the
+    only route west. The helper stays in the vocabulary and the capability keeps
+    its test against a purpose-built chamber, so re-adding one is a decision
+    rather than a slip. See P·systems for the tell, which is now gating content.
+  - **The well is a well.** Its cable was a 1.5px hairline exactly 220px long
+    starting in mid-air, and the shaft was a pocket with the hall's rock roof
+    over it — so the bay hung from a scratch under a lid MERCY could not
+    possibly have lowered it through. The shaft opens to the top of the world
+    and the cable is drawn thick, running up out of frame. *Consequence flagged
+    rather than hidden: the top of the shaft is still a ceiling, and ceilings
+    kill again, so flying all the way up it kills you.*
+  - **Fixtures sink instead of floating.** "Items on the landscape need to be
+    integrated better, so they either sit on or are sunken into the ground, not
+    partially floating." `snapToSurface` was a point sample — fine on a flat
+    deck, wrong the moment P·floor gave it a slope. It samples the whole
+    footprint now and takes the deepest floor, so an object rests at its lowest
+    point and buries into everything higher. Ceilings deliberately do NOT mirror
+    it (a buried lamp is no lamp), and a rigid roof fitting must not straddle a
+    roof step *or a corner fillet* — a `bore`'s 110px radius bows the roof down
+    invisibly, which cost three placements before it was written down.
+  - **Lamps are bigger and there are far more of them**, and more furniture:
+    three new ornament kinds (`pipeBank`, `crateStack`, `gantry` — the first
+    ceiling furniture the set has had) taking the chamber from 13 pieces to 27,
+    and from 17 fixtures to 32. Free, because both draw loops are culled to the
+    view now; they were per-chamber before, so a denser chamber cost frames
+    everywhere in it.
+  - **An entry banner**, because arriving in a 9000px room said nothing about
+    which way to go. Navigation only — the floor's name, the bank count and the
+    direction, all derived — and deliberately silent on *which* bank is real.
+  - **Parked at the owner's steer:** the real-versus-decoy readability question
+    ("don't overreact to the real/false rack tells — let that sit until I've
+    played a bit more"). Recorded because it is real — the decoy's riser is the
+    most legible feed line in the chamber and the true one is buried — but not
+    acted on.
+  Suite 169 → 175.
+
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The

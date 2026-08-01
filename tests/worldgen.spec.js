@@ -655,9 +655,15 @@ test("P·terrain: drawn and solid terrain agree — except where §8 says they l
     __doids.loadChamber("slice");
     return __doids.deceptions();
   });
-  // the chamber declares both hazards, and they are the ONLY disagreements
+  /* Chamber one declares ONE of the two, and that is the August 2026 owner call
+     rather than an omission: "we need to give some sort of clue to the invisible
+     walls so they aren't unfair… we wouldn't want any on this first level
+     anyway." There was a 440px undrawn wall sitting on the only route west,
+     which is a trap in a tutorial chamber. Asserted as zero rather than deleted
+     so that re-adding one to chamber one is a visible decision and not a slip;
+     the MODEL's ability to hold one is proven in the next test. */
   expect(r.falseFloors).toBeGreaterThan(0);
-  expect(r.paintedRock).toBeGreaterThan(0);
+  expect(r.paintedRock).toBe(0);
 
   // a false floor: drawn geometry has a ledge there, collision does not, so the
   // real ground is strictly lower than the ledge you can see
@@ -666,15 +672,45 @@ test("P·terrain: drawn and solid terrain agree — except where §8 says they l
   expect(ff.drawnLedge).toBeLessThan(ff.realGround);   // you drop
   expect(ff.solidAtLedge).toBe(false);                 // nothing there to land on
 
-  // painted rock: collision has a wall, the drawn view has open space
-  const pr = await page.evaluate(() => __doids.paintedRockProbe());
-  expect(pr).not.toBeNull();
-  expect(pr.solid).toBe(true);        // you hit it
-  expect(pr.drawnOpen).toBe(true);    // it looks like air
-
   // and the two views differ ONLY inside a part that declared a view, so a
   // deception can only ever be deliberate — never drift
   expect(r.undeclaredColumns).toBe(0);
+});
+
+test("P·terrain: the model still holds an invisible wall, even though chamber one does not", async ({ page }) => {
+  /* The capability has to keep its test even once the content stops using it,
+     or removing the last painted rock from authored content would quietly
+     remove the only proof that §8's harder hazard is expressible at all — and
+     P·systems is going to need it the moment the tell exists. Compiled through
+     the real compiler on an ad-hoc chamber, so this asserts the terrain model
+     rather than any particular level. */
+  const r = await page.evaluate(() => {
+    const parts = partList([
+      hall([{ x: 0, ceil: 400, floor: 1200 }, { x: 1600, ceil: 400, floor: 1200 }]),
+      paintedRock(700, 240, { y: 700, h: 600 }),   // real, never drawn
+      falseFloor(1100, 300, { y: 900 })            // drawn, not there
+    ]);
+    const ch = { W: 1600, H: 1500, seed: 5, parts };
+    const solid = compileChamber(ch, "solid"), drawn = compileChamber(ch, "drawn");
+    // is (x,y) rock in this view? — no open span contains it
+    const rock = (arr, x, y) =>
+      !((arr[Math.round(x / STEP)] || []).some(sp => y > sp.top && y < sp.bot));
+    let differing = 0;
+    for (let i = 0; i < solid.length; i++)
+      if (JSON.stringify(solid[i]) !== JSON.stringify(drawn[i])) differing++;
+    return {
+      paintedHits: rock(solid, 820, 900),        // you fly into it
+      paintedLooksOpen: !rock(drawn, 820, 900),  // and it looks like air
+      ledgeDrawn: rock(drawn, 1250, 930),        // a ledge you can see
+      ledgeNotThere: !rock(solid, 1250, 930),    // and drop straight through
+      differing
+    };
+  });
+  expect(r.paintedHits).toBe(true);
+  expect(r.paintedLooksOpen).toBe(true);
+  expect(r.ledgeDrawn).toBe(true);
+  expect(r.ledgeNotThere).toBe(true);
+  expect(r.differing).toBeGreaterThan(0);
 });
 
 test("P·terrain: what you see is what you hit, wherever the terrain is honest", async ({ page }) => {
@@ -994,30 +1030,103 @@ test("P·floor: every fixture is placed against the profile, never at a typed y"
   await page.evaluate(() => __doids.loadChamber("slice"));
   const r = await page.evaluate(() => {
     const out = [];
-    const check = (kind, list) => (list || []).forEach((o, i) => out.push({
-      kind, i, x: Math.round(o.x), y: Math.round(o.y),
-      buried: __doids.solidAt(o.x, o.y),
-      // how far the surface it stands on is below its own origin. Objects drawn
-      // from a centre or a top-left corner sit their own height clear, so this
-      // is a "resting on something" test, not an exact offset.
-      drop: Math.round(__doids.ground(o.x, o.y) - o.y)
-    }));
-    check("rack", level.racks);
-    check("isolator", level.conduits);
-    check("decoy", level.decoys);
-    check("can", level.fuelCans);
-    check("ornament", level.plantOrnaments);
-    check("emplacement", level.turrets);
+    const check = (kind, list, gameplay) => (list || []).forEach((o, i) => {
+      const foot = o.foot || [0, 0], ceil = o.snap === "ceil";
+      /* snapH is the offset snapToSurface actually used, which is NOT the
+         draw height — a rack's h is its nominal 73 and it was snapped by half a
+         cage. Reading the wrong one made this guard pass every gameplay object
+         without testing anything. */
+      const base = o.y + (o.snapH != null ? o.snapH : (o.h || 0));
+      let float = -Infinity, gap = -Infinity, rests = false;
+      const n = Math.max(1, Math.ceil((foot[1] - foot[0]) / STEP));
+      for (let k = 0; k <= n; k++) {
+        const px = o.x + foot[0] + (foot[1] - foot[0]) * (k / n);
+        if (ceil) gap = Math.max(gap, o.y - __doids.roofAtY(px, o.y + 6));
+        else {
+          const clear = __doids.ground(px, o.y) - base;   // >0 means a gap under it
+          float = Math.max(float, clear);
+          if (clear <= 6) rests = true;
+        }
+      }
+      out.push({ kind, i, gameplay: !!gameplay, ceil,
+        x: Math.round(o.x), y: Math.round(o.y),
+        buried: __doids.solidAt(o.x, o.y),
+        float: Math.round(float), gap: Math.round(gap), rests });
+    });
+    check("rack", level.racks, true);
+    check("isolator", level.conduits, true);
+    check("decoy", level.decoys, true);
+    check("can", level.fuelCans, true);
+    check("emplacement", level.turrets, true);
+    check("ornament", level.plantOrnaments, false);
     return out;
   });
-  expect(r.length).toBeGreaterThan(20);
+  expect(r.length).toBeGreaterThan(30);
   for (const o of r) {
-    expect(o.buried, `${o.kind}[${o.i}] at ${o.x},${o.y} is inside rock`).toBe(false);
-    expect(o.drop, `${o.kind}[${o.i}] at ${o.x},${o.y} hangs clear of its surface`)
-      .toBeLessThan(200);
-    expect(o.drop, `${o.kind}[${o.i}] at ${o.x},${o.y} is below its surface`)
-      .toBeGreaterThanOrEqual(0);
+    /* THE RULE, as the owner put it: "items on the landscape need to be
+       integrated better, so they either sit on or are sunken into the ground,
+       not partially floating." So the test is not "is it exactly on the
+       surface" — sunk is explicitly fine, and on a deck that now moves 540px
+       across the floor a rigid object has to be sunk somewhere. What is banned
+       is a gap: nowhere under its footprint may the object's base sit clear of
+       the ground. And it has to touch somewhere, or it is buried entirely. */
+    if (o.ceil) {
+      // roof fittings are the asymmetric case — they hang from the lowest rock
+      // under them and may leave a small gap, because a buried lamp is no lamp
+      expect(o.buried, `${o.kind}[${o.i}] at ${o.x},${o.y} is inside rock`).toBe(false);
+      expect(o.gap, `${o.kind}[${o.i}] at ${o.x},${o.y} hangs clear of the roof`)
+        .toBeLessThan(60);
+      continue;
+    }
+    expect(o.float, `${o.kind}[${o.i}] at ${o.x},${o.y} floats above the deck`)
+      .toBeLessThanOrEqual(6);
+    expect(o.rests, `${o.kind}[${o.i}] at ${o.x},${o.y} never meets the deck`).toBe(true);
+    // and anything you have to INTERACT with must be reachable, not entombed
+    if (o.gameplay)
+      expect(o.buried, `${o.kind}[${o.i}] at ${o.x},${o.y} is inside rock`).toBe(false);
   }
+});
+
+test("P·floor: a route that is traversable is also findable", async ({ page }) => {
+  /* THE LESSON FROM THE SECOND ON-DEVICE ROUND, and the one worth carrying to
+     the other nine chambers. The owner flew west along the gallery mezzanine,
+     hit what looked like solid rock and could get no further. The chamber was
+     provably connected — every existing guard passed — because the upper
+     corridor overlapped the space beyond it by 113px, comfortably more than the
+     105.2 a hanging load needs. What the flood fill cannot ask is whether a
+     player can SEE the way on: continuing meant diving 400px through a wedge,
+     behind a rock face that (separately) was not being stroked at all.
+
+     "Traversable" and "findable" are different properties and only one of them
+     had a test. This is the other one: outside a declared pinch — where a
+     letterbox IS the mechanic and is meant to look like one — no transition
+     between adjacent columns may be tighter than a threshold generous enough
+     that the opening reads as an opening.
+
+     The threshold is derived rather than picked: 1.4x the at-rest tow envelope.
+     That is above the 113 this failed at and below the 172 of the tightest
+     legitimate feature in the chamber (the structural column's flanks), so it
+     has margin in both directions and moves with the sling if that is retuned. */
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  const r = await page.evaluate(() => {
+    const S = level.spans;
+    const need = Math.round(towEnvelope(0).vertical * 1.4);
+    const pinches = __doids.declaredPinches().map(d => [d.x, d.x + d.w]);
+    const tight = [];
+    for (let i = 0; i < S.length - 1; i++) {
+      const a = S[i], b = S[i + 1];
+      if (!a.length || !b.length) continue;      // a sealed column is a wall, fine
+      const x = i * STEP;
+      if (pinches.some(([l, rr]) => x >= l - STEP && x <= rr + STEP)) continue;
+      let best = 0;
+      for (const p of a) for (const q of b)
+        best = Math.max(best, Math.min(p.bot, q.bot) - Math.max(p.top, q.top));
+      if (best < need) tight.push({ x, gap: Math.round(best) });
+    }
+    return { need, tight };
+  });
+  expect(r.tight, `undeclared squeezes tighter than ${r.need}px: `
+    + r.tight.map(t => `x=${t.x} (${t.gap}px)`).join(", ")).toEqual([]);
 });
 
 test("P·floor: the vocabulary cannot author a column that seals the room", async ({ page }) => {

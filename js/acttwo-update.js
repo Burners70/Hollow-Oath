@@ -227,13 +227,33 @@ function shipRackLanding() {
     s.y = pad.top - SHIP_R; s.vy = 0; s.vx = 0;
     s.landed = true; s.landedOn = r.id;
     s.ang = assist ? normAngle(s.ang) : 0;
-    /* The same free band the hull gets against rock, so setting down on a bank of
-       people is not held to a stricter standard than setting down on stone —
-       what it costs above that is the hull's, never the rack's. Slamming INTO a
-       rack is towContact's business and always was. */
-    if (vn > HULL_SAFE_V) return hullImpact(vn);
-    return true;
+    /* Setting down on a bank's lid is a LANDING, not an impact, and the
+       distinction became load-bearing the moment impacts started killing again
+       (owner, August 2026). Routed through hullImpact it made the most-repeated
+       act in the whole loop lethal: you drop onto the lid to rig the sling, and
+       a 60px/s set-down is an ordinary approach, not flying into a wall.
+       So it uses Act One's own hard-landing rule instead — same free band, same
+       cost, same GENTLE HANDS discount, and fatal only by taking vitals to zero.
+       What it costs is still the hull's, never the rack's: slamming INTO a rack
+       is towContact's business and always was. */
+    return rackLanding(vn);
   }
+  return true;
+}
+
+/* Act One's hard landing (js/update.js), reused verbatim rather than
+   re-derived: 35 vitals, 12 with GENTLE HANDS, fatal only at zero. Returns
+   FALSE if it killed you, matching hullImpact's contract so the caller bails
+   the same way. */
+function rackLanding(vn) {
+  const safe = easyMode ? HULL_SAFE_V * 1.3 : HULL_SAFE_V;
+  if (vn <= safe) return true;
+  const dmg = upgrades.gentle ? 12 : 35;
+  ship.vitals -= dmg; camera.shake += 10;
+  haptic.heavy();
+  addText(ship.x, ship.y - 30, "HARD LANDING -" + dmg, PAL().DANGER);
+  blip(160, 40, 0.3, "sawtooth", 0.2);
+  if (ship.vitals <= 0) { shipDie(); return false; }
   return true;
 }
 
@@ -908,41 +928,36 @@ function chamberEntryPos() {
    rock, and with no lateral test the hull flew straight through all three
    ("shouldn't be able to fly through the steel surface").
 
-   A chamber impact HURTS rather than killing outright, which is the same
-   round's other note. Act One's cave-roof rule is untouched — instant death
-   unless the field is up — because down here there are overhangs, a pinch the
-   design asks you to carry speed through, and a load on a rope: an unforgiving
-   ceiling would make the tether unflyable. It is also what made §8's painted
-   rock read as a turret that shoots you, since an invisible wall that kills on
-   contact has no other available explanation. */
-const HULL_SAFE_V = 46;        // a brush below this costs nothing
-const HULL_DMG_K = 0.28;       // vitals per px/s of normal closing speed over it
-/* Capped, and the cap is the whole point of the change. Act One's worst landing
-   costs a flat 35 of a 100-vitals pool, so an uncapped linear ramp is off that
-   scale immediately: at K=0.5 a 320px/s wall hit billed 137 and killed outright
-   from full health, which is the instakill this was written to remove. One
-   impact can now never be fatal on its own — it takes a run of bad flying, or a
-   hull already hurt, which is the difference between a punishing wall and a
-   trap. Deliberately just under a hard landing: you were, after all, flying. */
-const HULL_DMG_MAX = 30;
+   A CHAMBER IMPACT KILLS THE HULL. Owner decision, August 2026, on the
+   re-authored floor: "I think impacts should still be instakill for the ship
+   (but not the rack)." This reverses the July round's cap, and the reversal is
+   coherent rather than a change of mind — the objection then was to dying with
+   no way to read it coming, not to dying. It arrives paired with two other
+   calls from the same session that remove the unreadable half: §8's invisible
+   walls get a tell before they are used again, and chamber one carries none at
+   all. What is left is rock you can see, which is what Act One has always
+   killed you for touching.
 
-/* The cost of putting the hull into rock. Returns FALSE if it killed you, so
-   callers inside updatePlay can bail exactly the way the `shipDie(); return;`
-   paths they replace do. */
+   THE RACK IS NOT COVERED BY THIS, and the separation is the point. A payload's
+   contact damage is `towContact` — a threshold on the NORMAL component, costing
+   reserve and integrity — and it is untouched. The people in the box do not die
+   because you clipped a wall; you do. */
+const HULL_SAFE_V = 46;        // a brush below this still costs nothing
+
+/* Putting the hull into rock. Returns FALSE if it killed you, so callers inside
+   updatePlay bail exactly the way the `shipDie(); return;` paths they replace
+   do. The free band survives the reversal, and so does FIELD MEDIC's wider one
+   (§4.4): setting down against a wall and grazing a sloped deck are not what
+   "impact" means, and a hair-trigger would make the tether unflyable in a way
+   an honest wall does not. */
 function hullImpact(vn) {
-  const s = ship;
   const safe = easyMode ? HULL_SAFE_V * 1.3 : HULL_SAFE_V;   // §4.4's FIELD MEDIC contract
   if (vn <= safe) { camera.shake += 1.5; return true; }
-  const dmg = Math.round(Math.min(HULL_DMG_MAX,
-    (vn - safe) * HULL_DMG_K * (easyMode ? 0.5 : 1)));
-  camera.shake += Math.min(9, 2 + dmg * 0.3);
+  camera.shake += 9;
   blip(150, 60, 0.22, "sawtooth", 0.16);
-  haptic.medium();
-  if (dmg < 1) return true;
-  s.vitals -= dmg;
-  addText(s.x, s.y - 30, "IMPACT -" + dmg, PAL().DANGER);
-  if (s.vitals <= 0) { shipDie(); return false; }
-  return true;
+  haptic.heavy();
+  shipDie();
+  return false;
 }
 
 /* The ceiling, in a chamber only — shoved back down off the rock and billed for

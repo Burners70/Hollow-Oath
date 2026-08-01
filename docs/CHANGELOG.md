@@ -11,6 +11,52 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## P·floor, second on-device round — a wall you could not see, and one you could not pass (August 2026)
+
+The owner flew the re-authored floor on a phone. Thirteen notes; the two that
+mattered were both cases of the chamber being provably fine and actually
+unflyable.
+
+**"I couldn't get any further west. Everything seemed solid."** It was solid, at
+the altitude they were flying. The gallery mezzanine ended at exactly the x where
+the neck's roof descended to meet it, so the upper corridor tapered into a wedge;
+the way on was a blind 400px dive underneath. Every guard passed, because the
+corridor overlapped the space beyond by 113px against the 105.2 a hanging load
+needs. **Traversable and findable are different properties and only one of them
+had a test.** The neck is re-cut as a floor hump rather than a roof plunge, and a
+new guard requires every undeclared transition to be at least 1.4x the at-rest
+tow envelope.
+
+**"A dodgy thing going on with the outline — missing for part of the wall."** A
+shipped bug, not an authoring slip. `matchSpan` never returns null for a
+non-empty column, so where a column holds two spans and its neighbour holds one,
+both answer with that one and the rock between them is drawn — and collided — as
+if it tapered away. `matchSpanMutual` makes the match mutual so the losing span
+ends in a face, and `spanAt` and the tile builder share the call: the rock you
+see and the rock you hit end in the same place. It also fixes the full-height
+verticals at a drawn-only ledge, which were the same fault from the other side.
+
+**Impacts kill the hull again**, reversing July's cap — paired with removing
+chamber one's invisible wall and gating any return on a tell, so what is left is
+rock you can see. The rack is untouched: clipping a wall kills you, not the
+people in the box. Landing on a rack's lid was pulled out of the blast radius and
+uses Act One's hard-landing rule instead.
+
+**The well is a well.** The cable was a 1.5px hairline 220px long starting in
+mid-air, under a rock roof MERCY could not have lowered it through. The shaft
+opens to the top of the world and the cable runs up out of frame.
+
+**Fixtures sink rather than float.** `snapToSurface` sampled one column, which
+was indistinguishable from correct on a flat deck; it samples the whole footprint
+now and takes the deepest floor. Ceilings deliberately do not mirror it.
+
+Also: bigger lamps and far more of them, three new ornament kinds including the
+set's first ceiling furniture, both draw loops culled to the view, and an entry
+banner giving the floor's name and direction — navigation only, silent on which
+bank is real.
+
+Suite 169 -> 175.
+
 ## P·floor — the chamber feature vocabulary, and a floor with shape (August 2026)
 
 Act Two's slice chamber was one 8050x620 room with 22px of noise on the deck. The

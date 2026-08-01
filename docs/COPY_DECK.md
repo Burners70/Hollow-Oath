@@ -598,6 +598,16 @@ APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
 | Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
+| Entering a chamber (`loadChamber`, `js/render.js`) | `<INTAKE>` / `<1> BANK ON THIS FLOOR · <WEST>` |
+
+The entry banner is **navigation and nothing else** (owner, August 2026, after
+arriving in a 9000px room with no idea which way to go). It names the floor,
+counts the banks and gives the direction — and deliberately says nothing about
+*which* bank is real, because pointing at that would delete §7.1's deduction.
+The name and the direction are both derived (the chamber's own `name`, and the
+side the racks are on relative to the entry), so it needs no re-authoring per
+chamber. It sits in `loadChamber` only because that is currently the sole way
+in; it belongs at the real entry once P·persist/P·content build one.
 | Landing beside one of his decoy boxes | `NOBODY IN IT — AND IT WAS WAITING FOR YOU` / `HIS BOXES BLEED YOU FOR LOOKING` |
 
 The flatline line was `THE CHAMBER IS THE UNIT OF RETRY` until the July 2026

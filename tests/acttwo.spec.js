@@ -467,28 +467,51 @@ test("P·slice: a released load falls and settles instead of hanging in the air 
 
 /* Owner feedback, July 2026 — the hull against solid rock. Act One's terrain has
    no walls, so updatePlay only ever tested vertically and the dart flew straight
-   through pillars, column flanks and §8's painted rock. These two assert the
-   rule, not a tuning number: a wall stops you, and it does not kill you. */
-test("owner: the hull cannot fly through a wall, and a chamber impact is survivable", async ({ page }) => {
+   through pillars and column flanks.
+
+   AUGUST 2026: the second half of this was reversed. It used to assert that an
+   impact "bills you, it doesn't kill" — the owner's July call. Having flown the
+   re-authored floor they took it back: "I think impacts should still be
+   instakill for the ship (but not the rack)." That is coherent rather than a
+   change of mind, and the same session says why — the July objection was to
+   dying with no way to READ it coming, and it arrived paired with removing
+   chamber one's invisible wall and requiring a tell before any comes back.
+
+   Flown against the STRUCTURAL COLUMN rather than §8's painted rock, which no
+   longer exists in this chamber. That is the better target anyway: it tests the
+   rule against rock you can see, which is now the only kind here. */
+test("owner: the hull cannot fly through a wall, and a wall impact kills", async ({ page }) => {
   await slice(page);
   const hit = await page.evaluate(async () => {
-    // §8's painted rock — drawn as open air, solid to collide with. Authored at
-    // x 5150 w 260, so approach it from the left along the hall at speed.
-    __doids.a2Warp(4980, 900, false);
+    // the column stands at x 4600..4810 from a capital at 470 down through the
+    // deck, so 900 is well inside its mass. Approach the west flank at speed.
+    __doids.a2Warp(4380, 900, false);
     ship.vx = 320; ship.vy = 0;
+    const before = lives;
     for (let i = 0; i < 70; i++) await new Promise(k => requestAnimationFrame(k));
-    return { x: ship.x, dead: ship.dead, vitals: ship.vitals,
+    return { x: ship.x, dead: ship.dead, livesLost: before - lives,
       inRock: __doids.solid(ship.x, ship.y) };
   });
-  expect(hit.x).toBeLessThan(5150);      // stopped at the face, never through it
-  expect(hit.inRock).toBe(false);        // and never left resting inside rock
-  expect(hit.dead).toBe(false);          // an impact bills you; it doesn't kill
+  expect(hit.x).toBeLessThan(4620);      // stopped at the face, never through it
+  expect(hit.livesLost).toBe(1);         // and it is fatal, as Act One's rock is
+
+  // the free band survives the reversal, which is what keeps the tether flyable:
+  // a brush is still a brush, and FIELD MEDIC still widens it (§4.4)
+  const graze = await page.evaluate(async () => {
+    __doids.reset(); __doids.loadChamber("slice");
+    __doids.a2Warp(4500, 900, false);
+    ship.vx = 24; ship.vy = 0;
+    for (let i = 0; i < 70; i++) await new Promise(k => requestAnimationFrame(k));
+    return { dead: ship.dead, x: ship.x, inRock: __doids.solid(ship.x, ship.y) };
+  });
+  expect(graze.dead).toBe(false);
+  expect(graze.inRock).toBe(false);      // still shoved clear of the mass
 });
 
 test("owner: a hull already buried in rock is put back into open air", async ({ page }) => {
   await slice(page);
   const out = await page.evaluate(async () => {
-    __doids.a2Warp(5280, 900, false);    // dead centre of the painted rock
+    __doids.a2Warp(4700, 900, false);    // dead centre of the structural column
     for (let i = 0; i < 20; i++) await new Promise(k => requestAnimationFrame(k));
     return { inRock: __doids.solid(ship.x, ship.y), dead: ship.dead };
   });
@@ -646,13 +669,18 @@ test("owner: a plant emplacement takes several rounds; an Act One turret still t
 test("owner: the chamber still lies, and dust is what gives it away", async ({ page }) => {
   await slice(page);
   const lies = await page.evaluate(() => {
-    // painted rock: solid where nothing is drawn. false floor: drawn, not solid.
-    const painted = __doids.solid(5280, 900);
+    /* Chamber one's lie is the FALSE FLOOR and only the false floor: the painted
+       rock came out in August 2026 (owner — no invisible walls on the first
+       level until §8.1's tell exists). A false floor is the honest half of the
+       pair: it is drawn, so you can see it, and committing to it drops you onto
+       a real deck rather than killing you against something that was never
+       there. Authored at x 3020 w 420, ledge at y 1250. */
+    const ledgeIsSolid = __doids.solid(3200, 1280);
     const drawnOnly = level.spansDrawn !== level.spans;
-    return { painted, drawnOnly };
+    return { ledgeIsSolid, drawnOnly };
   });
-  expect(lies.painted).toBe(true);      // the invisible wall is still there
-  expect(lies.drawnOnly).toBe(true);    // and the two views still differ
+  expect(lies.ledgeIsSolid).toBe(false);   // the ledge you can see is not there
+  expect(lies.drawnOnly).toBe(true);       // and the two views still differ
 
   /* The tell: dust settles on what is SOLID, never on what is drawn. Asserted as
      the property rather than by counting motes — the pool is randomised, and a
@@ -662,7 +690,7 @@ test("owner: the chamber still lies, and dust is what gives it away", async ({ p
      assertions, which made this flake — the check has to be taken against the
      same frame the sample came from. */
   const dust = await page.evaluate(async () => {
-    __doids.a2Warp(5280, 700, false);
+    __doids.a2Warp(3200, 1100, false);        // above the false floor
     for (let i = 0; i < 90; i++) await new Promise(k => requestAnimationFrame(k));
     const motes = __doids.dust();
     const settled = motes.filter(m => m.settled);

@@ -966,6 +966,29 @@ function matchSpan(col, ref) {
   return best;
 }
 
+/* The neighbour span that is genuinely the SAME surface continuing — a MUTUAL
+   best match. `matchSpan` on its own always answers with something (nearest
+   midpoint when nothing overlaps), which is exactly what stitches a sloping
+   floor across columns and must not change. But where a column holds two spans
+   and its neighbour holds one, BOTH of them answer with that one, and the rock
+   between them — a mezzanine's tip, a shelf running out — is then drawn and
+   collided as if it tapered into nothing. Owner, August 2026, flying the slice:
+   the corridor above the gallery mezzanine closed into a wedge with no edge
+   drawn on it, and read as "everything is solid" when the way on was a dive
+   underneath. Requiring the match to be mutual gives the losing span a clean
+   TERMINATION, which is what the end of a shelf actually is.
+
+   Used by `spanAt` and by the terrain tile builder, deliberately the same call
+   in both: the rock you see and the rock you hit have to end in the same place.
+   `dir` is +1 or -1. */
+function matchSpanMutual(spans, i, sp, dir) {
+  const nxt = spans[i + dir];
+  if (!nxt || !nxt.length) return null;
+  const m = matchSpan(nxt, sp);
+  if (!m) return null;
+  return matchSpan(spans[i], m) === sp ? m : null;
+}
+
 /* the open span at (x, y), interpolated between the two bracketing columns so
    floors and ceilings slope smoothly exactly as the heightmap's lerp does.
    y omitted means "the lowest span in the column" — the heightmap's one answer.
@@ -989,7 +1012,8 @@ function spanAt(x, y, spans) {
   // outright rather than by passing a sentinel into pickSpan and hoping.
   const a = y == null ? col[col.length - 1] : pickSpan(col, y);
   if (!a) return null;
-  const b = matchSpan(s[i + 1], a) || a;
+  const b = matchSpanMutual(s, i, a, 1) || a;   // a span with no mutual
+  // continuation holds its own height to the column edge and then stops
   // materials come from the span you are actually in, not interpolated: a face is
   // either milled or it is raw rock, and a half-milled surface means nothing.
   // Carried here so P·systems can ask what it just touched (§8.1's tell needs it:

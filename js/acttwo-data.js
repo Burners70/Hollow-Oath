@@ -822,9 +822,14 @@ function pinch(x, w, tier, o) {
       h: o.lift != null ? o.lift : 240, roughTop: 0, roughBot: 0, mb: deckMat },
     { op: "rock", x, y: floor, w, h: o.base != null ? o.base : 260,
       roughTop: 0, roughBot: 0, mt: deckMat },
+    /* `pinchX`/`pinchW` are the AUTHORED extent, not this part's. The overhead
+       mass is inset from the pinch's ends, so reporting the rock's own x/w told
+       __doids.declaredPinches a range 40px narrower at each end — and anything
+       asking "is this tight spot one somebody meant?" then answered no for the
+       pinch's own approach columns. */
     { op: "rock", x: x + inset, y: ceil, w: w - 2 * inset, h: floor - gap - ceil,
       roughTop: 0, roughBot: 0, mt: o.mt || MAT_ROCK, mb: o.mb || MAT_ROCK,
-      pinch: tier }
+      pinch: tier, pinchX: x, pinchW: w }
   ];
 }
 
@@ -964,7 +969,7 @@ const SLICE_HALL = [
   { x: 2760, ceil: 720, floor: 1300, mb: MAT_ROCK },   //   deck falls away   band 580
   { x: 3160, ceil: 700, floor: 1460 },   // THE SUMP — 280 below the     band 760
   { x: 3560, ceil: 690, floor: 1440 },   //   muster, and domed over it  band 750
-  { x: 3820, ceil: 960, floor: 1320 },   // THE NECK — the way out of it band 360
+  { x: 3820, ceil: 700, floor: 1060 },   // THE NECK — a lip, not a lid   band 360
   { x: 3980, ceil: 560, floor: 1260, mb: MAT_MACH },   //   climbing out      band 700
   { x: 4380, ceil: 430, floor: 1180 },   // THE LONG GALLERY             band 750
   { x: 4720, ceil: 300, floor: 1170 },   // THE STRUCTURAL BAY — tallest band 870
@@ -1011,9 +1016,19 @@ const SLICE_CHAMBER = {
     gallery(2760, 800, { top: 660, floor: 1420, rise: 90 }),
     // and the immaculate end of the range — a machined bore off the hall
     bore(6900, 800, { top: 470, floor: 1100, rise: 60 }),
-    // THE WAY DOWN, at the end of the floor — the next chamber's entrance, and
-    // where MERCY pays the well out
-    shaft(8300, 380, { top: 900, bot: 1950 }),
+    /* THE WELL SHAFT — the way down to the next chamber, and the way UP to
+       MERCY. Owner, August 2026: "the well should have a thick cable going up
+       off the top of the screen, which should be open (as, in theory, Mercy
+       would now be hovering over the top of it, gradually lowering the well
+       bucket down)." It was a pocket cut into the hall floor with the hall's
+       own rock roof over it, so the cable she pays the bay out on would have
+       had to pass through solid rock. `top: 0` puts the opening at the world's
+       own ceiling with zero roughness, so no rock is drawn over it at all and
+       the shaft reads as continuing up out of frame.
+       CONSEQUENCE, flagged rather than hidden: the top of the shaft is still a
+       ceiling, and ceilings kill again as of this round. Fly all the way up and
+       you die on the world's edge. */
+    shaft(8300, 380, { top: 0, bot: 1950, roughTop: 0 }),
 
     /* --- the rock ------------------------------------------------------ */
     /* THE STRUCTURAL COLUMN. Listed first among the rock so its bay is opened
@@ -1048,10 +1063,19 @@ const SLICE_CHAMBER = {
     falseFloor(3020, 420, { y: 1250 }),
     // the gallery mezzanine, running on into the structural bay
     shelf(3980, 640, { y: 800, h: 140 }),
-    /* §8 — PAINTED ROCK: a real outcrop that is never drawn. It has the same
-       silhouette to the pillar finder as a structural column, which is why the
-       column is authored to its left — see the ordering rule on partList. */
-    paintedRock(5150, 260, { y: 700, h: 460 }),
+    /* §8's PAINTED ROCK is deliberately NOT in this chamber (owner, August
+       2026, after flying it): "we need to give some sort of clue to the
+       invisible walls so they aren't unfair… we wouldn't want any on this
+       first level anyway." There was one here, 440px tall, undrawn, sitting on
+       the only route west — which is a trap in the tutorial chamber rather
+       than a hazard. The `paintedRock()` helper stays in the vocabulary and is
+       still exercised by the worldgen tests against a purpose-built chamber,
+       so the capability is proven without chamber one carrying it. It comes
+       back to authored content once §8.1's tell is built (P·systems).
+
+       Note the ordering rule this leaves in place for whoever re-adds one:
+       painted rock has the same signature to the pillar finder as a structural
+       column, so it must be authored to the RIGHT of the column. */
     // a landing plinth on the climb, so the tight half of the floor still offers
     // somewhere to set down and think
     bench(5480, 300, { y: 940 }),
@@ -1074,23 +1098,38 @@ const SLICE_CHAMBER = {
      exactly on the compiled surface. Cool cyan fixtures are his; the warm ones
      on the deck are the failing original plant. */
   lights: [
-    { x:  380, y:  300, r: 380, snap: "ceil" },          // down the entry shaft
-    { x:  700, y: onDeck(700),  r: 320, snap: "floor", warm: true },
-    { x:  900, y: onRoof(900),  r: 420, snap: "ceil" },
-    { x: 1700, y: onRoof(1700), r: 380, snap: "ceil" },
-    { x: 2250, y: onDeck(2250), r: 300, snap: "floor", warm: true },
-    { x: 2600, y: onRoof(2600), r: 340, snap: "ceil" },
-    { x: 3400, y: onRoof(3400), r: 420, snap: "ceil" },
-    { x: 3760, y: onDeck(3760), r: 320, snap: "floor", warm: true },
-    { x: 4200, y: onRoof(4200), r: 400, snap: "ceil" },
-    { x: 4800, y: onRoof(4800), r: 360, snap: "ceil" },  // the top of the bay
-    { x: 5450, y: onDeck(5450), r: 300, snap: "floor", warm: true },
-    { x: 5600, y: onRoof(5600), r: 340, snap: "ceil" },
-    { x: 6350, y: onRoof(6350), r: 300, snap: "ceil" },
-    { x: 6900, y: onDeck(6900), r: 320, snap: "floor", warm: true },
-    { x: 7300, y: onRoof(7300), r: 440, snap: "ceil" },
-    { x: 8150, y: onRoof(8150), r: 400, snap: "ceil" },
-    { x: 8480, y: 1850, r: 360, snap: "floor" }          // the bottom of the well shaft
+    { x:  380, y:  300, r: 420, snap: "ceil", fit: 2.4 },   // down the entry shaft
+    { x:  700, y: onDeck(700),  r: 340, snap: "floor", warm: true },
+    { x:  900, y: onRoof(900),  r: 460, snap: "ceil" },
+    { x: 1300, y: onDeck(1300), r: 320, snap: "floor", warm: true },
+    { x: 1450, y: onRoof(1450), r: 420, snap: "ceil" },
+    { x: 1780, y: onRoof(1780), r: 380, snap: "ceil" },
+    { x: 2100, y: onRoof(2100), r: 340, snap: "ceil" },
+    { x: 2260, y: onDeck(2260), r: 300, snap: "floor", warm: true },
+    { x: 2800, y: onRoof(2800), r: 380, snap: "ceil" },
+    { x: 3040, y: onRoof(3040), r: 420, snap: "ceil" },
+    { x: 3200, y: onDeck(3200), r: 340, snap: "floor", warm: true },
+    { x: 3400, y: onRoof(3400), r: 440, snap: "ceil" },
+    { x: 3320, y: onDeck(3320), r: 340, snap: "floor", warm: true },
+    { x: 3900, y: onRoof(3900), r: 320, snap: "ceil" },
+    { x: 4180, y: onRoof(4180), r: 400, snap: "ceil" },
+    { x: 4380, y: onDeck(4380), r: 340, snap: "floor", warm: true },
+    { x: 4520, y: onRoof(4520), r: 420, snap: "ceil" },
+    { x: 4800, y: onRoof(4800), r: 380, snap: "ceil", fit: 2.2 },  // the top of the bay
+    { x: 5240, y: onRoof(5240), r: 400, snap: "ceil" },
+    { x: 5460, y: onDeck(5460), r: 300, snap: "floor", warm: true },
+    { x: 5620, y: onRoof(5620), r: 340, snap: "ceil" },
+    { x: 6060, y: onRoof(6060), r: 320, snap: "ceil" },
+    { x: 6180, y: onDeck(6180), r: 280, snap: "floor", warm: true },
+    { x: 6360, y: onRoof(6360), r: 320, snap: "ceil" },
+    { x: 6900, y: onDeck(6900), r: 340, snap: "floor", warm: true },
+    { x: 7060, y: onRoof(7060), r: 440, snap: "ceil" },
+    { x: 7420, y: onRoof(7420), r: 420, snap: "ceil" },
+    { x: 7560, y: onDeck(7560), r: 320, snap: "floor", warm: true },
+    { x: 7900, y: onRoof(7900), r: 400, snap: "ceil" },
+    { x: 8060, y: onDeck(8060), r: 340, snap: "floor", warm: true },
+    { x: 8180, y: onRoof(8180), r: 420, snap: "ceil" },
+    { x: 8480, y: 1850, r: 380, snap: "floor" }          // the bottom of the well shaft
   ],
   /* dressing. These are #69's existing ornaments (js/acttwo-render.js), which
      were built and then never switched on by any level — conduitRun in
@@ -1098,18 +1137,32 @@ const SLICE_CHAMBER = {
      `snap` sits an ornament on the floor of whatever span its y falls in, so a
      retune of the terrain doesn't leave the furniture hovering. */
   ornaments: [
-    { type: "conduitRun",   x:  620, y: onDeck(620),  w: 460, snap: "floor" },
+    { type: "crateStack",   x:  620, y: onDeck(620),  w: 88, h: 58, n: 3, snap: "floor" },
+    { type: "conduitRun",   x:  760, y: onDeck(760),  w: 420, snap: "floor" },
+    { type: "gantry",       x:  840, y: onRoof(840),  w: 280, snap: "ceil" },
     { type: "rackingFrame", x: 1560, y: onDeck(1560), w: 90, h: 140, snap: "floor" },
+    { type: "pipeBank",     x: 1620, y: onDeck(1620), w: 220, n: 4, snap: "floor" },
+    { type: "crateStack",   x: 2020, y: onDeck(2020), w: 84, h: 54, n: 2, snap: "floor" },
     { type: "ventGrate",    x: 2350, y: onDeck(2350), w: 70, h: 90,  snap: "floor" },
-    { type: "conduitRun",   x: 1900, y: onDeck(1900), w: 300, snap: "floor" },
-    { type: "conduitRun",   x: 3300, y: onDeck(3300), w: 520, snap: "floor" },
+    { type: "pipeBank",     x: 2860, y: onDeck(2860), w: 240, n: 5, snap: "floor" },
+    { type: "gantry",       x: 3020, y: onRoof(3020), w: 300, snap: "ceil" },
+    { type: "conduitRun",   x: 3180, y: onDeck(3180), w: 460, snap: "floor" },
+    { type: "crateStack",   x: 3480, y: onDeck(3480), w: 92, h: 60, n: 3, snap: "floor" },
     { type: "ventGrate",    x: 3880, y: onDeck(3880), w: 70, h: 90,  snap: "floor" },
-    { type: "rackingFrame", x: 4260, y: onDeck(4260), w: 90, h: 140, snap: "floor" },
-    { type: "junctionTruss",x: 4950, y: onDeck(4950), scale: 1.2, snap: "floor" },
-    { type: "rackingFrame", x: 5600, y: onDeck(5600), w: 90, h: 140, snap: "floor" },
-    { type: "ventGrate",    x: 6350, y: onDeck(6350), w: 70, h: 90,  snap: "floor" },
-    { type: "conduitRun",   x: 7150, y: onDeck(7150), w: 480, snap: "floor" },
-    { type: "ventGrate",    x: 7500, y: onDeck(7500), w: 70, h: 90,  snap: "floor" },
+    { type: "rackingFrame", x: 4060, y: onDeck(4060), w: 90, h: 140, snap: "floor" },
+    { type: "gantry",       x: 4400, y: onRoof(4400), w: 280, snap: "ceil" },
+    { type: "pipeBank",     x: 4900, y: onDeck(4900), w: 220, n: 4, snap: "floor" },
+    { type: "junctionTruss",x: 5060, y: onDeck(5060), scale: 1.2, snap: "floor" },
+    { type: "crateStack",   x: 5240, y: onDeck(5240), w: 88, h: 58, n: 3, snap: "floor" },
+    { type: "rackingFrame", x: 5680, y: onDeck(5680), w: 90, h: 140, snap: "floor" },
+    { type: "ventGrate",    x: 6060, y: onDeck(6060), w: 70, h: 90,  snap: "floor" },
+    { type: "pipeBank",     x: 6260, y: onDeck(6260), w: 180, n: 3, snap: "floor" },
+    { type: "gantry",       x: 7040, y: onRoof(7040), w: 240, snap: "ceil" },
+    { type: "conduitRun",   x: 7060, y: onDeck(7060), w: 460, snap: "floor" },
+    { type: "crateStack",   x: 7560, y: onDeck(7560), w: 90, h: 58, n: 4, snap: "floor" },
+    { type: "junctionTruss",x: 7800, y: onDeck(7800), scale: 1.1, snap: "floor" },
+    { type: "pipeBank",     x: 7980, y: onDeck(7980), w: 220, n: 4, snap: "floor" },
+    { type: "rackingFrame", x: 8180, y: onDeck(8180), w: 90, h: 140, snap: "floor" },
     { type: "conduitRun",   x: 8340, y: 1900, w: 300, snap: "floor" }
   ],
   /* ---- P·slice: one rack, its feed, and THE WELL ---------------------------
@@ -1176,7 +1229,7 @@ const SLICE_CHAMBER = {
      unladen — which is the only answer available, since a slung rack cannot be
      shot for or shielded. Move or delete this line freely; nothing references it. */
   turrets: [
-    { x: 3760, y: onDeck(3760), snap: "floor" }
+    { x: 3300, y: onDeck(3300), snap: "floor" }
   ],
   /* THE WELL (§7.6) — MERCY cannot land and cannot descend, so she pays out a
      docking bay on a cable. It hangs in the shaft at the END of the floor,
@@ -1220,12 +1273,48 @@ const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
 /* sit an ornament on the floor of whichever span its y falls in, so terrain
    retuning never leaves the furniture hovering in mid-air. h (or 0) is how far
    above the floor its origin has to sit for the thing to rest ON the floor. */
+/* The surface an EXTENDED object rests on. Owner, August 2026, flying the
+   re-authored floor: "items on the landscape need to be integrated better, so
+   they either sit on or are sunken into the ground, not partially floating."
+
+   This used to sample ONE column, which was indistinguishable from correct while
+   the deck was flat and wrong the moment P·floor gave it a slope: a 70px vent
+   grate snapped at its origin hangs off the low end, and a 520px conduit run is
+   hopeless. So sample the whole FOOTPRINT and take the DEEPEST floor across it.
+   The object then rests at the lowest ground under it and buries into everything
+   higher — which is exactly the direction the note asks for, because sunk reads
+   as installed and floating reads as broken.
+
+   CEILINGS DO NOT MIRROR IT, and that asymmetry is deliberate. Embedding a roof
+   fitting the way a crate sinks into the deck would simply hide it — a buried
+   lamp is an absent lamp — so a ceiling fixture takes the DEEPEST top under its
+   footprint and hangs from the lowest rock there. It can leave a small gap over
+   uneven roof; it can never disappear. (Which is also why nothing in the slice
+   chamber is sited under the stalactites: a 95px tooth is not uneven roof, it
+   is a different surface.)
+
+   `foot` is [left, right] in px relative to the object's own x, set by whichever
+   builder knows the object's shape — top-left-origin ornaments get [0, w],
+   centre-origin racks and cans get [-w/2, w/2]. Absent, it degrades to the old
+   point sample, which is right for something genuinely pointlike. */
+function surfaceAcross(o, spans, ceil) {
+  const foot = o.foot || [0, 0];
+  const n = Math.max(1, Math.ceil((foot[1] - foot[0]) / STEP));
+  let best = null;
+  for (let k = 0; k <= n; k++) {
+    const sp = spanAt(o.x + lerp(foot[0], foot[1], k / n), o.y, spans);
+    if (!sp) continue;
+    if (!best || (ceil ? sp.top > best.top : sp.bot > best.bot)) best = sp;
+  }
+  return best;
+}
+
 function snapToSurface(list, spans) {
   return (list || []).map(o => {
     if (!o.snap) return Object.assign({}, o);
     // the INTERPOLATED surface, i.e. the one collision and groundAt see — not
     // the nearest sampled column, which is a fraction of a slope away from it
-    const sp = spanAt(o.x, o.y, spans);
+    const sp = surfaceAcross(o, spans, o.snap === "ceil");
     if (!sp) return Object.assign({}, o);
     return Object.assign({}, o, o.snap === "ceil"
       ? { y: sp.top + 10 }                       // hung from the ceiling
@@ -1251,8 +1340,13 @@ function buildRacks(ch, spans) {
      one — passing the full height left the box floating a cage-height clear of
      the deck. */
   return snapToSurface((ch.racks || []).map(r =>
-    Object.assign({}, r, { h: cage.h / 2 })), spans).map(r => ({
+    Object.assign({}, r, { h: cage.h / 2, foot: [-cage.w / 2, cage.w / 2] })), spans).map(r => ({
     id: r.id, x: r.x, y: r.y, w: RACK_SIZE.w, h: RACK_SIZE.h,
+    /* The footprint and the offset it was SNAPPED with, carried onto the built
+       object. Without them nothing downstream can check the placement rule —
+       the worldgen guard was silently passing every rack because it could only
+       see the draw height, which is not the number snapToSurface used. */
+    foot: r.foot, snapH: cage.h / 2,
     occupants: r.occupants || RACK_OCCUPANTS_DEFAULT, label: r.label,
     // §7.5 — on mains it is bright and steady. Cutting the feed is what starts
     // the dying, and the player watches it happen because they caused it.
@@ -1310,7 +1404,7 @@ function buildConduits(ch, spans, racks, decoys) {
      hovered a clear 28px off the deck (owner feedback: "should be attached to a
      wall or floor, not floating"). */
   return snapToSurface((ch.conduits || []).map(c =>
-    Object.assign({}, c, { h: 0 })), spans).map(c => {
+    Object.assign({}, c, { h: 0, foot: [-16, 16] })), spans).map(c => {
     const lid = RACK_SIZE.h * RACK_CAGE_H / 2 + 8;
     const rk = racks.find(r => r.id === c.rack);
     /* Every trunk ends at a BOX, real feed or decoy (owner feedback: "false
@@ -1322,6 +1416,7 @@ function buildConduits(ch, spans, racks, decoys) {
     const x1 = box ? box.x : c.x + 240;
     const y1 = box ? box.y - lid : c.y - 120;
     return { id: c.id, rack: c.rack, real: !!c.real, label: c.label,
+      foot: c.foot, snapH: 0,
       // the isolator, stood on the floor
       x: c.x, y: c.y, cut: false, scanT: 0,
       // kept for the shot test and anything that wants the run's endpoints
@@ -1357,8 +1452,8 @@ const DECOY_R = 104;           // how close is "beside it"
 function buildDecoys(ch, spans) {
   const cage = RACK_SIZE.h * RACK_CAGE_H;
   return snapToSurface((ch.decoys || []).map(d =>
-    Object.assign({}, d, { h: cage / 2 })), spans).map(d => ({
-    id: d.id, conduit: d.conduit, x: d.x, y: d.y,
+    Object.assign({}, d, { h: cage / 2, foot: [-RACK_SIZE.w * RACK_CAGE_W / 2, RACK_SIZE.w * RACK_CAGE_W / 2] })), spans).map(d => ({
+    id: d.id, conduit: d.conduit, x: d.x, y: d.y, foot: d.foot, snapH: cage / 2,
     mount: d.mount || "floor", occupants: d.occupants || RACK_OCCUPANTS_DEFAULT,
     label: d.label, penalised: false
   }));
@@ -1369,8 +1464,9 @@ function buildDecoys(ch, spans) {
    and both default harmlessly on an Act One turret. */
 function buildEmplacements(ch, spans) {
   return snapToSurface((ch.turrets || []).map(t =>
-    Object.assign({}, t, { h: 0 })), spans).map(t => ({
-    x: t.x, y: t.y, cd: 1 + Math.random() * 2, alive: true, ang: -Math.PI / 2,
+    Object.assign({}, t, { h: 0, foot: [-18, 18] })), spans).map(t => ({
+    x: t.x, y: t.y, foot: t.foot, snapH: 0,
+    cd: 1 + Math.random() * 2, alive: true, ang: -Math.PI / 2,
     heavy: true, hp: EMPLACE_HP, hitT: 0
   }));
 }
@@ -1397,7 +1493,18 @@ function genChamber(ch) {
     isChamber: true, isPlant: !!ch.plant, plantZone: ch.zone, dark: false,
     // ornaments and lights are placed against what is REALLY there, not against
     // the lie — a fixture bolted to a floor that doesn't exist would give it away
-    plantOrnaments: snapToSurface(ch.ornaments, spans),
+    /* An ornament draws down-right from a top-left origin, so its footprint runs
+       from its own x eastward — EXCEPT conduitRun, which samples the deck along
+       its whole length as it draws and so lays itself along the terrain already.
+       Giving that one a footprint snaps its origin to the deepest ground under a
+       460px run and buries the near end. The distinction is "is this thing
+       rigid?", not "how wide is it". */
+    plantOrnaments: snapToSurface((ch.ornaments || []).map(o =>
+      Object.assign({}, o, { foot: o.type === "conduitRun" ? [0, 0]
+        : [0, o.w || (o.scale ? 80 * o.scale : 80)] })), spans),
+    /* A light is an ANCHOR, not a rigid box: the fitting is drawn symmetric
+       about it, so the footprint rule would sink it below its own surface on a
+       slope and hide it. Point snap, and site fixtures off the steep bits. */
     lights: snapToSurface(ch.lights, spans),
     /* Fuel cans sit ON the deck, so the origin is lifted by the can's own half
        height — the same correction buildRacks needs, and for the same reason:
@@ -1405,8 +1512,8 @@ function genChamber(ch) {
        its centre. `taken` is per-attempt, which is what makes a chamber retry a
        genuine reset of the fuel plan rather than a stripped route. */
     fuelCans: snapToSurface((ch.fuel || []).map(f =>
-      Object.assign({}, f, { h: 13 })), spans).map((f, i) =>
-      ({ id: "f" + i, x: f.x, y: f.y, taken: false })),
+      Object.assign({}, f, { h: 13, foot: [-14, 14] })), spans).map((f, i) =>
+      ({ id: "f" + i, x: f.x, y: f.y, foot: f.foot, snapH: 13, taken: false })),
     oids: [], turrets: buildEmplacements(ch, spans),
     bullets: [], shots: [], drones: [], pods: [],
     fakePods: [], anomalies: [], scenery: [], fragmentsHere: [],

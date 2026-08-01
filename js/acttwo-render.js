@@ -506,7 +506,7 @@ function buildSpanTile(x0, x1, spans, H, pal) {
     for (let i = i0; i < i1; i++) {
       const xa = i * STEP, xb = (i + 1) * STEP;
       for (const sp of spans[i]) {
-        const m = matchSpan(spans[i + 1], sp) || sp;
+        const m = matchSpanMutual(spans, i, sp, 1) || sp;
         if (sp.mb === "mach") {
           tctx.beginPath();
           tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
@@ -528,7 +528,7 @@ function buildSpanTile(x0, x1, spans, H, pal) {
     for (let i = i0; i < i1; i++) {
       const xa = i * STEP, xb = (i + 1) * STEP;
       for (const sp of spans[i]) {
-        const m = matchSpan(spans[i + 1], sp) || sp;
+        const m = matchSpanMutual(spans, i, sp, 1) || sp;
         tctx.beginPath();
         tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
         tctx.lineTo(xb, m.bot);  tctx.lineTo(xa, sp.bot);
@@ -549,13 +549,13 @@ function buildSpanTile(x0, x1, spans, H, pal) {
       for (let i = i0; i < i1; i++) {
         const xa = i * STEP, xb = (i + 1) * STEP;
         for (const sp of spans[i]) {
-          const fwd = matchSpan(spans[i + 1], sp), m = fwd || sp;
+          const fwd = matchSpanMutual(spans, i, sp, 1), m = fwd || sp;
           if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top); any = true; }
           if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot); any = true; }
           // a flank belongs to the rock pass: a wall is where the mass is cut
           if (mat === "rock") {
             if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); any = true; }
-            if (i > i0 && !matchSpan(spans[i - 1], sp)) {
+            if (i > i0 && !matchSpanMutual(spans, i, sp, -1)) {
               tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); any = true;
             }
           }
@@ -614,36 +614,56 @@ const LIGHT_AMBIENT = 0.10;
    hang from a short stem under a cowl that throws the light down; floor fittings
    are uplighters on a squat base with an angled head. Both silhouettes are
    deliberately NOT a plain horizontal bar — see the note at the call site. */
+/* Owner, August 2026: "the ceiling lamps are nice but too small and
+   infrequent." Both halves are fixed — the count and the radii are in the
+   chamber's own `lights` list, and the FITTING is scaled here so every chamber
+   gets it. `k` defaults to the size the note asked for and a chamber can
+   override per fixture with `fit`, which is what a big bay lamp wants.
+   Drawn with a bracket and a housing rather than as a bigger cowl: at this size
+   a bare trapezoid reads as a shape, and a lamp has to read as hardware. */
 function drawLightFitting(L, tint) {
-  const ceil = L.snap === "ceil";
+  const ceil = L.snap === "ceil", k = L.fit || 1.9;
+  const S = n => n * k;
   ctx.save();
   ctx.strokeStyle = shade(tint, .55); ctx.lineWidth = 2;
   ctx.fillStyle = shade(TOK.VOID, .95);
   if (ceil) {
-    ctx.beginPath(); ctx.moveTo(L.x, L.y - 12); ctx.lineTo(L.x, L.y - 3); ctx.stroke();
+    // the stem, and a bracket across it so it is bolted to something
+    ctx.beginPath(); ctx.moveTo(L.x, L.y - S(13)); ctx.lineTo(L.x, L.y - S(3)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(L.x - S(6), L.y - S(12)); ctx.lineTo(L.x + S(6), L.y - S(12)); ctx.stroke();
     ctx.beginPath();                       // the cowl: wider at the bottom
-    ctx.moveTo(L.x - 7, L.y - 3); ctx.lineTo(L.x + 7, L.y - 3);
-    ctx.lineTo(L.x + 12, L.y + 4); ctx.lineTo(L.x - 12, L.y + 4);
+    ctx.moveTo(L.x - S(7), L.y - S(3)); ctx.lineTo(L.x + S(7), L.y - S(3));
+    ctx.lineTo(L.x + S(12), L.y + S(4)); ctx.lineTo(L.x - S(12), L.y + S(4));
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = shade(tint, .9);       // the lamp behind it
-    ctx.fillRect(L.x - 9, L.y + 3, 18, 3);
+    ctx.fillRect(L.x - S(9), L.y + S(2.5), S(18), S(3.5));
+    // and a soft bloom right at the tube, so the fitting is itself a light
+    drawGlow(L.x, L.y + S(4), S(9), tint, .55);
   } else {
     ctx.beginPath();                       // base
-    ctx.moveTo(L.x - 10, L.y + 5); ctx.lineTo(L.x + 10, L.y + 5);
-    ctx.lineTo(L.x + 6, L.y - 4); ctx.lineTo(L.x - 6, L.y - 4);
+    ctx.moveTo(L.x - S(10), L.y + S(5)); ctx.lineTo(L.x + S(10), L.y + S(5));
+    ctx.lineTo(L.x + S(6), L.y - S(4)); ctx.lineTo(L.x - S(6), L.y - S(4));
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = shade(tint, .9);       // head, aimed up and away
     ctx.beginPath();
-    ctx.moveTo(L.x - 6, L.y - 4); ctx.lineTo(L.x + 6, L.y - 4);
-    ctx.lineTo(L.x + 9, L.y - 11); ctx.lineTo(L.x - 3, L.y - 11);
+    ctx.moveTo(L.x - S(6), L.y - S(4)); ctx.lineTo(L.x + S(6), L.y - S(4));
+    ctx.lineTo(L.x + S(9), L.y - S(11)); ctx.lineTo(L.x - S(3), L.y - S(11));
     ctx.closePath(); ctx.fill();
+    drawGlow(L.x + S(3), L.y - S(9), S(8), tint, .5);
   }
   ctx.restore();
 }
 
-function drawChamberLights(now) {
+/* `cx`/`viewW` are the visible band. Culling to it is what makes "more light
+   sources" (owner, August 2026) free: every fixture used to build a radial
+   gradient and fill up to an 880px square every frame whether or not it was
+   anywhere near the screen, so the cost was per-CHAMBER rather than per-view
+   and tripling the count would have tripled it. Now it is per-view, and a
+   chamber can be lit as densely as it likes. */
+function drawChamberLights(now, cx, viewW) {
   const lights = level.lights;
   if (!lights || !lights.length) return;
+  const vx0 = cx != null ? cx : -Infinity, vx1 = cx != null ? cx + viewW : Infinity;
   const H = level.H || WORLD_H;
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
@@ -654,10 +674,11 @@ function drawChamberLights(now) {
   ctx.fillRect(0, -260, level.W, H + 320);
   for (let i = 0; i < lights.length; i++) {
     const L = lights[i];
+    const r = L.r || 340;
+    if (L.x + r < vx0 || L.x - r > vx1) continue;          // not in frame
     // a slow, shallow breath, out of phase per fixture so the hall never pulses
     // as one object; dead steady when reduced flash is on
     const flick = reducedFlash ? 1 : 0.93 + 0.07 * Math.sin(now * 1.7 + i * 2.1);
-    const r = L.r || 340;
     const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, r);
     const tint = L.warm ? TOK.GOLD_WARM : TOK.CYAN_PALE;
     g.addColorStop(0, shade(tint, .40 * flick));
@@ -765,8 +786,7 @@ function drawJunctionTruss(x, y, scale, color) {
 function drawConduitRunOrnament(x, y, w, now) {
   const at = px => {
     if (!level.spans) return y;
-    const col = level.spans[clamp(Math.round(px / STEP), 0, level.spans.length - 1)] || [];
-    const sp = pickSpan(col, y);
+    const sp = spanAt(px, y);        // the interpolated deck, as collision sees it
     return sp ? sp.bot - 4 : y;
   };
   const step = 48, pts = [];
@@ -805,14 +825,93 @@ function drawVentGrateOrnament(x, y, w, h, color) {
   ctx.strokeRect(x, y, w, h);
   ctx.restore();
 }
+/* Owner, August 2026: "the rooms are still very sparse." Three more kinds, and
+   many more of them per chamber. Chosen so the set covers the three things a
+   working floor actually has — services (pipes), stores (crates) and structure
+   (a gantry overhead) — rather than three more variations on a box, and so that
+   two of them are CEILING furniture, which the old set had none of and which is
+   what makes a tall bay read as a room rather than as a void with a floor. */
 const PLANT_ORNAMENTS = {
   conduitRun: (o, now) => drawConduitRunOrnament(o.x, o.y, o.w || 120, now),
   rackingFrame: o => drawRackingFrameOrnament(o.x, o.y, o.w || 90, o.h || 130, o.color),
   junctionTruss: o => drawJunctionTruss(o.x, o.y, o.scale || 1, o.color || TOK.CYAN_TEXT),
-  ventGrate: o => drawVentGrateOrnament(o.x, o.y, o.w || 70, o.h || 90, o.color)
+  ventGrate: o => drawVentGrateOrnament(o.x, o.y, o.w || 70, o.h || 90, o.color),
+  pipeBank: o => drawPipeBank(o.x, o.y, o.w || 200, o.n || 4, o.color),
+  crateStack: o => drawCrateStack(o.x, o.y, o.w || 90, o.h || 60, o.n || 3, o.color),
+  gantry: o => drawGantry(o.x, o.y, o.w || 260, o.color)
 };
-function drawPlantOrnaments(now) {
+
+/* A run of service pipes along a face, with flange collars. Horizontal, so it
+   reads as plumbing rather than as more racking, and quiet: this is background
+   that makes the room feel used, not a point of interest competing with the
+   fixtures that matter. */
+function drawPipeBank(x, y, w, n, color) {
+  const c = color || TOK.CYAN_TEXT;
+  ctx.save();
+  ctx.lineWidth = 2.2;
+  for (let i = 0; i < n; i++) {
+    const py = y - 6 - i * 9;
+    ctx.strokeStyle = shade(c, .18 + i * 0.05);
+    ctx.beginPath(); ctx.moveTo(x, py); ctx.lineTo(x + w, py); ctx.stroke();
+  }
+  ctx.strokeStyle = shade(c, .34); ctx.lineWidth = 1.4;
+  for (let fx = x + 20; fx < x + w; fx += 78) {
+    ctx.beginPath(); ctx.moveTo(fx, y - 2); ctx.lineTo(fx, y - 4 - n * 9); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* Stores, stacked and staggered so a row of them never reads as a repeated
+   stamp. Deterministic from x, because a chamber has to compile the same way
+   every load (the spanChecksum contract) and a jittering crate would undo it. */
+function drawCrateStack(x, y, w, h, n, color) {
+  const c = color || TOK.CYAN_TEXT;
+  ctx.save();
+  ctx.strokeStyle = shade(c, .45); ctx.lineWidth = 1.6;
+  ctx.fillStyle = shade(TOK.VOID, .8);
+  for (let i = 0; i < n; i++) {
+    const jitter = ((Math.round(x) + i * 37) % 11) - 5;
+    const cw = w - i * 9, cx = x + (w - cw) / 2 + jitter, cy = y - (i + 1) * h;
+    ctx.beginPath(); pathRoundRect(cx, cy, cw, h - 3, 3); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + 5, cy + (h - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (h - 3) / 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* An overhead walkway, hung from the roof — CEILING furniture, which is what a
+   tall bay needs to stop reading as an empty void above the deck. Snapped with
+   snap:"ceil", so its hangers meet real rock.
+
+   AUTHORING RULE, learned three times over while placing these: a rigid roof
+   fitting must not straddle a change in the roof. It hangs from the LOWEST rock
+   under its whole footprint (see surfaceAcross — a buried lamp is no lamp), so
+   a 150px step or a corner fillet anywhere along it becomes that much daylight
+   at the other end. A `bore`'s default 110px radius counts, and is the one that
+   caught this: it bows the roof down by up to the full radius for `radius` px
+   past each end, which is invisible in the station list. Site these in the flat
+   middle of a bay. */
+function drawGantry(x, y, w, color) {
+  const c = color || TOK.CYAN_TEXT;
+  ctx.save();
+  ctx.strokeStyle = shade(c, .4); ctx.lineWidth = 2;
+  const deck = y + 46;
+  for (let hx = x + 16; hx <= x + w - 16; hx += 84) {          // hangers
+    ctx.beginPath(); ctx.moveTo(hx, y); ctx.lineTo(hx, deck); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x, deck); ctx.lineTo(x + w, deck); ctx.stroke();
+  ctx.strokeStyle = shade(c, .22); ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(x, deck - 13); ctx.lineTo(x + w, deck - 13); ctx.stroke();
+  for (let bx = x; bx < x + w; bx += 34) {                     // handrail stanchions
+    ctx.beginPath(); ctx.moveTo(bx, deck); ctx.lineTo(bx, deck - 13); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawPlantOrnaments(now, cx, viewW) {
+  const vx0 = cx != null ? cx - 260 : -Infinity, vx1 = cx != null ? cx + viewW + 260 : Infinity;
   for (const o of level.plantOrnaments) {
+    if (o.x > vx1 || o.x + (o.w || 140) < vx0) continue;   // not in frame
     const fn = PLANT_ORNAMENTS[o.type];
     if (fn) fn(o, now);
   }
@@ -1070,8 +1169,25 @@ function drawWellBay(well, now) {
   const sway = Math.sin(now / 2.6 + (well.phase || 0)) * 18;
   const bx = well.x + sway, by = well.y;
   ctx.save();
-  ctx.strokeStyle = shade(TOK.CYAN_TEXT, .35); ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(well.x, well.y - 220); ctx.lineTo(bx, by); ctx.stroke();
+  /* THE CABLE. Owner, August 2026: "the well should have a thick cable going up
+     off the top of the screen." It was a 1.5px hairline exactly 220px long,
+     starting at a point in mid-air — so it could only ever end in nothing, and
+     the bay read as hanging from a scratch. It runs to the top of the world now
+     (and past it, so there is no visible terminus at any zoom), which is only
+     honest because the shaft above it is open: MERCY is up there paying it out.
+     Drawn as three strokes — a dark core, the cable, and a highlight down one
+     side — because a single thick line at this width reads as a bar. */
+  const capY = -400;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = shade(TOK.VOID, .95); ctx.lineWidth = 13;
+  ctx.beginPath(); ctx.moveTo(well.x, capY); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.strokeStyle = shade(TOK.CYAN_TEXT, .55); ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.moveTo(well.x, capY); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.strokeStyle = shade(TOK.VOID, .55); ctx.lineWidth = 4;      // the lay of it
+  ctx.beginPath(); ctx.moveTo(well.x + 1.5, capY); ctx.lineTo(bx + 1.5, by); ctx.stroke();
+  ctx.strokeStyle = shade(TOK.CYAN_PALE, .6); ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(well.x - 2.4, capY); ctx.lineTo(bx - 2.4, by); ctx.stroke();
+  ctx.lineCap = "butt";
   ctx.translate(bx, by); ctx.rotate(sway * 0.004);
   ctx.strokeStyle = TOK.GOLD; ctx.lineWidth = 2.5;
   ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 10;

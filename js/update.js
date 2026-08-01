@@ -1334,9 +1334,11 @@ function updatePlay(dt) {
         camera.shake += 6;
         blip(240, 420, 0.12, "sine", 0.1);
       } else if (level.isChamber) {
-        /* P·slice (owner feedback) — a chamber ceiling HURTS, it does not kill:
-           see hullCeilingImpact (js/acttwo-update.js) for why the Act One rule
-           can't survive contact with overhangs and a load on a rope. */
+        /* A chamber ceiling KILLS, as Act One's does — owner, August 2026,
+           reversing the July cap: "impacts should still be instakill for the
+           ship (but not the rack)." hullCeilingImpact still shoves the hull
+           clear first, so the death reads as the impact rather than as being
+           stuck in rock, and the free brush band survives. */
         if (!hullCeilingImpact(rY)) return;
       } else { shipDie(); return; }
     }

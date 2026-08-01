@@ -392,7 +392,7 @@ function drawWorld(now) {
     drawMachinedPanelTicks(cx, cx + viewW);
     // the fixtures that make the room lit (§9.2). After the terrain so they
     // light it, before scenery/oids so those are not washed out.
-    drawChamberLights(now);
+    drawChamberLights(now, cx, viewW);
   } else {
     // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
     // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
@@ -439,7 +439,7 @@ function drawWorld(now) {
   // Bundle P §4/§5/§6 (js/acttwo-render.js) — the rack network, its
   // furniture, and the tow/dock pieces; each a no-op until Bundle P's
   // chamber authoring sets the field.
-  if (level.plantOrnaments) drawPlantOrnaments(now);
+  if (level.plantOrnaments) drawPlantOrnaments(now, cx, viewW);
   // P·slice — trunks under the racks they feed, so a line never covers the box
   drawConduits(now);
   drawDecoys(now);
@@ -4684,6 +4684,20 @@ window.__doids = {
     ship.vitals = maxVitals(); ship.fuel = maxFuel();
     camera.x = ship.x; camera.y = ship.y;
     state = "play";
+    /* Owner, August 2026 — arriving in a 9000px room with nothing to say which
+       way to go. This is NAVIGATION, not a tell: it names the floor and gives
+       the direction, and says nothing whatever about which bank is real, because
+       pointing at that would delete §7.1's whole deduction. Placed here because
+       loadChamber is currently the only way in; it belongs at the real entry the
+       moment P·persist/P·content build one. */
+    const n = level.racks.length;
+    const dir = n && level.racks[0].x < e.x ? "WEST" : "EAST";
+    // written as two whole phrases rather than assembled from " BANK" + "S",
+    // so COPY_DECK.md can quote what the player actually reads (R10's guard
+    // matches the deck against literals in js/)
+    banner((ch.name || "CHAMBER") + "\n" + n
+      + (n === 1 ? " BANK ON THIS FLOOR · " : " BANKS ON THIS FLOOR · ")
+      + dir, PAL().SAFE);
     return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length,
       racks: level.racks.length, conduits: level.conduits.length,
       well: !!level.wellDock };
@@ -5045,7 +5059,9 @@ window.__doids = {
   declaredPinches: () => {
     const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
     return ((ch && ch.parts) || []).filter(p => p.pinch)
-      .map(p => ({ kind: p.pinch, x: p.x, w: p.w }));
+      // the authored extent, which is wider than the overhead mass's own part
+      .map(p => ({ kind: p.pinch, x: p.pinchX != null ? p.pinchX : p.x,
+        w: p.pinchW != null ? p.pinchW : p.w }));
   },
   /* Sample the RENDERED canvas at a world point — the honest way, which took
      two attempts. Centring the camera on the point puts it at screen centre,
