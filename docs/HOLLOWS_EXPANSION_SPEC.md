@@ -20,7 +20,7 @@ Last updated: July 2026
 >   famous minds, where the ward is *heard* and the upgrade makes the whole floor
 >   ring at once (ACT_TWO_SPEC §7.5, §9.1). Spending him on finding lift pads was
 >   always the weaker use.
-> - **The ROTATION CHART survives and ships in 1.01** — ahead of Act Two, not
+> - **The ROTATION CHART survives and ships in 1.0.1** — ahead of Act Two, not
 >   after it. Because Laennec left, it needed a new unlock, and the owner's answer
 >   is **MARY SEACOLE, a twelfth famous Scion placed in THE NULLWAVE**, left
 >   behind the finale's existing black-box gate. She went back onto the field for

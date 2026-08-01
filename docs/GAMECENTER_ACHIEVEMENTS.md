@@ -60,7 +60,7 @@ Bundle B, nothing uses a red cross; the medical emblem throughout is the
 - **1.1 (Act Two)** adds EVERY HOLLOW HEARD and GENTLE HANDS to this set — see
   APP_STORE_ROADMAP.md, **P·ship**. *(This used to say 1.2 / Q·ship; 1.2 was
   cancelled when Act Two absorbed Bundle Q's caves — ACT_TWO_SPEC.md §13.)*
-- **THE FULL CODEX becomes 12 in 1.01, and needs no code change.** The threshold
+- **THE FULL CODEX becomes 12 in 1.0.1, and needs no code change.** The threshold
   is derived — `codex.size >= FAMOUS.length` (`js/update.js`) — so adding **Mary
   Seacole** as the twelfth famous Scion (roadmap V1) moves it automatically.
   Nothing in code, tests, COPY_DECK.md or STORE_LISTING.md pins the number, and
@@ -69,7 +69,7 @@ Bundle B, nothing uses a red cross; the medical emblem throughout is the
   **One asset does, and it's done:** `svg/the_full_codex.svg` and
   `the_full_codex.png` have the twelfth star (regenerated via `generate.py`,
   headless Chromium, 1024×1024) — the achievement worked correctly either way,
-  so this could have waited for 1.01 to ship, but there was no reason to hold it.
+  so this could have waited for 1.0.1 to ship, but there was no reason to hold it.
 - **EVERY HOLLOW HEARD and GENTLE HANDS art is delivered, wiring is not.**
   `every_hollow_heard.svg`/`.png` and `gentle_hands.svg`/`.png` exist now in
   `assets/gamecenter/achievements/` (same house style, `generate.py` regenerates

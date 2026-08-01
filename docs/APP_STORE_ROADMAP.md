@@ -60,10 +60,23 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
 - `[ ]` not started · `[x]` done · strike through items we decide to drop (don't delete
   them — the reasoning trail matters).
 
-### Versioning (1.0 vs 1.01 vs 1.1)
+### Versioning (1.0 vs 1.0.1 vs 1.1)
+
+**The patch release is `1.0.1`, never `1.01`.** It was written as `1.01`
+throughout this plan until August 2026, when submitting it turned out to be
+impossible for a reason worth recording: **App Store version components have
+their leading zeros stripped**, so `1.01` is parsed as `1.1` — the two are the
+same version number to Apple. Shipping `1.01` would therefore *consume the 1.1
+slot*, and 1.1 is the Act Two release that carries the price move; the next
+version after it would have had to be 1.2. A developer hit exactly this failure:
+shipped 1.01, submitted 1.1, and was told a build with that version number
+already existed. Sources: Apple's own version guidance and the forum report, both
+cited in the release notes below. All forward-looking references in this plan and
+in ACT_TWO_SPEC.md were renamed; CHANGELOG.md and ROADMAP_ARCHIVE.md keep their
+original wording, because they record what was decided at the time.
 
 Two numbers, moving at different times. The **version string** players see
-(`1.0`, `1.01`, `1.1`, …) changes only when a build is **released to the
+(`1.0`, `1.0.1`, `1.1`, …) changes only when a build is **released to the
 public**; the **build number** increments on every upload to App Store Connect.
 So:
 
@@ -72,13 +85,29 @@ So:
   and launch-day players get the fixes in their very first download. Re-uploading
   a build while in review restarts the review, but it does **not** need a version
   bump.
-- **Becomes 1.01** — anything that lands *after 1.0 is live.* Existing players
-  already hold 1.0, so changing what they have needs a new **version** (1.01),
-  submitted and reviewed as an update.
+- **Becomes 1.0.1** — anything that lands *after 1.0 is live.* Existing players
+  already hold 1.0, so changing what they have needs a new **version**, submitted
+  and reviewed as an update.
 
 The line is drawn by *"has 1.0 shipped to real users yet?"* — **not** by "have we
 touched code?" That's why the sequencing calls below (pull a stability fix into
-1.0, or hold it for 1.01) are real choices, not automatic ones.
+1.0, or hold it for 1.0.1) are real choices, not automatic ones.
+
+**Owner decision, August 2026 — the merged post-1.0 work goes into launch-day
+1.0, not into a separate version.** With 1.0 still in App Review, submitting a
+second version was not possible anyway: App Store Connect requires the current
+version to be *Ready for Distribution* before a new one can be created, and a
+version in review is not. So the route taken is to **remove 1.0 from review,
+upload a new build, and resubmit as 1.0** — the rule above, applied. The cost is
+that review restarts (the app goes to *Developer Rejected* and any accepted items
+must be resubmitted); the gain is that every launch-day player gets the fixes in
+their first download, and V·pacifism's scoring change never lands on anyone who
+had already earned a score under the old rules.
+
+That reassigns bundles rather than deleting them: **everything already merged —
+Bundle V's landed items including V·pacifism, Bundle X, Bundle Z — ships as part
+of 1.0.** What remains unchecked in Bundle V is now the *next* release, 1.0.1,
+whenever it is cut.
 
 ### Open work at a glance
 
@@ -89,7 +118,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
+| V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
 | P | **Act Two — the descent** | 8 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice and P·feedback have landed** — the loop runs end to end in one chamber and has had its first on-device round. **The owner's next topic is P·floor** (floor variety, awaiting a conversation they asked to have separately); then **P·persist** and **P·systems**, both fully specified by the feedback round. P·content authors chambers only after P·floor sets the pattern |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
@@ -140,10 +169,10 @@ to the archive in full, including its already-shipped X1/X3 slices.
 | S | Sound, endgame & saboteur upgrades | Owner-requested for launch |
 | U | Second playtest — sound, refueller & UI | Owner-requested for launch |
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness |
-| Y | 1.01 release-fix defects | Stability + render/telegraphing fixes |
+| Y | 1.0.1 release-fix defects | Stability + render/telegraphing fixes |
 | DS | Design-system conformance | Token layer; colourblind mode made real (**1.0**) |
-| X | Onboarding & new-player experience | Trainee sector, guided pauses, hint bank, in-app rating (**1.01**) |
-| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.01**) |
+| X | Onboarding & new-player experience | Trainee sector, guided pauses, hint bank, in-app rating (**1.0.1**) |
+| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.0.1**) |
 
 ---
 
@@ -437,11 +466,11 @@ Static turns out to be a heartbeat. Full spec, rationale, rejected options and
 release plan: **[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md)**;
 [PENDULUM_SPEC.md](PENDULUM_SPEC.md) survives as the tether-physics reference.
 
-**Priority: the 1.1 release, entire. Dependencies: 1.01 must ship first and is
+**Priority: the 1.1 release, entire. Dependencies: 1.0.1 must ship first and is
 a hard commercial dependency, not housekeeping** — Act Two is gated behind
 finishing the campaign, and Bundle X exists because new players don't. That is
 a constraint on *release order, not build order*: 1.0 is still in App Review and
-1.01 is not live, so Act Two is built and refined now and held until 1.01 has
+1.0.1 is not live, so Act Two is built and refined now and held until 1.0.1 has
 shipped. **Device tuning is confirmed available** (owner, July 2026 — Mac,
 Xcode and TestFlight all in hand), which closes ACT_TWO_SPEC §15 q1 and means
 every feel-critical item below is tuned on hardware rather than in a browser.
@@ -449,7 +478,7 @@ every feel-critical item below is tuned on hardware rather than in a browser.
 **Phased (owner round, July 2026).** The bundle is too large for one branch, so
 it runs as a sequence of PRs against a long-lived integration branch, everything
 behind a feature flag until P·slice signs off — `main` stays releasable for a
-1.01 hotfix throughout. The order below is a dependency chain, not a preference:
+1.0.1 hotfix throughout. The order below is a dependency chain, not a preference:
 **P·terrain gates P·slice, and P·slice gates everything after it.** P·terrain is
 done, so the chain now starts at P·slice.
 
@@ -608,7 +637,7 @@ done, so the chain now starts at P·slice.
   direction plus timing numbers, not sprites), and **there is no public web
   build** since O7, so the brief points at running `index.html` locally, the
   demo video and the marketing stills instead. Only two real image files come out
-  of it: the twelfth star on `the_full_codex.png` (a **1.01** item, independent of
+  of it: the twelfth star on `the_full_codex.png` (a **1.0.1** item, independent of
   everything else — see V1) and, later, the two Act Two achievement badges.
 - [x] **P·slice. Vertical slice before content.** One chamber, one rack, the
   trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
@@ -825,7 +854,7 @@ done, so the chain now starts at P·slice.
   schema bump plus a migration that **must not wipe an existing player's save**
   — `doids_run` is a shipped format and the `doids_` prefix stays. Needs the
   E4 iCloud mirror considered in the same pass (`cloud.set`/`cloud.get`), a
-  forward-compatible version field, and a test that an Act One 1.01 save still
+  forward-compatible version field, and a test that an Act One 1.0.1 save still
   loads.
   **What P·slice settled, which is what §11.2 said to design it during.** All
   per-chamber state lives on three arrays hanging off `level` — `level.racks`,
@@ -886,7 +915,7 @@ done, so the chain now starts at P·slice.
      One sector 0 and cleared by any direct entry.
   4. **Act Two gets its own hiscore and leaderboard.** A third Game Center board
      alongside `hollowoath.score.alltime` and `hollowoath.score.daily`; the owner
-     will create it in App Store Connect when build 1.01 is pushed. Write the
+     will create it in App Store Connect when build 1.0.1 is pushed. Write the
      submission so a missing board is a silent no-op — the code will ship before
      the board exists.
 
@@ -990,7 +1019,7 @@ done, so the chain now starts at P·slice.
   benefit (Curie's RADIOSENSE is a compass, Röntgen is imaging; Nightingale's
   LAMP is reach, Apgar is readout). **RADIOGRAPH must stay limited to one sweep
   per chamber or it disables the deception layer entirely.** Note the
-  interaction with V1: Mary Seacole is a *1.01* addition and the twelfth entry,
+  interaction with V1: Mary Seacole is a *1.0.1* addition and the twelfth entry,
   so Act Two's ten start from 13 — check the codex pagination
   (`MINDS_PER_PAGE`, `js/render.js`) still lays out cleanly at 22.
 - [ ] **P·floor. Floor variety, and the pattern it sets for the other nine.**
@@ -1045,12 +1074,12 @@ done, so the chain now starts at P·slice.
   (EVERY HOLLOW HEARD, GENTLE HANDS) land here, not in the cancelled 1.2 —
   GAMECENTER_ACHIEVEMENTS.md updated in the same PR.
   *(The in-app rating prompt that used to sit in this bundle as **P·review** has
-  shipped already — it moved to Bundle X as X6 once 1.01 became the first
+  shipped already — it moved to Bundle X as X6 once 1.0.1 became the first
   post-launch build, and is live in `js/platform.js` + `app/plugins/rating`.)*
 
 ---
 
-## Bundle Q — The deep Hollows (mostly absorbed; ROTATION CHART → 1.01)
+## Bundle Q — The deep Hollows (mostly absorbed; ROTATION CHART → 1.0.1)
 
 > **Re-scoped by the July 2026 Act Two design round
 > ([ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §13).** A ten-level underground network
@@ -1062,7 +1091,7 @@ done, so the chain now starts at P·slice.
 >   the whole floor ring clear at once. Spending him on finding lift pads was
 >   always the weaker use.
 > - **The ROTATION CHART** (fly-back to cleared sectors, cached as-left) stays,
->   and moves to **1.01** — it answers V1 and no longer needs to wait on the
+>   and moves to **1.0.1** — it answers V1 and no longer needs to wait on the
 >   pendulum, since Act Two doesn't touch the surface level cache. **Its unlock
 >   is now Mary Seacole, a twelfth famous Scion placed in THE NULLWAVE, behind
 >   the finale's existing black-box gate** (owner decision, July 2026) — see V1
@@ -1085,11 +1114,11 @@ MINT, THE LISTENING POST). Full spec:
 [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
 
 **Split by release (owner decision, July 2026).** The owner asked for fly-back
-sooner (originally raised as a "1.01 fix"; see V1). Rather than break Q's
+sooner (originally raised as a "1.0.1 fix"; see V1). Rather than break Q's
 in-game unlock, Bundle Q is split across two releases:
 - ~~**Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
   **ROTATION CHART**, sequenced after the pendulum work.~~ → the chart ships in
-  **1.01** (V1, unlocked by Mary Seacole); Laennec is an Act Two upgrade.
+  **1.0.1** (V1, unlocked by Mary Seacole); Laennec is an Act Two upgrade.
 - ~~**Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
   MINT, THE LISTENING POST) and their discoveries.~~ → **no 1.2**; absorbed into
   Act Two's ten chambers.
@@ -1097,7 +1126,7 @@ in-game unlock, Bundle Q is split across two releases:
 ~~**Priority: the 1.1 core rides with P; the caves are second post-launch
 (1.2). Dependencies: P shipped/stable before the ROTATION CHART cache; J, K, I,
 M, A all shipped.**~~ **Superseded — pre-review record.** The chart ships in
-**1.01** ahead of Bundle P (V1), and there is no 1.2. Schedule from V1 and
+**1.0.1** ahead of Bundle P (V1), and there is no 1.2. Schedule from V1 and
 Bundle P, never from this paragraph.
 
 - ~~**Q·impl. Implement per the spec checklist** — work through
@@ -1116,10 +1145,10 @@ Bundle P, never from this paragraph.
 
 ---
 
-## Bundle V — 1.01 maintenance & narrative (post-approval owner round)
+## Bundle V — 1.0.1 maintenance & narrative (post-approval owner round)
 
 **Why:** Captured while **1.0 is in App Review (July 2026)**, this is the first
-point release — the fixes and narrative beats the owner wants in **1.01** once
+point release — the fixes and narrative beats the owner wants in **1.0.1** once
 1.0 is approved. It is deliberately a *maintenance + narrative* bundle: no new
 subsystem, but several fairness corrections and the payoff of the Solace as a
 named sister ship. **Priority: first thing after 1.0 approval. Dependencies:
@@ -1135,13 +1164,13 @@ narrative beats; no shared dependency between them or with V1–V14.
 > *not* on the forward plan (owner decision, July 2026 — "not really any good
 > for this game"). It was pulled from Settings before 1.0; the scaffolding
 > stays dormant in `js/input.js` (`tilt` / `enableGyro` / `toggleTilt`,
-> `doids_tilt`). Do not resurface it in 1.01 without an explicit reversal.
+> `doids_tilt`). Do not resurface it in 1.0.1 without an explicit reversal.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
 - [x] **V·pacifism. Act One already pays better for shooting than for restraint.**
   *(Owner, July 2026, raised while settling Act Two's ladder: "this has
-  implications for a 1.01 check on act one scoring too." It does — the check was
+  implications for a 1.0.1 check on act one scoring too." It does — the check was
   run and Act One fails it.)*
   The no-harm bonus is a flat **+2000** for `level.firedShots === 0` (G3). Kills
   pay **+250** a turret and **+150** a drone. So the sector tables in
@@ -1162,7 +1191,7 @@ narrative beats; no shared dependency between them or with V1–V14.
   `BASE + gunValue(level) * FACTOR`, with `gunValue` summing the same per-target
   prices the kill awards pay. One function, so the invariant cannot hold in one
   act and quietly fail in the other.
-  Scoped as a **1.01** change: it moves a shipped number, so it is not a 1.0
+  Scoped as a **1.0.1** change: it moves a shipped number, so it is not a 1.0
   hotfix. Zero stays the floor here too (P·systems rule 8).
   **Landed.** `gunValue(lvl)` and `noFireAward(lvl)` in `js/world.js`, beside
   RECIPE so they sit with the table whose numbers they answer. The measured
@@ -1187,7 +1216,7 @@ narrative beats; no shared dependency between them or with V1–V14.
   `NOFIRE_FACTOR` 1.25. The first pass held BASE at the old flat 2000 so no
   sector could pay less than before, but that roughly doubled a perfect pacifist
   campaign's bonus (16,000 → 31,600) and would have made shipped hiscores easy to
-  beat after 1.01. At 500 the campaign total is 19,600 — **+23% rather than
+  beat after 1.0.1. At 500 the campaign total is 19,600 — **+23% rather than
   +98%** — and an unarmed room still pays something, which a base of 0 would not.
   The award's *shape* changes with it, and that is the improvement rather than
   the price: a flat bonus paid the same for restraint in a room with two turrets
@@ -1255,17 +1284,17 @@ narrative beats; no shared dependency between them or with V1–V14.
     STORE_LISTING.md pins the number; the Game Center description
     (*"Recovered every famous mind, across all your rotations"*) is count-free
     by GAMECENTER_ACHIEVEMENTS.md's own copy rule. **Owner decision (July
-    2026): she lands in 1.01, not in the 1.0 build now in review** — a new
+    2026): she lands in 1.0.1, not in the 1.0 build now in review** — a new
     binary would restart App Review, and completing the codex takes multiple
     REMIX rotations (the campaign awards only 7 of the pool), so effectively
-    nobody can reach 11/11 before 1.01 ships. Note it in the 1.01 What's-New so
+    nobody can reach 11/11 before 1.0.1 ships. Note it in the 1.0.1 What's-New so
     the counter's move to `/12` reads as new content, not a bug.
   - **One asset is now wrong:** `the_full_codex.png` is specified as *"the open
     codex under a constellation of eleven famous minds"* — it needs a twelfth
     star. Regenerable from `assets/gamecenter/achievements/svg/` via
     `generate.py` (headless Chromium at 1024×1024). The achievement functions
     correctly either way, so if editing Game Center metadata mid-review is
-    awkward, ship the eleven-star art and swap the image with 1.01.
+    awkward, ship the eleven-star art and swap the image with 1.0.1.
 
   Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5 for the chart's cache design; the
   round-trip must reuse the checkpoint serialization (`doids_run`,
@@ -1417,14 +1446,14 @@ narrative beats; no shared dependency between them or with V1–V14.
   MERCY only for `veteran`, `js/world.js:829`). Code anchors: `genLevel` in
   `js/world.js` (placement + `RECIPE`), gated on `veteran`; reconcile with the
   existing REMIX rotation (M) so the two return modes don't fight.
-- [x] **V11. (Candidate) Decoy MERCY reachability.** *(Resolved (owner, 1.01
+- [x] **V11. (Candidate) Decoy MERCY reachability.** *(Resolved (owner, 1.0.1
   round): leave it as a deep secret — no code change. Matches the game's
   existing design pillar of rewarding deep exploration rather than surfacing
   every secret to every player.)* Owner question, July
   2026: the counterfeit MERCY is currently gated behind **`veteran` +
   reaching the secret finale + `blackboxCount >= TRIANGULATE_N`**
   (`js/world.js:829`, `js/update.js:695`), so most players never see it.
-  Decide whether 1.01 should surface it earlier / more reliably, or leave it as
+  Decide whether 1.0.1 should surface it earlier / more reliably, or leave it as
   a deep secret. Owner decision — logged so it isn't lost.
 - [x] **V12. The counterfeit MERCY should be a *surprise*, not a signposted
   quiz (owner playtest, late July 2026).** *(V12a–c all shipped — see the
@@ -1480,7 +1509,7 @@ narrative beats; no shared dependency between them or with V1–V14.
   mid-game parry, V3 Solace reveal, the V6-finale parry answer (and that holding
   no longer answers), V8 veteran intro, V10 escalation, and V12 twin
   (randomised/separated + trap). M1 golden checksum updated for V2's
-  pad-widening. V1 return-travel is a 1.1 item (Bundle Q), not part of 1.01.)*
+  pad-widening. V1 return-travel is a 1.1 item (Bundle Q), not part of 1.0.1.)*
 - [x] **V13. The bad ending — destroy the Solace.** *(Shipped. The fleet's
   destroy-on-sight order — the one the CMO refused to sign (`primum non nocere`,
   see BRIEF + LOG 09/10) — is now a real, spectacular choice. FIRE on the signal
@@ -1725,7 +1754,7 @@ narrative beats; no shared dependency between them or with V1–V14.
   actually under test** (`docs/QA_HARNESS.md` § "Cache gotcha") — a branch-name
   link or a stale Home-Screen page can silently serve an old build and send a
   session hunting a fixed bug.
-- [ ] **V·ship. Release 1.01.** What's-New copy; confirm no new App Review
+- [ ] **V·ship. Release 1.0.1.** What's-New copy; confirm no new App Review
   surface (no new data collection, no new entitlements). Update
   [CHANGELOG.md](CHANGELOG.md). *(This bundle's code changes add no new
   entitlements, permissions, or data collection — confirmed while landing
@@ -1788,8 +1817,8 @@ D ──┴────────────────┘                 �
       pulled into the 1.0 launch build (owner decision, late July 2026):
       Y1, Y2 (stability) + X1 (beginner's guide) + X3 (first-play fork → guide)
       after 1.0 approval:
-      1.01 = X2/X4/X5/X6 (trainee level, guided-pause overlay, hint-card bank,
-             StoreKit in-app rating prompt — moved up from 1.1 since 1.01 is
+      1.0.1 = X2/X4/X5/X6 (trainee level, guided-pause overlay, hint-card bank,
+             StoreKit in-app rating prompt — moved up from 1.1 since 1.0.1 is
              now the first post-launch build)
            + Y3–Y7 (wreck occlusion, counterfeit tell, lift pad, copy fixes)
            + V (Solace reveal; scan fairness; heard-scan parry; V12 fake-MERCY reveal)
@@ -1840,19 +1869,19 @@ design reference only. The July 2026 planning round added: **span terrain**
 (the shipped heightmap cannot express the overhangs Act Two's chambers need),
 a **replaced deception tell** (the old "perfectly level" rule was false against
 `flatten()`), **ten new famous minds** each tied to an Act Two system, and
-**Mary Seacole** as V1's ROTATION CHART unlock in 1.01.
-**Bundle V is the 1.01 plan**, captured while 1.0 is in App Review: the
+**Mary Seacole** as V1's ROTATION CHART unlock in 1.0.1.
+**Bundle V is the 1.0.1 plan**, captured while 1.0 is in App Review: the
 Solace sister-ship reveal (named ship, sonar hull pulse on the 41-s clock),
 Scion scan-jeopardy fairness, a playable "heard" sonic-wave parry,
 post-completion title/intro/campaign variants, and the record that **tilt is
 dropped from the forward plan** (dormant scaffolding only). Fly-back to cleared
-sectors (the owner's other "1.01" ask) is **back in 1.01 where he wanted it**
+sectors (the owner's other "1.0.1" ask) is **back in 1.0.1 where he wanted it**
 (July 2026): the **ROTATION CHART**, unlocked by **Mary Seacole** as a twelfth
 famous Scion in THE NULLWAVE and left behind the finale's existing black-box
 gate — a deep-completionist reward, persistent across runs. **Bundle W**
 (landscape challenge) is now optional polish, not part of 1.1. V11 (whether to
 surface the decoy MERCY earlier) was resolved: leave it a deep secret.
-**The late-July 2026 owner-playtest round adds two more 1.01 bundles: X**
+**The late-July 2026 owner-playtest round adds two more 1.0.1 bundles: X**
 (onboarding — an optional beginner's guide, a guided trainee "Level 0", a
 first-play "played thrust games?" fork, and a post-death hint-card bank; the top
 fix for the "too-steep learning curve" note) **and Y** (release-fix defects: the
@@ -1862,7 +1891,7 @@ Avicenna-gated counterfeit tell, and the above-ground lift-pad marker). **Owner
 decision (late July 2026): pull the low-risk wins into the 1.0 launch build —
 Y1/Y2 (stability), X1 (guide) and X3 (fork) — and keep the heavier subsystems
 (X2/X4/X5, Y3–Y7, V + the V12 fake-MERCY reveal) and Z (variable gravity, after
-its fairness re-tune) for 1.01.**
+its fairness re-tune) for 1.0.1.**
 The support/marketing URL now lives on a **custom domain on GitHub Pages**,
 **`hollow-oath.com`** (registered on Cloudflare, July 2026 — see O8). **Done:**
 the domain resolves over HTTPS, the in-repo links point at the new root, and

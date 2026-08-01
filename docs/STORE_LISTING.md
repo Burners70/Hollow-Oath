@@ -46,7 +46,7 @@ game with a ten-level underground rescue campaign, which is a far better price
 case than the earlier plan (Bundle Q's three extra caves, now absorbed and 1.2
 cancelled). By then the reviews argument should also be live: a 4.7★ with
 reviews saying "wish it were longer" sells a $4.99 price better than a 0-review
-listing does. 1.0 and 1.01 both stay at $2.99.
+listing does. 1.0 and 1.0.1 both stay at $2.99.
 
 **No IAP, no ads** either way — that's a genuine differentiator worth
 protecting; don't let a future "just add a tip jar" conversation erode it

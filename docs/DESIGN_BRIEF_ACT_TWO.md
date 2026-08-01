@@ -200,7 +200,7 @@ Everything above is direction. These two are actual assets, and both are
 independent of the rest of the brief:
 
 1. **`the_full_codex.png` needs a twelfth star** — do this one first, it's tiny
-   and it ships sooner than Act Two (in update 1.01). The achievement art is
+   and it ships sooner than Act Two (in update 1.0.1). The achievement art is
    described as *"the open codex under a constellation of eleven famous minds"*,
    and we're adding a twelfth rescuable historical figure. The SVG source and a
    `generate.py` render script are in `assets/gamecenter/achievements/svg/`.
