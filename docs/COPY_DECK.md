@@ -567,6 +567,92 @@ shield to catalogue it, no shot)
 - **A2HS banner / portrait prompt**: install prompt text and the rotate-device
   prompt (in the HTML/IIFE near `#a2hs`).
 
+## 12a. Act Two — the descent (Bundle P · P·slice)
+
+**Not reachable in normal play.** Act Two is behind `__doids.loadChamber("slice")`
+until P·content and P·persist wire it into the campaign, so none of this has
+shipped to a player. It is here because the house rule is that copy lands in the
+deck in the same PR as the code (R10), and because the voice of Act Two is worth
+reviewing *before* ten chambers are authored against it.
+
+Voice notes for review: Act Two is triage, not *primum non nocere*
+([ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §7), so the lines are shorter and more
+clinical than Act One's, and they name the cost out loud. Nothing here says
+"points" — the **transfusion** is never billed in score (§7.4): giving your own
+vitals is care, not a mistake. That is the *only* thing this exemption covers.
+A broader "Act Two never bills the player" line stood here until July 2026 and
+was an assistant's assumption, not an owner decision: **failures do cost
+points** down here, and every impact on a rack is charged per impact. See
+APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
+
+### Banners (`banner()`, `js/acttwo-update.js`)
+
+| Trigger | Copy |
+|---|---|
+| Closing the rack's real trunk feed | `FEED CLOSED — BANK ON INTERNAL RESERVE` / `IT IS DYING NOW. GET IT TO THE WELL.` |
+| Closing one of his decoy lines | `DEAD LINE — NOTHING WAS ON THE END OF IT` / `HE KNOWS SOMEONE IS DOWN HERE NOW` |
+| Cradling a rack for the first time | `CRADLED — SHE HANGS BELOW YOU NOW` / `FIRE RELEASES. EVERY SLAM IS FELT BY EVERYONE IN THE BOX.` |
+| First transfusion into a rack | `YOUR OWN VITALS, INTO THEIRS` / `THERE IS NO MERCY DOWN HERE. YOU ARE THE SUPPLY.` |
+| Reserve reaches zero | `FLATLINE — THE BANK IS GONE` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
+| A slam finishes a failing rack | `THE LAST SLAM DID IT — THE BANK IS GONE` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
+| Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
+| Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
+| Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
+| Landing beside one of his decoy boxes | `NOBODY IN IT — AND IT WAS WAITING FOR YOU` / `HIS BOXES BLEED YOU FOR LOOKING` |
+
+The flatline line was `THE CHAMBER IS THE UNIT OF RETRY` until the July 2026
+owner round, which is a sentence out of the design doc and meant nothing read off
+a phone. It now says what it was shorthand for. Worth keeping as a reminder that
+internal vocabulary reads as jargon the moment it reaches a banner.
+
+### Floating texts (`addText()`)
+
+| Trigger | Copy |
+|---|---|
+| Landing beside an isolator, first time | `HOLD TO CLOSE THIS FEED` |
+| The 41s beat takes its bite from a rack | `THE BEAT TOOK MORE` |
+| A decoy line, at the isolator | `HIS LINE` |
+| Shooting an already-dead line | `DEAD LINE` |
+| A slam, above the rack | `-<n>` |
+| Releasing the load | `RELEASED` |
+| Letting go of the transfusion | `LINE CLOSED` |
+| Drifting off the line | `LINE PARTED — YOU DRIFTED` |
+| Hitting the vitals floor mid-transfusion | `YOU ARE THE CASUALTY NOW — LINE CLOSED` |
+| One line's ceiling reached (§7.4's diminishing returns) | `THAT IS ALL THIS LINE WILL CARRY` |
+| Taking a fuel can | `+<n> FUEL` |
+| The moorings give way under sustained thrust | `MOUNTS PARTED` |
+| Putting the hull into rock in a chamber | `IMPACT -<n>` |
+| Landing beside a decoy box | `-<n> VITALS` |
+
+And one PROMPT, drawn on the rack rather than pushed through `addText` — the
+owner asked how you were even meant to connect, because proximity-while-landed
+rigged the sling with no act on the player's part:
+
+| Where | Copy |
+|---|---|
+| Above a cut, moored rack you are not standing on | `LAND ON IT TO RIG THE SLING` |
+
+A slam's "yells from within" are deliberately **not** copy: the owner chose an
+audio cue, a shudder and haptics over text or emoji (`muffledCry`, js/audio.js).
+The game reads lives off rhythm, never captions.
+
+Those four are all closing lines for the same transfusion, so `endGive` appends
+the same suffix to whichever one fired: ` · +` and the reserve actually delivered,
+rounded. Quoted above without it because the message and the suffix are separate
+literals in the source — the deck's drift guard compares against `js/`, and a
+row that quotes the assembled sentence matches nothing.
+
+### World labels (`js/acttwo-render.js`)
+
+| Element | Copy |
+|---|---|
+| Trunk-cut progress ring | `CLOSING…` |
+| Cradle progress ring | `CRADLING…` |
+| Isolator, live / closed | `ISOLATOR <n>` / `ISOLATOR <n> · CLOSED` |
+| Rack label | `BANK 1 · 10 SOULS` |
+| The docking bay | `THE WELL — LOWERED FROM MERCY` |
+| Swing tell at the tether midpoint | `✓` docile · `!` swinging · `✕` about to hurt (glyphs, per the H2 shape-redundancy rule) |
+
 ## 13. Store & Game Center copy (reference only)
 
 Achievement earned/pre-earned descriptions live in

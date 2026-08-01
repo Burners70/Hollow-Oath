@@ -271,6 +271,45 @@ function sabHiss() { // S7 — sabotage: a short caustic hiss (noise, highpassed
   const g = AC.createGain(); g.gain.value = 0.11;
   s.connect(hp); hp.connect(g); g.connect(sfxGain); s.start();
 }
+/* Bundle P (owner feedback, July 2026) — what a slam sounds like from OUTSIDE a
+   box with people in it. The owner asked for a cry from inside and then chose
+   audio, a shudder and haptics over text or emoji, which is the right call: this
+   game has never put words in anyone's mouth, and the Static's whole grammar is
+   that you read a life off a rhythm rather than a caption.
+
+   So it is muffled and it is short: a body of noise pushed through a low
+   bandpass, so what comes through the hull is the shape of a voice with none of
+   its detail — heard THROUGH something, which is exactly the horror of it. Rides
+   `impact` (0-1) so a graze is a murmur and a real slam is not. Deliberately not
+   pitched: a tone would be an alarm, and the box is not warning you, it is
+   reacting. */
+function muffledCry(impact) {
+  if (!AC) return;
+  const k = Math.max(0, Math.min(1, impact || 0));
+  const dur = rjit(0.34, 0.1);
+  const n = AC.createBufferSource(), buf = AC.createBuffer(1, Math.ceil(AC.sampleRate * dur), AC.sampleRate);
+  const ch = buf.getChannelData(0);
+  /* An envelope with a body rather than a click: it swells over the first
+     quarter and falls away, which is what makes it read as a voice and not a
+     knock. The knock is dullThud's job and plays alongside it. */
+  for (let i = 0; i < ch.length; i++) {
+    const t = i / ch.length;
+    const env = t < 0.25 ? t / 0.25 : Math.pow(1 - (t - 0.25) / 0.75, 1.6);
+    ch[i] = (Math.random() * 2 - 1) * env;
+  }
+  n.buffer = buf;
+  const bp = AC.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = rjit(420, 0.12);   // vowel territory, then smothered
+  bp.Q.value = 3.2;
+  const lp = AC.createBiquadFilter();
+  lp.type = "lowpass"; lp.frequency.value = 700;   // the hull, between you and them
+  const g = AC.createGain();
+  g.gain.value = 0.1 + 0.26 * k;
+  n.connect(bp); bp.connect(lp); lp.connect(g); g.connect(sfxGain);
+  n.start(); n.stop(AC.currentTime + dur + 0.03);
+}
+
 function hydraulic(descending) { // the lift — a filtered hiss under a pitch sweep
   if (!AC) return;
   const dur = 0.5, sz = AC.sampleRate * dur;

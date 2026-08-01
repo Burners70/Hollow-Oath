@@ -6,7 +6,11 @@
 **Supersedes [PENDULUM_SPEC.md](PENDULUM_SPEC.md)** — see §12 for what survives
 from it — and **absorbs Bundle Q's three new caves** (see §13).*
 
-Last updated: July 2026 · Status: **design agreed in outline, unbuilt.**
+Last updated: July 2026 · Status: **planned in detail, unbuilt.** The July 2026
+planning round settled terrain (§11.0), the deception tell (§8.1), the ten new
+famous minds (§9.1), persistence (§11.2) and the relay chain (§5.1a); the build
+order lives in APP_STORE_ROADMAP.md Bundle P, phased, with **P·terrain gating
+P·slice and P·slice gating everything after it.**
 The act has no name yet; the owner's steer is that it should come out of the
 work rather than be chosen up front.
 
@@ -135,6 +139,36 @@ intake, twenty seconds of flying through a dead ship whose silhouette the player
 already knows, and out through the bottom into his workings. That is the beat
 her size can carry, and it is the right one.
 
+### 5.1a The relay chain (owner refinement, July 2026)
+
+**SOLACE's beacon was a relay, not the transmitter.** This is the load-bearing
+detail, and it closes a hole the first draft left open: *why did the signal read
+as coming from her?* Because her beacon has been faithfully rebroadcasting what
+is tapped below it, for years, exactly as designed. The instruments were right
+about the bearing and wrong about the origin — which is the game's thesis again,
+in one object: correct data, comfortable conclusion, nobody ran the differential.
+
+The chain, every stage of it a place the player has already been:
+
+| Stage | What it is |
+|---|---|
+| **Her heart**, in the deepest reader | The source. A living rhythm, slowed to the edge of stopping. |
+| **His tap** | The splice — the point where he cut into her (§12, THE FIRST CALL's disposition). |
+| **SOLACE's beacon** | The relay. Her own distress hardware, repurposed as his aerial. |
+| **The hand-built repeater in Hollow 0** | The boost that pushed it out into the lanes. |
+| **The lanes** | Where every Scion in Act One heard it. |
+
+This makes §5.1's "she's his aerial" literal rather than metaphorical, and it
+retro-fits Act One without contradicting a word of shipped copy. THE ANSWERED
+CALL says *"The beacon was AMS SOLACE — her distress call looping for years"* —
+an identification of **where**, not a claim about the transmitting device, so it
+survives untouched and re-reads correctly. And Hollow 0's shrine card already
+says *"IT ISN'T AN ECHO — a transmitter, hand-built…"*, so relay hardware is
+seeded in Act One's own record.
+
+**Writing rule, per §3.1:** nobody explains the chain. Someone follows a cable
+the wrong way and finds it doesn't end where the instruments said.
+
 ### 5.2 Why she was taken
 
 She wasn't corrupted. **She answered a distress call that was bait.** The first
@@ -191,10 +225,11 @@ than a rack, heavier, worse to handle, worth far more.
 
 **Who she is (decided, July 2026).** Act One's *"she"* is the **ship** — naval
 convention throughout the shipped copy (*"her distress call"*, *"she could
-finally stop"*). Act Two's reveal is that the call was never automated: SOLACE's
-beacon died years ago, and what has been repeating since is **a person**, and
-nobody ever checked. This is a deliberate shift, not an inheritance — write it
-as a discovery (§3.1).
+finally stop"*). Act Two's reveal is that the call was never automated. Her
+beacon is still working perfectly; it is simply a **relay** (§5.1a), and what it
+has been relaying all along is **a person**, and nobody ever checked what was on
+the far end of the line. This is a deliberate shift, not an inheritance — write
+it as a discovery (§3.1).
 
 **She is human**, one of the 214. The plausibility gap you would expect isn't
 there: the game already has *preserved human minds* inside the famous Scions, so
@@ -406,12 +441,53 @@ both stagecraft (§2):
 - **Painted rock** — a real outcrop dressed as empty space. You fly into a wall
   that looked like air. The scarier of the two.
 
-**The tell is already written into the grammar:** *a projected ledge is
-perfectly flat and perfectly level.* Nothing in this game's terrain is level
-except things he made. One sentence teaches it, it reads at a glance, and it
-rewards exactly the attention the player has been training for seven sectors.
+### 8.1 The tell — reversed, July 2026
 
-Second-order tell for the sharp-eyed: your lamp throws no shadow on a lie.
+**The first draft's tell was false against the code, and had to go.** It read:
+*"a projected ledge is perfectly flat and perfectly level — nothing in this
+game's terrain is level except things he made."* Two things kill it:
+
+- **`flatten()` makes exactly-level ground everywhere.** It sets every heightmap
+  sample in a span to a single height (`js/world.js`), so every landing pad,
+  every lift pad and every V2 scan shelf in the shipped game is mathematically
+  level. Landings tolerate slope up to 0.25, but authored pads sit at zero. "Level
+  means fake" would indict the entire surface campaign.
+- **Act Two is set inside a plant.** §9.2 commits to a lit, orderly, maintained
+  facility — where machined level floors are legitimately everywhere. The tell
+  dies twice.
+
+**The replacement: the world doesn't respond to you.**
+
+| Deception | Tell |
+|---|---|
+| **False floor** | Your thruster wash raises no grit off it. Real rock kicks up dust; a projection is inert. |
+| **Painted rock** | The inverse — dust kicks up in what looks like empty space. |
+| **Both, second channel** | Your lamp throws no shadow on a lie (promoted from second-order to a real channel). |
+
+This is better than a shape rule, for a reason that matters beyond the bug: it is
+an **active probe that costs nothing but time and care.** You hover, you watch
+the wash, you commit — and hovering to check is a deliberate slow-down that
+fights directly against the draining reserve (§7). The deception system stops
+sitting beside the act's central tension and starts pushing on it. It also never
+touches the oath, because probing is not shooting.
+
+It reuses the shipped exhaust-particle system, so the build cost is a response
+test rather than new art.
+
+**The terrain model holds both hazards as of P·terrain.** A chamber part may
+declare a `view` — `drawn` or `solid` — and `genChamber` compiles two span sets
+from the one definition: `spans` is what collision uses, `spansDrawn` is what the
+renderer draws. A false floor is a part in the drawn view only; painted rock is a
+part in the solid view only. Everything else appears in both, so the two views are
+identical on honest terrain and can differ **only** where a deception is declared —
+a test asserts exactly that, and counts any undeclared difference as a bug. What
+is still to come is the tell itself (the grit, the lamp shadow), which is
+P·systems; this is the hook it needs.
+
+**Consequence for §9.1:** Röntgen's RADIOGRAPH sees through solid matter, which
+is a direct counter to both hazards. **It must be limited to one sweep per
+chamber**, or the earned upgrade disables the whole deception layer for the rest
+of the act.
 
 ## 9. Gravity, and the rest of the environment
 
@@ -447,16 +523,49 @@ source. Three things were wrong with it:
 §7.5 is unaffected: a rack's glow signals through colour and beat rather than
 brightness alone, so it reads in a lit room and becomes primary in the dark.
 
-### 9.1 The new medical-history layer
+### 9.1 The new medical-history layer — ten new minds
 
-Three that fit an underground rescue:
+**Ten, decided July 2026** (owner: *"we need new famous scions — 10 — and
+associated benefits"*). The rule applied: **every one is tied to an Act Two
+system**, so no upgrade is flavour-only, and none duplicates a benefit already
+in `FAMOUS`.
 
-| Figure | Why | Benefit |
+| Figure | Why them | Benefit |
 |---|---|---|
-| **René Laennec** | Heard through what he couldn't see | **AUSCULTATION** — the ward rings clear (§7.5) |
-| **John Snow** | Mapped an outbreak to one pump and took the handle off | **THE PUMP HANDLE** — reveals which trunk feeds which plant |
-| **William Harvey** | Proved blood circulates in a closed loop rather than being consumed | The network *is* a circulatory system — a flow/reserve benefit, and the thematic anchor for reading the tunnels as a body |
-| **Ambroise Paré** | Abandoned boiling oil for gentleness: *"I dressed him, God healed him"* | The pendulum's patron saint — a towing-tolerance benefit |
+| **René Laennec** (1781–1826) | Heard through what he couldn't see — rolled a paper tube and invented the stethoscope | **AUSCULTATION** — the whole ward pulses through rock, line of sight or not (§7.5) |
+| **John Snow** (1813–1858) | Mapped an outbreak to one pump and took the handle off | **THE PUMP HANDLE** — reveals which trunk feeds which rack (§7.1) |
+| **William Harvey** (1578–1657) | Proved blood circulates in a closed loop rather than being consumed | **CLOSED CIRCUIT** — reserves drain slower; the thematic anchor for reading the tunnels as a body (§7.3) |
+| **Ambroise Paré** (c. 1510–1590) | Abandoned boiling oil for gentleness: *"I dressed him, God healed him"* | **I DRESSED HIM** — towing tolerance; rough contact costs less integrity (§7.2) |
+| **Wilhelm Röntgen** (1845–1923) | Saw through solid matter, and refused to patent it | **RADIOGRAPH** — **one sweep per chamber** shows true geometry, defeating false floors and painted rock (§8.1) |
+| **Karl Landsteiner** (1868–1943) | Blood groups — the discovery that made transfusion survivable instead of lethal | **CROSSMATCH** — your vitals transfer at a far better ratio (§7.4) |
+| **William Morton** (1819–1868) | The Ether Dome, 1846 — the first public demonstration of surgical anaesthesia | **THE ETHER DOME** — deepen a rack's suppression to halve its drain for a window (§7.3) |
+| **Werner Forssmann** (1904–1979) | Threaded a catheter into his own beating heart to prove it could be done, and was dismissed for it | **THE CATHETER** — transfuse **while towing**, not only from a hover (§7.4) |
+| **Virginia Apgar** (1909–1974) | Scored a newborn's life in sixty seconds, and cut infant mortality by making assessment instant | **THE APGAR SCORE** — exact reserve readout on every rack in line of sight (§7.5) |
+| **Cicely Saunders** (1918–2005) | Founded the hospice movement: time and dignity at the edge, when cure is no longer the goal | **THE VIGIL** — a failing rack holds at a single flicker for a grace window instead of flatlining (§7.3) |
+
+**Why THE VIGIL is the most valuable of the ten.** §7.3 locks flatline as total
+death and §7 locks "the player must always be able to save everyone," and those
+two pillars sit in permanent tension. THE VIGIL resolves it without softening
+either: it converts the act's harshest rule into something a skilled player can
+recover from, and because it is *earned*, the softening is a reward rather than a
+difficulty setting. Checkpointing (§11.1) handles the failure case; THE VIGIL
+handles the near-miss.
+
+**No collisions with the shipped eleven** — checked against `FAMOUS`
+(`js/world.js`): Curie's RADIOSENSE is a compass, Röntgen is imaging;
+Nightingale's LAMP is reach, Apgar is readout; Hippocrates' GENTLE TOUCH is
+*hull* landing damage, Paré is *cargo* integrity.
+
+**Substitution available:** Nikolai Pirogov (battlefield triage, and the first
+to sort casualties by urgency) is the fallback if any of the ten needs replacing.
+
+**Interaction with V1 and the codex.** Mary Seacole is a **1.01** addition —
+the twelfth entry, unlocking the ROTATION CHART from THE NULLWAVE (roadmap V1).
+So Act Two's ten start from 13 and take `FAMOUS.length` to **22**. THE FULL
+CODEX's threshold is derived (`codex.size >= FAMOUS.length`) so it follows
+automatically, but check the codex pagination (`MINDS_PER_PAGE`, `js/render.js`)
+still lays out cleanly, and expect the completion grind to lengthen a lot —
+which is the point of a paid act's collectibles.
 
 ## 10. The ending
 
@@ -534,6 +643,74 @@ author.
 Ten levels, hand-authored (owner decision: authored geometry, not procedural —
 the courses must teach the swing, which noise can't do).
 
+### 11.0 Chamber scale, and the terrain rewrite it forces
+
+**Owner direction, July 2026:** each chamber is **larger than any surface
+sector**, and includes **overhangs and tight spaces** — geometry authored to make
+a tether interesting rather than terrain that happens to be underground.
+
+**The shipped terrain model cannot express that.** Terrain is a heightmap:
+`heights[]` sampled every `STEP` (16px), one value per column. Caves add a single
+parallel `roof[]`, clamped by `roof[i] = Math.min(roof[i], heights[i] - 175)`
+(`genCave`, `js/world.js`), so every Act One cave is a tube with a guaranteed
+175px gap — no overhangs, no re-entrant geometry, no pinch points, by
+construction. This is a hard limit of the representation, not a tuning value.
+
+**Decision: columns of spans** (owner, July 2026). Generalise `roof[]` from one
+ceiling per column to **N floor/ceiling pairs per column.** It is a strict
+superset of what ships:
+
+| Property | Heightmap today | Spans |
+|---|---|---|
+| Collision cost | O(1) column lookup | O(1) column lookup, plus "which span" |
+| `STEP` = 16 | yes | unchanged |
+| Terrain tile cache | yes | unchanged |
+| `groundAt`/`roofAt` shape | yes | same, with a span argument |
+| Overhangs, shelves, pillars, pinch points | **no** | **yes** |
+| True re-entrant hook (under it and back up into it) | no | **still no — accepted** |
+
+*Rejected: polygon terrain with segment collision.* Fully expressive, and it
+invalidates every terrain helper, the tile renderer, the landing-slope maths, the
+M1 golden checksum and the V2 fairness passes. Only revisit if the vertical slice
+proves spans can't carry the level design.
+
+**Two consequences that change the build order.**
+
+1. **The slice chamber must contain an overhang and a pinch point.** A slice
+   tuned against tube geometry proves the tether against terrain the real
+   chambers won't have — which is the single failure mode the slice exists to
+   prevent.
+2. **Ten large chambers cannot be hand-typed heightmaps.** They need an authoring
+   representation — a coarse room/span grammar compiled to spans at load —
+   built *before* the content, not after two levels of it.
+
+Act One's surface generation must be untouched by any of this; the M1 golden
+heightmap checksum is the proof, and it stays green.
+
+**Implemented (P·terrain).** `level.spans` holds one array of open `{top, bot}`
+intervals per column, ordered top to bottom, with solid rock outside them; two
+spans in a column *is* an overhang, a short span is a pinch point, and a column
+with none is a pillar. The primitives are in `js/world.js` under the "columns of
+spans" banner — `spanAt`, `pickSpan`, `matchSpan`, `solidAt`, `levelH` — and
+`groundAt`/`roofAt` gained the optional `y` argument this section anticipated as
+"a span argument". The room/span grammar and its compiler are in
+`js/acttwo-data.js` (`compileChamber`, and `SLICE_CHAMBER` as the worked
+example); drawing is `drawChamberTerrain` in `js/acttwo-render.js`. The M1
+checksum is unchanged at `1090254029`, so the table above held: collision stayed
+an O(1) column lookup, `STEP` and the tile cache both survived, and the
+re-entrant hook is still the one thing spans cannot express.
+
+**Owner review of the first pass (July 2026)** added two things to the model,
+both of which turned out to be cheap because a span's two boundaries are already
+independent. Each boundary carries a **material** — raw rock or milled — so
+"rock overhead, mechanical underfoot" is expressible per surface rather than per
+chamber, and a single shelf can be a landing pad on top and raw stone beneath.
+`spanAt` returns the material of the span you are in, which §8.1's tell needs:
+thruster wash raising grit off real rock and nothing off a projection is a
+question about what the surface *is*. Each boundary can also take a **profile** —
+`ramp`, `arc` or `teeth` — plus a corner radius, so an authored chamber is not
+condemned to right angles. Both are `js/acttwo-data.js`.
+
 ### 11.1 The descent, and where the checkpoint lives
 
 The act is a descent, so the structure is one: **each chamber's exit is the next
@@ -563,6 +740,71 @@ a rack flatline be total loss without training the player to save-scum.
 
 Each level introduces exactly one new element, per the campaign's existing rule
 (GAME_DESIGN §3).
+
+### 11.2 Persistence and the save schema
+
+Promoted out of §15's open questions into real scope (owner, July 2026: *"agree
+we need to design persistence"*), and **designed during the vertical slice rather
+than after it** — the slice is what reveals how much per-chamber state actually
+has to survive a backgrounded phone.
+
+**Act Two is a second campaign, not a run mode.** `runMode` today is
+`"campaign" | "remix" | "daily" | "training"` and every one of those plays the
+same eight surface sectors. Act Two has its own levels, its own score, its own
+rank ladder (§10a.4) and its own loss tracking (§7.3), so it is a parallel
+progression rather than a variant of the existing one.
+
+What that costs:
+
+- **A schema bump on `doids_run`, with a migration.** It is a shipped save
+  format with real players behind it by the time 1.1 lands. **The migration must
+  never wipe an Act One save** — that constraint is why the `doids_` prefix and
+  the `__doids` handle were never renamed, and it applies here unchanged. Add a
+  forward-compatible version field and treat a missing one as "Act One, v1".
+- **Per-chamber checkpointing** (§11.1) alongside Act One's A1 resume snapshot.
+  The chamber is the retry unit, so a checkpoint has to capture the chamber's
+  entry state — rack positions and reserves, which trunks are cut, what the well
+  has already taken — not just a level index and a ship pose.
+- **The E4 iCloud mirror in the same pass.** Every persisted key is mirrored
+  through `cloud.set`/`cloud.get` (`js/platform.js`); a new key that skips the
+  mirror silently breaks cross-device continuity for exactly the players most
+  likely to notice.
+- **New keys keep the `doids_` prefix**, per the shipped convention.
+
+**Test obligation:** an Act One 1.01 save must still load, resume and finish
+after the bump. That is a regression test in `P·guard`, not a manual check.
+
+**Still deliberately unanswered:** whether Act Two progress is a single linear
+save or per-chamber bests kept alongside it (§10a.4 wants both eventually). The
+slice decides.
+
+### 11.3 The momentum pinch (owner idea, July 2026)
+
+**Scale here is not literal.** A Scion stands about as tall as the dart (owner,
+July 2026), so a rack is sized by visual fit against the ship and by the physics of
+towing it, never by fitting its occupants. Its cell count is visual density.
+
+A slung rack hangs `SHIP_R + SLING_L + cage/2` below you — 90px at PENDULUM_SPEC
+§4.1's numbers — but only `max(2·SHIP_R, cage)` = 66px when it is trailing at
+your own level. That 24px band is a mechanic: **a gap you cannot creep through
+with the load hanging, and can take if you carry the speed to swing it up.**
+
+It is worth having because it prices speed against care instead of gating on an
+upgrade, and because going fast with a rack is the dangerous thing — every turn
+is felt by everyone in the box (§6.1), and damage accrues above `SLING_SAFE_V`.
+So the shortcut is real and it costs the thing you are trying to protect.
+
+`SLING_L` is derived rather than PENDULUM_SPEC §4.1's literal 46: that number was
+set for a payload of radius 8 and expressed a *readable length of visible cable*,
+which a rack-sized payload destroys. The sling keeps the readable length instead.
+
+Three tiers follow, and they are the chamber-authoring vocabulary — pass at rest ·
+momentum pinch · unladen route only — with the boundaries computed from the
+envelope, and both authored gaps derived from it, so retuning the rack or the sling
+moves the pinches with it instead of quietly voiding them. An unladen-only
+gap needs a parallel laden route, which is P·content's clearable-while-towing
+invariant. Implemented as geometry in `js/acttwo-data.js` (`towEnvelope`,
+`towTierForGap`) under P·terrain; the tether physics itself is P·systems.
 
 ## 12. What survives from PENDULUM_SPEC.md
 
@@ -626,9 +868,17 @@ tuned on device — *before a single additional level is authored.* If
 hurry-versus-care doesn't feel good in that one room, no amount of level design
 saves it, and you'll know in weeks instead of months.
 
-Device tuning is available now: 1.0 being in App Review means the Mac, Xcode and
-TestFlight all exist, so the tether can be tuned on hardware without shipping it
-to the public.
+**Device tuning is confirmed available** (owner, July 2026 — Mac, Xcode and
+TestFlight all in hand). This was previously an inference from "1.0 is in App
+Review" and is now verified, which closes §15 q1 and means every feel-critical
+item is tuned on hardware rather than in a browser.
+
+**Build order versus release order (July 2026).** 1.0 is still in App Review and
+1.01 is not yet live, so "1.01 first" constrains *when Act Two ships*, not when
+it is built. Act Two is built and refined now and held until 1.01 has gone out.
+Practically that means Bundle P runs as a sequence of PRs against a long-lived
+integration branch with everything behind a feature flag, so `main` stays
+releasable for a 1.01 hotfix at any point.
 
 ## 14. Decisions taken, and what was rejected
 
@@ -643,6 +893,18 @@ lowered deeper as you clear · **fuel is a lap budget** · **you cannot shoot
 while carrying** · **she is human** · 41 seconds is her heartbeat · quickening
 finale · Act Two runs its own score and rank · pendulum debuts here · 1.01 →
 1.1, no 1.2.
+
+**Locked by the July 2026 planning round, on top of the above:** the beacon is a
+**relay, not the transmitter** (§5.1a) · **span terrain** — N floor/ceiling pairs
+per column, chambers larger than any surface sector, with overhangs and pinch
+points (§11.0) · the deception tell is **"the world doesn't respond to you"**,
+not "perfectly level", which was false against `flatten()` (§8.1) · **ten new
+famous minds**, each tied to a system, RADIOGRAPH capped at one sweep per chamber
+(§9.1) · **persistence is a schema bump with a non-destructive migration**,
+designed during the slice (§11.2) · **Mary Seacole is a 1.01 addition**, not an
+Act Two one — the ROTATION CHART's unlock, behind the finale gate (roadmap V1) ·
+**device tuning is confirmed**, and build order is decoupled from release order
+(§13).
 
 **Rejected, with reasons:**
 
@@ -674,28 +936,70 @@ survival~~ (§7.3, rejected; checkpointing is the fix) · ~~who "she" is~~ (§6.
 human) · ~~descent structure and checkpoint unit~~ (§11.1) · ~~fuel~~ (§10a.1) ·
 ~~combat and the oath~~ (§10a.2–3) · ~~ranks and replay~~ (§10a.4).
 
+Resolved by the July 2026 planning round: ~~**is there Mac access right now?**~~
+(§13 — confirmed by the owner; the inference is now verified) ·
+~~**does Act Two leave the surface level cache untouched?**~~ (yes — and it no
+longer matters for sequencing, because the ROTATION CHART's unlock is Mary
+Seacole rather than an Act Two rescue, so V1 ships in 1.01 ahead of Bundle P) ·
+~~**persistence and save schema**~~ (scoped in §11.2; the remaining question is
+narrower and listed below) · ~~**terrain representation**~~ (§11.0, spans) ·
+~~**the §8 tell**~~ (§8.1, replaced).
+
+Resolved by P·slice (July 2026): ~~**is mid-band right for a momentum pinch?**~~
+(yes — the derived 77px sits between the 105px a hanging load needs and the 48px a
+load trailing at your own level needs, and steady-state thrust puts the load at
+~72° off vertical, a 57px envelope, so it passes under power with ~20px of margin
+and cannot be crept through) · ~~**how much of a chamber floor should be
+level?**~~ (less than the first pass had — the slice floor gained a structural
+column to climb over, and the momentum pinch now sits on the only route to the
+well so the hurry-versus-care question cannot be dodged).
+
 Still open:
 
-1. **Is 1.0 approved, and is there Mac access right now?** The release plan
-   (§13) rests on an *inference*: the roadmap says 1.0 is in App Review, so Mac
-   + Xcode + TestFlight must exist, so P·slice can be tuned on hardware. **This
-   was never verified.** If it's wrong, the vertical slice can't be feel-tuned
-   and the sequencing needs rethinking. Owner question.
-2. **Does Act Two really leave the surface level cache untouched?** Used to
-   justify moving V1/ROTATION CHART to 1.01. Plausible, unverified against
-   HOLLOWS_EXPANSION_SPEC §Q5.
-3. **The name of the act**, and with it the What's-New line that does the
-   price-move work in the store. Owner steer: it comes out of the work.
-4. **Scoring numbers** — the shape is decided (§10a.4); the table isn't. Write
-   it from what the vertical slice proves, in the form of PENDULUM_SPEC §5.
-5. **Persistence and save schema** — Act Two is a second campaign, not a run
-   mode. Per-chamber checkpointing (§11.1) plus Act One's A1 resume snapshot
-   means a schema bump and a migration. Unscoped.
-6. **Chamber pacing** — racks per chamber, and how long one takes. Deliberately
-   left until the slice; guessing now would be fiction.
+1. **The name of the act**, and with it the What's-New line that does the
+   price-move work in the store. Owner steer: it comes out of the work, so it is
+   written last. **This is the only open owner decision on the forward plan.**
+2. **Scoring numbers** — the shape is decided (§10a.4); the table isn't. Write
+   it from what the vertical slice proves, in the form of PENDULUM_SPEC §5. The
+   slice deliberately touches `score` nowhere, so Act Two's ladder starts from a
+   clean sheet; it tracks `a2Saved`/`a2Lost` only (§7.3's separate bucket).
+3. **Chamber pacing** — racks per chamber, and how long one takes. Still open,
+   and now answerable: the slice is one rack across a 9000px floor, and what a
+   device pass measures is how long that actually takes against the reserve.
+4. **One save or bests alongside it** — the narrow remainder of the persistence
+   question (§11.2). Two narrower questions came out of the slice and are on
+   P·persist in the roadmap: whether a rack's **position** is checkpointed (a rack
+   set down past the momentum pinch is real progress), and whether `integrity`
+   survives a retry — which is really "is GENTLE HANDS per-attempt or per-run?"
 
 ## 16. Next step
 
-Vertical slice (§13), then this document gets its scoring table, its copy deck
-entries and its implementation checklist in the shape of PENDULUM_SPEC §7.
-Nothing should be authored at scale until one chamber feels right on a phone.
+~~**P·terrain, then P·slice**~~ — **both have landed** (roadmap Bundle P). Span
+terrain and the chamber authoring format came first because the slice could not
+prove the tether without an overhang to swing it under (§11.0); the slice then
+built the loop end to end in one chamber: the trunk cut, the cradle, the tether,
+the draining reserve, the inverted transfusion and THE WELL. Its copy is now in
+[COPY_DECK.md](COPY_DECK.md) §12a. **What it has not had is a phone** — every feel
+value is authored, exposed and defaulted, and none of it is tuned; the dials are
+named in one block at the top of `js/acttwo-data.js` and no test asserts a tuning
+number, deliberately.
+
+**Next is a device pass, then P·persist and P·systems.** This document still owes
+its scoring table (§15 q2) and its implementation checklist in the shape of
+PENDULUM_SPEC §7, both of which want the hardware round first. Nothing is
+authored at scale until one chamber feels right in the hand — that constraint has
+not moved.
+
+**One thing the slice changed about how §11.1's ten chambers can be authored,**
+because it is a property of the terrain model rather than a preference: **a
+fully-solid column and a route past it are mutually exclusive.** A span-less
+column means no air at that x, and a route from one side of it to the other has to
+pass through every intermediate x. The slice chamber's "floor-to-ceiling pillar"
+was therefore a wall, and it sealed the only route to the well — which every
+P·terrain test missed, because each asserted a local property and none asked
+whether the room could be flown. A structural column you fly *around* must be
+flanked by air: the hall is locally taller than the column, which is also how a
+real plant hall carries one. The whole-room question is now an assertion
+(`__doids.chamberRoute`, run at three envelope heights in `tests/acttwo.spec.js`),
+and it is the form §7's "the player must always be able to save everyone" takes in
+geometry.

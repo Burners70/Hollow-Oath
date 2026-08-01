@@ -17,7 +17,7 @@ npx playwright test -g "V12" # one test, by title
 
 ## Which file holds what
 
-88 tests, split by concern so an edit loads one small file instead of the whole
+156 tests, split by concern so an edit loads one small file instead of the whole
 suite. `harness.js` holds the shared per-test guard — navigate to the game, wait
 for `__doids`, and fail the test on any console error or uncaught exception.
 
@@ -26,12 +26,14 @@ for `__doids`, and fail the test on any console error or uncaught exception.
 | `boot.spec.js` | Booting to the title, the first-play fork and HOW TO FLY guide, the veteran intro, game over, save/resume (incl. a corrupt save), iOS-lifecycle stability |
 | `settings.spec.js` | The settings panel and every persisted toggle, pause menu, HUD legend, tight-viewport layout fits, keyboard/touch input |
 | `audio.spec.js` | Thrust-noise lifecycle, ambience tracking the ship's vitals |
-| `worldgen.spec.js` | Level/cave generation, biomes and widths, beacons and black boxes, wrecks and lift pads, seeded/daily runs, veteran gating and escalation, plus the generation-**fairness** invariants |
+| `worldgen.spec.js` | Level/cave generation, biomes and widths, beacons and black boxes, wrecks and lift pads, seeded/daily runs, veteran gating and escalation, plus the generation-**fairness** invariants. Also Act Two's **span terrain** (Bundle P, P·terrain): that Act One's heightmap is untouched, that a chamber compiles deterministically, that overhangs/pinches/pillars exist, and that the drawn rock matches `solidAt` |
 | `flight.spec.js` | The landing evaluator and rank flags, shield parry, the secret lift down and back, fuel economy (stranding, resupply drone, transfusion line, paid refueller) |
 | `rescue.spec.js` | Scions vs Vectors: the landed scan, counterfeit tells, malpractice rules, contagion and the healing cabin, breach retrieval/isolation, extraction hangar and triage retreat |
 | `finale.spec.js` | The counterfeit MERCY, the twin reveal, the Solace, and every ending |
 | `story.spec.js` | Briefings, the 41-second clock, recovered logs and the codex archive, Game Center facade |
+| `acttwo.spec.js` | **Act Two's mechanics** (Bundle P, P·slice): the trunk cut, the cradle, the tether and its damage model, the draining reserve and its bite on the 41s beat, the inverted transfusion, THE WELL, death-while-towing — plus the **traversability invariant** (every chamber must be flyable laden). Act Two's *terrain* stays in `worldgen.spec.js` with the other generation invariants. Nothing here asserts a tuning number: Act Two's feel values are tuned on hardware, so the tests assert the rules |
 | `copy-deck.spec.js` | Guards `docs/COPY_DECK.md` against drift — see below |
+| `qa-harness.spec.js` | Guards `tests/qa-harness.html` (the on-device tap rig) against drift: every button maps to an action, every `__doids` driver it calls still exists, the `contentWindow` calls are function declarations, the default build URL is SHA-pinned. Static — the rig can't be driven live here, because that needs same-origin and the suite is `file://`. See `docs/QA_HARNESS.md` |
 
 Adding a test: pick the file by concern, follow the pattern in it
 (`page.evaluate(() => __doids.go(n))`, then assert on `__doids.get()`), and when

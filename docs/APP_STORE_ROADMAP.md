@@ -89,12 +89,15 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 fly-back (**now a 1.01 item — needs a new unlock**), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 3 | **1.1** | Whole bundle — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only |
+| V | 1.01 maintenance & narrative | 3 | 1.01 | **V·pacifism — Act One currently pays better for shooting than for restraint** (found July 2026, arithmetic in the section), V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
+| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain and P·slice have both landed** — the loop runs end to end in one chamber, so the gate is open. Next is **P·persist** (designed during the slice, per §11.2) and **P·systems**; P·content authors chambers only against proven systems |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
-| Q | The deep Hollows | 3 | 1.01 core; caves absorbed | Only the ROTATION CHART survives as a 1.01 utility. Laennec/AUSCULTATION move into Act Two; **the three caves are absorbed by Act Two and 1.2 is cancelled** |
+| Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
-**No owner decision is currently open.** (V11 — whether to surface the decoy
+**One owner decision is open: the name of Act Two** (and with it the 1.1
+What's-New line that does the price-move work in the store). The owner's steer
+is that it comes out of the work, so it is written last — see
+[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §15. (V11 — whether to surface the decoy
 MERCY earlier — was resolved with Bundle V: leave it as a deep secret, no code
 change.)
 
@@ -436,26 +439,596 @@ release plan: **[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md)**;
 
 **Priority: the 1.1 release, entire. Dependencies: 1.01 must ship first and is
 a hard commercial dependency, not housekeeping** — Act Two is gated behind
-finishing the campaign, and Bundle X exists because new players don't. Device
-tuning is available now (1.0 in review ⇒ Mac + TestFlight exist).
+finishing the campaign, and Bundle X exists because new players don't. That is
+a constraint on *release order, not build order*: 1.0 is still in App Review and
+1.01 is not live, so Act Two is built and refined now and held until 1.01 has
+shipped. **Device tuning is confirmed available** (owner, July 2026 — Mac,
+Xcode and TestFlight all in hand), which closes ACT_TWO_SPEC §15 q1 and means
+every feel-critical item below is tuned on hardware rather than in a browser.
 
-- [ ] **P·slice. Vertical slice before content.** One chamber, one rack, the
+**Phased (owner round, July 2026).** The bundle is too large for one branch, so
+it runs as a sequence of PRs against a long-lived integration branch, everything
+behind a feature flag until P·slice signs off — `main` stays releasable for a
+1.01 hotfix throughout. The order below is a dependency chain, not a preference:
+**P·terrain gates P·slice, and P·slice gates everything after it.** P·terrain is
+done, so the chain now starts at P·slice.
+
+- [x] **P·terrain. Span terrain, and the chamber authoring format.** *(Owner
+  decision, July 2026: spans, not heightmaps.)* **The shipped terrain model
+  cannot express an overhang.** Terrain is a heightmap — `heights[]` sampled
+  every `STEP` (16px), one value per column — and caves add a single parallel
+  `roof[]`, clamped by `roof[i] = Math.min(roof[i], heights[i] - 175)`
+  (`genCave`, `js/world.js`). So every cave is a tube with a guaranteed 175px
+  gap: no overhangs, no re-entrant geometry, no pinch points. Act Two's chambers
+  are specified as **larger than any surface sector, with overhangs and tight
+  spaces, authored for a tether** (owner, July 2026), so the representation has
+  to change first.
+  **Generalise `roof[]` to N floor/ceiling pairs per column** ("columns of
+  spans"). It is a strict superset of what ships: collision stays an O(1) column
+  lookup, `STEP` survives, the terrain tile cache survives, and
+  `groundAt`/`roofAt` keep their shape with a "which span" argument. It
+  expresses overhangs, shelves, pillars, tight passages and pinch points.
+  **What it cannot express is a true re-entrant hook** (fly under it and back up
+  into it) — accepted, rather than paying for polygon terrain, which would
+  invalidate every terrain helper, the tile renderer, the landing-slope maths,
+  the M1 checksum and the V2 fairness passes. Revisit only if P·slice proves
+  spans can't carry the level design.
+  Also here, because ten large chambers cannot be hand-typed heightmaps: **a
+  compact authoring representation** (a coarse room/span grammar compiled to
+  spans at load), built before the content rather than after two levels of it.
+  Act One's surface generation must be untouched — the M1 golden checksum is the
+  proof.
+  **Landed.** `level.spans` — one array of open `{top, bot}` intervals per
+  column, ordered top to bottom, solid rock outside them. Primitives sit in
+  `js/world.js` beside `groundAt` (grep "columns of spans"):
+  `spanAt`/`pickSpan`/`matchSpan`/`solidAt`/`levelH`, and `groundAt`/`roofAt`
+  took an **optional second argument** — the `y` that says which span you mean.
+  Every shipped call site passes `x` alone and takes the heightmap path
+  unchanged, which is how Act One stayed untouched; the M1 checksum is still
+  `1090254029`. Three call sites opted in: the ship's ground and ceiling tests
+  (`updatePlay`) and the projectile test, which now uses `solidAt` — the same
+  predicate on both models, so a shot is stopped by a pillar as well as a floor.
+  The authoring grammar is in `js/acttwo-data.js`: a chamber is a list of coarse
+  `{op:"room"|"rock", x, y, w, h}` parts applied in order, with optional
+  per-boundary roughness, compiled by `compileChamber` (interval union and
+  subtract per column) — **rock inside a room is how you author an overhang**.
+  Deterministic from the chamber's own `seed`, so it is checksummable exactly as
+  the heightmap is (`__doids.spanChecksum`). Drawing is `drawChamberTerrain`
+  (`js/acttwo-render.js`), which builds a chamber's rock as the complement of its
+  spans through Act One's own per-512px tile cache contract; the provisional
+  heightmap stand-in P·design shipped is gone.
+  `SLICE_CHAMBER` is the one authored chamber, and it exists to prove the format,
+  not as content: **6000×2400** (the widest surface sector is 5500, the finale
+  4400), with **96 overhang columns, an 85px pinch** against the 175px every Act
+  One cave is guaranteed, and a floor-to-ceiling **pillar**. That is P·slice's
+  required geometry, ready for it. Seven tests in `tests/worldgen.spec.js`, one of
+  which samples the *rendered canvas* against `solidAt` at twelve points — the
+  rock you see is the rock you hit. Suite green at 133. (`flight.spec.js` U2, the Act One field refueller, flaked once on an unrelated timing assertion and passes on re-run.)
+  Not done here, deliberately: no racks, well, tow, reserve or tether — `genChamber`
+  builds terrain only, and `heights` is absent rather than stubbed so anything
+  that secretly wants a heightmap fails loudly. Re-entrant hooks remain
+  unexpressible, as accepted above.
+  **Owner review, July 2026 — two additions, both landed.** The first pass was
+  called *cold and dull, and ten levels of it a chore*, with three specific notes:
+  1. **Rock overhead, mechanical underfoot** for roughly the first eight chambers,
+     so the plant reads as a facility *installed in a cave* rather than a tiled
+     box. Landed as a per-boundary **material** (`MAT_ROCK`/`MAT_MACH`) rather than
+     a per-chamber flag, because the useful case is one surface being both — the
+     slice chamber's shelf is a milled pad on top and raw stone underneath. Three
+     separated values carry it: void (open) < `ROCK_PAL` (the mass) < the zone's
+     steel (a paved band behind a milled face). Raw rock strokes violet and keeps
+     the Hollows' glow, tying Act Two's stone to Act One's; milled faces stroke the
+     zone accent and are the only ones that get panel ticks. Chambers set
+     `matTop`/`matBot` defaults, so P·content gets the rule for free.
+  2. **Not everything at right angles.** The grammar gained boundary **profiles** —
+     `ramp` (sloped floors, so not every landing is level), `arc` (a domed cavern
+     or a machined bore) and `teeth` (stalactites, or a cut comb) — plus a
+     `radius` corner fillet for "immaculate rounded edges". They compose with the
+     roughness, and rock now takes two noise octaves against a milled face's one
+     quiet one. The slice chamber demonstrates all four to the right of the proven
+     overhang/pinch/pillar, which kept their coordinates.
+  3. **Points of interest in the ground.** Mostly already built and never switched
+     on: #69's `PLANT_ORNAMENTS` (conduit run, racking frame, junction truss, vent
+     grate) had no level setting `plantOrnaments`. The slice chamber now carries
+     seven, `snap`ped onto whatever floor they sit above so retuning terrain can't
+     leave them hovering. `conduitRun` already runs a light along its length on the
+     rack's own heartbeat — the pulsing the owner asked for exists.
+  Also fixed in the same pass: `genChamber` hardcoded `isPlant: true`, which dressed
+  SOLACE's breached intake (beat 1, §11.1) as one of Glycon's plant rooms. It now
+  comes from the chamber, and the chamber-terrain render path keys on `level.spans`
+  rather than `isPlant` — every chamber is underground, only 2–5 are the plant.
+  **Owner review, round two (July 2026) — three more, all landed.**
+  4. **Keep "some rock you see is NOT rock you hit."** Correctly flagged: §8's
+     hazards are a false floor (drawn, not there) and painted rock (real, never
+     drawn), and nothing in the model could hold either — a deception would have
+     had to be bolted on outside the terrain system, and a test was asserting
+     drawn-equals-solid *everywhere*, which is the exact opposite invariant. A
+     part now declares a `view` (`drawn`/`solid`) and `genChamber` compiles both
+     `spans` (collision) and `spansDrawn` (rendering) from one definition. They
+     are the same array on an honest chamber; a test asserts the two views differ
+     only inside a part that declared a view, and counts undeclared drift as a
+     failure. The slice chamber carries one of each. The tell — grit off real rock,
+     none off a projection, no lamp shadow on a lie — stays P·systems.
+  5. **Brighter, via many light sources.** `drawChamberLights`: additive radial
+     pools per fixture plus a flat ambient lift, over the terrain and outside the
+     tile cache so nothing needs relighting. Ambient is lifted *alongside* the
+     fixtures deliberately — pools over a dark fill read as a cave with lamps in
+     it, which is what §9.2 explicitly does not want. Cool cyan fixtures are his,
+     warm gold ones the failing original plant, and they double as the points of
+     interest a bare floor lacked. Fixtures snap to a real surface; a test asserts
+     none is buried in rock or hovering, and that the room measures brighter with
+     them than without.
+  6. **A chamber is one FLOOR of a subterranean complex** — wide, cleared
+     entirely, then descend at the far end. The first layout stepped down through
+     three stacked galleries, making every chamber its own mini-descent and
+     leaving the act's structure nothing to do. Re-authored as a 9000×2050 working
+     hall with bays and mezzanines along it and the way down at the right-hand
+     end, which is where the next chamber's entrance and MERCY's well belong
+     (§11.1). Its test now asserts width-to-vertical > 3 rather than a hardcoded
+     size, and every feature test locates its feature by property (first column
+     with two spans, the solid run with hall either side) instead of by
+     coordinate — the chamber has been retuned three times and coordinate
+     literals turned each retune into a puzzle about which number went stale.
+  **Two real bugs came out of that round**, both invisible to Act One:
+  `pickSpan` started `best` at null with a strict `<`, so the no-y sentinel left
+  every candidate at distance Infinity, failed the comparison and returned null
+  for a column that plainly had spans — **`groundAt(x)` with one argument returned
+  the bottom of the world on any chamber**, which would have broken every shipped
+  one-argument call site the moment P·slice loaded one. And the pixel-agreement
+  test parked the ship *at* the probe point with the camera centred there, so it
+  had been sampling the ship's own cyan and calling it rock; there is now one
+  `__doids.samplePixel` that keeps clear of the ship, the HUD and the containment
+  field, used by both pixel tests.
+  **Both questions this left open were answered by P·slice** (see that item):
+  mid-band is right for a momentum pinch, and the floor *was* too landable — it
+  gained a structural column to climb over.
+  **And P·slice found the chamber was not flyable at all.** The "floor-to-ceiling
+  pillar" above covered every open interval in its own columns, so it sealed the
+  only route to the well: a flood fill stopped dead at x 4592 for a laden ship, an
+  unladen ship and a bare point alike. Every test here passed anyway, because each
+  asserted a *local* property — an overhang exists, a pinch exists, a pillar
+  exists — and nothing asked the whole-room question.
+  The conflict is provable rather than a tuning slip, which is worth writing down
+  because it constrains how every one of P·content's ten chambers can be authored:
+  **a fully-solid column and a route past it are mutually exclusive.** A span-less
+  column means no air at that x, and a route from one side to the other must pass
+  through every intermediate x. So a structural column you fly *around* has to be
+  flanked by air — the hall is locally taller than the column, which is also how a
+  real plant hall carries one. The chamber now has that, the pillar test locates
+  the feature by the property that actually defines it (rock reaching the floor,
+  with air over the capital), and the whole-room question is asserted in
+  `tests/acttwo.spec.js`.
+- [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
+  with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
+  the rack reads correctly, and that is a design problem before it is a code
+  one. The hand-out is [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md),
+  written to be self-contained for someone with no repo access. Two things worth
+  knowing before briefing anyone: **the game has no in-game art assets** (all
+  visuals are procedural canvas drawing, so the deliverable is specified
+  direction plus timing numbers, not sprites), and **there is no public web
+  build** since O7, so the brief points at running `index.html` locally, the
+  demo video and the marketing stills instead. Only two real image files come out
+  of it: the twelfth star on `the_full_codex.png` (a **1.01** item, independent of
+  everything else — see V1) and, later, the two Act Two achievement badges.
+- [x] **P·slice. Vertical slice before content.** One chamber, one rack, the
   trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
   end and tuned on a phone, **before a single additional level is authored.**
   If hurry-versus-care doesn't feel good in one room, no amount of level
   design saves it. Gates everything below.
-- [ ] **P·impl. Implement per ACT_TWO_SPEC.md** — the spec still needs its
-  scoring table, copy-deck entries and an implementation checklist in the
-  shape of PENDULUM_SPEC §7; write those from what the slice proves, then work
-  through them there (one source of truth; don't mirror the list here).
-  *(The in-app rating prompt that used to sit here as **P·review** has shipped
-  already — it moved to Bundle X as X6 once 1.01 became the first post-launch
-  build, and is live in `js/platform.js` + `app/plugins/rating`.)*
+  **The slice chamber must contain an overhang and a pinch point** — a slice
+  tuned against tube geometry proves the tether against terrain the real
+  chambers won't have, which is the one failure mode the slice exists to
+  prevent. Expose the new state through `__doids.get()` from day one so the
+  slice is testable headlessly while it is being felt by hand.
+  *P·terrain delivered that geometry:* `SLICE_CHAMBER` (`js/acttwo-data.js`) is
+  a 9000×2050 working floor with overhangs, an ordinary tight spot, a momentum
+  pinch and a structural column, loadable with `__doids.loadChamber("slice")`.
+  **Landed.** The loop runs end to end in `js/acttwo-update.js` (new file, the
+  Act Two exception): read which trunk feeds the rack → land at its isolator and
+  hold to close it → the rack drops to internal reserve and starts dying →
+  cradle it → tow it the length of the floor → give it your own vitals when it
+  won't make the trip → dock a swinging load into MERCY's swinging bay. 17 tests
+  in `tests/acttwo.spec.js`; suite green at 150.
+  - **The tether** is PENDULUM_SPEC §4.1's model with one correction found by
+    flying it. The ship's 30% share of the constraint is applied as an impulse
+    against the **radial closing speed**, not as `err/dt`: the latter makes the
+    coupling stiffness proportional to `1/dt`, so the tug's strength depends on
+    the framerate — useless for a value being tuned on hardware — and is
+    unbounded on a long frame, which is how the first version threw a rack the
+    length of the hall. Position on the load, velocity on the hull.
+  - **Three controls, no new buttons.** The cut and the cradle are landed holds
+    (the shipped `updateBlackbox` grammar, so CELL DOCTRINE applies). FIRE is the
+    release and never a shot while towing (§10a.2). **The transfusion is a held
+    SHIELD** — every other input is spoken for while hovering over a dying rack,
+    and the shield is the one that is *semantically* free, because the field
+    would sever the line anyway. The hand that shields you is the hand that gives.
+  - **Slams cost the reserve as well as integrity, and that is the design.**
+    `reserve` is the resource under pressure, so the drain and rough flying pull
+    on ONE needle — which is what makes hurry-versus-care a single allocation
+    problem instead of two unrelated meters. `integrity` is the record of what
+    your handling cost, never touched by the drain, so GENTLE HANDS (§10a.4)
+    means "never slammed" rather than "arrived quickly". Damage is measured on
+    the **normal** component of the payload's velocity, not its speed, or every
+    fast pass through the momentum pinch would be billed as a slam.
+  - **The two open questions are answered, and the answers were "yes" and "no".**
+    *Mid-band is right for a momentum pinch:* the derived 77px sits between the
+    105px a hanging load needs and the 48px a load trailing at your own level
+    needs, and steady-state thrust puts the load at ~72° off vertical (a 57px
+    envelope), so it passes under power with ~20px of margin and cannot be crept
+    through. *The floor was too landable:* it now has the structural column to
+    climb over, and the pinch is on the only route to the well — deliberately, so
+    the question cannot be dodged.
+  - **Three bugs, all invisible before there was a tether.** `seatPayload`
+    forced a *slack* sling taut, which drove the load into the deck on the frame
+    you cradled it. The 41s beat was inferred from `staticClock` getting smaller,
+    which is wrong exactly when the wrap lands early in a period — there is now
+    an explicit `staticBeat` flag. And a released load hung in mid-air, because
+    only the *towed* rack was simulated; §4.2's drop damage was unreachable.
+  - **Death in a chamber was off-world.** `spawnShip` places the ship relative to
+    `level.mx/my`, which a chamber leaves at `-9999`. A life lost dropped the hull
+    clean out of the world — the most common thing a player does while a slice is
+    being hand-tuned. `respawnInChamber` re-enters at the chamber's own entrance
+    with the rack network untouched: a life costs you the flight back, not the room.
+  - **Still to tune on hardware**, and the dials are named in one block at the top
+    of `js/acttwo-data.js`: `SLING_VISIBLE` (which derives `SLING_L`, and with it
+    the momentum band and both authored gaps — a one-number change, never a
+    re-author), `RACK_DRAIN`/`RACK_BEAT_BITE`, `GIVE_RATE`/`GIVE_PER_LINE`, and
+    `WELL_DOCK_R`/`WELL_DOCK_V`. No test asserts a tuning number, on purpose.
+  - **The rig for that pass is ready.** `tests/qa-harness.html` has an Act Two
+    section (see [QA_HARNESS.md](QA_HARNESS.md)): load a chamber, warp to the rack
+    or the well, close the real feed or a decoy, cradle/release, force a reserve or
+    a vitals level, read the live dials, and run the clearable-laden route check on
+    the device. **Act Two has no route from the title screen** — that arrives with
+    P·persist/P·content, so the harness is the only way in and every Act Two button
+    is feature-detected against the build. Its chrome floats over the game and
+    hides to a tab, because the old layout shrank the iframe and with it the game.
+- [x] **P·feedback. The first on-device round on the slice.** *(Owner, July
+  2026 — played on a phone through `tests/qa-harness.html`, which is the only
+  route in.)* Twenty notes. Most collapsed into a handful of causes, which is
+  the value of the round and the reason they are recorded rather than just fixed.
+  - **Act One's sector logic was running in the chamber.** A chamber holds no
+    Scions, so the manifest is trivially closed on frame one: `checkSectorClear`
+    concluded the sector was clear and flashed `MANIFEST CLOSED — FLY INTO HER
+    VENTRAL HANGAR` at a mothership nine thousand pixels above the rock, for the
+    whole descent. The HUD read `SCIONS ABOARD 0 · SECTOR 0/0` throughout. One
+    `level.isChamber` guard, and a bank tally in place of the sector one.
+  - **The hull had no lateral collision at all.** Act One's terrain is a
+    heightmap — one floor, one ceiling per column — so `updatePlay` only ever
+    tested vertically, and `solidAt` was used for nothing but bullets. Spans
+    express pillars, column flanks and §8's painted rock, and the dart flew
+    through all three. `shipSolidCollide` adds the test, chamber-only.
+  - **And a chamber impact now hurts rather than kills.** Act One's cave-roof
+    rule is untouched, but it cannot survive overhangs, a pinch you are asked to
+    carry speed through, and a load on a rope. Capped just under a hard landing,
+    so no single impact is fatal from full health — an uncapped ramp billed 137
+    vitals against a pool of 100, which is the instakill the owner objected to.
+  - **The "laser turret" does not exist.** What the owner saw was the
+    `junctionTruss` ornament — two rails and an A-frame, a trestle in
+    silhouette, hence "the blue thing that looks like a picnic table" — and what
+    killed them was the painted rock 200px to its right. An invisible wall that
+    kills on contact has no other available explanation, which is worth
+    recording: **an untelegraphed hazard gets blamed on the nearest visible
+    object.** The truss is redrawn as a junction cabinet. §8's actual tell is
+    still P·systems, and it is now load-bearing rather than polish.
+  - **Contact damping was dead code.** Both payload integrators recompute
+    velocity from displacement — which is what makes the rope swing — and that
+    overwrote every friction value `towCollide` set. A dropped rack slid on
+    `SLING_DAMP` alone. Applied after the Verlet step now, with the rest deadband
+    gated on a contact frame so it cannot eat gravity's per-frame increment.
+  - **The somersault was pure pendulum, and the fix is that a rack is BOLTED
+    IN.** You cradle from beside the box, so the rope starts near horizontal, and
+    a point mass released from horizontal swings down, under you and up the far
+    side. A moored rack is not simulated at all; the rope pulls the *hull*
+    instead, and sustained thrust parts the mounts (free, per the owner —
+    what it costs is a moment of thrust against something that will not move).
+    Timing that pull is the one non-obvious bit: stretch cannot measure it, since
+    the constraint removes the stretch every frame, and stretch-plus-thrust
+    cannot either, since the hull sits in equilibrium and `d` lands either side
+    of the rope's length alternately. Measured as "at full extension, within a
+    hair, with thrust held".
+  - **You land ON the rack to rig the sling.** There was no input at all —
+    `updateCradle` accumulated on proximity while landed, so the sling rigged
+    itself, hence "how am I meant to connect to rack at the moment?". The cage
+    lid is a landable pad, and there is a prompt.
+  - **Feed lines run under the deck, and every one ends in a box.** A trunk was
+    one straight segment across open air (870px of diagonal here), and a decoy
+    ran to `c.x + 240, c.y - 300` — a line to literally nowhere. Trunks are
+    polylines now, buried between risers, drawn dimmer where you see them
+    through rock. Decoys terminate in boxes of the same size, mounting and beat
+    as a real bank: if any of that differed, a decoy would be identifiable by
+    looking and §7.1's deduction would be decoration. Landing beside one costs
+    **vitals** (owner's call — you are the blood supply, so it comes out of the
+    pool a real bank will need), once, floored above zero.
+  - **Fuel, and where a run starts.** Thrust burns 5.2/s against a 100 tank, and
+    this floor is 9000px flown unladen then hauled back: not achievable in one
+    run. Cans are placed along the route, tighter on the laden leg; the resupply
+    drone stays the net for a dry hull but launches from **the well**, having
+    previously flown in from `mercyPos()` — which a chamber leaves at -9999. The
+    chamber is entered at the well too, which is structure rather than a spawn
+    point: you arrive where MERCY can reach, fly out unladen, haul back.
+  - **That moved the traversability invariant**, and the reason is worth keeping:
+    `chamberRoute` seeds its fill at the ship, so with the entrance on the well's
+    side of the momentum pinch, "a hanging load cannot reach the well" became
+    trivially false. Connectivity is undirected, so it is restated against the
+    rack — the same claim from the other end, and the one that survives moving
+    the entrance again. `minX` is reported beside `maxX` for the same reason.
+  - **A slam now has a reaction:** a muffled cry (noise through a low bandpass —
+    a voice with none of its detail, heard through a hull), the shudder `slamT`
+    was already tracking with nothing drawing it, and a haptic. **No text, no
+    emoji** — owner's call, and the right one: this game reads lives off rhythm.
+  - Smaller: the winch no longer draws a second rack over the slung one at the
+    well; isolators sit on the deck instead of hovering 28px clear; light
+    fittings are lamp housings rather than bare bars (the warm floor ones read as
+    Act One landing pads); conduit-run ornaments follow the floor instead of
+    hanging in air where the deck drops away; and the flatline banner says what
+    happens rather than quoting the design doc at the player.
+  - **The plant EMPLACEMENT, built to the owner's brief** (second pass of this
+    round): "a slightly bigger, more blocky version of the gun emplacements in
+    act one… tougher than those guns, but not an instakill." Same parts, same
+    colour, squared housing on a plinth with armour ribs instead of a dome —
+    visibly the heavier cousin, which is what tells a player it will take more
+    than one round *before* they spend the first finding out. Tougher is HP
+    (`EMPLACE_HP`), not a bigger gun, and it is slower and shorter-reaching than
+    Act One's: tough must not also mean relentless, since the objection was to
+    dying with no way to read it coming. `hp` defaults to 1 everywhere, so Act
+    One's turrets still die to one round and none of its balance moves — a parry
+    goes through the same HP model, so it stays a great answer without being a
+    bypass of the armour. **Placement is deferred** to level design (owner); the
+    single authored emplacement in `SLICE_CHAMBER` is provisional, sited only so
+    the thing can be flown against on a phone, and nothing else references it.
+  - **§8.1's tell, first pass — the deceptions STAY.** Owner: "we do want some
+    kind of invisible walls, etc (but maybe not quite so completely impossible to
+    spot!)". Nothing was removed: the false floor and the painted rock are still
+    authored, still lie, and the worldgen test still requires the two views to
+    differ only inside a part that declared a `view`. What is new is **settling
+    dust**, and it is one mechanism serving both hazards, which is why it beats a
+    marker per hazard: motes fall and come to rest on the first thing that is
+    actually solid, tested with `solidAt` — the same predicate collision uses, so
+    the dust cannot know anything the physics doesn't. Over a false floor they
+    fall straight through the surface you can see; against painted rock they
+    settle in mid-air on nothing. Honest in both directions, too: an ordinary
+    floor collects dust identically, so the *presence* of motes is never the
+    tell — where they stop is. The remaining channels (no grit off a projection,
+    no lamp shadow on a lie) stay P·systems; this is the readability floor, set
+    at "a careful player can spot a lie before it costs them".
+  - **Owner decisions taken at the end of this round (July 2026), all four of
+    which unblock work that was waiting on them:**
+    1. **A slung rack is INVULNERABLE to enemy fire.** All of it lands on the
+       pilot. The consequence is recorded here because it decides how
+       emplacements can be sited: while towing you can neither shoot (FIRE
+       releases) nor shield (the field would sever the sling), so a gun on the
+       laden route is damage you have **no answer to** except to have dealt with
+       it beforehand. That is coherent — it routes §10a.2's oath question through
+       *your* vitals rather than the bank's, and vitals are also what a
+       transfusion spends, so it deepens the single allocation problem instead of
+       adding a second one. It does mean an emplacement on the laden leg with no
+       cover is unavoidable damage, and placement must be authored knowing it.
+    2. **Floor variety is "both, flying first."** Re-author the shape — varied
+       clearances, ledges, steps, shelves at different heights, so the ground
+       changes the route and the swing — prove it with the flood fill, then dress
+       it with materials and ornament. Two passes, in that order.
+    3. **A chamber retry resets integrity**, so GENTLE HANDS is **per-attempt** —
+       a goal worth chasing rather than a run abandoned after one bad clip, and it
+       matches "a life costs you the flight back, not the room". A rack's
+       **position** resets with the room too. Both of P·persist's open questions
+       are closed by this; see that item.
+    4. **Act Two gets a full score ladder**, like Act One's and feeding the same
+       hiscore. See P·systems for the one thing it still has to settle.
+  - **Still open from this round:** **floor variety**, now briefed by decision 2
+    above. A re-author of `SLICE_CHAMBER` under the constraint that
+    `__doids.chamberRoute()` must stay passable laden. Eleven tests added; suite
+    green at 167.
+- [ ] **P·persist. Persistence and save schema.** Promoted out of
+  ACT_TWO_SPEC §15 q5 into real scope, and designed *during* P·slice rather
+  than after it. Act Two is a second campaign, not a run mode: per-chamber
+  checkpointing (spec §11.1) on top of Act One's A1 resume snapshot means a
+  schema bump plus a migration that **must not wipe an existing player's save**
+  — `doids_run` is a shipped format and the `doids_` prefix stays. Needs the
+  E4 iCloud mirror considered in the same pass (`cloud.set`/`cloud.get`), a
+  forward-compatible version field, and a test that an Act One 1.01 save still
+  loads.
+  **What P·slice settled, which is what §11.2 said to design it during.** All
+  per-chamber state lives on three arrays hanging off `level` — `level.racks`,
+  `level.conduits`, `level.wellDock` — deliberately, with nothing hiding in module
+  scope: a chamber checkpoint is a shallow copy of those plus the ship pose. The
+  only module-scope state is `a2Saved`/`a2Lost` (§7.3's separate loss tracking)
+  and the transfusion line, and both are per-attempt rather than persistent.
+  A rack's full state is `{ reserve, integrity, cut, towed, delivered, lost, gives,
+  everTowed, x, y, moored, mount }`; a conduit's is `{ cut }`; the well's is
+  `{ taken }`; and P·feedback added `level.fuelCans` (`{ taken }`), `level.decoys`
+  (`{ penalised }`) and `level.turrets` (`{ alive, hp }`) on the same pattern —
+  every piece of per-chamber state still hangs off `level`, which is exactly what
+  a shallow-copy checkpoint needs.
+  **New requirement from the ladder decision (owner, July 2026):** the save must
+  carry **run provenance** — was this run begun at the start of Act One? The
+  global hiscore counts a run across both acts only if it was, so a chamber
+  entered directly must not feed `doids_hi`. One boolean, set at Act One sector 0
+  and cleared by any direct entry, and it has to survive the resume snapshot like
+  everything else. Act Two also gets its **own** hiscore key alongside it.
+  **Both open questions are now answered (owner, July 2026):** a retry **resets
+  integrity**, so GENTLE HANDS is per-attempt, and a rack's **position resets with
+  the room** rather than being checkpointed. So a chamber checkpoint is the room's
+  *progress* — which feeds are cut, which banks are delivered or lost, which cans
+  are gone — and never a rack's pose or its accumulated harm. A simpler snapshot
+  than this item was originally scoped for.
+  The death path is already the right shape to build on: `respawnInChamber`
+  (`js/acttwo-update.js`) is called from the `"dead"` case in `update()` beside
+  Act One's `if (level.isCave) exitCave()`, which is where chamber checkpointing
+  belongs too.
+- [ ] **P·systems. The rest of the mechanics**, in the spec's order and only
+  after the slice signs off: pulse-reading with the honest-versus-metronomic
+  layer, the deception hazards on the **revised** tell (see below), deep
+  readers, the well deepening per chamber, the ward's four readability channels
+  under `PAL()`/`reducedFlash`, anomaly geology reusing Bundle Z's gravity
+  scale, handling machinery and unfinished husks, and Act Two's own score and
+  rank ladder. **Specified by the owner, July 2026** — read this before writing
+  any of it, because several code comments still assert the opposite and were
+  wrong (see "corrections" below).
+
+  **THE LADDER, as decided.**
+  1. **Failures cost points.** Act Two is scored like Act One: awards for what
+     you achieve, penalties for what you lose. The earlier "Act Two never bills
+     the player" line was **an assistant's assumption, not an owner decision**,
+     and it does not stand.
+  2. **Integrity does NOT scale the delivery award — but every impact on the rack
+     costs points, per impact.** Worth being precise, because these sound alike
+     and are not: delivering a bank at 60% is worth the same as delivering it at
+     100%, so the ladder never prices how much a bank *has* suffered; what it
+     charges for is the *event* of hitting them, each time it happens. The
+     natural hook is `towContact` (js/acttwo-update.js), which already fires
+     exactly once per qualifying impact and already knows the damage — so the
+     penalty rides the same threshold as the reserve/integrity cost and inherits
+     FIELD MEDIC's wider free band for free.
+  3. **The global hiscore tracks both acts — but only for a run begun at the
+     start of Act One.** A continuous campaign scores into `doids_hi`; a chamber
+     entered directly does not. This needs run provenance that Act Two does not
+     currently have (see P·persist below) — a flag set when a run starts at Act
+     One sector 0 and cleared by any direct entry.
+  4. **Act Two gets its own hiscore and leaderboard.** A third Game Center board
+     alongside `hollowoath.score.alltime` and `hollowoath.score.daily`; the owner
+     will create it in App Store Connect when build 1.01 is pushed. Write the
+     submission so a missing board is a silent no-op — the code will ship before
+     the board exists.
+
+  5. **A chamber cleared without firing pays the same award as a sector cleared
+     without firing.** Act One gives +2000 and the G3 no-harm achievement for
+     `level.firedShots === 0`; Act Two mirrors it. This is what stops the
+     emplacement paying you to shoot (see the contradiction below) and it is what
+     gives §10a.2's oath question a price rather than a sentiment.
+  6. **THE PRINCIPLE, which settles the double-billing question and should
+     govern every future call on this ladder** (owner, July 2026): *"your score
+     is the only permanent record of your success. The others just make your
+     game harder."* Vitals, reserve, fuel and time are **in-run difficulty** —
+     they shape the attempt you are having and then they are gone. Score is what
+     survives it. So a failure that already costs vitals costs points **as well**,
+     and that is not charging twice: the two currencies are doing different jobs.
+     Misreading a room — cutting a dead line, landing beside a decoy box — is
+     therefore scored, and the question this item previously left open is closed.
+
+  **THE TABLE, DECIDED** (owner sign-off, July 2026 — these are the numbers, not
+  a proposal). Anchored on Act One's own values rather than invented: sector clear
+  +1000, cleared without firing +2000, a lost Scion −250 (−500 if famous), a Scion
+  killed by your own hand −1000, turret +250, drone +150.
+
+  | Event | Proposed | Anchored on |
+  |---|---|---|
+  | Bank delivered to THE WELL | **+1000** | Act One's sector clear |
+  | Chamber cleared without firing | **+2000** | Act One's no-harm bonus, rule 5 |
+  | GENTLE HANDS — chamber, no slam | **+750** | flat, never integrity-scaled (rule 2) |
+  | Each impact on a rack | **−25** | per impact, on `towContact` (rule 2) |
+  | Bank lost (flatline) | **−1000** *(owner)* | four Scions' worth — 8–12 people is not one object |
+  | Bank lost to your own round (§7.1) | **−1000** | Act One's "killed by your own hand" |
+  | Dead line cut | **−100** | a misread, scored per rule 6 |
+  | Landing beside a decoy box | **−100** | the same misread, same weight |
+  | Emplacement destroyed | **+120** *(owner: yes, but smaller)* | still a test of skill, but bounded by rule 7 |
+
+  7. **THE PACIFIST INVARIANT** (owner, July 2026): *"the combined value of
+     shooting guns should never outweigh the pacifist score."* Killing everything
+     in a chamber must always total **less** than the no-fire award, or the ladder
+     pays better for the thing the oath exists to discourage. Note this is a
+     property of a *room*, not of a price: it has to hold for the most heavily
+     armed chamber P·content ever authors, so the safe way to build it is to
+     **derive the no-fire award from what you passed up** rather than hardcode
+     2000 — e.g. `noFire = 2000 + kills_forgone × 1.25`. That is the same
+     discipline `momentumGapPx` already uses, and for the same reason: a hardcoded
+     number silently stops being true the next time content changes around it.
+     At +120 per emplacement a chamber would need seventeen of them to threaten a
+     flat 2000, but derived, it can never happen at all.
+  8. **ZERO IS THE FLOOR** (owner, July 2026): *"keep zero as the base. You can't
+     go lower than zero."* Act Two clamps exactly as Act One already does
+     (`score = Math.max(0, score - penalty)`), so the ladder never goes negative.
+     **The consequence is accepted, and is recorded here so nobody "fixes" it
+     later:** a player already sitting at zero can misread every room in the game
+     for free, and a penalty taken early in a run bites less than the same penalty
+     taken late. That is the deliberate trade for a score that can always be read
+     as an achievement rather than a debt.
+
+  **Implementation note for whoever builds this:** the floor makes penalties
+  invisible at zero, so every test of a penalty must seed a score first and assert
+  the *difference*. Asserting against 0 proves nothing — see the decoy tripwire in
+  `tests/acttwo.spec.js`.
+
+  **Corrections this decision forces.** These are live in code and in the docs,
+  and every one of them was an assistant's inference presented as design:
+  - `closeTrunk` (js/acttwo-update.js) says a decoy cut is "never score, because
+    …billing the player for reading a room wrong is not the pressure this act
+    runs on." Not an owner decision. Pending the call above.
+  - The `DECOY_VITALS` note (js/acttwo-data.js) says the same thing.
+  - `acttwo.spec.js` asserts `score` stays 0 after a decoy cut, which *holds* the
+    overturned decision. It passes today only because no ladder exists yet.
+  - COPY_DECK.md states "Act Two never bills the player for keeping people
+    alive". Narrowed: that is true of the **transfusion** and nothing else.
+
+  **And one contradiction the emplacement introduced (assistant error, July
+  2026).** "Act Two touches score nowhere" stopped being true the moment
+  P·feedback gave chambers turrets: Act One's shot loop awards **+250 for a
+  turret kill**, and it runs in a chamber unchanged. So Act Two already scores
+  today, and it scores for **shooting** — which is precisely what §10a.2's oath
+  question is meant to make expensive. Act One balances this with a **+2000
+  no-harm bonus** for clearing a sector without firing (`level.firedShots === 0`,
+  G3); Act Two had no such counterweight, so the incentive pointed against the
+  act's own theme. **Resolved by rule 5** — a chamber cleared without firing pays
+  the same +2000 — which leaves only whether a kill should still pay its +250 on
+  top (see the table). Also: `loadChamber` never resets `score`, so a chamber
+  inherits whatever an Act One run had, which rule 3's provenance flag has to
+  handle anyway.
+  **§8.1's tell has had its first pass** in P·feedback — settling dust, which
+  reads both hazards off `solidAt` — so what remains here are the grit and
+  lamp-shadow channels layered on that, not the tell from scratch.
+  **§8's tell has changed and the spec is now authoritative:** "a projected
+  ledge is perfectly flat and perfectly level" was **false against the code** —
+  `flatten()` sets every sample in a span to exactly one height, so every
+  landing pad, lift pad and V2 scan shelf in the shipped game is mathematically
+  level, and level floors are legitimately everywhere inside a plant. The tell
+  is now **"the world doesn't respond to you"**: thruster wash raises grit off
+  real rock and nothing off a projection, and your lamp throws no shadow on a
+  lie. See ACT_TWO_SPEC §8.
+- [ ] **P·scions. Ten new famous minds, one per Act Two system.** The full list
+  and benefits are in ACT_TWO_SPEC §9.1 — Laennec, Snow, Harvey, Paré,
+  Röntgen, Landsteiner, Morton, Forssmann, Apgar and Saunders. Each is tied to
+  a mechanic so no upgrade is flavour-only, and none duplicates a shipped
+  benefit (Curie's RADIOSENSE is a compass, Röntgen is imaging; Nightingale's
+  LAMP is reach, Apgar is readout). **RADIOGRAPH must stay limited to one sweep
+  per chamber or it disables the deception layer entirely.** Note the
+  interaction with V1: Mary Seacole is a *1.01* addition and the twelfth entry,
+  so Act Two's ten start from 13 — check the codex pagination
+  (`MINDS_PER_PAGE`, `js/render.js`) still lays out cleanly at 22.
+- [ ] **P·content. The ten chambers**, authored against proven systems, never
+  before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
+  the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The
+  no-trolley-problem pillar is a generation invariant here exactly as V2's scan
+  fairness is on the surface: **every chamber must be clearable with everyone
+  alive**, and that wants an assertion, not a playtest opinion.
+  **The assertion exists now, and it earned its keep immediately.**
+  `__doids.chamberRoute(need)` (`js/render.js`) floods the open spans, connecting
+  two columns only where their intervals overlap by at least `need` — so the same
+  code answers "can a bare ship get through", "can a ship get through with the
+  load trailing at its own level" and "…with it hanging" just by passing
+  `2·SHIP_R`, `towEnvelope(90).vertical` or `towEnvelope(0).vertical`. Every one of
+  the ten chambers gets the same three-tier check, and the laden one is the one
+  that matters: a chamber clearable unladen but not with a rack is a trolley
+  problem with extra steps. It caught the slice chamber being unflyable on the
+  first run (see P·terrain), which is exactly the class of bug a playtest opinion
+  finds late and expensively.
+  Note what it does *not* yet check, and should before ten chambers exist: that
+  every unladen-only gap has a parallel laden route (§11.3), which is a
+  per-gap question rather than a whole-room one.
+- [ ] **P·guard. Regression gate.** The full smoke suite green, the M1 golden
+  heightmap checksum unchanged (P·terrain must not perturb surface generation),
+  a new `tests/acttwo.spec.js` for the tether, reserve, transfusion floor and
+  chamber checkpointing, and the save-migration test from P·persist. Act One's
+  `runLost`, ranks and achievements must keep their exact meaning — Act Two's
+  losses are tracked separately (spec §7.3).
 - [ ] **P·ship. Release 1.1** — What's-New copy per the E7 trademark
   tiers (generic in-store, named homage on the site), review-refresh
   prompt consideration, and the **£2.99 → £4.99 price move** (owner decision,
   July 2026: launch low, move on Act Two). The act's name comes out of the
-  work, so the What's-New line is written last.
+  work, so the What's-New line is written last. New Game Center achievements
+  (EVERY HOLLOW HEARD, GENTLE HANDS) land here, not in the cancelled 1.2 —
+  GAMECENTER_ACHIEVEMENTS.md updated in the same PR.
+  *(The in-app rating prompt that used to sit in this bundle as **P·review** has
+  shipped already — it moved to Bundle X as X6 once 1.01 became the first
+  post-launch build, and is live in `js/platform.js` + `app/plugins/rating`.)*
 
 ---
 
@@ -472,7 +1045,13 @@ tuning is available now (1.0 in review ⇒ Mac + TestFlight exist).
 >   always the weaker use.
 > - **The ROTATION CHART** (fly-back to cleared sectors, cached as-left) stays,
 >   and moves to **1.01** — it answers V1 and no longer needs to wait on the
->   pendulum, since Act Two doesn't touch the surface level cache.
+>   pendulum, since Act Two doesn't touch the surface level cache. **Its unlock
+>   is now Mary Seacole, a twelfth famous Scion placed in THE NULLWAVE, behind
+>   the finale's existing black-box gate** (owner decision, July 2026) — see V1
+>   for the placement, pinning and achievement consequences.
+>
+> **Nothing in this bundle is open.** Every item below is struck; the section is
+> kept for the reasoning trail, per the status key. Don't schedule from it.
 >
 > The rest of this section is the pre-review record. Read
 > HOLLOWS_EXPANSION_SPEC.md for the ROTATION CHART's design; treat its cave
@@ -490,27 +1069,32 @@ MINT, THE LISTENING POST). Full spec:
 **Split by release (owner decision, July 2026).** The owner asked for fly-back
 sooner (originally raised as a "1.01 fix"; see V1). Rather than break Q's
 in-game unlock, Bundle Q is split across two releases:
-- **Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
-  **ROTATION CHART** (fly-back to cleared sectors, cached as-left) — sequenced
-  *after* the pendulum work so the level cache lands on a settled base.
-- **Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
-  MINT, THE LISTENING POST) and their discoveries.
+- ~~**Ships in 1.1 (with Bundle P):** René Laennec + AUSCULTATION + the
+  **ROTATION CHART**, sequenced after the pendulum work.~~ → the chart ships in
+  **1.01** (V1, unlocked by Mary Seacole); Laennec is an Act Two upgrade.
+- ~~**Ships in 1.2 ("THE DEEP HOLLOWS"):** the three new caves (THE WARD, THE
+  MINT, THE LISTENING POST) and their discoveries.~~ → **no 1.2**; absorbed into
+  Act Two's ten chambers.
 
-**Priority: the 1.1 core rides with P; the caves are second post-launch (1.2).
-Dependencies: P shipped/stable before the ROTATION CHART cache (still true even
-within 1.1); J, K, I, M, A all shipped.**
+~~**Priority: the 1.1 core rides with P; the caves are second post-launch
+(1.2). Dependencies: P shipped/stable before the ROTATION CHART cache; J, K, I,
+M, A all shipped.**~~ **Superseded — pre-review record.** The chart ships in
+**1.01** ahead of Bundle P (V1), and there is no 1.2. Schedule from V1 and
+Bundle P, never from this paragraph.
 
-- [ ] **Q·impl. Implement per the spec checklist** — work through
-  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10, checking off there. **Tag each
-  item to its release per the split above (Laennec/AUSCULTATION/ROTATION CHART
-  core → 1.1; the three caves → 1.2) when scheduling.**
-- [ ] **Q·guard. Regression gate** — the Q5 level cache touches
-  `toBriefing`; the full smoke suite plus the M1 heightmap checksum must
-  stay green, and remix/daily must never draw Laennec onto a surface
-  sector (Q10 assertions).
-- [ ] **Q·ship. Release 1.2** — What's-New copy, same trademark tiers;
-  add EVERY HOLLOW HEARD and GENTLE HANDS (P) to the live G3 achievement
-  set if Game Center shipped.
+- ~~**Q·impl. Implement per the spec checklist** — work through
+  HOLLOWS_EXPANSION_SPEC.md §9, items Q1–Q10.~~ **Dispositioned, July 2026.**
+  The three caves are absorbed by Act Two (P·content); Laennec and AUSCULTATION
+  are Act Two upgrades (P·scions); the ROTATION CHART is V1. Nothing is left to
+  implement under a Q heading.
+- ~~**Q·guard. Regression gate** — the Q5 level cache touches `toBriefing`.~~
+  **Moved, not dropped.** The level-cache regression gate rides with V1; the
+  "remix/daily must never draw them onto a surface sector" assertion survives
+  intact and now applies to **Mary Seacole on the Nullwave** (see V1) rather
+  than to Laennec.
+- ~~**Q·ship. Release 1.2** — What's-New copy; add EVERY HOLLOW HEARD and
+  GENTLE HANDS to the live G3 achievement set.~~ **There is no 1.2.** The two
+  achievements move to **P·ship** with 1.1.
 
 ---
 
@@ -537,18 +1121,96 @@ narrative beats; no shared dependency between them or with V1–V14.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
-- [ ] **V1. Fly back to previous zones (rescue those left behind) — now a 1.01
-  item.** The owner's request is the **ROTATION CHART**: return travel to
-  cleared sectors (cached as-left). **Re-decided by the Act Two design round
-  (July 2026):** Laennec and AUSCULTATION move into Act Two, so the chart can
-  no longer hang off his rescue — it needs a new unlock (simplest honest
-  option: any resolved ending, the `doids_veteran` gate the game already uses).
-  With that decoupling it stops waiting on the pendulum and **lands in 1.01**,
-  which is where the owner wanted it in the first place. Act Two doesn't touch
-  the surface level cache, so there's no sequencing risk. See Bundle Q's
-  re-scope note and ACT_TWO_SPEC.md §13.
-  Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5; the round-trip must reuse the
-  checkpoint serialization (`doids_run`, `__doids.go(n)`).
+- [ ] **V·pacifism. Act One already pays better for shooting than for restraint.**
+  *(Owner, July 2026, raised while settling Act Two's ladder: "this has
+  implications for a 1.01 check on act one scoring too." It does — the check was
+  run and Act One fails it.)*
+  The no-harm bonus is a flat **+2000** for `level.firedShots === 0` (G3). Kills
+  pay **+250** a turret and **+150** a drone. So the sector tables in
+  `js/world.js` already cross over:
+  - 8 turrets + 2 drones = **2300** — a shooter beats a pacifist by 300
+  - 7 turrets + 2 drones = **2050** — over, on two separate sectors
+  - and that is *before* `wideBump`, V10's `vetGuns` veteran escalation, or the
+    `crowded` daily modifier's +2 drones, all of which push it further
+  So on the back half of the campaign the ladder currently rewards clearing the
+  room with the gun, which is the opposite of what the game is about.
+  **DECIDED (owner, July 2026): fix by deriving, not by re-pricing.** Make the
+  no-harm award a function of what was passed up — the sector's own gun value,
+  times a factor above one — so restraint always pays more *and cannot be
+  overtaken by a future content change*. Re-pricing kills downward would work
+  today and rot the moment Bundle W or a veteran return adds guns. Act Two's
+  rule 7 (Bundle P · P·systems) is the same invariant, and **both acts use one
+  shared helper** — something of the shape `noFireAward(level)` returning
+  `BASE + gunValue(level) * FACTOR`, with `gunValue` summing the same per-target
+  prices the kill awards pay. One function, so the invariant cannot hold in one
+  act and quietly fail in the other.
+  Scoped as a **1.01** change: it moves a shipped number, so it is not a 1.0
+  hotfix. Zero stays the floor here too (P·systems rule 8).
+  **Worth knowing before touching it:** a *parried* kill pays full price and does
+  **not** set `firedShots`, so a player who reflects everything already collects
+  both the kills and the no-harm bonus. That looks intentional and good — a parry
+  is skilled restraint, not violence — so leave it, but note that it means "the
+  pacifist score" has always meant *didn't shoot first*, not *no one died*.
+- [ ] **V1. Fly back to previous zones (rescue those left behind) — the
+  ROTATION CHART, unlocked by Mary Seacole on the Nullwave.** The owner's
+  request is return travel to cleared sectors, cached as-left. **Re-decided
+  twice:** the July 2026 Act Two round moved Laennec and AUSCULTATION into
+  Bundle P, so the chart lost its unlock; the owner's answer (July 2026) is a
+  **twelfth famous Scion, placed in THE NULLWAVE** — and the chart stays
+  **behind the finale's existing gate**, i.e. it is a deep-completionist
+  reward, not a given. Act Two doesn't touch the surface level cache, so
+  there's no sequencing risk against Bundle P.
+
+  **Who: MARY SEACOLE (1805–1881).** Refused by the War Office, she paid her
+  own passage to the Crimea and went back onto the field again and again for
+  wounded men others had left behind. "Rescue those left behind" is her
+  biography rather than a metaphor for it, and she answers Nightingale, already
+  waiting in sector 2. Placing her in the last and darkest sector — the place
+  everyone else abandoned — is the point. *(Fallback if the Nightingale echo is
+  unwanted: Nikolai Pirogov, battlefield triage.)*
+
+  **The unlock is persistent, and that is the design, not a workaround.**
+  Sector 7 is the last level before the endgame, so the chart does nothing in
+  the run you find her in. It keys off `codex`, which already survives across
+  runs (`doids_codex`, the same mechanism as the `CANON_FAMOUS_ID` hint gate),
+  so every *subsequent* rotation starts with the chart armed — drop back from
+  sector 3 to sector 1 for the Scions you left behind. That makes it the
+  veteran's tool and stacks with the existing `doids_veteran` gate and the
+  "Something's still down there" title tease (V7).
+
+  Implementation notes, all load-bearing:
+  - **The Nullwave has no famous slot today.** `genLevel` guards placement with
+    `if (n < FINALE_IDX && lvl.oids.length)` (`js/world.js`), so sector 7 needs
+    a new path. **It must not consume RNG:** sectors 0–6 assign the role by
+    deterministically picking the oid nearest mid-map, no draws — do the same,
+    or the finale layout shifts. Terrain is untouched (a role flag, not a
+    heightmap change), so the M1 golden checksum is safe.
+  - **Pin her, and exclude her from the shuffle.** `buildFamousMap` shuffles all
+    of `FAMOUS` and slices `FINALE_IDX` entries for sectors 0–6, so without an
+    exclusion REMIX/DAILY can draw her onto a surface sector — exactly what the
+    old Q·guard was written to prevent. Needs a test asserting she is only ever
+    the Nullwave's famous Scion, in every run mode.
+  - **THE FULL CODEX becomes 12 for free.** The threshold is derived —
+    `codex.size >= FAMOUS.length` (`js/update.js`) — and the codex counter reads
+    `codex.size + "/" + FAMOUS.length`. Nothing in code, tests, COPY_DECK.md or
+    STORE_LISTING.md pins the number; the Game Center description
+    (*"Recovered every famous mind, across all your rotations"*) is count-free
+    by GAMECENTER_ACHIEVEMENTS.md's own copy rule. **Owner decision (July
+    2026): she lands in 1.01, not in the 1.0 build now in review** — a new
+    binary would restart App Review, and completing the codex takes multiple
+    REMIX rotations (the campaign awards only 7 of the pool), so effectively
+    nobody can reach 11/11 before 1.01 ships. Note it in the 1.01 What's-New so
+    the counter's move to `/12` reads as new content, not a bug.
+  - **One asset is now wrong:** `the_full_codex.png` is specified as *"the open
+    codex under a constellation of eleven famous minds"* — it needs a twelfth
+    star. Regenerable from `assets/gamecenter/achievements/svg/` via
+    `generate.py` (headless Chromium at 1024×1024). The achievement functions
+    correctly either way, so if editing Game Center metadata mid-review is
+    awkward, ship the eleven-star art and swap the image with 1.01.
+
+  Code anchors: HOLLOWS_EXPANSION_SPEC.md §Q5 for the chart's cache design; the
+  round-trip must reuse the checkpoint serialization (`doids_run`,
+  `__doids.go(n)`); `FAMOUS`, `famousIdFor`, `buildFamousMap` in `js/world.js`.
 - [x] **V2. Scan-jeopardy fairness for Scions (design pillar: fair, not a
   cheat).** *(Shipped — generation invariant. `scanSpotOK(heights,W,cx)`
   (`js/world.js`) derives, from the scan/creep constants, the band of landable
@@ -1073,9 +1735,15 @@ D ──┴────────────────┘                 �
            + Y3–Y7 (wreck occlusion, counterfeit tell, lift pad, copy fixes)
            + V (Solace reveal; scan fairness; heard-scan parry; V12 fake-MERCY reveal)
            + Z (REMIX variable gravity — after the Z2 fairness re-tune)
-      then the feature updates (all free):
-      1.1 = P (THE PENDULUM) → then Q-core (Laennec + ROTATION CHART / fly-back) + W (landscape challenge)
-      1.2 = Q-caves (THE DEEP HOLLOWS: Ward / Mint / Listening Post)
+           + V1 (ROTATION CHART / fly-back, unlocked by Mary Seacole on the
+             Nullwave — the twelfth famous Scion; THE FULL CODEX becomes 12)
+      then the feature update (PAID — the price move):
+      1.1 = P (Act Two, the descent) at £4.99, phased:
+            P·terrain (span terrain + chamber authoring) → P·slice (one chamber,
+            on device) → P·persist / P·systems / P·scions → P·content (ten
+            chambers) → P·guard → P·ship
+      1.2 = CANCELLED (Q's caves absorbed into Act Two; see ACT_TWO_SPEC §13)
+      W   = optional polish, no longer load-bearing
 ```
 
 **Status (July 2026, updated):** A–D and **H–N are all shipped** on the web
@@ -1103,20 +1771,28 @@ staged nightfall on the Basin) are owner-requested for the launch build. T4
 (destructible scenery) and T5 (weather) are launch-stretch with a
 pre-approved slip to 1.1. All player-facing copy is now mirrored for owner
 review in [COPY_DECK.md](COPY_DECK.md) (R10).
-**P and Q are specced and locked** (owner decision, July 2026) as the free
-1.1 and 1.2 post-launch updates — see their bundle sections above and
-[PENDULUM_SPEC.md](PENDULUM_SPEC.md) /
-[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md).
+**P is specced, phased and locked; Q is fully dispositioned** (owner rounds,
+July 2026). Act Two is the **paid** 1.1 update (£2.99 → £4.99), planned in
+[ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) with [PENDULUM_SPEC.md](PENDULUM_SPEC.md) as
+the tether-physics reference; **1.2 is cancelled** and Bundle Q's caves are
+absorbed into Act Two's ten chambers, leaving
+[HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) as the ROTATION CHART's
+design reference only. The July 2026 planning round added: **span terrain**
+(the shipped heightmap cannot express the overhangs Act Two's chambers need),
+a **replaced deception tell** (the old "perfectly level" rule was false against
+`flatten()`), **ten new famous minds** each tied to an Act Two system, and
+**Mary Seacole** as V1's ROTATION CHART unlock in 1.01.
 **Bundle V is the 1.01 plan**, captured while 1.0 is in App Review: the
 Solace sister-ship reveal (named ship, sonar hull pulse on the 41-s clock),
 Scion scan-jeopardy fairness, a playable "heard" sonic-wave parry,
 post-completion title/intro/campaign variants, and the record that **tilt is
 dropped from the forward plan** (dormant scaffolding only). Fly-back to cleared
-sectors (the owner's other "1.01" ask) was **resolved to 1.1**: keep Bundle Q's
-in-game Laennec unlock and split its **ROTATION CHART** core forward to ship
-with Bundle P (after the pendulum), leaving Q's three caves in 1.2. **Bundle W**
-(landscape challenge) also **ships in 1.1 with P** (owner decision). One owner
-decision remains open — whether to surface the decoy MERCY earlier (V11).
+sectors (the owner's other "1.01" ask) is **back in 1.01 where he wanted it**
+(July 2026): the **ROTATION CHART**, unlocked by **Mary Seacole** as a twelfth
+famous Scion in THE NULLWAVE and left behind the finale's existing black-box
+gate — a deep-completionist reward, persistent across runs. **Bundle W**
+(landscape challenge) is now optional polish, not part of 1.1. V11 (whether to
+surface the decoy MERCY earlier) was resolved: leave it a deep secret.
 **The late-July 2026 owner-playtest round adds two more 1.01 bundles: X**
 (onboarding — an optional beginner's guide, a guided trainee "Level 0", a
 first-play "played thrust games?" fork, and a post-death hint-card bank; the top
@@ -1156,11 +1832,11 @@ seed and replay a friend's ghost alongside you; (b) **head-to-head on the seed**
 seed + score" challenge you can send a friend; (c) an **async rescue relay** —
 your end-state seeds the next player's run. All three lean on G + M with **no
 server of our own** (Game Center carries the data). Recommendation: scope (a) +
-(b) as a possible **1.2+** feature; real-time stays parked unless the
+(b) as a possible **post-1.1** feature; real-time stays parked unless the
 no-backend constraint is deliberately reopened.
 Formerly-listed candidates now promoted to locked bundles: ~~the pendulum
-sling~~ → **Bundle P (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
-**Bundle Q (1.2)**.
+sling~~ → **Bundle P / Act Two (1.1)**; ~~the deep Hollows / a fourth Hollow~~ →
+absorbed into **Act Two's ten chambers** (Bundle Q dispositioned, 1.2 cancelled).
 - ~~**the transfusion line**~~ — **shipped (July 2026), ahead of schedule**:
   field refuelling is now an active hover minigame — hold station on the
   drone's fuel line, choose when to detach (CLEAN LINE +250 for a full tank

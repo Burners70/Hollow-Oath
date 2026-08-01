@@ -8,14 +8,29 @@ the Hollows things worth carrying out, Q gives players a way back down.*
 
 Last updated: July 2026
 
-> **Release split (owner decision, July 2026).** This bundle now ships across
-> two releases, not one: **the Laennec rescue + AUSCULTATION + the ROTATION
-> CHART (fly-back to cleared sectors) move to update 1.1, alongside Bundle P**
-> (sequenced after the pendulum so the level cache lands on a settled base),
-> while **the three new caves (THE WARD, THE MINT, THE LISTENING POST) stay in
-> update 1.2**. When scheduling the items below (§9, Q1–Q10), tag each to its
-> release accordingly. See [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) Bundle Q
-> for the rationale (it answers the owner's "fly back to previous zones" ask).
+> **SUPERSEDED AS A PLAN (owner rounds, July 2026). Read this file for the
+> ROTATION CHART's cache design (§Q5) and nothing else.** Bundle Q is fully
+> dispositioned and nothing schedules from it:
+>
+> - **The three caves** (THE WARD, THE MINT, THE LISTENING POST) are **absorbed
+>   into Act Two's ten chambers** — two separate cave systems with different
+>   rules would confuse rather than enrich. **1.2 is cancelled.** See
+>   [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §13.
+> - **René Laennec and AUSCULTATION move into Act Two** as one of its ten new
+>   famous minds, where the ward is *heard* and the upgrade makes the whole floor
+>   ring at once (ACT_TWO_SPEC §7.5, §9.1). Spending him on finding lift pads was
+>   always the weaker use.
+> - **The ROTATION CHART survives and ships in 1.01** — ahead of Act Two, not
+>   after it. Because Laennec left, it needed a new unlock, and the owner's answer
+>   is **MARY SEACOLE, a twelfth famous Scion placed in THE NULLWAVE**, left
+>   behind the finale's existing black-box gate. She went back onto the field for
+>   the men others had left behind, which is what the chart is for. The unlock is
+>   persistent (keyed off `codex`), so it arms every rotation after the one that
+>   finds her. Full detail, including the RNG and REMIX-pinning constraints:
+>   [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) **V1**.
+>
+> Everything below the line is the pre-review record, kept for the reasoning
+> trail. §Q5 is the part still worth reading.
 
 ---
 

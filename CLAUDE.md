@@ -60,10 +60,44 @@ Load order is the order below; it is significant (see "no build step").
 | `js/input.js`    | ~485  | Header notes, Capacitor/`NATIVE` detection, canvas + `resize()`; touch multi-touch tracker + on-screen buttons + `canvasTap`; keyboard (`keyMap`) + gamepad (`pollPad`); tilt/gyro steering |
 | `js/audio.js`    | ~605  | WebAudio graph, `blip`/`boom`/`heartbeat`/`staticTick`/`hydraulic`/`ringHollow`, generative ambient music drone |
 | `js/platform.js` | ~110  | Haptics facade (F1), iCloud `cloud` save-sync (E4), Game Center `gc` (G4); runs `gc.auth()` at load |
-| `js/world.js`    | ~1470 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); the design-system token layer (`TOK`, `PALETTES`/`PAL()`, `shade()`, `mono()`/`body()`/`display()` — Bundle DS); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; `resetRun`/`toBriefing` state flow |
+| `js/world.js`    | ~1470 | Utils (`mulberry32`, `clamp`, `lerp`, `wrapText`); the design-system token layer (`TOK`, `PALETTES`/`PAL()`, `shade()`, `mono()`/`body()`/`display()` — Bundle DS); story data tables (`SECTOR_NAMES`, `BRIEFS`, `FRAGMENTS`, `SHRINES`, `FAMOUS`); constants + global run state; run seed/mode plumbing + all `localStorage` persistence; daily modifiers; `genLevel`, `roofAt`, `genCave`; the span terrain layer (`spanAt`/`solidAt`/`levelH` — Bundle P, P·terrain); `resetRun`/`toBriefing` state flow |
 | `js/update.js`   | ~2610 | The 41-second Static clock; landing rules + extraction/MERCY; `update(dt)` dispatch; rank system; per-screen + gameplay updates (`updatePlay`, oids, enemies, sabotage, scan/reveal, docking, blackbox, transfusion, lifts, counterfeit MERCY, epilogue) |
 | `js/render.js`   | ~4400 | `render()` dispatch + `drawGlow`/perf helpers; world render (terrain, darkness, ship, drone, oids, scenery); figures; counterfeit MERCY; HUD/health/ECG; all screens (title, codex, intro, brief, clear, pause, settings, game over, win); the `window.__doids` debug handle |
 | `js/main.js`     | ~40   | Bootstrap (`genLevel(0)`, `spawnShip`, …) + the `frame()`/`requestAnimationFrame` loop — must load last |
+
+### Bundle P / Act Two gets new files — an approved exception
+
+**Owner decision, July 2026.** The "keep new code inside the existing files"
+convention below is **explicitly lifted for Act Two** (Bundle P — span terrain,
+the tether, racks, the ten chambers, a second rank ladder). Folding that much new
+code into `js/world.js`, `js/update.js` and `js/render.js` would make every future
+session more expensive to run, which is the exact cost the July 2026 split was
+done to avoid. **Do not "tidy" these files back into the originals.**
+
+The files and their load position (inserted **after `js/world.js`** so the token
+layer, constants and utils exist, and **before `js/update.js`**; in `index.html`
+the order is `acttwo-data` → `acttwo-render` → `acttwo-update`):
+
+| File | Lines | Covers |
+|------|-------|--------|
+| `js/acttwo-data.js`   | ~835 | **Landed (P·design):** the rack's token/state layer — `RACK_STATES`, `RACK_PULSE_PERIOD`, the beat envelope, `rackColor`/`rackBrightness`, `PLANT_ZONES`/`plantPal` — same data/no-drawing split as `PAL()`/`TOK` in `js/world.js`. **Landed (P·terrain):** the chamber authoring grammar (`room`/`rock` parts with per-boundary roughness) and its compiler — `compileChamber`, `spanUnion`/`spanSubtract`, `chamberNoise`, `spanCountAt` — plus `SLICE_CHAMBER` (the one chamber, proving the format) and `genChamber` (compiles a chamber to a level-shaped object, **terrain only**). A part may declare a **view** (`drawn`/`solid`), which is how §8's false floors and painted rock are held: `genChamber` compiles `spans` (collision truth) and `spansDrawn` (what you see) from one definition, identical unless a deception is declared. Chambers also carry **lights** and **ornaments**, snapped to real surfaces. `RACK_SIZE`/`RACK_OCCUPANTS_DEFAULT` size a rack against what a laden ship can lift through a chamber, and `SLING_L`/`towEnvelope`/`towTierForGap` classify every gap as passable at rest, a **momentum pinch** (only with the load swung up to your level), or unladen-only. Per-boundary **materials** (`MAT_ROCK`/`MAT_MACH`, `ROCK_PAL`) carry the owner's "rock overhead, mechanical underfoot" rule, and boundary **profiles** (`boundaryProfile` — `ramp`/`arc`/`teeth`, plus `cornerInset` fillets) keep chambers off pure right angles. **Landed (P·slice):** the tether's feel dials in one block (`SLING_SHIP_W`/`SLING_DAMP`/`SLING_SAFE_V`/`SLING_DMG_K`, and `SLING_VISIBLE` as the one dial that derives `SLING_L` and with it the momentum band and both authored gaps), the reserve model (`RACK_RESERVE_MAX`/`RACK_DRAIN`/`RACK_BEAT_BITE`/`RACK_FAILING_AT`), the transfusion's (`GIVE_*`) and the well's (`WELL_*`), plus the slice chamber's authored `racks`/`conduits`/`well` and the `buildRacks`/`buildConduits` that turn them into run state. Its structural column was re-authored here: it was floor-to-ceiling, which made it a wall that sealed the only route — see the roadmap. **Still to come:** the other nine chambers (P·content), Act Two's story tables and its own rank ladder (P·scions) |
+| `js/acttwo-render.js` | ~820 | **Landed (P·design):** the rack cage, conduit real-vs-fake tell, the network ripple/dip (riding the real `staticClock`), directional edge bleed, ornamentation, the sling and the well's bay/winch — gated on level fields no `genLevel` path sets yet (inert no-ops today). **Landed (P·terrain):** span terrain drawing — `buildSpanTile`/`getSpanTiles`/`drawChamberTerrain` draw a chamber's rock as the *complement* of its spans, reusing Act One's per-512px tile cache contract (`tileTouch`/`TILE_CACHE_CAP`/`invalidateTiles`), `drawMachinedPanelTicks` walks spans so an overhang's underside gets ticked too, and `drawChamberLights` lays additive light pools plus an ambient lift over the terrain (§9.2 — a plant is lit *by* something). Drawing reads `level.spansDrawn`; collision reads `level.spans`. The provisional heightmap stand-in this file shipped with is gone. **Landed (P·slice):** the pieces the loop needs to be readable — `drawConduits`/`drawIsolator` (the trunks and the breakers you land at), `drawHoldRing` (one helper for all three holds), `drawRackECG` (§7.3's reserve trace, weakening in *amplitude* and never in rate, drawn on the box because §7.5 refuses a HUD ward), `drawTowedRack`, `drawSlingTell` (§4.4's `✓`/`!`/`✕` at the tether midpoint, thresholded on the real damage threshold) and `drawGiveLine` (the transfusion, with the bead running *down* it). `drawWellDock` now draws its winch rack only while a load is actually being seated. **Still to come:** the ward's four readability channels (P·systems), Act Two screens |
+| `js/acttwo-update.js` | ~710 | **Landed (P·slice):** the whole Act Two loop, in one call from `updatePlay` (`updateActTwo`, a no-op unless the level carries racks). The tether — PENDULUM_SPEC §4.1's verlet point + rope constraint, with the payload taking the positional correction and the ship taking its 30% share as a **velocity impulse against the radial closing speed** (`err/dt` made the tug framerate-dependent and unbounded); `seatPayload` is the recovery path for cradles, warps and lift beats. The trunk cut at floor-mounted isolators (`closeTrunk`, and `actTwoShotHit` for §7.1's "shooting a feed dumps the rack"), the cradle (`cradleRack`), release/`partSling`, the reserve's continuous drain plus its bite on the real 41s beat (`updateReserves`, reading `staticBeat`), damage on the **normal** component of contact (`towContact` — it costs reserve *and* integrity, see the roadmap), loose-payload physics so a dropped rack falls (`updateLooseRacks`), the inverted transfusion on a held SHIELD (`updateGive`/`giveWanted`), THE WELL's dock-and-winch (`updateWellDock`/`deliverRack`), and `respawnInChamber` for a death in a chamber. **Still to come:** pulse-reading's honest-versus-metronomic layer, the §8.1 deception tells, deep readers, chamber checkpointing (P·persist) |
+
+**The span primitives deliberately stayed in `js/world.js`**, beside `groundAt` —
+they generalise the *shipped* terrain model rather than adding to Act Two, and
+Act One's collision calls them every frame. Grep "columns of spans" there:
+`spanAt`/`pickSpan`/`matchSpan`/`solidAt`/`levelH`, plus the **optional second
+argument** on `groundAt`/`roofAt` that says which span you mean. Every Act One
+call site passes `x` alone and takes the heightmap path completely unchanged,
+which is what keeps the M1 golden checksum green — that equivalence is the
+constraint to preserve if you touch any of it.
+
+The constraints that are *not* lifted, because they are technical rather than
+stylistic: scripts stay **non-module** sharing one global scope, **load order
+stays significant**, `index.html`'s `<script>` list must be updated in the same
+PR, and `app/sync.sh` copies `js/` wholesale so new files inside `js/` need no
+sync change. Update this table as more of each file lands.
 
 ## localStorage keys (all prefixed `doids_`)
 
@@ -97,14 +131,24 @@ doc only when the task touches it:
   authored underground rescue campaign beneath SOLACE, where the pendulum
   debuts. Read this for *what to build*; §14 records what was rejected and why,
   and §15 what's still open. Supersedes PENDULUM_SPEC.md and absorbs Bundle Q's
-  caves. Nothing is implemented yet — the next step is the vertical slice
-  (roadmap item P·slice).
+  caves. Nothing is implemented yet. **Next step is `P·terrain`, not `P·slice`:**
+  the shipped heightmap can't express an overhang, so span terrain (§11.0) lands
+  before the vertical slice can prove anything. Key July 2026 sections: §5.1a
+  (the beacon is a relay), §8.1 (the deception tell, reversed — the old
+  "perfectly level" rule was false against `flatten()`), §9.1 (ten new famous
+  minds), §11.0 (span terrain), §11.2 (persistence).
+- `docs/DESIGN_BRIEF_ACT_TWO.md` — the hand-out for briefing a designer on Act
+  Two (roadmap `P·design`). Self-contained by design; read it when a design
+  handoff, the rack's visual states or the achievement art comes up. States the
+  thing outsiders always need telling: **the game has no sprites** — all visuals
+  are procedural canvas drawing, so a handoff is direction + timing numbers.
 - `docs/PENDULUM_SPEC.md` — superseded as a plan, but still the **tether-physics
   reference**: the sling model, damage model and tow conventions, which carry
   into Act Two unchanged. Read this for *how the sling works*.
-- `docs/HOLLOWS_EXPANSION_SPEC.md` — Bundle Q. Its caves are absorbed into Act
-  Two; what survives is the ROTATION CHART (now a 1.01 item, and it needs a new
-  unlock — see roadmap V1).
+- `docs/HOLLOWS_EXPANSION_SPEC.md` — Bundle Q, now fully dispositioned. Its caves
+  are absorbed into Act Two; what survives is the ROTATION CHART's cache design
+  (§Q5), a **1.01** item unlocked by Mary Seacole on the Nullwave — see roadmap
+  V1. There is no 1.2.
 - `docs/GAMECENTER_ACHIEVEMENTS.md` — achievement/rank list.
 - `docs/STORE_LISTING.md` — App Store Connect metadata (pricing, description, URLs).
 - `docs/TESTER_KIT.md`, `docs/TESTER_LOG.md` — TestFlight round: invite/survey copy, and who's testing.
@@ -114,15 +158,15 @@ doc only when the task touches it:
 ## Workflow
 
 - **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. `main` is not auto-published anywhere (see Bundle O7 above) — a merge is the source for the *next* TestFlight/App Store build, not an instant live release; it only reaches players once someone runs the manual archive/upload step (`app/MAC_SETUP.md`). Still treat a merge as consequential — it's what ships next.
-- **Tests:** Playwright smoke suite in `tests/` — 92 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `copy-deck`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
+- **Tests:** Playwright smoke suite in `tests/` — 156 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `acttwo`, `copy-deck`, `qa-harness`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
-- **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it.
+- **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it; Act Two has a **section** in it, not a second harness. Its chrome floats over the game and hides entirely (a tab at the mid-right edge), because shrinking the iframe shrinks the game. `tests/qa-harness.spec.js` is its static drift guard — the rig itself can't be driven by the suite, since that needs same-origin and the suite is `file://`.
 - **Assets:** icons/manifest at root (`icon-*.png`, `manifest.webmanifest`, `apple-touch-icon.png`); art in `assets/`.
 
 ## Conventions
 
 - Match the surrounding style: terse vanilla JS, single global scope, comment banners like `/* ===== render ===== */` and `/* Bundle X — ... */` tying code to roadmap bundles.
 - **Colour and type come from the token layer, never a literal** (Bundle DS). In JS: `PAL().SAFE|WARN|DANGER|REVEAL` for anything encoding state (it swaps for colourblind mode), `shade(PAL().WARN, .55)` for a translucent variant, `TOK.*` for fixed chrome/flavour, and `body()`/`mono()`/`display()` for type — all in `js/world.js`. In `css/game.css`: `rgba(var(--ho-safe-rgb), a)`. On the marketing pages: `var(--ho-safe)`. A hardcoded `#69f0ae` or `rgba(105,240,174,.7)` fails the guards in `tests/settings.spec.js`. See `docs/DESIGN_SYSTEM_STARTER.md` §8 for which layer to reach for.
-- Keep new code inside the existing `js/*.js` concern boundaries (and `css/game.css`); don't add source files or restructure the split unless asked. `index.html` stays a thin shell.
+- Keep new code inside the existing `js/*.js` concern boundaries (and `css/game.css`); don't add source files or restructure the split unless asked. `index.html` stays a thin shell. **Exception: Act Two / Bundle P has approved new files** — see "Bundle P / Act Two gets new files" above. The rule exists to stop *unasked* drift back toward the old 5,400-line sprawl, not because adding a file is technically risky; adding one is fine when it's asked for, ordered correctly and recorded in the file map.
 - Keep the docs honest: `docs/README.md` lists every file in `docs/`, and there is one forward plan (`docs/APP_STORE_ROADMAP.md`). Don't add a second plan doc or a per-branch handover — record the decision in the roadmap bundle it belongs to.
 - The game targets iPhone Safari first; test touch/gyro/safe-area behavior, not just desktop.

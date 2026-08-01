@@ -87,6 +87,8 @@ function render() {
   if (level) drawWorld(now);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Bundle P (js/acttwo-render.js) — directional edge bleed for an off-screen critical rack
+  if (level && level.racks && (state === "play" || state === "dead")) drawRackEdgeBleed(now);
   if (state === "play" || state === "dead" || state === "reveal" || state === "clear" ||
       state === "pause" || state === "confirm" || state === "coach" ||
       state === "trapcard") drawHUD(now);
@@ -159,7 +161,10 @@ function worldTransform() {
   // the visible viewport starts right of the camera lozenge
   const cw = (vw - saLeft) / z, ch = vh / z;
   let cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
-  let cy = clamp(camera.y - ch / 2, -100, WORLD_H - ch);
+  // P·terrain — an Act Two chamber is deeper than Act One's world box; levelH()
+  // is WORLD_H for every level that doesn't set its own H, so surface play is
+  // bit-identical here.
+  let cy = clamp(camera.y - ch / 2, -100, levelH() - ch);
   if (camera.shake > 0) {
     cx += (Math.random() - 0.5) * camera.shake;
     cy += (Math.random() - 0.5) * camera.shake;
@@ -243,6 +248,7 @@ function invalidateTiles() {
   if (!level) return;
   level._terrainTiles = null;
   level._roofTiles = null;
+  level._spanTiles = null;   // P·terrain — chambers cache their rock the same way
 }
 
 /* T2 — the Hollows keep the Static's violet regardless of which sector's lift
@@ -347,8 +353,13 @@ function drawWorld(now) {
   ctx.setTransform(dpr * z, 0, 0, dpr * z, (saLeft - cx * z) * dpr, -cy * dpr * z);
   const viewW = (vw - saLeft) / z;
 
-  const pal = biomePal();
-  if (!level.isCave) {
+  /* Bundle P §5 (js/acttwo-render.js) — an Act Two chamber is underground and
+     never open sky: no starfield, and the zone's accent in place of a biome's
+     organic gradient. Keyed on level.spans, not on isPlant: every chamber is
+     underground, but only chambers 2–5 are the plant (spec §11.1), so isPlant
+     now controls the plant's *dressing* rather than whether terrain draws. */
+  const pal = (level.spans || level.isPlant) ? plantChamberPal() : biomePal();
+  if (!level.isCave && !level.isPlant && !level.spans) {
     ctx.save();
     ctx.translate(cx * 0.35, cy * 0.35);
     const sr = pal.star;   // T2 — per-biome starfield tint
@@ -360,17 +371,46 @@ function drawWorld(now) {
     ctx.restore();
   }
 
-  // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
-  // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
-  for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
-      40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
-    ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
-
-  // cave roof, hanging overhead — same tile cache; always the Hollows' violet
-  if (level.roof) {
-    for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
-        350, 40, "top", 500, 1100, ["#0c0820", "#1b1040"], CAVE_PAL.stroke, CAVE_PAL.glow))
+  /* P·terrain — a chamber's rock is the COMPLEMENT of level.spans, so it can't
+     come from the heightmap/roof tile pair (one floor and at most one ceiling per
+     column, which is exactly the limit §11.0 replaces). drawChamberTerrain
+     (js/acttwo-render.js) draws both surfaces from the spans in one pass, using
+     the same per-512px tile cache contract. Act One falls through to the branch
+     it shipped with, untouched — the M1 golden checksum is the proof. */
+  if (level.spans) {
+    drawChamberTerrain(cx, viewW);
+    /* §8.1's tell, first pass (owner: "we do want some kind of invisible walls…
+       but maybe not quite so completely impossible to spot"). Dust settles on
+       what is SOLID, so it falls through a false floor and rests in mid-air on
+       painted rock. Drawn over the rock and under everything else, because it is
+       terrain information rather than furniture. */
+    updateChamberDust(now, cx, cx + viewW);
+    drawChamberDust();
+    // ticks are a property of a MACHINED face now, not of the chamber being a
+    // plant — an intake's own wrecked gear is milled too. The function itself
+    // walks materials and skips raw rock.
+    drawMachinedPanelTicks(cx, cx + viewW);
+    // the fixtures that make the room lit (§9.2). After the terrain so they
+    // light it, before scenery/oids so those are not washed out.
+    drawChamberLights(now);
+  } else {
+    // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
+    // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
+    for (const tile of getTiles(level, "_terrainTiles", level.heights, cx, cx + viewW,
+        40, 220, "bottom", 700, WORLD_H, pal.grad, pal.stroke, pal.glow))
       ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+
+    // cave roof, hanging overhead — same tile cache; the Hollows keep violet, a
+    // plant chamber's roof keeps the same flat zone accent as its floor (its
+    // gradient stops reversed, same convention CAVE_PAL's roof already uses)
+    if (level.roof) {
+      const roofGrad = level.isPlant ? [pal.grad[1], pal.grad[0]] : ["#0c0820", "#1b1040"];
+      const roofStroke = level.isPlant ? pal.stroke : CAVE_PAL.stroke;
+      const roofGlow = level.isPlant ? pal.glow : CAVE_PAL.glow;
+      for (const tile of getTiles(level, "_roofTiles", level.roof, cx, cx + viewW,
+          350, 40, "top", 500, 1100, roofGrad, roofStroke, roofGlow))
+        ctx.drawImage(tile.canvas, tile.x0, tile.y0, tile.w, tile.h);
+    }
   }
 
   drawBoundaryField(now);
@@ -395,6 +435,27 @@ function drawWorld(now) {
   drawMercySplit(now);   // V13 — the staged one-then-two reveal on finale arrival
   drawLift(now);
   if (level.shrine) drawShrine(now);
+
+  // Bundle P §4/§5/§6 (js/acttwo-render.js) — the rack network, its
+  // furniture, and the tow/dock pieces; each a no-op until Bundle P's
+  // chamber authoring sets the field.
+  if (level.plantOrnaments) drawPlantOrnaments(now);
+  // P·slice — trunks under the racks they feed, so a line never covers the box
+  drawConduits(now);
+  drawDecoys(now);
+  drawFuelCans(now);
+  drawRacks(now);
+  if (level.wellDock) drawWellDock(now);
+  /* Owner feedback ("a dupe rack hanging there") — the towed rack is NOT drawn
+     during the winch beat. It isn't the warp: `partSling` doesn't run until
+     deliverRack, so through the whole seating animation drawWellDock's winch
+     rack and the slung rack were both on screen, in nearly the same place. The
+     winch drawing owns the payload while wellDock.docking is true, exactly as
+     updateActTwo hands it the physics. */
+  if (level.towedRack && !(level.wellDock && level.wellDock.docking)) drawTowedRack(now);
+  // §7.4 — your own vitals going into theirs, drawn last so the line reads over
+  // both the rack and the hull it comes out of
+  if (giving()) drawGiveLine(a2Line, now);
 
   // fuel pods — real ones flicker like fire, alive and irregular
   for (const p of level.pods) {
@@ -489,8 +550,36 @@ function drawWorld(now) {
 
   for (const t of level.turrets) {
     if (!t.alive) continue;
+    /* Bundle P (owner feedback) — a plant EMPLACEMENT is "a slightly bigger, more
+       blocky version of the gun emplacements in act one", so it is drawn from the
+       same parts in the same colour and differs only in silhouette: a squared-off
+       housing on a plinth instead of a dome, a heavier barrel, and armour ribs.
+       Same lineage, visibly the heavier cousin — which is what tells the player it
+       will take more than one round before they waste the first one finding out. */
     ctx.save();
     ctx.translate(t.x, t.y);
+    if (t.heavy) {
+      const hit = t.hitT || 0;
+      ctx.fillStyle = hit > 0 ? shade(PAL().WARN, .35 + hit * .4) : "#3a0d24";
+      ctx.beginPath();                     // plinth
+      ctx.moveTo(-17, 0); ctx.lineTo(17, 0); ctx.lineTo(13, -6); ctx.lineTo(-13, -6);
+      ctx.closePath(); ctx.fill();
+      glowStroke(PAL().DANGER, 2);
+      ctx.beginPath();                     // squared housing
+      ctx.rect(-13, -19, 26, 13);
+      ctx.fill();
+      glowStroke(PAL().DANGER, 2.4);
+      ctx.strokeStyle = shade(PAL().DANGER, .5); ctx.lineWidth = 1.4;
+      for (let i = -1; i <= 1; i++) {      // armour ribs
+        ctx.beginPath(); ctx.moveTo(i * 7, -18); ctx.lineTo(i * 7, -7); ctx.stroke();
+      }
+      ctx.beginPath();                     // the heavier barrel
+      ctx.moveTo(Math.cos(t.ang) * 7, -13 + Math.sin(t.ang) * 7);
+      ctx.lineTo(Math.cos(t.ang) * 25, -13 + Math.sin(t.ang) * 25);
+      glowStroke(PAL().DANGER, 4);
+      ctx.restore();
+      continue;
+    }
     ctx.fillStyle = "#3a0d24";
     ctx.beginPath(); ctx.arc(0, 0, 12, Math.PI, 0); ctx.closePath();
     ctx.fill();
@@ -2712,10 +2801,23 @@ function drawHUD(now) {
   // resets every sector, including on RESUME); the run's career total uses the
   // word "saved" at game over/win (drawGameOver, rankLine) and must stay
   // visibly distinct so the two never read as contradicting each other.
-  const rescueLine = "SCIONS ABOARD " + s.passengers.length + "  ·  SECTOR " + tl.delivered + "/" + savable;
+  /* P·slice (owner feedback) — a chamber has no Scions aboard and no sector
+     tally, so Act One's line read "SCIONS ABOARD 0 · SECTOR 0/0" underground
+     for the whole descent. Act Two counts BANKS, and its own tallies are
+     a2Saved/a2Lost (js/acttwo-update.js) — never MERCY's manifest. */
+  const rescueLine = level.isChamber
+    ? "BANKS OUT " + a2Saved + "/" + (level.racks ? level.racks.length : 0) +
+      (towing() ? "  ·  UNDER TOW" : "")
+    : "SCIONS ABOARD " + s.passengers.length + "  ·  SECTOR " + tl.delivered + "/" + savable;
   ctx.fillText(rescueLine, hx, topPad + 34);
   let tallyOff = ctx.measureText(rescueLine).width;
-  if (tl.lost > 0) {
+  if (level.isChamber) {
+    if (a2Lost > 0) {
+      ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER;
+      ctx.fillText("  ·  ✝ LOST " + a2Lost, hx + tallyOff, topPad + 34);
+    }
+    ctx.shadowBlur = 0;
+  } else if (tl.lost > 0) {
     ctx.fillStyle = PAL().DANGER; ctx.shadowColor = PAL().DANGER;
     const lostStr = "  ·  ✝ LOST " + tl.lost;
     ctx.fillText(lostStr, hx + tallyOff, topPad + 34);
@@ -4450,7 +4552,56 @@ window.__doids = {
     training: runMode === "training", trainingShown: Object.assign({}, trainingShown),
     coach: { active: state === "coach", text: coachText },
     currentHint, codex: [...codex],
-    everParried, everScanned, metFake }),
+    everParried, everScanned, metFake,
+    /* ---- Bundle P (P·slice) — Act Two's own state ----
+       Exposed from day one, per Bundle P's instruction, so the slice is testable
+       headlessly WHILE it is being felt by hand on a phone: every number here is
+       a feel value and the suite's job is to prove the machinery, not the tuning.
+       null on every Act One level. */
+    actTwo: actTwoActive() ? {
+      chamberId: level.chamberId,
+      saved: a2Saved, lost: a2Lost,
+      racks: level.racks.map(r => ({ id: r.id, x: Math.round(r.x), y: Math.round(r.y),
+        state: rackStateFor(r), reserve: +r.reserve.toFixed(2),
+        integrity: +r.integrity.toFixed(2), cut: r.cut, towed: r.towed,
+        delivered: r.delivered, lost: r.lost, gives: r.gives,
+        occupants: r.occupants, cradleT: +r.cradleT.toFixed(2) })),
+      conduits: level.conduits.map(c => ({ id: c.id, rack: c.rack, real: c.real,
+        x: Math.round(c.x), cut: c.cut, scanT: +c.scanT.toFixed(2),
+        // owner: a trunk runs DOWN and along under the deck now, so the suite
+        // needs the route, not just its endpoints
+        path: (c.path || []).map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })) })),
+      // owner: every decoy feed ends in a box, and landing beside one costs vitals
+      decoys: (level.decoys || []).map(d => ({ id: d.id, conduit: d.conduit,
+        x: Math.round(d.x), y: Math.round(d.y), mount: d.mount,
+        penalised: d.penalised })),
+      towing: towing(),
+      tow: level.towedRack ? { x: Math.round(level.towedRack.x),
+        y: Math.round(level.towedRack.y),
+        vx: Math.round(level.towedRack.vx), vy: Math.round(level.towedRack.vy),
+        speed: Math.round(Math.hypot(level.towedRack.vx, level.towedRack.vy)),
+        // how far the load has swung off vertical, and therefore which tow tier
+        // it currently fits through (§11.3's momentum pinch is exactly this)
+        swing: Math.round(level.towedRack.swing || 0),
+        envelope: +towEnvelope(level.towedRack.swing || 0).vertical.toFixed(1),
+        tell: slingTellState(level.towedRack),
+        tension: +(level.towedRack.tension || 0).toFixed(2) } : null,
+      give: a2Line ? { rack: a2Line.rack.id, given: +a2Line.given.toFixed(2),
+        cap: +a2Line.cap.toFixed(2), stall: !!a2Line.stall } : null,
+      giveWanted: giveWanted(),
+      // owner: an emplacement is tougher, so the suite needs to see it take hits
+      turrets: (level.turrets || []).map(t => ({ x: Math.round(t.x), y: Math.round(t.y),
+        heavy: !!t.heavy, hp: t.hp != null ? t.hp : 1, alive: t.alive })),
+      // owner: fuel down here is cans plus a drone off the well, so the suite
+      // needs to see both the placement and what's left of it
+      fuel: (level.fuelCans || []).map(f => ({ id: f.id, x: Math.round(f.x),
+        y: Math.round(f.y), taken: f.taken })),
+      well: level.wellDock ? { x: Math.round(level.wellDock.x),
+        y: Math.round(level.wellDock.y), docking: level.wellDock.docking,
+        winchT: +level.wellDock.winchT.toFixed(2), taken: level.wellDock.taken,
+        slot: (() => { const s = wellSlotPos(level.wellDock, performance.now() / 1000);
+          return { x: Math.round(s.x), y: Math.round(s.y) }; })() } : null
+    } : null }),
   go: toBriefing,
   // Y1 — the foreground tile-cache invalidation, plus a peek at the current
   // cache sizes so a test can assert the caches drop and then repaint.
@@ -4504,8 +4655,421 @@ window.__doids = {
   training: startTraining,   // X2
   // M1 regression anchor: seed 0 must always produce today's exact levels
   heightChecksum: () => level.heights.reduce((a, h) => (a * 31 + Math.round(h)) | 0, 0),
+
+  /* ---- P·terrain: span terrain and the chamber grammar ----
+     Exposed from day one so the representation is testable headlessly while
+     P·slice is being felt by hand (Bundle P's own instruction). */
+  // load a compiled chamber as the live level. Terrain only — see genChamber.
+  loadChamber: id => {
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === (id || "slice"));
+    if (!ch) return null;
+    level = genChamber(ch);
+    resetActTwo(); dustReset();       // P·slice — a fresh chamber attempt, and its own tallies
+    // owner: you come in at the well, because that is where MERCY can reach.
+    // One shared entry point with the death path — see chamberEntryPos.
+    const e = chamberEntryPos();
+    ship.x = e.x; ship.y = e.y;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
+    ship.vitals = maxVitals(); ship.fuel = maxFuel();
+    camera.x = ship.x; camera.y = ship.y;
+    state = "play";
+    return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length,
+      racks: level.racks.length, conduits: level.conduits.length,
+      well: !!level.wellDock };
+  },
+
+  /* ---- P·slice drivers. Every feel value in Act Two is tuned on hardware, so
+     the suite's job is the machinery: reach a state in one call and assert the
+     rules hold. These skip the HOLD, never the rule — a2Cut still routes through
+     closeTrunk, so a decoy still alerts him and a real feed still starts the
+     dying. */
+  a2Cut: id => {
+    const c = (level.conduits || []).find(k => k.id === id);
+    if (!c || c.cut) return false;
+    closeTrunk(c); return true;
+  },
+  a2Cradle: id => {
+    const r = (level.racks || []).find(k => k.id === id);
+    if (!r || !r.cut || r.lost || r.delivered || level.towedRack) return false;
+    cradleRack(r);
+    /* …and parts the moorings, because they are the second HOLD on the same
+       action (0.55s of taut pull, see updateMooring) and this driver's contract
+       is "reach the state in one call, skipping holds and never rules". Every
+       caller means "the load is on the rope and free to move" by cradled. The
+       mounts' own behaviour — that a bolted rack does NOT move, and what it
+       takes to free it — is asserted through the real path instead. */
+    r.moored = false; r.moorT = 0;
+    return true;
+  },
+  a2Release: () => { if (!towing()) return false; releaseRack(); return true; },
+  /* The moorings, parted. Skips the HOLD (0.55s of taut pull) and never the
+     rule — same contract as a2Cut: the rack ends up seated on the rope exactly
+     as updateMooring leaves it, so a test of the tether isn't also a test of
+     how long the owner wants the mounts to resist. */
+  a2Unmoor: id => {
+    const r = (level.racks || []).find(k => k.id === (id || (level.racks[0] || {}).id));
+    if (!r || !r.moored) return false;
+    r.moored = false; r.moorT = 0;
+    if (level.towedRack === r) seatPayload(r);
+    return true;
+  },
+  // put the ship (and, if it is slung, its load) somewhere, so a test can reach
+  // the far end of a 9000px floor without flying it
+  a2Warp: (x, y, landed) => {
+    ship.x = x; ship.y = y; ship.vx = ship.vy = 0; ship.ang = 0;
+    ship.landed = !!landed; ship.dead = false;
+    /* re-hang the load under the hull's new position rather than leaving it a
+       room behind — the same seating the cradle and the lift beats use. NOT a
+       rack that is still bolted in, though: a moored rack is part of the
+       structure, and dragging it to the hull would quietly unbolt it. */
+    if (level.towedRack && !level.towedRack.moored) seatPayload(level.towedRack, true);
+    camera.x = x; camera.y = y;
+    return true;
+  },
+  a2SetReserve: (id, v) => {
+    const r = (level.racks || []).find(k => k.id === (id || (level.racks[0] || {}).id));
+    if (!r) return false;
+    r.reserve = v; return true;
+  },
+  a2Vitals: v => { ship.vitals = v; },
+
+  /* ---- the on-device rig's entry points (tests/qa-harness.html) ------------
+     Act Two is tuned by hand on a phone, so the tap-driven QA harness needs to
+     reach the same places the suite does. These exist rather than having the
+     harness read internals through `frame.contentWindow` because **a top-level
+     `const` is NOT a property of `window`.** Classic scripts put `let`/`const`
+     in the global *lexical* environment, so `contentWindow.SLING_L` is
+     `undefined` while `contentWindow.markTrained` (a function declaration) works
+     — a trap worth naming, since the harness already uses the second form and
+     the first would have failed silently. */
+  // every chamber the build knows about, so the rig's picker fills itself in as
+  // P·content adds the other nine rather than needing an edit per chamber
+  a2Chambers: () => ACT_TWO_CHAMBERS.map(c => ({ id: c.id, name: c.name })),
+  // park the ship where a slung load hangs at the bay's own slot — the dock
+  // window is measured on the RACK, so this is the pose that matters
+  a2WarpWell: () => {
+    const w = level.wellDock;
+    if (!w) return false;
+    const slot = wellSlotPos(w, performance.now() / 1000);
+    ship.x = slot.x; ship.y = slot.y - SLING_L;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = false; ship.dead = false;
+    if (level.towedRack) seatPayload(level.towedRack, true);
+    camera.x = ship.x; camera.y = ship.y;
+    return true;
+  },
+  // land beside a rack, inside cradle reach
+  a2WarpRack: id => {
+    const r = (level.racks || []).find(k => k.id === id) || (level.racks || [])[0];
+    if (!r) return false;
+    ship.x = r.x; ship.y = r.y - 40;
+    ship.vx = ship.vy = 0; ship.ang = 0; ship.landed = true; ship.dead = false;
+    if (level.towedRack) seatPayload(level.towedRack, true);
+    camera.x = ship.x; camera.y = ship.y;
+    return true;
+  },
+  /* The feel values, live. The whole point of a device pass is deciding these by
+     hand, and the first question on a phone is always "what is it set to right
+     now" — which is unanswerable from inside the game otherwise. */
+  a2Dials: () => ({
+    slingVisible: SLING_VISIBLE, slingL: +SLING_L.toFixed(1),
+    shipShare: SLING_SHIP_W, safeV: SLING_SAFE_V, dmgK: SLING_DMG_K,
+    reserveMax: RACK_RESERVE_MAX, drain: RACK_DRAIN, beatBite: RACK_BEAT_BITE,
+    failingAt: RACK_FAILING_AT,
+    giveRate: GIVE_RATE, givePerLine: GIVE_PER_LINE, giveFloor: GIVE_FLOOR,
+    wellDockR: WELL_DOCK_R, wellDockV: WELL_DOCK_V,
+    cradleT: CRADLE_T, recradleT: RECRADLE_T, trunkCutT: TRUNK_CUT_T,
+    // and the geometry they imply, which is what a chamber is authored against
+    envelopeAtRest: +towEnvelope(0).vertical.toFixed(1),
+    envelopeSwung: +towEnvelope(TOW_SWING_LEVEL).vertical.toFixed(1),
+    momentumGap: momentumGapPx(), restGap: restGapPx()
+  }),
+
+  /* ---- the traversability invariant -------------------------------------
+     GAME_DESIGN's no-trolley-problem pillar says every chamber must be
+     clearable with everyone alive, and Bundle P says that "wants an assertion,
+     not a playtest opinion." This is the assertion's floor: a flood fill over
+     the open spans, connecting two columns only where their intervals overlap
+     by at least `need`, so the same code answers "can a bare ship get through"
+     and "can a ship get through with a rack hanging under it" just by changing
+     the number passed in.
+
+     It exists because P·terrain's chamber could NOT be flown: its structural
+     column was solid floor-to-ceiling and sealed the only route to the well, and
+     every terrain test passed anyway because each one asserted a local property.
+     Nothing was asking the whole-room question. */
+  chamberRoute: need => {
+    const S = level.spans;
+    if (!S) return null;
+    const gap = need != null ? need : 2 * SHIP_R + 4;
+    const key = (i, j) => i * 16 + j;
+    const seen = new Set(), stack = [];
+    const push = (i, j) => { if (!seen.has(key(i, j))) stack.push([i, j]); };
+    const startI = clamp(Math.round(ship.x / STEP), 0, S.length - 1);
+    (S[startI] || []).forEach((sp, j) => { if (sp.bot - sp.top >= gap) push(startI, j); });
+    while (stack.length) {
+      const [i, j] = stack.pop();
+      if (seen.has(key(i, j))) continue;
+      seen.add(key(i, j));
+      const sp = S[i][j];
+      for (const n of [i - 1, i + 1]) {
+        if (n < 0 || n >= S.length) continue;
+        (S[n] || []).forEach((q, qj) => {
+          if (q.bot - q.top < gap) return;
+          if (Math.min(q.bot, sp.bot) - Math.max(q.top, sp.top) >= gap) push(n, qj);
+        });
+      }
+    }
+    const at = x => {
+      const i = clamp(Math.round(x / STEP), 0, S.length - 1);
+      return (S[i] || []).some((sp, j) => seen.has(key(i, j)));
+    };
+    let maxX = 0;
+    /* minX as well as maxX: the fill is seeded at the ship, and the ship now
+       enters at THE WELL (owner: that is where MERCY can reach), so the run goes
+       right-to-left and back. "How far did the fill get" is a minimum in that
+       direction — reporting only a maximum silently answered a question about
+       the old left-hand entrance. */
+    let minX = level.W;
+    for (let i = 0; i < S.length; i++) if ((S[i] || []).some((sp, j) => seen.has(key(i, j)))) {
+      maxX = i * STEP; minX = Math.min(minX, i * STEP);
+    }
+    return { gap: +gap.toFixed(1), spansReached: seen.size, maxX, minX,
+      fromX: Math.round(ship.x),
+      racks: (level.racks || []).map(r => ({ id: r.id, reachable: at(r.x) })),
+      conduits: (level.conduits || []).map(c => ({ id: c.id, reachable: at(c.x) })),
+      well: level.wellDock ? at(level.wellDock.x) : null };
+  },
+  // the same stable fingerprint idea as heightChecksum, over spans: a chamber
+  // must compile identically every load or the authoring format isn't authoring
+  spanChecksum: () => (level.spans || []).reduce((a, col) =>
+    col.reduce((b, sp) => (b * 31 + Math.round(sp.top) * 7 + Math.round(sp.bot)) | 0, a), 0),
+  spans: x => (level.spans ? (level.spans[clamp(Math.round(x / STEP), 0, level.spans.length - 1)] || [])
+    .map(sp => ({ top: Math.round(sp.top), bot: Math.round(sp.bot) })) : null),
+  spanCountAt: x => spanCountAt(x),
+  // how many columns hold an overhang (2+ spans), and the tightest gap anywhere —
+  // the two properties §11.0 says the heightmap could not express
+  spanStats: () => {
+    const s = level.spans || [];
+    let overhangs = 0, solidCols = 0, tightest = Infinity, deepest = 0, shallowest = Infinity;
+    for (const col of s) {
+      if (col.length >= 2) overhangs++;
+      if (!col.length) solidCols++;
+      for (const sp of col) {
+        tightest = Math.min(tightest, sp.bot - sp.top);
+        deepest = Math.max(deepest, sp.bot);
+        shallowest = Math.min(shallowest, sp.top);
+      }
+    }
+    return { cols: s.length, overhangs, solidCols, deepest: Math.round(deepest),
+      // how much vertical the open route actually uses — a FLOOR of a complex is
+      // wide against this, not tall (owner steer, July 2026)
+      verticalUsed: Math.round(deepest - (shallowest === Infinity ? 0 : shallowest)),
+      tightest: tightest === Infinity ? null : Math.round(tightest) };
+  },
+  solidAt: (x, y) => solidAt(x, y),
+  roofAtY: (x, y) => roofAt(x, y),
+
+  /* §8 — where the drawn view and the solid view deliberately disagree. Every
+     disagreement must be one of the two authored hazards; anything else is the
+     two views having drifted apart, which is a bug and is counted separately. */
+  deceptions: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    /* Classify by measuring AIR, not by counting spans. Painted rock usually
+       shortens an existing span rather than adding one (its mass runs past the
+       hall floor, so no air survives beneath it), which a span-count test misses
+       entirely — it read 0 painted rock on a chamber that has some. */
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    // every difference must fall inside a part that DECLARED a view, or the two
+    // views have drifted apart on their own, which is the bug worth catching
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    const ranges = ((ch && ch.parts) || []).filter(p => p.view)
+      .map(p => [p.x - STEP * 2, p.x + p.w + STEP * 2]);
+    const declared = x => ranges.some(r => x >= r[0] && x <= r[1]);
+    let falseFloors = 0, paintedRock = 0, undeclaredColumns = 0;
+    for (let i = 0; i < sol.length; i++) {
+      const a = openLen(sol[i]), b = openLen(drw[i]);
+      if (Math.abs(a - b) < 0.01) continue;
+      if (!declared(i * STEP)) { undeclaredColumns++; continue; }
+      if (b < a) falseFloors++;      // drawn hides real air → a ledge that isn't there
+      else paintedRock++;            // drawn shows air over real mass → a painted wall
+    }
+    return { falseFloors, paintedRock, undeclaredColumns };
+  },
+  // the first column where a ledge is drawn but nothing is solid: the ledge's y,
+  // the real ground you actually fall to, and whether the ledge holds you
+  falseFloorProbe: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    for (let i = 0; i < sol.length; i++) {
+      // LESS air drawn than exists = a ledge drawn across open space
+      if (openLen(sol[i]) - openLen(drw[i]) < 1) continue;
+      const x = i * STEP;
+      /* Find the FALSE boundary specifically: a drawn floor with no solid rock
+         under it. Taking drw[i][0].bot instead picks the topmost boundary in the
+         column, which on a chamber with a mezzanine is a perfectly real ceiling —
+         it reported ledge === ground and the deception as solid. */
+      for (const sp of drw[i]) {
+        if (solidAt(x, sp.bot + 4)) continue;            // a real floor, keep looking
+        return { x: Math.round(x), drawnLedge: Math.round(sp.bot),
+          realGround: Math.round(groundAt(x, sp.bot + 4)),
+          solidAtLedge: solidAt(x, sp.bot + 4) };
+      }
+    }
+    return null;
+  },
+  // the first column that is solid where the drawn view shows open space
+  paintedRockProbe: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
+    for (let i = 0; i < sol.length; i++) {
+      // MORE air drawn than exists = mass hidden behind a painted face
+      if (openLen(drw[i]) - openLen(sol[i]) < 1) continue;
+      const x = i * STEP;
+      // a y inside the hidden mass: just below the surviving solid span's floor
+      const y = (sol[i].length ? sol[i][sol[i].length - 1].bot : 0) + 30;
+      const d = pickSpan(drw[i], y);
+      return { x: Math.round(x), y: Math.round(y), solid: solidAt(x, y),
+        drawnOpen: !!(d && y > d.top && y < d.bot) };
+    }
+    return null;
+  },
+  /* Points known to be far from either declared lie, for the pixel-agreement
+     test — derived rather than hardcoded so retuning the chamber can't quietly
+     aim a probe into a deception and make the test contradict itself. */
+  honestProbePoints: () => {
+    const sol = level.spans, drw = level.spansDrawn || level.spans;
+    const honest = i => {
+      const a = sol[i] || [], b = drw[i] || [];
+      return a.length === b.length && a.every((sp, k) =>
+        Math.abs(sp.top - b[k].top) < 0.01 && Math.abs(sp.bot - b[k].bot) < 0.01);
+    };
+    /* Stay well clear of the world edges: drawBoundaryField paints a glowing
+       dashed containment line at BOUND_X (40) that brightens as the ship nears
+       it, so a pixel sampled there is reading the overlay, not the terrain. */
+    const EDGE = 240;
+    const iLo = Math.max(3, Math.ceil(EDGE / STEP));
+    const iHi = Math.min(sol.length - 4, Math.floor((level.W - EDGE) / STEP));
+    const clear = i => honest(i - 2) && honest(i - 1) && honest(i) && honest(i + 1) && honest(i + 2);
+    const pts = [];
+    let rock = null, air = null;
+    /* The ROCK reference is a point buried DEEP in the mass — solid, and at least
+       DEEP_CLEAR px from every surface in its column. It used to be the middle of
+       a fully-solid column run (the old floor-to-ceiling pillar), which broke the
+       moment that pillar was re-authored into something you can fly over
+       (P·slice): with no span-less run to find, the reference fell back to a
+       hardcoded x at y 900, which in this chamber is open hall. Both references
+       then sampled AIR, the rock/air distance collapsed, and every probe
+       misclassified — a test failing for a reason that had nothing to do with
+       what it tests.
+
+       Deep rock is the better anchor anyway, and not only because it always
+       exists: it is far from the surface strokes, so it cannot pick up a flank's
+       violet rock glow or a milled face's accent, which is the other way this
+       reference has gone wrong before. */
+    const DEEP_CLEAR = 140;
+    for (let i = iLo; i <= iHi; i++) {
+      if (!clear(i)) continue;
+      const col = sol[i];
+      if (!rock) {
+        const x = i * STEP;
+        for (let y = 200; y < (level.H || WORLD_H) - 60; y += 40) {
+          if (!solidAt(x, y)) continue;
+          if (col.some(sp => Math.abs(y - sp.top) < DEEP_CLEAR || Math.abs(y - sp.bot) < DEEP_CLEAR)) continue;
+          rock = [x, y];
+          break;
+        }
+      }
+      if (!air && col.length === 1) air = i * STEP;
+    }
+    for (let i = iLo; i <= iHi && pts.length < 8; i += 37) {
+      if (!clear(i)) continue;
+      const col = sol[i];
+      const x = i * STEP;
+      if (!col.length) { pts.push(["solid column @" + x, x, 900]); continue; }
+      const sp = col[0];
+      pts.push(["air @" + x, x, (sp.top + sp.bot) / 2]);
+      pts.push(["above ceiling @" + x, x, Math.max(30, sp.top - 90)]);
+      pts.push(["below floor @" + x, x, sp.bot + 90]);
+    }
+    const airCol = sol[Math.round(air / STEP)];
+    const airSp = airCol[airCol.length - 1];
+    return { points: pts, refRock: rock,
+      refAir: [air, (airSp.top + airSp.bot) / 2] };
+  },
+  chamberLights: () => (level.lights || []).length,
+  /* Can a rack actually be lifted through this chamber, and where does it need
+     momentum? A slung load hangs 90px deep at rest and only 66px when trailing at
+     your own level, so a gap classifies into three tiers (towTierForGap,
+     js/acttwo-data.js). Reported rather than assumed: the first pass drew a rack
+     that could not fit the level it was standing in, and the arithmetic that
+     "proved" it used a made-up 24px tether instead of PENDULUM_SPEC's 46. */
+  towClearance: (tether) => {
+    // NB: not named `level` — that is the global level object (js/world.js:214,
+    // a `let` binding, so window.level would be undefined and this would throw)
+    const rest = towEnvelope(0, tether), swung = towEnvelope(TOW_SWING_LEVEL, tether);
+    const gaps = [];
+    for (const col of (level.spans || [])) for (const sp of col) gaps.push(sp.bot - sp.top);
+    gaps.sort((a, b) => a - b);
+    const tiers = { rest: 0, momentum: 0, unladen: 0 };
+    for (const g of gaps) tiers[towTierForGap(g, tether)]++;
+    const L = tether != null ? tether : SLING_L;
+    return { cage: rest.cage, shipDiameter: 2 * SHIP_R, tether: L,
+      // how much cable is actually on screen at rest — the sling has to be SEEN
+      // to read as a pendulum at all (PENDULUM_SPEC §4.1's feel note)
+      visibleCable: +(L - SLING_SHIP_ANCHOR - rest.cage.h / 2).toFixed(1),
+      atRest: +rest.vertical.toFixed(1), atSpeed: +swung.vertical.toFixed(1),
+      momentumBand: +(rest.vertical - swung.vertical).toFixed(1),
+      tightestGap: gaps.length ? Math.round(gaps[0]) : null,
+      medianGap: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)]) : null,
+      tiers, gapCount: gaps.length,
+      // the tightest gap of each tier, so a test can find the authored pinch
+      tightestMomentum: (() => {
+        const m = gaps.filter(g => towTierForGap(g, tether) === "momentum");
+        return m.length ? Math.round(m[0]) : null;
+      })() };
+  },
+  towTier: (gap, tether) => towTierForGap(gap, tether),
+  // every part that declared a pinch intent, so authored intent can be checked
+  // against the geometry actually compiled rather than trusted
+  declaredPinches: () => {
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    return ((ch && ch.parts) || []).filter(p => p.pinch)
+      .map(p => ({ kind: p.pinch, x: p.x, w: p.w }));
+  },
+  /* Sample the RENDERED canvas at a world point — the honest way, which took
+     two attempts. Centring the camera on the point puts it at screen centre,
+     which is exactly where the ship is drawn: the first version of this returned
+     the ship's own cyan (113,170,255) and called it rock. So aim the point at a
+     quiet third of the screen instead, and park the ship a full screen away.
+     Avoids, by construction: the ship and its glow, the top HUD strip, the
+     bottom-right touch buttons, the centre banner text, and drawBoundaryField's
+     glowing containment line at the world edges. */
+  samplePixel: (wx, wy) => {
+    const z = zoomLevel(), cw = (vw - saLeft) / z, ch = vh / z;
+    const wantSx = (vw - saLeft) * 0.32, wantSy = vh * 0.34;
+    camera.x = wx - (wantSx / z - cw / 2);
+    camera.y = wy - (wantSy / z - ch / 2);
+    camera.shake = 0;
+    ship.x = clamp(wx + cw, BOUND_X, level.W - BOUND_X);
+    ship.y = wy; ship.vx = ship.vy = 0; ship.ang = 0;
+    ship.landed = true; ship.dead = false;
+    render(performance.now() / 1000);
+    // recompute the transform exactly as worldTransform does, AFTER its clamps
+    const cx = clamp(camera.x - cw / 2, 0, Math.max(0, level.W - cw));
+    const cy = clamp(camera.y - ch / 2, -100, levelH() - ch);
+    const px = ctx.getImageData(Math.round((saLeft + (wx - cx) * z) * dpr),
+      Math.round((wy - cy) * z * dpr), 1, 1).data;
+    return [px[0], px[1], px[2]];
+  },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
+  /* §8.1's tell — the settled motes, so a test can assert the PROPERTY (dust
+     rests only on what collision agrees is solid) rather than count particles. */
+  dust: () => (a2Dust || []).filter(d => !d.dead)
+    .map(d => ({ x: Math.round(d.x), y: Math.round(d.y), settled: !!d.settled })),
+  // P·slice (owner feedback) — the predicate the hull's new wall collision uses,
+  // so a test can ask "is this point rock?" the same way the game does
+  solid: solidAt,
   evalLanding: landingEval,
   landingGuideVisible,   // owner fix: ASSIST off hides the landing-guide visuals
   logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body

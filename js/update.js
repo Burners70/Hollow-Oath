@@ -6,6 +6,14 @@
    hazard — the player's reward for noticing is understanding, not damage. */
 const STATIC_PERIOD = 41.0;
 let staticClock = 0, staticSurge = 0, staticGlitchT = 0;
+/* Bundle P — did the 41s beat land THIS frame? Act Two's reserve takes a
+   simultaneous bite out of every rack on the beat (docs/ACT_TWO_SPEC.md §7.3),
+   and that has to be an exact signal rather than something inferred from the
+   clock's value: `staticClock` wrapping to near-zero is indistinguishable from a
+   fresh clock, so reading "it got smaller" gets the answer wrong exactly when
+   the wrap lands early in a period. Set and cleared by updateStaticClock, read
+   by updateActTwo in the same frame. */
+let staticBeat = false;
 let arrhythmiaHapT = 0;   // F2: paces the light arrhythmia tap
 let sabotageFlash = 0;    // S7: red-edge vignette pulse when sabotage lands
 const PARRY_WINDOW = 0.18; // E3: FIELD MEDIC parry window (forgiving)
@@ -68,12 +76,20 @@ const BREACH_REVEAL_DELAY = 3.5;
 // them mid-fall. (Vectors aboard YOUR ship no longer throw; they cut fuel lines.)
 const MERCY_THROW_FIRST = 2.2, MERCY_THROW_GAP = 6;
 function updateStaticClock(dt) {
+  staticBeat = false;   // cleared every frame, before any early return
   staticSurge = Math.max(0, staticSurge - dt);
   staticGlitchT = Math.max(0, staticGlitchT - dt);
-  if (runMode === "training" || !(levelIdx >= 4 || level.isCave || dailyMod("surge"))) return;
+  /* Bundle P — a chamber always runs the clock. The 41 seconds turn out to be a
+     heartbeat (docs/ACT_TWO_SPEC.md §3) and the network's bite on the beat is
+     the reserve's whole pacing (§7.3), so Act Two cannot be one of the levels
+     the clock sits out. Act One's own gate (sector 4 onward, or any Hollow, or
+     the DAILY surge modifier) is untouched. */
+  if (runMode === "training" ||
+      !(levelIdx >= 4 || level.isCave || level.isChamber || dailyMod("surge"))) return;
   staticClock += dt;
   if (staticClock < STATIC_PERIOD) return;
   staticClock -= STATIC_PERIOD;
+  staticBeat = true;
   staticTick();
   // a "wrong" double-tick, distinct from the heartbeat's lub-dub (F2)
   haptic.pattern([{ delay: 0, style: "light" }, { delay: 40, style: "light" }]);
@@ -275,6 +291,12 @@ function landingEval() {
 function shipDie() {
   if (ship.dead) return;
   ship.dead = true;
+  /* Bundle P (P·slice) — PENDULUM_SPEC §4.3: "Ship death while towing: the sling
+     parts, the payload drops where it fell… and can be re-cradled on the next
+     life." So the load survives the hull, and the respawn does not drag a rack
+     across the chamber behind a ship that has been re-placed by spawnShip.
+     A no-op on every Act One level. */
+  if (level.racks) actTwoShipDied();
   haptic.heavy();
   explode(ship.x, ship.y, PAL().DANGER, 60);
   explode(ship.x, ship.y, PAL().WARN, 40);
@@ -322,7 +344,14 @@ function checkSectorClear() {
   // X2b — the trainee sector never ends on its own; the player leaves via
   // the pause menu's END TRAINING row.
   if (runMode === "training") return;
-  if (state !== "play" || level.isCave || level.isFinale || level.extraction || mercyBreach || pendingBreach) return;
+  /* P·slice (owner feedback) — and never in an Act Two chamber. A chamber holds
+     no Scions, so `total` is 0 and the manifest is trivially closed on frame
+     one: Act One concluded the sector was clear and flashed "MANIFEST CLOSED —
+     FLY INTO HER VENTRAL HANGAR" underground, at a mothership that is nine
+     thousand pixels up and cannot be reached. The racks are Act Two's own
+     accounting (a2Saved/a2Lost) and they close nothing of MERCY's. */
+  if (state !== "play" || level.isCave || level.isFinale || level.isChamber ||
+    level.extraction || mercyBreach || pendingBreach) return;
   if (level.delivered + level.lost + level.contained + provenLeftBehind() < level.total) return;
   beginExtraction(false);
 }
@@ -706,7 +735,18 @@ function update(dt) {
           // would. Untouched once the decoy's already been resolved (dead) —
           // nothing left to protect at that point.
           if (level.fakeMercy && !level.fakeMercy.dead) rollMercyTwin(level, Math.random);
-          spawnShip(); state = "play"; stateT = 0; checkSectorClear();
+          spawnShip();
+          /* Bundle P (P·slice) — AFTER spawnShip, which places the ship relative
+             to level.mx/my; a chamber has no mothership and leaves those at
+             -9999, so a life lost dropped the hull clean off the world. Re-enter
+             at the chamber's own entrance instead, with the rack network left
+             exactly as it was — a life costs you the flight back, not the room.
+             FULL chamber checkpointing (rack reserves, which trunks are cut, what
+             the well has already taken, and the save schema that has to hold it)
+             is P·persist; this is the floor that keeps the slice flyable until it
+             lands. */
+          if (level.isChamber) respawnInChamber();
+          state = "play"; stateT = 0; checkSectorClear();
         }
       }
       input.tap = false;
@@ -1200,7 +1240,16 @@ function updatePlay(dt) {
   // Not while the transfusion line is out — the field would sever it, and (owner
   // steer) you shouldn't be able to parry mid-refuel.
   const refuelling = !!(resupplyDrone && resupplyDrone.phase === "line");
-  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead && !refuelling;
+  /* Bundle P (P·slice) — down in Act Two the shield button IS the transfusion
+     (docs/ACT_TWO_SPEC.md §7.4): hold it over a dying rack and you open a vein
+     instead of raising a field. Gated here, the way `refuelling` already is, so
+     the field never flickers on for the frames before updateActTwo runs.
+     giveWanted()/giving() (js/acttwo-update.js) answer from current state only,
+     so this gate and the transfusion itself can never disagree about what the
+     button meant. Both are false on every Act One level. */
+  const a2Giving = giveWanted() || giving();
+  const wantShield = (input.shield || pad.shield) && s.fuel > 0 && !s.dead &&
+    !refuelling && !a2Giving;
   // E3 — the parry: for a brief window right after the field snaps up, a bullet
   // caught in it is REFLECTED, not just absorbed. Timed on the rising edge.
   // Owner steer: the window is tight (skill), and only FIELD MEDIC keeps the
@@ -1269,9 +1318,11 @@ function updatePlay(dt) {
   s.x = clamp(s.x, BOUND_X, level.W - BOUND_X);
   if (s.y < BOUND_Y) { s.y = BOUND_Y; s.vy = Math.max(s.vy, 0); }
 
-  // cave roofs are unforgiving — unless the field is up
-  if (level.roof && !s.dead && !s.landed) {
-    const rY = roofAt(s.x);
+  // cave roofs are unforgiving — unless the field is up. P·terrain: a chamber
+  // has no level.roof, its ceiling is whichever span you're in, so roofAt takes
+  // the ship's y to pick one (Act One passes x alone and is unchanged).
+  if ((level.roof || level.spans) && !s.dead && !s.landed) {
+    const rY = roofAt(s.x, s.y);
     if (s.y - SHIP_R <= rY) {
       if (s.shield) {
         s.y = rY + SHIP_R + 1;
@@ -1279,11 +1330,19 @@ function updatePlay(dt) {
         s.fuel = Math.max(0, s.fuel - 4);
         camera.shake += 6;
         blip(240, 420, 0.12, "sine", 0.1);
+      } else if (level.isChamber) {
+        /* P·slice (owner feedback) — a chamber ceiling HURTS, it does not kill:
+           see hullCeilingImpact (js/acttwo-update.js) for why the Act One rule
+           can't survive contact with overhangs and a load on a rope. */
+        if (!hullCeilingImpact(rY)) return;
       } else { shipDie(); return; }
     }
   }
 
-  const g = groundAt(s.x);
+  // P·terrain — s.y picks the span, so in a chamber you land on the shelf you
+  // are actually over rather than on the deepest floor beneath it. Ignored on
+  // every heightmap level, which is all of Act One.
+  const g = groundAt(s.x, s.y);
   if (!s.landed && s.y + SHIP_R >= g) {
     const { soft, survivable } = landingEval();
     if (soft) {
@@ -1326,6 +1385,16 @@ function updatePlay(dt) {
     } else { shipDie(); return; }
   }
 
+  /* P·slice (owner feedback) — the hull against a WALL. Act One has none, so
+     this is a no-op on every heightmap level; in a chamber it is what stops the
+     dart flying through a pillar, a column's flank or §8's painted rock.
+     Deliberately after the vertical resolution above (see shipSolidCollide). */
+  if (level.spans && !shipSolidCollide()) return;
+  /* P·slice (owner feedback) — and a moored rack is a landable surface, because
+     landing on it is how you connect the cable. After the wall test so the pad
+     wins over a wall the box happens to be bolted against. */
+  if (level.racks && !shipRackLanding()) return;
+
   sectorT += dt;
   updateNightfall(dt);    // T6 — dusk → full dark on the Basin
   updateOids(dt, now);
@@ -1346,6 +1415,14 @@ function updatePlay(dt) {
   updateCabinPulse(dt);   // S1 — a heartbeat chorus for who's aboard
   updateCaveAudio(dt);    // S3 — drips & distant rumble down in the Hollows
   updateStaticClock(dt);
+  /* Bundle P (P·slice) — the whole Act Two loop: the trunk cut, the cradle, the
+     tether, the reserve, the transfusion and THE WELL (js/acttwo-update.js).
+     Placed here on purpose: AFTER the ship's own integration and collision above
+     (so the tether corrects against a hull that has already settled) and AFTER
+     updateStaticClock (so the network's bite on the 41s beat lands in the same
+     frame the beat fires). A no-op on every Act One level — it returns
+     immediately unless the level carries racks. */
+  updateActTwo(dt);
   // V13 — the twin's staged reveal: decrement the countdown, then fire the two
   // one-shot signal-pulse cues at the instants drawMercySplit's rings mark
   // (elapsed crossing TWIN_PULSE1 / TWIN_PULSE2), each exactly once. This is
@@ -1566,8 +1643,16 @@ function updateEnemies(dt) {
     const target = Math.atan2(dy, dx);
     t.ang += clamp(target - t.ang, -1.6 * dt, 1.6 * dt);
     t.cd -= dt;
-    if (d < 500 && t.cd <= 0 && !s.dead) {
-      t.cd = 1.5 + Math.random() * 0.9;
+    if (t.hitT) t.hitT = Math.max(0, t.hitT - dt * 4);
+    /* Bundle P (owner feedback) — a plant emplacement is tougher but SLOWER and
+       shorter-reaching than an Act One gun. Tough must not also mean relentless:
+       the owner's objection was to being killed with no way to read it coming,
+       and a heavier gun with a faster cadence would be exactly that. Act One's
+       numbers are untouched (no `heavy` flag, no change). */
+    const range = t.heavy ? EMPLACE_RANGE : 500;
+    if (d < range && t.cd <= 0 && !s.dead) {
+      t.cd = t.heavy ? EMPLACE_CD[0] + Math.random() * EMPLACE_CD[1]
+        : 1.5 + Math.random() * 0.9;
       level.bullets.push({ x: t.x + Math.cos(t.ang) * 14, y: t.y - 10 + Math.sin(t.ang) * 14,
         vx: Math.cos(t.ang) * 150, vy: Math.sin(t.ang) * 150, t: 4 });
       blip(300, 90, 0.18, "square", 0.07);
@@ -1612,8 +1697,17 @@ function updateEnemies(dt) {
     if (b.reflected) {
       let gone = false;
       for (const t of level.turrets) {
-        if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
-          t.alive = false; gone = true; score += 250;
+        if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < (t.heavy ? EMPLACE_R : 18)) {
+          gone = true;
+          // the same HP model as a fired round (above): a parry is a great answer
+          // to an emplacement, not a bypass of the fact that it is armoured
+          t.hp = (t.hp || 1) - 1;
+          if (t.hp > 0) {
+            t.hitT = 1;
+            explode(t.x, t.y - 8, TOK.PARRIED, 10);
+            continue;
+          }
+          t.alive = false; score += 250;
           explode(t.x, t.y - 8, PAL().WARN, 30); addText(t.x, t.y - 40, "REFLECTED +250", TOK.PARRIED);
         }
       }
@@ -1658,7 +1752,11 @@ function updateEnemies(dt) {
 
   s.fireCd -= dt;
   // while the transfusion line is caught, FIRE means "detach", never "shoot"
-  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead && !tethered()) {
+  /* Bundle P (P·slice) — while towing, FIRE is the RELEASE and never a shot
+     (docs/PENDULUM_SPEC.md §4.2: you cannot fire a weapon and carry a patient
+     with the same hand). §10a.2 is the point of it: the Act Two oath question is
+     not "shoot or don't" but "put them down, in this room, and pick up a gun." */
+  if ((input.fire || pad.fire) && s.fireCd <= 0 && !s.dead && !tethered() && !towing()) {
     s.fireCd = 0.22;
     acctLevel().firedShots++; runFired++;
     level.shots.push({ x: s.x + Math.sin(s.ang) * 14, y: s.y - Math.cos(s.ang) * 14,
@@ -1668,10 +1766,29 @@ function updateEnemies(dt) {
   for (let i = level.shots.length - 1; i >= 0; i--) {
     const b = level.shots[i];
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-    let gone = b.t <= 0 || b.y > groundAt(b.x) || (level.roof && b.y < roofAt(b.x));
+    // P·terrain — solidAt is the same test on both models: past the floor, into
+    // the roof, or (chambers only) buried in a pillar or an overhang's mass
+    let gone = b.t <= 0 || solidAt(b.x, b.y);
+    /* Bundle P (P·slice) — §7.1: "Shooting a feed dumps the rack." A live trunk
+       IS the bank's life support, so a round through it kills everyone in the
+       box. The oath has teeth again, and it's a wire rather than a lecture.
+       No-op unless the level carries conduits (js/acttwo-update.js). */
+    if (level.conduits && !gone && actTwoShotHit(b)) gone = true;
     for (const t of level.turrets) {
-      if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < 18) {
-        t.alive = false; gone = true; firedAtCombat = true;
+      if (t.alive && Math.hypot(b.x - t.x, b.y - (t.y - 8)) < (t.heavy ? EMPLACE_R : 18)) {
+        gone = true; firedAtCombat = true;
+        /* Bundle P (owner feedback) — "tougher than those guns". `hp` defaults to
+           1, so an Act One turret still dies to one round and nothing about Act
+           One's balance moves; a plant emplacement takes EMPLACE_HP, and says so
+           by flashing rather than by a health bar. */
+        t.hp = (t.hp || 1) - 1;
+        if (t.hp > 0) {
+          t.hitT = 1;
+          explode(t.x, t.y - 8, PAL().WARN, 8);
+          blip(220, 150, 0.09, "square", 0.07);
+          continue;
+        }
+        t.alive = false;
         score += 250;
         explode(t.x, t.y - 8, PAL().WARN, 30);
         addText(t.x, t.y - 40, "+250", PAL().WARN);
@@ -2508,8 +2625,16 @@ function updateResupplySignal(dt) {
   }
   if (s.signalT >= signalHoldT() && !resupplyDrone) {
     s.signalT = 0;
-    // launched FROM MERCY's recovery bay, bound for a hover point above you
-    const m = mercyPos();
+    /* launched FROM MERCY's recovery bay, bound for a hover point above you —
+       except in a chamber, where she is nine thousand pixels of rock away and
+       `level.mx/my` is -9999. It comes down THE WELL instead (owner feedback:
+       "loooong time for refuel drone to come — needs to start from the well"),
+       which is also the only opening she can physically reach. Not routed
+       through mercyPos(): that function also places her hull and her bays, and
+       moving it would draw the mothership inside the chamber. */
+    const m = level.isChamber && level.wellDock
+      ? { mx: level.wellDock.x, my: level.wellDock.y }
+      : mercyPos();
     resupplyDrone = { x: m.mx, y: m.my + 40, hoverX: s.x, hoverY: s.y - 130, phase: "in", t: 0,
       given: 0, occluded: false, attachedNow: false, everAttached: false,
       dripT: 0, dripFlip: false, firePrev: true };
