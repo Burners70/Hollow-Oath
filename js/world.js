@@ -970,8 +970,16 @@ function matchSpan(col, ref) {
    floors and ceilings slope smoothly exactly as the heightmap's lerp does.
    y omitted means "the lowest span in the column" — the heightmap's one answer.
    Returns null only where the column is solid rock through and through. */
-function spanAt(x, y) {
-  const s = level.spans;
+/* `spans` is optional and defaults to the live level's. It exists so code that
+   is still BUILDING a level — snapToSurface, trunkPath (js/acttwo-data.js) —
+   can ask this exact question before `level.spans` is assigned. That matters
+   more than it sounds: placing a fixture against the nearest sampled column
+   while collision reads the interpolated surface puts it a fraction of a
+   column's slope out, which is invisible on the hall's ±20px deck and put a
+   conduit run 2.5px under the floor of the well shaft, where the slope is
+   steep. Same predicate, same answer, one code path. */
+function spanAt(x, y, spans) {
+  const s = spans || level.spans;
   if (!s) return null;
   const i = clamp(Math.floor(x / STEP), 0, s.length - 2);
   const t = clamp(x / STEP - i, 0, 1);

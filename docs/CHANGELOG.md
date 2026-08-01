@@ -11,6 +11,53 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## P·floor — the chamber feature vocabulary, and a floor with shape (August 2026)
+
+Act Two's slice chamber was one 8050x620 room with 22px of noise on the deck. The
+owner flew it on a phone and said the floor can't all be flat, and — on scoping
+the fix — that it should be got right once so the changes cascade to the other
+nine chambers.
+
+**Asked what should cascade, the shape or the means of making it, the owner
+chose the means.** So the deliverable is a **named feature vocabulary** in
+`js/acttwo-data.js`, and the chamber is its first customer rather than its
+purpose. `hall`/`hallAt` carry the deck and the roof as one ruled profile between
+**stations**; `shelf`, `bench`, `column`, `pinch`, `gallery`, `bore`, `shaft`,
+`stalactites`, `falseFloor` and `paintedRock` hang named features on it. It adds
+no terrain capability — every helper emits the same `room`/`rock` parts the
+compiler already took — but three rules this project has already paid for are now
+enforced by construction: a column always opens headroom over its capital
+(derived from the tow envelope, so retuning the sling cannot seal it), an
+authored gap is pinned from both ops at a named tier rather than a number, and
+elevation change is interpolated between stations so a narrow *climbing* passage
+cannot read as a wall to the flood fill.
+
+**Two more decisions shaped the chamber itself:** both surfaces roam — deck and
+roof are independent, and the clear band now runs 260–870px against a constant
+620 — and the laden haul asks for altitude *and* rhythm, both: a 280px sump and
+a 540px climb out of it, with wide stretches you can build speed in alternating
+with tight ones where the load has to be settled. The dressing pass is in the
+same station list, because a station may change its material from there eastward:
+paving ends where the sump begins, and the seam is visible.
+
+**The new accidental-pinch test earned its keep immediately.** The re-author
+produced four gaps nobody authored — a starved shelf underside, a plinth beneath
+a mezzanine, and a rock hung from a roof a later room lifted above its root,
+leaving a 40px slot. The chamber now has exactly one run of sub-envelope air in
+9000px: the declared momentum pinch. Flying it found what tests could not: the
+rack-bay mezzanine sat 80px from the bank at exactly the hanging load's height,
+so you clipped it in the first metre of every haul. The overhang moved west of
+the bank, where you meet it unladen.
+
+**One shipped bug fixed on the way.** `snapToSurface` and `trunkPath` placed
+objects against the nearest sampled column while `groundAt`/`solidAt` read the
+interpolated surface between two columns — invisible on the hall's gentle deck,
+but it put a conduit run 2.5px under the floor of the well shaft. `spanAt` now
+takes an optional spans array so level-building code asks the same question
+collision asks.
+
+Suite 169 → 173.
+
 ## Release routing corrected: the patch version is 1.0.1, and the merged work ships in 1.0 (August 2026)
 
 Two findings, both while planning the submission.

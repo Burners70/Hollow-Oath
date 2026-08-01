@@ -34,6 +34,23 @@ commands, the harness gives you both:
    the harness page itself never needs to change for this. `?src=<url>` on the
    harness's own URL does the same thing without any typing, which is the easiest
    way to open a specific build from a message or a note.
+
+   **Which half of the link you need.** A link to a specific build is usually
+   sent as one long URL with the harness on the front and the build after
+   `?src=`:
+
+   ```
+   https://…/<sha>/tests/qa-harness.html?src=https://…/<sha>/index.html
+   └──────── the harness page ─────────┘     └──── the build ────┘
+   ```
+
+   If you **don't** have the harness open, tap the whole thing — it opens the
+   harness and loads that build in one go. **If you already have the harness on
+   your Home Screen, you only want the second half**: everything *after*
+   `?src=`, i.e. the `…/index.html` URL. Paste that into the Build box and tap
+   Load. Opening the full link instead would launch a second copy of the harness
+   in the browser rather than using your icon, which is the same rig but without
+   your saved build, your Home-Screen chrome or anything else the icon carries.
 3. Tap **☰ menu** to expand the button panel. Tap **Toggle console** for the
    Eruda overlay if you need to type something ad hoc.
 
@@ -92,7 +109,14 @@ have first on a phone and can't otherwise answer from inside the game.
 Add the harness (not the game) to your Home Screen for one-tap access. The
 harness loads the game inside itself, so you get the full game plus the menu
 in one place. To test a new build later, there's no need to re-add anything —
-just paste the new link into the **Build** box and tap Load.
+launch the icon, then paste the new build's URL into the **Build** box and tap
+Load.
+
+**The build's URL is the `…/index.html` one** — if what you were sent is a full
+harness link (`…/tests/qa-harness.html?src=…`), the part you want is everything
+after `?src=`, and the front half is the copy of the harness you already have.
+Once the icon exists, that second half is the *only* thing you ever need to
+paste again.
 
 That last sentence is load-bearing, and the harness is built to honour it. An
 icon relaunches the same URL every time, so if `?src=` won unconditionally your
