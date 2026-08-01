@@ -11,6 +11,39 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## Three collision bugs behind "everything seemed solid" (August 2026)
+
+The owner got stuck flying west twice more, past the previous round's fixes.
+Chasing it by flying the hull west at a range of altitudes and recording where it
+stopped found three bugs, all older than P·floor and all newly lethal because
+impacts kill again.
+
+**`spanAt` interpolated toward the wrong neighbour span.** It chose with
+`matchSpan` — biggest overlap wins — which is the wrong question wherever the
+span count changes, i.e. at the end of every shelf. West of the gallery mezzanine
+a hull flying the upper corridor at an altitude that was open air in *both*
+bracketing columns was handed an interpolated span that excluded it, reported as
+buried in rock, and killed against nothing. It interpolates toward the span the
+queried y is actually in now. Every guard missed this: the flood fill asks about
+span overlap and never about what `solidAt` says *between* two columns. There is
+now a test that does.
+
+**Wall damage billed speed rather than the closing component**, so skimming a 17°
+roof at cruise was priced as a head-on impact. Both collision paths take the real
+surface normal now — the burial path from the direction the correction pushes the
+hull, the lateral path from an eight-point read of the solid field.
+
+**`cornerInset` rounded the wrong way**, leaving a step of the full radius one
+radius inside each end of any filleted part. With it fixed, a structural column's
+bay is filleted by default, sized so the ease finishes where the column starts:
+full headroom over the capital and no one-column roof step to fly into.
+
+Also: crate stacks drew upward from an origin snapped as if they hung below it,
+so they floated their own height clear of the deck. Every ornament draws
+down-right from a top-left origin now.
+
+Suite 175 -> 178.
+
 ## P·floor, second on-device round — a wall you could not see, and one you could not pass (August 2026)
 
 The owner flew the re-authored floor on a phone. Thirteen notes; the two that

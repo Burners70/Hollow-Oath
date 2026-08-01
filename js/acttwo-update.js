@@ -1016,6 +1016,22 @@ function hullCeilingImpact(rY) {
   return hullImpact(vn);
 }
 
+/* The outward normal of whatever mass the hull is against, read off the solid
+   field rather than from a terrain gradient — which matters because down here a
+   face can be a floor, a roof, a column's flank or the underside of a shelf, and
+   `groundAt` only knows about one of those. Eight samples on a ring; the open
+   ones average to a direction pointing away from the rock, which is the outward
+   normal at any orientation. Null when the hull is enclosed. */
+function solidNormal(x, y, r) {
+  let nx = 0, ny = 0;
+  for (let k = 0; k < 8; k++) {
+    const a = k * Math.PI / 4, sx = Math.cos(a), sy = Math.sin(a);
+    if (!solidAt(x + sx * r, y + sy * r)) { nx += sx; ny += sy; }
+  }
+  const l = Math.hypot(nx, ny);
+  return l > 0.001 ? { x: nx / l, y: ny / l } : null;
+}
+
 /* Walls, pillar flanks and painted rock. Called from updatePlay AFTER the
    vertical resolution, so it corrects a hull that has already settled onto a
    floor instead of fighting the code that put it there.
@@ -1036,7 +1052,16 @@ function shipSolidCollide() {
     if (!s.landed) {
       for (const side of [-1, 1]) {
         if (!solidAt(s.x + side * SHIP_R, s.y)) continue;
-        const vn = Math.max(0, s.vx * side);
+        /* The CLOSING speed against the real surface, not `vx`. Sampling one
+           point to the side cannot tell a wall from a roof that has sloped down
+           to hull-centre height, and billing `vx` for the latter charged a full
+           head-on impact for skimming a 17° ceiling — fatal, once impacts
+           started killing. solidNormal reads the face's actual orientation off
+           the local field, so flying ALONG a slope costs nothing and flying
+           INTO a wall costs all of it. */
+        const n = solidNormal(s.x, s.y, SHIP_R + 2);
+        const vn = n ? Math.max(0, -(s.vx * n.x + s.vy * n.y))
+                     : Math.max(0, s.vx * side);
         s.x -= side * 4;
         s.vx = side > 0 ? Math.min(0, s.vx) * 0.3 : Math.max(0, s.vx) * 0.3;
         if (!hullImpact(vn)) return false;
@@ -1045,13 +1070,27 @@ function shipSolidCollide() {
     s.a2FreeX = s.x; s.a2FreeY = s.y;
     return true;
   }
-  const vn = Math.hypot(s.vx, s.vy);
+  /* THE NORMAL COMPONENT, not the speed — and the distinction became lethal
+     when impacts started killing. This billed `hypot(vx, vy)`, so grazing a 17°
+     roof at cruise was charged as a full head-on impact and killed outright.
+     The rack's own damage model has always measured the normal (towContact,
+     §4.3: a rack sliding along a floor is a graze and a rack driven into it is
+     a slam) and the hull gets the same treatment now.
+     The surface normal is taken from the direction the correction PUSHES the
+     hull, which needs no gradient estimate and is exactly right for a face of
+     any orientation: you are shoved out along the normal, by definition. */
+  const vx0 = s.vx, vy0 = s.vy, x0 = s.x, y0 = s.y;
   if (s.a2FreeX != null && !solidAt(s.a2FreeX, s.a2FreeY)) { s.x = s.a2FreeX; s.y = s.a2FreeY; }
   else {
     const col = level.spans[clamp(Math.round(s.x / STEP), 0, level.spans.length - 1)] || [];
     const sp = pickSpan(col, s.y);
     if (sp) s.y = clamp(s.y, sp.top + SHIP_R + 1, sp.bot - SHIP_R - 1);
   }
+  let nx = s.x - x0, ny = s.y - y0;
+  const nl = Math.hypot(nx, ny);
+  // no push means no face to take a normal from — fall back to the speed
+  const vn = nl > 0.001 ? Math.max(0, -(vx0 * (nx / nl) + vy0 * (ny / nl)))
+                        : Math.hypot(vx0, vy0);
   s.vx *= 0.2; s.vy *= 0.2;
   s.landed = false;
   return hullImpact(vn);

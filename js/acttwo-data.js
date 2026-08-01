@@ -523,12 +523,28 @@ function boundaryProfile(prof, u) {
   }
 }
 
-// r − √(r²−d²) at each end, so both boundaries curve in to meet the wall
+/* A quarter-circle fillet: the boundary is pulled IN hardest at the corner and
+   eases to nothing `radius` px inside it.
+
+   The original was inverted, and the inversion was not cosmetic. `r − √(r²−d²)`
+   with d measured from the END is 0 at the corner and grows to r just before the
+   interior — so a filleted room was full height at its very edge, pinched
+   `radius` px in, and then jumped back out by the whole radius at exactly d = r.
+   A `bore`'s 110px radius therefore put a 110px STEP in the roof 110px inside
+   each end, which is the bump measured at x 7000 while chasing why a gantry
+   would not sit flat, and one more thing reading as a wall that should not.
+   Measuring the circle from the corner inward — √ of (r − d) — is both the
+   shape intended and continuous with the interior. */
 function cornerInset(radius, x, x0, w) {
   if (!radius) return 0;
-  const d = Math.min(x - x0, x0 + w - x);
-  if (d >= radius || d < 0) return 0;
-  return radius - Math.sqrt(Math.max(0, radius * radius - d * d));
+  /* Clamped at zero, not skipped when negative. compileChamber samples from
+     floor(x/STEP), so the first column of a part sits slightly OUTSIDE it and
+     d comes out negative — which used to return 0 inset and hand that column
+     the part's full un-filleted height, putting back the one-column step the
+     fillet exists to remove. */
+  const d = Math.max(0, Math.min(x - x0, x0 + w - x));
+  if (d >= radius) return 0;
+  return radius - Math.sqrt(Math.max(0, radius * radius - (radius - d) * (radius - d)));
 }
 
 // the same cosine-interpolated value noise as genLevel's `octave` / genCave's,
@@ -790,10 +806,19 @@ function column(x, w, o) {
   const head = o.headroom != null ? o.headroom : restGapPx() + 45;
   const bayW = o.bayW != null ? o.bayW : w + 450;
   const bayTop = o.capital - head;
+  /* The bay's roof is FILLETED across its overhang, by exactly the distance
+     between its edge and the column's. Without it the bay is a rectangle
+     unioned into the hall, so its ends are a one-column vertical step in the
+     roof — 170px here — and flying west at bay altitude you meet it with no
+     warning and, since impacts kill, die. The radius is derived rather than
+     chosen so the ease finishes precisely where the column starts: full
+     headroom over the capital (rule 1 is not negotiable), a smooth roof
+     everywhere else. */
+  const bayR = o.bayRadius != null ? o.bayRadius : (bayW - w) / 2;
   return [
     { op: "room", x: x - (bayW - w) / 2, y: bayTop, w: bayW, h: o.floor - bayTop,
       roughTop: o.roughTop != null ? o.roughTop : 14,
-      roughBot: o.roughBot != null ? o.roughBot : 22,
+      roughBot: o.roughBot != null ? o.roughBot : 22, radius: bayR,
       mt: o.bayMt || MAT_ROCK, mb: o.bayMb || MAT_MACH },
     { op: "rock", x, y: o.capital, w, h: (o.floor - o.capital) + (o.base != null ? o.base : 130),
       radius: o.radius, mt: o.mt || MAT_MACH, mb: o.mb || MAT_ROCK }
@@ -1142,29 +1167,29 @@ const SLICE_CHAMBER = {
      `snap` sits an ornament on the floor of whatever span its y falls in, so a
      retune of the terrain doesn't leave the furniture hovering. */
   ornaments: [
-    { type: "crateStack",   x:  620, y: onDeck(620),  w: 88, h: 58, n: 3, snap: "floor" },
+    { type: "crateStack",   x:  620, y: onDeck(620),  w: 88, h: 168, n: 3, snap: "floor" },
     { type: "conduitRun",   x:  760, y: onDeck(760),  w: 420, snap: "floor" },
     { type: "gantry",       x:  840, y: onRoof(840),  w: 280, snap: "ceil" },
     { type: "rackingFrame", x: 1560, y: onDeck(1560), w: 90, h: 140, snap: "floor" },
     { type: "pipeBank",     x: 1620, y: onDeck(1620), w: 220, n: 4, snap: "floor" },
-    { type: "crateStack",   x: 2020, y: onDeck(2020), w: 84, h: 54, n: 2, snap: "floor" },
+    { type: "crateStack",   x: 2020, y: onDeck(2020), w: 84, h: 104, n: 2, snap: "floor" },
     { type: "ventGrate",    x: 2350, y: onDeck(2350), w: 70, h: 90,  snap: "floor" },
     { type: "pipeBank",     x: 2860, y: onDeck(2860), w: 240, n: 5, snap: "floor" },
     { type: "gantry",       x: 3020, y: onRoof(3020), w: 300, snap: "ceil" },
     { type: "conduitRun",   x: 3180, y: onDeck(3180), w: 460, snap: "floor" },
-    { type: "crateStack",   x: 3480, y: onDeck(3480), w: 92, h: 60, n: 3, snap: "floor" },
+    { type: "crateStack",   x: 3480, y: onDeck(3480), w: 92, h: 174, n: 3, snap: "floor" },
     { type: "ventGrate",    x: 3880, y: onDeck(3880), w: 70, h: 90,  snap: "floor" },
     { type: "rackingFrame", x: 4060, y: onDeck(4060), w: 90, h: 140, snap: "floor" },
-    { type: "gantry",       x: 4400, y: onRoof(4400), w: 280, snap: "ceil" },
+    { type: "gantry",       x: 4610, y: onRoof(4610), w: 190, snap: "ceil" },
     { type: "pipeBank",     x: 4900, y: onDeck(4900), w: 220, n: 4, snap: "floor" },
     { type: "junctionTruss",x: 5060, y: onDeck(5060), scale: 1.2, snap: "floor" },
-    { type: "crateStack",   x: 5240, y: onDeck(5240), w: 88, h: 58, n: 3, snap: "floor" },
+    { type: "crateStack",   x: 5240, y: onDeck(5240), w: 88, h: 168, n: 3, snap: "floor" },
     { type: "rackingFrame", x: 5680, y: onDeck(5680), w: 90, h: 140, snap: "floor" },
     { type: "ventGrate",    x: 6060, y: onDeck(6060), w: 70, h: 90,  snap: "floor" },
     { type: "pipeBank",     x: 6260, y: onDeck(6260), w: 180, n: 3, snap: "floor" },
     { type: "gantry",       x: 7040, y: onRoof(7040), w: 240, snap: "ceil" },
     { type: "conduitRun",   x: 7060, y: onDeck(7060), w: 460, snap: "floor" },
-    { type: "crateStack",   x: 7560, y: onDeck(7560), w: 90, h: 58, n: 4, snap: "floor" },
+    { type: "crateStack",   x: 7560, y: onDeck(7560), w: 90, h: 216, n: 4, snap: "floor" },
     { type: "junctionTruss",x: 7800, y: onDeck(7800), scale: 1.1, snap: "floor" },
     { type: "pipeBank",     x: 7980, y: onDeck(7980), w: 220, n: 4, snap: "floor" },
     { type: "rackingFrame", x: 8180, y: onDeck(8180), w: 90, h: 140, snap: "floor" },

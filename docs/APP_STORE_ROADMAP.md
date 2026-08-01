@@ -1235,6 +1235,51 @@ done, so the chain now starts at P·slice.
     acted on.
   Suite 169 → 177.
 
+  **A THIRD ON-DEVICE ROUND (owner, August 2026) — and "everything seemed solid"
+  was never the level.** The owner got stuck going west twice more, past the
+  fixes above. Chasing it properly, by flying the hull west at a range of
+  altitudes and recording where it stopped, turned up **three collision and
+  geometry bugs**, all of them older than P·floor and all of them newly lethal
+  because impacts kill again.
+  1. **`spanAt` interpolated toward the wrong neighbour span.** It picked with
+     `matchSpan` — biggest overlap wins — which is the wrong question wherever
+     the span count changes, i.e. at the end of every shelf and overhang. West
+     of the gallery mezzanine one column holds `[605..1208]` and the next holds
+     `[584..802]` and `[920..1258]`; the single span pairs with the LOWER
+     neighbour (288px of overlap beats 197), so a hull flying the upper corridor
+     at y 741 — open air in both columns — was handed `[762..1233]`, reported as
+     buried, and killed against nothing at all. It interpolates toward *the span
+     the queried y is in* now. **This was the blocker, and it was invisible to
+     every guard**, because the flood fill asks about span overlap and never
+     about what `solidAt` says between two columns. There is now a test that
+     does: if a height is open in two adjacent columns, it is open between them.
+  2. **Wall damage billed speed, not the closing component.** The buried branch
+     charged `hypot(vx, vy)` and the lateral branch charged `vx`, so skimming a
+     17° roof at cruise was priced as a head-on impact — fatal. Both take the
+     real surface normal now: the burial path from the direction the correction
+     pushes the hull, the lateral path from `solidNormal`, which reads the
+     face's orientation off the solid field on an eight-point ring. Flying ALONG
+     a slope costs nothing; flying INTO a wall still costs everything. This is
+     the same discipline `towContact` has always used on the payload.
+  3. **`cornerInset` rounded the wrong way.** `r − √(r²−d²)` measured from the
+     end is 0 at the corner and grows to r just inside it, then drops back to 0 —
+     so a filleted room was full height at its very edge, pinched `radius` px in,
+     and jumped out again by the whole radius. A `bore`'s 110px radius put a
+     110px STEP in the roof 110px inside each end. It measures from the corner
+     inward now, and `d` is clamped at zero because `compileChamber` samples from
+     `floor(x/STEP)`, so a part's first column sits fractionally outside it and
+     was being handed the un-filleted height.
+  With the fillet working, `column()` gives its bay one by default, sized so the
+  ease finishes exactly where the column starts — full headroom over the capital,
+  and no one-column roof step to fly into. That closes the general form of the
+  problem for P·content: **a rectangle unioned into the hall has vertical ends,
+  and a vertical end in the ROOF is one you cannot see coming.**
+  Also fixed: crate stacks drew upward from an origin `snapToSurface` was placing
+  as if they hung below it, so a stack floated its own height clear of the deck
+  ("what is this floating pile meant to be?"). Every ornament draws down-right
+  from a top-left origin now, and `h` is the whole object — one convention.
+  Suite 177 → 178.
+
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The

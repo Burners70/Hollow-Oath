@@ -1087,6 +1087,45 @@ test("P·floor: every fixture is placed against the profile, never at a typed y"
   }
 });
 
+test("P·floor: collision never invents rock between two columns", async ({ page }) => {
+  /* THE BUG THE OWNER HIT TWICE, and the reason "I can't get any further west,
+     everything seems solid" was never a level-design problem.
+
+     `spanAt` interpolates between the bracketing columns, and it chose which
+     neighbour span to interpolate toward with `matchSpan` — biggest overlap
+     wins. Where the span count changes, that is the wrong question. West of the
+     gallery mezzanine one column holds [605..1208] and the next holds
+     [584..802] and [920..1258]; the single span pairs with the LOWER neighbour
+     because 288px of overlap beats 197. So a hull flying the upper corridor at
+     y 741 — open air in both columns — was handed an interpolated span of
+     [762..1233], reported as buried in rock, and killed against nothing.
+
+     The invariant, stated so it cannot come back in another disguise: if a
+     height is inside open air in two adjacent columns, it is open everywhere
+     between them. Probed at the half-column, which is exactly where the
+     interpolation has the most room to invent something. */
+  await page.evaluate(() => __doids.loadChamber("slice"));
+  const bad = await page.evaluate(() => {
+    const S = level.spans, out = [];
+    for (let i = 0; i < S.length - 1; i++) {
+      for (const p of S[i]) for (const q of S[i + 1]) {
+        const top = Math.max(p.top, q.top), bot = Math.min(p.bot, q.bot);
+        if (bot - top < 24) continue;              // not a shared corridor
+        for (const f of [0.25, 0.5, 0.75]) {
+          const y = top + (bot - top) * f, x = i * STEP + STEP / 2;
+          if (__doids.solidAt(x, y))
+            out.push({ x: Math.round(x), y: Math.round(y),
+              a: Math.round(p.top) + ".." + Math.round(p.bot),
+              b: Math.round(q.top) + ".." + Math.round(q.bot) });
+        }
+      }
+    }
+    return out.slice(0, 8);
+  });
+  expect(bad, "air in both columns, rock between them: "
+    + bad.map(z => "x=" + z.x + " y=" + z.y + " (" + z.a + " | " + z.b + ")").join("; ")).toEqual([]);
+});
+
 test("P·floor: a route that is traversable is also findable", async ({ page }) => {
   /* THE LESSON FROM THE SECOND ON-DEVICE ROUND, and the one worth carrying to
      the other nine chambers. The owner flew west along the gallery mezzanine,

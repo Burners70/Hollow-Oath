@@ -1012,7 +1012,24 @@ function spanAt(x, y, spans) {
   // outright rather than by passing a sentinel into pickSpan and hoping.
   const a = y == null ? col[col.length - 1] : pickSpan(col, y);
   if (!a) return null;
-  const b = matchSpanMutual(s, i, a, 1) || a;   // a span with no mutual
+  /* WHICH neighbour span to interpolate toward. When a y is given it is the one
+     that y is in — NOT the one with the most overlap, which is what matchSpan
+     answers and what this used to use.
+
+     The difference only shows up where the span count changes, i.e. at the end
+     of every shelf and overhang, and there it was fatal. West of the gallery
+     mezzanine one column holds [605..1208] and the next holds [584..802] and
+     [920..1258]. matchSpan pairs the single span with the LOWER neighbour,
+     because 288px of overlap beats 197 — so a hull flying the upper corridor at
+     y 741 got an interpolated span of [762..1233], was reported as inside rock,
+     and (once impacts started killing) died against nothing at all. That is the
+     "I can't get any further west, everything seems solid" the owner hit twice:
+     it was never the level, it was this.
+
+     With no y — the heightmap's one-answer path — there is no "span you are in"
+     to ask about, so it keeps matchSpanMutual and its clean termination. */
+  const b = (y == null ? matchSpanMutual(s, i, a, 1)
+                       : pickSpan(s[i + 1], y) || matchSpanMutual(s, i, a, 1)) || a;
   // continuation holds its own height to the column edge and then stops
   // materials come from the span you are actually in, not interpolated: a face is
   // either milled or it is raw rock, and a half-milled surface means nothing.

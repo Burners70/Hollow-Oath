@@ -863,18 +863,27 @@ function drawPipeBank(x, y, w, n, color) {
 
 /* Stores, stacked and staggered so a row of them never reads as a repeated
    stamp. Deterministic from x, because a chamber has to compile the same way
-   every load (the spanChecksum contract) and a jittering crate would undo it. */
+   every load (the spanChecksum contract) and a jittering crate would undo it.
+
+   DRAWN DOWN-RIGHT FROM A TOP-LEFT ORIGIN, and `h` is the whole stack's height
+   — the same convention every other ornament uses, and the fix for the "what is
+   this floating pile meant to be?" the owner hit. It drew UPWARD from its origin
+   while snapToSurface was placing that origin as if the object hung below it, so
+   the whole stack sat its own height clear of the deck. One convention is worth
+   more than the flexibility of two. */
 function drawCrateStack(x, y, w, h, n, color) {
   const c = color || TOK.CYAN_TEXT;
+  const ch = h / n;
   ctx.save();
   ctx.strokeStyle = shade(c, .45); ctx.lineWidth = 1.6;
   ctx.fillStyle = shade(TOK.VOID, .8);
   for (let i = 0; i < n; i++) {
     const jitter = ((Math.round(x) + i * 37) % 11) - 5;
-    const cw = w - i * 9, cx = x + (w - cw) / 2 + jitter, cy = y - (i + 1) * h;
-    ctx.beginPath(); pathRoundRect(cx, cy, cw, h - 3, 3); ctx.fill(); ctx.stroke();
+    const cw = w - (n - 1 - i) * 9;                 // widest crate at the bottom
+    const cx = x + (w - cw) / 2 + jitter, cy = y + i * ch;
+    ctx.beginPath(); pathRoundRect(cx, cy, cw, ch - 3, 3); ctx.fill(); ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(cx + 5, cy + (h - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (h - 3) / 2);
+    ctx.moveTo(cx + 5, cy + (ch - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (ch - 3) / 2);
     ctx.stroke();
   }
   ctx.restore();
