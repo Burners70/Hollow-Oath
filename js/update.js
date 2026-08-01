@@ -373,7 +373,10 @@ function sectorClearNow() {
   const early = level.extraction && level.extraction.early;
   if (!early) {
     score += 1000;
-    if (level.firedShots === 0) { score += 2000; gc.achieve(GC_ACH.noHarm); }   // G3
+    /* V·pacifism — DERIVED, not a flat 2000 (js/world.js). The old constant was
+       already beaten by clearing a late sector's guns, so restraint paid worse
+       than shooting on the back half of the campaign. */
+    if (level.firedShots === 0) { score += noFireAward(level); gc.achieve(GC_ACH.noHarm); }   // G3
     // owner idea (July 2026): reward flying it efficiently — every Scion
     // home in the fewest MERCY visits their number allows. The ship only
     // ever carries CAPACITY at once, so the true minimum is ceil(n/CAPACITY);
@@ -1707,14 +1710,16 @@ function updateEnemies(dt) {
             explode(t.x, t.y - 8, TOK.PARRIED, 10);
             continue;
           }
-          t.alive = false; score += 250;
-          explode(t.x, t.y - 8, PAL().WARN, 30); addText(t.x, t.y - 40, "REFLECTED +250", TOK.PARRIED);
+          t.alive = false; score += KILL_TURRET;
+          explode(t.x, t.y - 8, PAL().WARN, 30);
+          addText(t.x, t.y - 40, "REFLECTED +" + KILL_TURRET, TOK.PARRIED);
         }
       }
       for (const dr of level.drones) {
         if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
-          dr.alive = false; gone = true; score += 150;
-          explode(dr.x, dr.y, PAL().DANGER, 22); addText(dr.x, dr.y - 30, "REFLECTED +150", TOK.PARRIED);
+          dr.alive = false; gone = true; score += KILL_DRONE;
+          explode(dr.x, dr.y, PAL().DANGER, 22);
+          addText(dr.x, dr.y - 30, "REFLECTED +" + KILL_DRONE, TOK.PARRIED);
         }
       }
       if (gone) level.bullets.splice(i, 1);
@@ -1789,17 +1794,17 @@ function updateEnemies(dt) {
           continue;
         }
         t.alive = false;
-        score += 250;
+        score += KILL_TURRET;
         explode(t.x, t.y - 8, PAL().WARN, 30);
-        addText(t.x, t.y - 40, "+250", PAL().WARN);
+        addText(t.x, t.y - 40, "+" + KILL_TURRET, PAL().WARN);
       }
     }
     for (const dr of level.drones) {
       if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
         dr.alive = false; gone = true; firedAtCombat = true;
-        score += 150;
+        score += KILL_DRONE;
         explode(dr.x, dr.y, PAL().DANGER, 22);
-        addText(dr.x, dr.y - 30, "+150", PAL().DANGER);
+        addText(dr.x, dr.y - 30, "+" + KILL_DRONE, PAL().DANGER);
       }
     }
     // friendly fire: a stray shot can hit the very Scion you came for

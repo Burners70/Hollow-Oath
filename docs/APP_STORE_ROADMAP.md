@@ -89,7 +89,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 3 | 1.01 | **V·pacifism — Act One currently pays better for shooting than for restraint** (found July 2026, arithmetic in the section), V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
+| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
 | P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain and P·slice have both landed** — the loop runs end to end in one chamber, so the gate is open. Next is **P·persist** (designed during the slice, per §11.2) and **P·systems**; P·content authors chambers only against proven systems |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
@@ -1121,7 +1121,7 @@ narrative beats; no shared dependency between them or with V1–V14.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
-- [ ] **V·pacifism. Act One already pays better for shooting than for restraint.**
+- [x] **V·pacifism. Act One already pays better for shooting than for restraint.**
   *(Owner, July 2026, raised while settling Act Two's ladder: "this has
   implications for a 1.01 check on act one scoring too." It does — the check was
   run and Act One fails it.)*
@@ -1146,6 +1146,33 @@ narrative beats; no shared dependency between them or with V1–V14.
   act and quietly fail in the other.
   Scoped as a **1.01** change: it moves a shipped number, so it is not a 1.0
   hotfix. Zero stays the floor here too (P·systems rule 8).
+  **Landed.** `gunValue(lvl)` and `noFireAward(lvl)` in `js/world.js`, beside
+  RECIPE so they sit with the table whose numbers they answer. The measured
+  crossover, for the record:
+
+  | sector | turrets | drones | gun value | old flat 2000 | derived award |
+  |---|---|---|---|---|---|
+  | 0–2 | 2–3 | 0 | 500–750 | ok | 2625–2938 |
+  | 3 | 6 | 1 | 1650 | ok | 4063 |
+  | **4** | 8 | 2 | **2300** | **beaten by 300** | 4875 |
+  | **5** | 8 | 2 | **2300** | **beaten by 300** | 4875 |
+  | **6** | 9 | 2 | **2550** | **beaten by 550** | 5188 |
+  | 7 | 6 | 3 | 1950 | ok — but `crowded` adds 300 | 4438 |
+
+  Counted over the guns the sector GENERATED rather than the ones left standing:
+  destroying one means you fired, which forfeits the award anyway — except by
+  parry, and that exception is deliberate and untouched. The kill prices are now
+  the same named constants `gunValue` sums (`KILL_TURRET`/`KILL_DRONE`), so the
+  award and the prices cannot drift apart. Two tests in `worldgen.spec.js` assert
+  the *property* over every sector plus a 40-gun level, never the arithmetic.
+  **Two dials, and the values are the assistant's rather than the owner's:**
+  `NOFIRE_BASE` is held at 2000 so that no sector pays *less* than it did before,
+  and `NOFIRE_FACTOR` is 1.25. The consequence is score inflation on armed
+  sectors — a full pacifist campaign moves from about 16,000 of no-harm bonus to
+  about 33,600, so existing `doids_hi` values become easier to beat after 1.01.
+  Lowering `NOFIRE_BASE` shrinks that at the cost of paying less on the early,
+  lightly-armed sectors; the invariant holds either way, since it needs only
+  `FACTOR > 1`.
   **Worth knowing before touching it:** a *parried* kill pays full price and does
   **not** set `firedShots`, so a player who reflects everything already collects
   both the kills and the no-harm bonus. That looks intentional and good — a parry

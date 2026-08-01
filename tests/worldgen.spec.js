@@ -879,3 +879,41 @@ test("P·terrain: an authored pinch compiles to the tier it claims", async ({ pa
   expect(r.length).toBeGreaterThan(0);
   for (const d of r) expect(d.tier, `pinch at x=${d.x} claims ${d.kind}`).toBe(d.kind);
 });
+
+/* V·pacifism (owner, July 2026) — restraint must always outscore shooting.
+   Act One failed this before the fix: the no-harm bonus was a flat +2000 while
+   the late sectors' guns were worth 2300. The assertion is the PROPERTY over
+   every sector, not the arithmetic — a hardcoded expectation would go stale the
+   next time content adds a gun, which is the exact failure being fixed. */
+test("V·pacifism: clearing without firing always beats shooting everything", async ({ page }) => {
+  const rows = await page.evaluate(() => {
+    const out = [];
+    for (let i = 0; i < 8; i++) {
+      __doids.go(i); __doids.launch();
+      out.push({ sector: i, guns: __doids.gunValue(), award: __doids.noFireAward(),
+        turrets: level.turrets.length, drones: level.drones.length });
+    }
+    return out;
+  });
+  expect(rows.length).toBe(8);
+  for (const r of rows) {
+    expect(r.award, `sector ${r.sector}: ${r.turrets} turrets + ${r.drones} drones`)
+      .toBeGreaterThan(r.guns);
+  }
+  // and the sectors that used to fail are genuinely armed, so this isn't vacuous
+  expect(Math.max(...rows.map(r => r.guns))).toBeGreaterThan(2000);
+});
+
+test("V·pacifism: the invariant survives the modifiers that used to break it", async ({ page }) => {
+  /* wideBump, V10's veteran escalation and the `crowded` daily all ADD guns,
+     which is what pushed the old flat bonus under water. Derived, more guns can
+     only widen the gap — assert that directly by inventing a level with an
+     absurd complement rather than by hunting for a seed that produces one. */
+  const r = await page.evaluate(() => {
+    const fake = { turrets: new Array(40).fill({}), drones: new Array(20).fill({}) };
+    return { guns: __doids.gunValue(fake), award: __doids.noFireAward(fake),
+      empty: __doids.noFireAward({ turrets: [], drones: [] }) };
+  });
+  expect(r.award).toBeGreaterThan(r.guns);        // 40 guns and it still holds
+  expect(r.empty).toBeGreaterThan(0);             // an unarmed sector still pays
+});

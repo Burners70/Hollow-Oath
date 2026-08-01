@@ -5063,6 +5063,11 @@ window.__doids = {
   },
   launch: () => { if (state === "brief") { briefChars = 1e9; state = "play"; } },
   ground: groundAt,
+  /* V·pacifism — the two halves of the invariant, so a test can assert the
+     PROPERTY (restraint always outscores shooting) over every sector rather than
+     re-deriving the arithmetic and going stale with it. */
+  gunValue: lvl => gunValue(lvl || level),
+  noFireAward: lvl => noFireAward(lvl || level),
   /* §8.1's tell — the settled motes, so a test can assert the PROPERTY (dust
      rests only on what collision agrees is solid) rather than count particles. */
   dust: () => (a2Dust || []).filter(d => !d.dead)
