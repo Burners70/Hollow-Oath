@@ -1085,6 +1085,76 @@ function scanSpotOK(heights, W, cx) {
    glow, plus a `night` darkness tint and `star` field tint) and its own
    ornamentation counts. The landscape echoes its healer, so the biome IS the
    narrative. Caves keep the Static's violet (CAVE_PAL in render.js). */
+/* ===== V·pacifism — restraint must always outscore shooting ===============
+   Owner decision, July 2026, raised while settling Act Two's ladder: "the
+   combined value of shooting guns should never outweigh the pacifist score."
+   The check was run against the shipped numbers and **Act One failed it.**
+
+   The no-harm bonus was a flat +2000 for `level.firedShots === 0` (G3), while
+   kills pay 250 a turret and 150 a drone. The RECIPE table below already crosses
+   over on the back half of the campaign:
+
+     8 turrets + 2 drones = 2300   a shooter beat a pacifist by 300
+     7 turrets + 2 drones = 2050   over the line on two more sectors
+
+   — and that is *before* `wideBump`, V10's veteran gun escalation, or the
+   `crowded` daily modifier's two extra drones. So the ladder was paying better
+   for clearing the room with the gun, which is the opposite of what the game is
+   about.
+
+   FIXED BY DERIVING, NOT BY RE-PRICING (owner). The award is a function of what
+   you passed up — the sector's own gun value, times a factor above one — so
+   restraint always pays more AND cannot be overtaken by a future content change.
+   Dropping the kill prices instead would balance today's table and rot the
+   moment Bundle W or a veteran return adds guns. Same discipline as
+   `momentumGapPx` in js/acttwo-data.js, for the same reason.
+
+   Counted over the guns the sector GENERATED, not the ones still standing,
+   because destroying a gun means you fired and that forfeits the award anyway.
+
+   THE PARRY IS A DELIBERATE EXCEPTION, not a loophole (owner decision, July
+   2026 — recorded because it looks like an oversight and will be "fixed" by
+   someone otherwise). A parried kill pays full price and does NOT set
+   `firedShots`, so a player who reflects every round collects the kills AND the
+   no-harm bonus, and is scored better than a pure pacifist who dodges. That is
+   intended. E3's parry is the game's hardest skill and it is *defensive* — you
+   are struck at and you send it back — so it belongs on the restraint side of
+   the ledger, not the violence side. Rewarding it most is the game arguing that
+   there is a way through that is neither firing first nor merely enduring.
+   It does mean the no-harm bonus has always measured *you did not shoot first*
+   rather than *nobody died*, and the name (`noHarm`, G3) overstates it slightly.
+   Left as is: the achievement has shipped, and renaming it would break it.
+
+   One helper, shared with Act Two (rule 7 of P·systems' ladder), so the
+   invariant cannot hold in one act and quietly fail in the other. */
+const KILL_TURRET = 250, KILL_DRONE = 150;
+/* BASE is a FLOOR for a room with nothing in it to resist, not the body of the
+   award — the body is the premium on what you passed up. Held at the old flat
+   2000 in the first pass, which held the invariant but roughly doubled a perfect
+   pacifist campaign's bonus (16,000 → 31,600) and made shipped hiscores easy to
+   beat; the owner asked for it down. At 500 the campaign total is 19,600 (+23%
+   rather than +98%), and an unarmed sector still pays something.
+
+   The shape changes with it, and that is the improvement rather than the cost: a
+   flat bonus paid the same for restraint in a room with two turrets as in a room
+   with nine. Derived, the award scales with the temptation actually resisted —
+   sector 0 pays 1,125 where it used to pay 2,000, and sector 6 pays 3,688. */
+const NOFIRE_BASE = 500, NOFIRE_FACTOR = 1.25;
+
+// what every gun in this level is worth if you shoot it — the thing a pacifist
+// declines. Uses array length, not `alive`: it is the sector's complement.
+function gunValue(lvl) {
+  const L = lvl || level;
+  if (!L) return 0;
+  return (L.turrets ? L.turrets.length * KILL_TURRET : 0) +
+    (L.drones ? L.drones.length * KILL_DRONE : 0);
+}
+// and what clearing it without firing is worth. Strictly greater than gunValue
+// for any complement, because FACTOR > 1 and BASE > 0 — that is the invariant.
+function noFireAward(lvl) {
+  return Math.round(NOFIRE_BASE + gunValue(lvl) * NOFIRE_FACTOR);
+}
+
 const RECIPE = [
   // 0 · ASCLEPION — temple calm, soft teal-greens; the tutorial breathes
   { oids: 3, turrets: 2, sabs: 0, drones: 0, pods: 0, fakes: 0, anomalies: 0, dark: false,

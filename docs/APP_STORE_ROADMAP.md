@@ -89,7 +89,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 3 | 1.01 | **V·pacifism — Act One currently pays better for shooting than for restraint** (found July 2026, arithmetic in the section), V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
+| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
 | P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain and P·slice have both landed** — the loop runs end to end in one chamber, so the gate is open. Next is **P·persist** (designed during the slice, per §11.2) and **P·systems**; P·content authors chambers only against proven systems |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
@@ -1121,7 +1121,7 @@ narrative beats; no shared dependency between them or with V1–V14.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
-- [ ] **V·pacifism. Act One already pays better for shooting than for restraint.**
+- [x] **V·pacifism. Act One already pays better for shooting than for restraint.**
   *(Owner, July 2026, raised while settling Act Two's ladder: "this has
   implications for a 1.01 check on act one scoring too." It does — the check was
   run and Act One fails it.)*
@@ -1146,6 +1146,47 @@ narrative beats; no shared dependency between them or with V1–V14.
   act and quietly fail in the other.
   Scoped as a **1.01** change: it moves a shipped number, so it is not a 1.0
   hotfix. Zero stays the floor here too (P·systems rule 8).
+  **Landed.** `gunValue(lvl)` and `noFireAward(lvl)` in `js/world.js`, beside
+  RECIPE so they sit with the table whose numbers they answer. The measured
+  crossover, for the record:
+
+  | sector | turrets | drones | gun value | old flat 2000 | derived award |
+  |---|---|---|---|---|---|
+  | 0–2 | 2–3 | 0 | 500–750 | ok | 1125–1438 |
+  | 3 | 6 | 1 | 1650 | ok | 2563 |
+  | **4** | 8 | 2 | **2300** | **beaten by 300** | 3375 |
+  | **5** | 8 | 2 | **2300** | **beaten by 300** | 3375 |
+  | **6** | 9 | 2 | **2550** | **beaten by 550** | 3688 |
+  | 7 | 6 | 3 | 1950 | ok — but `crowded` adds 300 | 2938 |
+
+  Counted over the guns the sector GENERATED rather than the ones left standing:
+  destroying one means you fired, which forfeits the award anyway — except by
+  parry, and that exception is deliberate and untouched. The kill prices are now
+  the same named constants `gunValue` sums (`KILL_TURRET`/`KILL_DRONE`), so the
+  award and the prices cannot drift apart. Two tests in `worldgen.spec.js` assert
+  the *property* over every sector plus a 40-gun level, never the arithmetic.
+  **The dials, after the owner brought the base down.** `NOFIRE_BASE` 500,
+  `NOFIRE_FACTOR` 1.25. The first pass held BASE at the old flat 2000 so no
+  sector could pay less than before, but that roughly doubled a perfect pacifist
+  campaign's bonus (16,000 → 31,600) and would have made shipped hiscores easy to
+  beat after 1.01. At 500 the campaign total is 19,600 — **+23% rather than
+  +98%** — and an unarmed room still pays something, which a base of 0 would not.
+  The award's *shape* changes with it, and that is the improvement rather than
+  the price: a flat bonus paid the same for restraint in a room with two turrets
+  as in a room with nine. Sector 0 now pays 1,125 where it paid 2,000, and sector
+  6 pays 3,688 — the reward scales with the temptation actually resisted.
+  **THE PARRY IS A DELIBERATE EXCEPTION, not a loophole** (owner decision, July
+  2026 — recorded here, in `js/world.js` and at the parry site itself, precisely
+  because it reads as an oversight and would otherwise be "fixed"). A parried
+  kill pays full price and does not set `firedShots`, so a player who reflects
+  every round collects the kills *and* the no-harm bonus, and outscores a pure
+  pacifist who only dodges. Intended: E3's parry is the game's hardest skill and
+  it is *defensive* — you are struck at and you send it back — so it belongs on
+  the restraint side of the ledger. Rewarding it most is the game arguing there
+  is a way through that is neither firing first nor merely enduring. It does mean
+  the bonus has always measured "you did not shoot first" rather than "nobody
+  died", so the `noHarm` achievement name overstates it slightly; left alone,
+  since it has shipped and renaming a Game Center achievement breaks it.
   **Worth knowing before touching it:** a *parried* kill pays full price and does
   **not** set `firedShots`, so a player who reflects everything already collects
   both the kills and the no-harm bonus. That looks intentional and good — a parry

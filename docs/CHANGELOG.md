@@ -11,6 +11,31 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## V·pacifism — restraint outscores shooting again (1.01), July 2026
+
+Act One's no-harm bonus was a flat +2000 while its guns were worth more than
+that: 8 turrets and 2 drones is 2300, so on sectors 4, 5 and 6 a shooter beat a
+pacifist outright, and sector 7 joined them under the `crowded` daily modifier.
+The ladder was paying better for clearing the room with the gun.
+
+Fixed by deriving the award from the guns you passed up rather than by
+re-pricing kills — `noFireAward()` in js/world.js — so restraint always pays more
+and cannot be overtaken by a future content change. One helper, shared with Act
+Two's ladder, so the invariant cannot hold in one act and fail in the other. The
+kill awards now use the same named constants the helper sums.
+
+The award is `500 + 1.25 x the sector's gun value`, so it scales with the
+temptation resisted instead of paying the same for a room with two turrets as for
+one with nine — a perfect pacifist campaign moves from 16,000 to 19,600 rather
+than to 31,600, which keeps shipped hiscores meaningful.
+
+A parried kill still pays full price without setting `firedShots`, so reflecting
+everything collects both the kills and the bonus and outscores a pure pacifist.
+**Recorded in three places as a deliberate design choice rather than a loophole**,
+because it reads as an oversight: a parry is defensive and is the hardest skill
+in the game, so it belongs on the restraint side of the ledger. The bonus has
+always measured "you did not shoot first", not "nobody died".
+
 ## Act Two — P·feedback (the first on-device round on the slice), July 2026
 
 Twenty notes off a phone pass through the QA harness, most of which collapsed
