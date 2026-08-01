@@ -1152,12 +1152,12 @@ narrative beats; no shared dependency between them or with V1–V14.
 
   | sector | turrets | drones | gun value | old flat 2000 | derived award |
   |---|---|---|---|---|---|
-  | 0–2 | 2–3 | 0 | 500–750 | ok | 2625–2938 |
-  | 3 | 6 | 1 | 1650 | ok | 4063 |
-  | **4** | 8 | 2 | **2300** | **beaten by 300** | 4875 |
-  | **5** | 8 | 2 | **2300** | **beaten by 300** | 4875 |
-  | **6** | 9 | 2 | **2550** | **beaten by 550** | 5188 |
-  | 7 | 6 | 3 | 1950 | ok — but `crowded` adds 300 | 4438 |
+  | 0–2 | 2–3 | 0 | 500–750 | ok | 1125–1438 |
+  | 3 | 6 | 1 | 1650 | ok | 2563 |
+  | **4** | 8 | 2 | **2300** | **beaten by 300** | 3375 |
+  | **5** | 8 | 2 | **2300** | **beaten by 300** | 3375 |
+  | **6** | 9 | 2 | **2550** | **beaten by 550** | 3688 |
+  | 7 | 6 | 3 | 1950 | ok — but `crowded` adds 300 | 2938 |
 
   Counted over the guns the sector GENERATED rather than the ones left standing:
   destroying one means you fired, which forfeits the award anyway — except by
@@ -1165,14 +1165,28 @@ narrative beats; no shared dependency between them or with V1–V14.
   the same named constants `gunValue` sums (`KILL_TURRET`/`KILL_DRONE`), so the
   award and the prices cannot drift apart. Two tests in `worldgen.spec.js` assert
   the *property* over every sector plus a 40-gun level, never the arithmetic.
-  **Two dials, and the values are the assistant's rather than the owner's:**
-  `NOFIRE_BASE` is held at 2000 so that no sector pays *less* than it did before,
-  and `NOFIRE_FACTOR` is 1.25. The consequence is score inflation on armed
-  sectors — a full pacifist campaign moves from about 16,000 of no-harm bonus to
-  about 33,600, so existing `doids_hi` values become easier to beat after 1.01.
-  Lowering `NOFIRE_BASE` shrinks that at the cost of paying less on the early,
-  lightly-armed sectors; the invariant holds either way, since it needs only
-  `FACTOR > 1`.
+  **The dials, after the owner brought the base down.** `NOFIRE_BASE` 500,
+  `NOFIRE_FACTOR` 1.25. The first pass held BASE at the old flat 2000 so no
+  sector could pay less than before, but that roughly doubled a perfect pacifist
+  campaign's bonus (16,000 → 31,600) and would have made shipped hiscores easy to
+  beat after 1.01. At 500 the campaign total is 19,600 — **+23% rather than
+  +98%** — and an unarmed room still pays something, which a base of 0 would not.
+  The award's *shape* changes with it, and that is the improvement rather than
+  the price: a flat bonus paid the same for restraint in a room with two turrets
+  as in a room with nine. Sector 0 now pays 1,125 where it paid 2,000, and sector
+  6 pays 3,688 — the reward scales with the temptation actually resisted.
+  **THE PARRY IS A DELIBERATE EXCEPTION, not a loophole** (owner decision, July
+  2026 — recorded here, in `js/world.js` and at the parry site itself, precisely
+  because it reads as an oversight and would otherwise be "fixed"). A parried
+  kill pays full price and does not set `firedShots`, so a player who reflects
+  every round collects the kills *and* the no-harm bonus, and outscores a pure
+  pacifist who only dodges. Intended: E3's parry is the game's hardest skill and
+  it is *defensive* — you are struck at and you send it back — so it belongs on
+  the restraint side of the ledger. Rewarding it most is the game arguing there
+  is a way through that is neither firing first nor merely enduring. It does mean
+  the bonus has always measured "you did not shoot first" rather than "nobody
+  died", so the `noHarm` achievement name overstates it slightly; left alone,
+  since it has shipped and renaming a Game Center achievement breaks it.
   **Worth knowing before touching it:** a *parried* kill pays full price and does
   **not** set `firedShots`, so a player who reflects everything already collects
   both the kills and the no-harm bonus. That looks intentional and good — a parry

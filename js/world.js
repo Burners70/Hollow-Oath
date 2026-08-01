@@ -1109,18 +1109,37 @@ function scanSpotOK(heights, W, cx) {
    moment Bundle W or a veteran return adds guns. Same discipline as
    `momentumGapPx` in js/acttwo-data.js, for the same reason.
 
-   Counted over the guns the sector GENERATED, not the ones still standing.
-   Destroying a gun means you fired, which forfeits the award anyway — except by
-   parry, and that exception is deliberate: a parried kill pays full price and
-   does not set `firedShots`, so reflecting everything collects both the kills and
-   the bonus. That reads as skilled restraint rather than violence and is left
-   alone; it does mean "the pacifist score" has always meant *didn't shoot
-   first*, not *nobody died*.
+   Counted over the guns the sector GENERATED, not the ones still standing,
+   because destroying a gun means you fired and that forfeits the award anyway.
+
+   THE PARRY IS A DELIBERATE EXCEPTION, not a loophole (owner decision, July
+   2026 — recorded because it looks like an oversight and will be "fixed" by
+   someone otherwise). A parried kill pays full price and does NOT set
+   `firedShots`, so a player who reflects every round collects the kills AND the
+   no-harm bonus, and is scored better than a pure pacifist who dodges. That is
+   intended. E3's parry is the game's hardest skill and it is *defensive* — you
+   are struck at and you send it back — so it belongs on the restraint side of
+   the ledger, not the violence side. Rewarding it most is the game arguing that
+   there is a way through that is neither firing first nor merely enduring.
+   It does mean the no-harm bonus has always measured *you did not shoot first*
+   rather than *nobody died*, and the name (`noHarm`, G3) overstates it slightly.
+   Left as is: the achievement has shipped, and renaming it would break it.
 
    One helper, shared with Act Two (rule 7 of P·systems' ladder), so the
    invariant cannot hold in one act and quietly fail in the other. */
 const KILL_TURRET = 250, KILL_DRONE = 150;
-const NOFIRE_BASE = 2000, NOFIRE_FACTOR = 1.25;
+/* BASE is a FLOOR for a room with nothing in it to resist, not the body of the
+   award — the body is the premium on what you passed up. Held at the old flat
+   2000 in the first pass, which held the invariant but roughly doubled a perfect
+   pacifist campaign's bonus (16,000 → 31,600) and made shipped hiscores easy to
+   beat; the owner asked for it down. At 500 the campaign total is 19,600 (+23%
+   rather than +98%), and an unarmed sector still pays something.
+
+   The shape changes with it, and that is the improvement rather than the cost: a
+   flat bonus paid the same for restraint in a room with two turrets as in a room
+   with nine. Derived, the award scales with the temptation actually resisted —
+   sector 0 pays 1,125 where it used to pay 2,000, and sector 6 pays 3,688. */
+const NOFIRE_BASE = 500, NOFIRE_FACTOR = 1.25;
 
 // what every gun in this level is worth if you shoot it — the thing a pacifist
 // declines. Uses array length, not `alive`: it is the sector's complement.

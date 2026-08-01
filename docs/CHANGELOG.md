@@ -24,10 +24,17 @@ and cannot be overtaken by a future content change. One helper, shared with Act
 Two's ladder, so the invariant cannot hold in one act and fail in the other. The
 kill awards now use the same named constants the helper sums.
 
+The award is `500 + 1.25 x the sector's gun value`, so it scales with the
+temptation resisted instead of paying the same for a room with two turrets as for
+one with nine — a perfect pacifist campaign moves from 16,000 to 19,600 rather
+than to 31,600, which keeps shipped hiscores meaningful.
+
 A parried kill still pays full price without setting `firedShots`, so reflecting
-everything collects both the kills and the bonus. Left alone deliberately: a
-parry is skilled restraint, and "the pacifist score" has always meant *didn't
-shoot first*, not *nobody died*.
+everything collects both the kills and the bonus and outscores a pure pacifist.
+**Recorded in three places as a deliberate design choice rather than a loophole**,
+because it reads as an oversight: a parry is defensive and is the hardest skill
+in the game, so it belongs on the restraint side of the ledger. The bonus has
+always measured "you did not shoot first", not "nobody died".
 
 ## Act Two — P·feedback (the first on-device round on the slice), July 2026
 

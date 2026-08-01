@@ -301,7 +301,7 @@ rank (§2.5), distinct from breaking it in combat.
 | Famous Scion delivered | +1500 (+upgrade) |
 | Vector contained (red bay) | +750 |
 | Breach resolved / failed | +750 / −1000 and healing offline |
-| Turret / drone destroyed | +250 / +150 |
+| Turret / drone destroyed | +250 / +150 (a **parried** kill pays the same and does *not* forfeit the Hippocratic bonus — deliberate: a parry is defensive, so it counts as restraint. See V·pacifism) |
 | Black box | +800 |
 | Shrine | +1000 (all three: +3000) |
 | Lure-tree / hidden cache (shot **or** scanned) | +500 / +400 |
@@ -310,7 +310,7 @@ rank (§2.5), distinct from breaking it in combat.
 | Counterfeit MERCY docked (the trap) | −200 (and fuel drain) |
 | Field refuel (transfusion line) | **−4 per unit delivered** (U2; each fill caps at `maxFuel × 0.9^refuels`, floored at 35; charge floors the tally at 0) |
 | Transfusion line snapped (drifted past the limit) | −50 (remainder lost) |
-| Sector clear | +1000 (+2000 Hippocratic if no shots fired) |
+| Sector clear | +1000 (+ Hippocratic if no shots fired: **500 + 1.25 × the sector's gun value**, so ~1,125 early and ~3,700 on the most heavily armed — V·pacifism, 1.01. It was a flat +2000, which the late sectors' guns outscored) |
 | Scion lost | −250 (famous −500); crash with passengers −250 each |
 | Endings | fire +3000 · answered +6000 (+2000 no-fire run) |
 

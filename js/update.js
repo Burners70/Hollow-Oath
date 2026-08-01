@@ -1710,6 +1710,10 @@ function updateEnemies(dt) {
             explode(t.x, t.y - 8, TOK.PARRIED, 10);
             continue;
           }
+          /* V·pacifism — this pays full price and does NOT set firedShots, so a
+             reflected kill keeps the no-harm bonus alive. Deliberate: a parry is
+             defensive, and it is the one route that is neither shooting first
+             nor merely enduring. See js/world.js, noFireAward. */
           t.alive = false; score += KILL_TURRET;
           explode(t.x, t.y - 8, PAL().WARN, 30);
           addText(t.x, t.y - 40, "REFLECTED +" + KILL_TURRET, TOK.PARRIED);
