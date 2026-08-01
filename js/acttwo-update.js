@@ -95,9 +95,14 @@ function closeTrunk(c) {
     return;
   }
   /* A decoy. §7.1: "it's his line, so he now knows you're here." The cost is
-     that he is listening and the time is gone — never score, because Act Two's
-     ladder is P·systems and billing the player for reading a room wrong is not
-     the pressure this act runs on. */
+     that he is listening and the time is gone.
+     NO SCORE PENALTY HERE YET, and that is a PENDING QUESTION rather than a
+     decision. This comment used to claim Act Two never bills the player for
+     reading a room wrong; that was an assistant's assumption, and the owner has
+     overturned the general principle (July 2026) — failures DO cost points down
+     here. Still open is whether a misread specifically costs points on top of the
+     time, the attention and the vitals it already costs, or whether that is
+     double-billing. See APP_STORE_ROADMAP.md, Bundle P · P·systems. */
   banner("DEAD LINE — NOTHING WAS ON THE END OF IT\nHE KNOWS SOMEONE IS DOWN HERE NOW", PAL().DANGER);
   staticTick(); staticSurge = Math.max(staticSurge, 0.9);
   camera.shake += 7; haptic.heavy();
@@ -556,6 +561,12 @@ function towCollide(r, dt) {
   }
 }
 
+/* THE LADDER'S HOOK (owner decision, July 2026 — not yet implemented). Integrity
+   must NOT scale the delivery award, but every impact on the rack costs points,
+   per impact. This function is where that belongs: it already fires exactly once
+   per qualifying impact, already knows the damage, and already carries FIELD
+   MEDIC's wider free band — so a penalty added here inherits all three rather
+   than re-deriving them. Left unwired until P·systems builds the ladder. */
 function towContact(r, vn) {
   // §4.4's FIELD MEDIC contract, unchanged: a wider free band and half damage
   const safe = easyMode ? SLING_SAFE_V * 1.3 : SLING_SAFE_V;

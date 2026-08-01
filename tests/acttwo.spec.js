@@ -129,8 +129,13 @@ test("P·slice: a dead line costs you time and tells him you are here (§7.1)", 
   expect(s.actTwo.conduits.find(c => c.id === decoy).cut).toBe(true);
   expect(s.actTwo.racks[0].cut).toBe(false);       // the rack is still on mains
   expect(s.staticSurge).toBeGreaterThan(0);        // he is listening now
-  // and no score was taken for it — Act Two does not bill you for reading a room
-  // wrong (§7.4's principle, applied to §7.1)
+  /* No score was taken for it — but this assertion is PROVISIONAL, recorded as
+     such so it is not mistaken for a settled rule. It encoded an assistant's
+     assumption that Act Two never bills the player; the owner has since decided
+     failures DO cost points (July 2026), leaving open only whether a misread
+     costs points on top of the time and vitals it already costs. When P·systems
+     builds the ladder this either gains a penalty or is rewritten to say why a
+     misread is exempt — see APP_STORE_ROADMAP.md, Bundle P. */
   expect(s.score).toBe(0);
 });
 
@@ -644,15 +649,28 @@ test("owner: the chamber still lies, and dust is what gives it away", async ({ p
   /* The tell: dust settles on what is SOLID, never on what is drawn. Asserted as
      the property rather than by counting motes — the pool is randomised, and a
      count would be a tuning number, which this file does not assert. */
+  /* Sampled and checked in ONE evaluation. Snapshotting the motes and then
+     round-tripping a solid() call per mote let the game run on between the
+     assertions, which made this flake — the check has to be taken against the
+     same frame the sample came from. */
   const dust = await page.evaluate(async () => {
     __doids.a2Warp(5280, 700, false);
     for (let i = 0; i < 90; i++) await new Promise(k => requestAnimationFrame(k));
-    return __doids.dust();
+    const motes = __doids.dust();
+    const settled = motes.filter(m => m.settled);
+    /* Checked against the LIVE floats, not the snapshot. `__doids.dust()` rounds
+       x/y for readability like every other debug readout, and rounding is fatal
+       here: half a pixel either way moves a mote across a surface boundary or
+       into the neighbouring terrain column, so the assertion flaked on wherever
+       the randomised motes happened to land. Probed at +1 because that is EXACT
+       — a mote settles by stepping back one pixel from the solid sample that
+       stopped it, so y+1 re-tests precisely that sample. */
+    const live = a2Dust.filter(d => !d.dead && d.settled);
+    return { n: motes.length, settled: live.length,
+      allOnSolid: live.every(d => solidAt(d.x, d.y + 1)) };
   });
-  expect(dust.length).toBeGreaterThan(0);
-  // every settled mote is resting on something the physics agrees is solid
-  for (const d of dust.filter(m => m.settled))
-    expect(await page.evaluate(p => __doids.solid(p.x, p.y + 2), d)).toBe(true);
+  expect(dust.n).toBeGreaterThan(0);
+  expect(dust.allOnSolid).toBe(true);
 });
 
 /* Owner feedback: fuel down here is cans plus a drone off the well. The rules,

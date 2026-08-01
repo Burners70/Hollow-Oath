@@ -578,7 +578,12 @@ reviewing *before* ten chambers are authored against it.
 Voice notes for review: Act Two is triage, not *primum non nocere*
 ([ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) §7), so the lines are shorter and more
 clinical than Act One's, and they name the cost out loud. Nothing here says
-"points" — Act Two never bills the player for keeping people alive (§7.4).
+"points" — the **transfusion** is never billed in score (§7.4): giving your own
+vitals is care, not a mistake. That is the *only* thing this exemption covers.
+A broader "Act Two never bills the player" line stood here until July 2026 and
+was an assistant's assumption, not an owner decision: **failures do cost
+points** down here, and every impact on a rack is charged per impact. See
+APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
 
 ### Banners (`banner()`, `js/acttwo-update.js`)
 

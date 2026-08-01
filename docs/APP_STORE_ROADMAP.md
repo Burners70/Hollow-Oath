@@ -839,6 +839,12 @@ done, so the chain now starts at P·slice.
   (`{ penalised }`) and `level.turrets` (`{ alive, hp }`) on the same pattern —
   every piece of per-chamber state still hangs off `level`, which is exactly what
   a shallow-copy checkpoint needs.
+  **New requirement from the ladder decision (owner, July 2026):** the save must
+  carry **run provenance** — was this run begun at the start of Act One? The
+  global hiscore counts a run across both acts only if it was, so a chamber
+  entered directly must not feed `doids_hi`. One boolean, set at Act One sector 0
+  and cleared by any direct entry, and it has to survive the resume snapshot like
+  everything else. Act Two also gets its **own** hiscore key alongside it.
   **Both open questions are now answered (owner, July 2026):** a retry **resets
   integrity**, so GENTLE HANDS is per-attempt, and a rack's **position resets with
   the room** rather than being checkpointed. So a chamber checkpoint is the room's
@@ -855,12 +861,65 @@ done, so the chain now starts at P·slice.
   readers, the well deepening per chamber, the ward's four readability channels
   under `PAL()`/`reducedFlash`, anomaly geology reusing Bundle Z's gravity
   scale, handling machinery and unfinished husks, and Act Two's own score and
-  rank ladder — **a full ladder feeding the same hiscore as Act One** (owner
-  decision, July 2026). One thing it still has to settle, because two shipped
-  choices point the other way on purpose: cutting a dead line and landing beside
-  a decoy box cost **no score at all** today (they cost time, his attention, and
-  vitals), and `acttwo.spec.js` asserts `score` stays 0 after a decoy cut. Decide
-  whether the ladder adds penalties there or stays awards-only on top of them.
+  rank ladder. **Specified by the owner, July 2026** — read this before writing
+  any of it, because several code comments still assert the opposite and were
+  wrong (see "corrections" below).
+
+  **THE LADDER, as decided.**
+  1. **Failures cost points.** Act Two is scored like Act One: awards for what
+     you achieve, penalties for what you lose. The earlier "Act Two never bills
+     the player" line was **an assistant's assumption, not an owner decision**,
+     and it does not stand.
+  2. **Integrity does NOT scale the delivery award — but every impact on the rack
+     costs points, per impact.** Worth being precise, because these sound alike
+     and are not: delivering a bank at 60% is worth the same as delivering it at
+     100%, so the ladder never prices how much a bank *has* suffered; what it
+     charges for is the *event* of hitting them, each time it happens. The
+     natural hook is `towContact` (js/acttwo-update.js), which already fires
+     exactly once per qualifying impact and already knows the damage — so the
+     penalty rides the same threshold as the reserve/integrity cost and inherits
+     FIELD MEDIC's wider free band for free.
+  3. **The global hiscore tracks both acts — but only for a run begun at the
+     start of Act One.** A continuous campaign scores into `doids_hi`; a chamber
+     entered directly does not. This needs run provenance that Act Two does not
+     currently have (see P·persist below) — a flag set when a run starts at Act
+     One sector 0 and cleared by any direct entry.
+  4. **Act Two gets its own hiscore and leaderboard.** A third Game Center board
+     alongside `hollowoath.score.alltime` and `hollowoath.score.daily`; the owner
+     will create it in App Store Connect when build 1.01 is pushed. Write the
+     submission so a missing board is a silent no-op — the code will ship before
+     the board exists.
+
+  **Still to settle when it is built** (deliberately not assumed this time):
+  whether **misreading a room** costs points as well as time, his attention and
+  vitals — cutting a dead line, and landing beside a decoy box. Both are
+  failures under rule 1, but both are already charged in another currency, so the
+  question is whether that is double-billing or the right weight. It is a
+  separate call from rule 1 and needs the owner's word.
+
+  **Corrections this decision forces.** These are live in code and in the docs,
+  and every one of them was an assistant's inference presented as design:
+  - `closeTrunk` (js/acttwo-update.js) says a decoy cut is "never score, because
+    …billing the player for reading a room wrong is not the pressure this act
+    runs on." Not an owner decision. Pending the call above.
+  - The `DECOY_VITALS` note (js/acttwo-data.js) says the same thing.
+  - `acttwo.spec.js` asserts `score` stays 0 after a decoy cut, which *holds* the
+    overturned decision. It passes today only because no ladder exists yet.
+  - COPY_DECK.md states "Act Two never bills the player for keeping people
+    alive". Narrowed: that is true of the **transfusion** and nothing else.
+
+  **And one contradiction the emplacement introduced (assistant error, July
+  2026).** "Act Two touches score nowhere" stopped being true the moment
+  P·feedback gave chambers turrets: Act One's shot loop awards **+250 for a
+  turret kill**, and it runs in a chamber unchanged. So Act Two already scores
+  today, and it scores for **shooting** — which is precisely what §10a.2's oath
+  question is meant to make expensive. Act One balances this with a **+2000
+  no-harm bonus** for clearing a sector without firing (`level.firedShots === 0`,
+  G3); Act Two has no such counterweight, so the incentive currently points
+  against the act's own theme. The ladder must either price a chamber cleared
+  without firing, or stop paying for kills down here. Also: `loadChamber` never
+  resets `score`, so a chamber inherits whatever an Act One run had — which rule
+  3's provenance flag has to handle anyway.
   **§8.1's tell has had its first pass** in P·feedback — settling dust, which
   reads both hazards off `solidAt` — so what remains here are the grit and
   lamp-shadow channels layered on that, not the tell from scratch.

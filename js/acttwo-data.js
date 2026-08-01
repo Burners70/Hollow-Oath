@@ -997,9 +997,11 @@ function buildConduits(ch, spans, racks, decoys) {
 
    What it costs is VITALS (owner's call). It is the right currency: you are the
    blood supply down here, so anything that takes vitals takes reserve you could
-   have given a real bank later. Never score — Act Two has no ladder yet, and
-   billing points for reading a room wrong is not the pressure this act runs on
-   (the same reasoning closeTrunk already applies to cutting a dead line). */
+   have given a real bank later.
+   Whether it ALSO costs points is open, not settled. The "never score" reasoning
+   that used to sit here was an assistant's assumption; the owner has since
+   decided Act Two's failures DO cost points (July 2026), so it no longer stands
+   on its own. See APP_STORE_ROADMAP.md, Bundle P · P·systems. */
 const DECOY_VITALS = 12;       // the cost of going to have a look
 const DECOY_R = 104;           // how close is "beside it"
 
