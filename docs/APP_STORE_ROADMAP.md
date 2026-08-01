@@ -89,7 +89,7 @@ bundle's section — grep the bundle heading to jump there.
 |---|--------|------|---------|-------------|
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
-| V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
+| V | 1.01 maintenance & narrative | 3 | 1.01 | **V·pacifism — Act One currently pays better for shooting than for restraint** (found July 2026, arithmetic in the section), V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
 | P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain and P·slice have both landed** — the loop runs end to end in one chamber, so the gate is open. Next is **P·persist** (designed during the slice, per §11.2) and **P·systems**; P·content authors chambers only against proven systems |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
@@ -917,15 +917,24 @@ done, so the chain now starts at P·slice.
   | Chamber cleared without firing | **+2000** | Act One's no-harm bonus, rule 5 |
   | GENTLE HANDS — chamber, no slam | **+750** | flat, never integrity-scaled (rule 2) |
   | Each impact on a rack | **−25** | per impact, on `towContact` (rule 2) |
-  | Bank lost (flatline) | **−500** | between a Scion and a famous Scion — it is 8–12 people, but it is also one object |
+  | Bank lost (flatline) | **−1000** *(owner)* | four Scions' worth — 8–12 people is not one object |
   | Bank lost to your own round (§7.1) | **−1000** | Act One's "killed by your own hand" |
   | Dead line cut | **−100** | a misread, scored per rule 6 |
   | Landing beside a decoy box | **−100** | the same misread, same weight |
-  | Emplacement destroyed | **+250** *(or 0)* | Act One's turret — but see the contradiction below |
+  | Emplacement destroyed | **+120** *(owner: yes, but smaller)* | still a test of skill, but bounded by rule 7 |
 
-  Two judgement calls in that table worth the owner's eye: whether a **lost bank**
-  at −500 is heavy enough for eight to twelve people, and whether an
-  **emplacement** should pay at all given rule 5 already rewards not shooting.
+  7. **THE PACIFIST INVARIANT** (owner, July 2026): *"the combined value of
+     shooting guns should never outweigh the pacifist score."* Killing everything
+     in a chamber must always total **less** than the no-fire award, or the ladder
+     pays better for the thing the oath exists to discourage. Note this is a
+     property of a *room*, not of a price: it has to hold for the most heavily
+     armed chamber P·content ever authors, so the safe way to build it is to
+     **derive the no-fire award from what you passed up** rather than hardcode
+     2000 — e.g. `noFire = 2000 + kills_forgone × 1.25`. That is the same
+     discipline `momentumGapPx` already uses, and for the same reason: a hardcoded
+     number silently stops being true the next time content changes around it.
+     At +120 per emplacement a chamber would need seventeen of them to threaten a
+     flat 2000, but derived, it can never happen at all.
 
   **Corrections this decision forces.** These are live in code and in the docs,
   and every one of them was an assistant's inference presented as design:
@@ -1100,6 +1109,30 @@ narrative beats; no shared dependency between them or with V1–V14.
 > User-facing docs (`support.html`, `GAME_DESIGN.md` §5, `STORE_LISTING.md`)
 > have been scrubbed of the stale Tilt references in this pass.
 
+- [ ] **V·pacifism. Act One already pays better for shooting than for restraint.**
+  *(Owner, July 2026, raised while settling Act Two's ladder: "this has
+  implications for a 1.01 check on act one scoring too." It does — the check was
+  run and Act One fails it.)*
+  The no-harm bonus is a flat **+2000** for `level.firedShots === 0` (G3). Kills
+  pay **+250** a turret and **+150** a drone. So the sector tables in
+  `js/world.js` already cross over:
+  - 8 turrets + 2 drones = **2300** — a shooter beats a pacifist by 300
+  - 7 turrets + 2 drones = **2050** — over, on two separate sectors
+  - and that is *before* `wideBump`, V10's `vetGuns` veteran escalation, or the
+    `crowded` daily modifier's +2 drones, all of which push it further
+  So on the back half of the campaign the ladder currently rewards clearing the
+  room with the gun, which is the opposite of what the game is about.
+  **Fix by deriving, not by re-pricing.** Make the no-harm award a function of
+  what was passed up — the sector's own gun value, times a factor above one — so
+  restraint always pays more *and cannot be overtaken by a future content
+  change*. Re-pricing kills downward would work today and rot the moment Bundle W
+  or a veteran return adds guns. Act Two's rule 7 (see Bundle P · P·systems) is
+  the same invariant, and both should use the same helper.
+  **Worth knowing before touching it:** a *parried* kill pays full price and does
+  **not** set `firedShots`, so a player who reflects everything already collects
+  both the kills and the no-harm bonus. That looks intentional and good — a parry
+  is skilled restraint, not violence — so leave it, but note that it means "the
+  pacifist score" has always meant *didn't shoot first*, not *no one died*.
 - [ ] **V1. Fly back to previous zones (rescue those left behind) — the
   ROTATION CHART, unlocked by Mary Seacole on the Nullwave.** The owner's
   request is return travel to cleared sectors, cached as-left. **Re-decided
