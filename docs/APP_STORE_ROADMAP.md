@@ -890,12 +890,42 @@ done, so the chain now starts at P·slice.
      submission so a missing board is a silent no-op — the code will ship before
      the board exists.
 
-  **Still to settle when it is built** (deliberately not assumed this time):
-  whether **misreading a room** costs points as well as time, his attention and
-  vitals — cutting a dead line, and landing beside a decoy box. Both are
-  failures under rule 1, but both are already charged in another currency, so the
-  question is whether that is double-billing or the right weight. It is a
-  separate call from rule 1 and needs the owner's word.
+  5. **A chamber cleared without firing pays the same award as a sector cleared
+     without firing.** Act One gives +2000 and the G3 no-harm achievement for
+     `level.firedShots === 0`; Act Two mirrors it. This is what stops the
+     emplacement paying you to shoot (see the contradiction below) and it is what
+     gives §10a.2's oath question a price rather than a sentiment.
+  6. **THE PRINCIPLE, which settles the double-billing question and should
+     govern every future call on this ladder** (owner, July 2026): *"your score
+     is the only permanent record of your success. The others just make your
+     game harder."* Vitals, reserve, fuel and time are **in-run difficulty** —
+     they shape the attempt you are having and then they are gone. Score is what
+     survives it. So a failure that already costs vitals costs points **as well**,
+     and that is not charging twice: the two currencies are doing different jobs.
+     Misreading a room — cutting a dead line, landing beside a decoy box — is
+     therefore scored, and the question this item previously left open is closed.
+
+  **A proposed table, anchored on Act One's own values rather than invented.**
+  Needs the owner's sign-off on the numbers; the shape follows rules 1–6 above.
+  Act One's precedents, for reference: sector clear +1000, cleared without firing
+  +2000, a lost Scion −250 (−500 if famous), a Scion killed by your own hand
+  −1000, turret +250, drone +150.
+
+  | Event | Proposed | Anchored on |
+  |---|---|---|
+  | Bank delivered to THE WELL | **+1000** | Act One's sector clear |
+  | Chamber cleared without firing | **+2000** | Act One's no-harm bonus, rule 5 |
+  | GENTLE HANDS — chamber, no slam | **+750** | flat, never integrity-scaled (rule 2) |
+  | Each impact on a rack | **−25** | per impact, on `towContact` (rule 2) |
+  | Bank lost (flatline) | **−500** | between a Scion and a famous Scion — it is 8–12 people, but it is also one object |
+  | Bank lost to your own round (§7.1) | **−1000** | Act One's "killed by your own hand" |
+  | Dead line cut | **−100** | a misread, scored per rule 6 |
+  | Landing beside a decoy box | **−100** | the same misread, same weight |
+  | Emplacement destroyed | **+250** *(or 0)* | Act One's turret — but see the contradiction below |
+
+  Two judgement calls in that table worth the owner's eye: whether a **lost bank**
+  at −500 is heavy enough for eight to twelve people, and whether an
+  **emplacement** should pay at all given rule 5 already rewards not shooting.
 
   **Corrections this decision forces.** These are live in code and in the docs,
   and every one of them was an assistant's inference presented as design:
@@ -915,11 +945,12 @@ done, so the chain now starts at P·slice.
   today, and it scores for **shooting** — which is precisely what §10a.2's oath
   question is meant to make expensive. Act One balances this with a **+2000
   no-harm bonus** for clearing a sector without firing (`level.firedShots === 0`,
-  G3); Act Two has no such counterweight, so the incentive currently points
-  against the act's own theme. The ladder must either price a chamber cleared
-  without firing, or stop paying for kills down here. Also: `loadChamber` never
-  resets `score`, so a chamber inherits whatever an Act One run had — which rule
-  3's provenance flag has to handle anyway.
+  G3); Act Two had no such counterweight, so the incentive pointed against the
+  act's own theme. **Resolved by rule 5** — a chamber cleared without firing pays
+  the same +2000 — which leaves only whether a kill should still pay its +250 on
+  top (see the table). Also: `loadChamber` never resets `score`, so a chamber
+  inherits whatever an Act One run had, which rule 3's provenance flag has to
+  handle anyway.
   **§8.1's tell has had its first pass** in P·feedback — settling dust, which
   reads both hazards off `solidAt` — so what remains here are the grit and
   lamp-shadow channels layered on that, not the tell from scratch.

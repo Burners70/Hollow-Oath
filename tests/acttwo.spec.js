@@ -129,13 +129,13 @@ test("P·slice: a dead line costs you time and tells him you are here (§7.1)", 
   expect(s.actTwo.conduits.find(c => c.id === decoy).cut).toBe(true);
   expect(s.actTwo.racks[0].cut).toBe(false);       // the rack is still on mains
   expect(s.staticSurge).toBeGreaterThan(0);        // he is listening now
-  /* No score was taken for it — but this assertion is PROVISIONAL, recorded as
-     such so it is not mistaken for a settled rule. It encoded an assistant's
-     assumption that Act Two never bills the player; the owner has since decided
-     failures DO cost points (July 2026), leaving open only whether a misread
-     costs points on top of the time and vitals it already costs. When P·systems
-     builds the ladder this either gains a penalty or is rewritten to say why a
-     misread is exempt — see APP_STORE_ROADMAP.md, Bundle P. */
+  /* No score was taken for it — and this assertion is now KNOWN TO BE WRONG for
+     the finished game, kept green only because the ladder does not exist yet. It
+     encoded an assistant's assumption that Act Two never bills the player; the
+     owner overturned it (July 2026) and a dead line will carry a penalty. When
+     P·systems builds the ladder, INVERT this: assert the misread costs points,
+     on top of the time and his attention. Left as a marker rather than deleted,
+     so the ladder cannot land without someone meeting it. */
   expect(s.score).toBe(0);
 });
 

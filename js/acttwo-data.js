@@ -998,10 +998,11 @@ function buildConduits(ch, spans, racks, decoys) {
    What it costs is VITALS (owner's call). It is the right currency: you are the
    blood supply down here, so anything that takes vitals takes reserve you could
    have given a real bank later.
-   Whether it ALSO costs points is open, not settled. The "never score" reasoning
-   that used to sit here was an assistant's assumption; the owner has since
-   decided Act Two's failures DO cost points (July 2026), so it no longer stands
-   on its own. See APP_STORE_ROADMAP.md, Bundle P · P·systems. */
+   It costs points AS WELL, once the ladder lands (P·systems) — not instead. The
+   "never score" reasoning that used to sit here was an assistant's assumption and
+   the owner overturned it (July 2026): "your score is the only permanent record
+   of your success. The others just make your game harder." Vitals shape this
+   attempt; score is the record of it. See APP_STORE_ROADMAP.md, Bundle P. */
 const DECOY_VITALS = 12;       // the cost of going to have a look
 const DECOY_R = 104;           // how close is "beside it"
 

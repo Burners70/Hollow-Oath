@@ -96,13 +96,14 @@ function closeTrunk(c) {
   }
   /* A decoy. §7.1: "it's his line, so he now knows you're here." The cost is
      that he is listening and the time is gone.
-     NO SCORE PENALTY HERE YET, and that is a PENDING QUESTION rather than a
-     decision. This comment used to claim Act Two never bills the player for
-     reading a room wrong; that was an assistant's assumption, and the owner has
-     overturned the general principle (July 2026) — failures DO cost points down
-     here. Still open is whether a misread specifically costs points on top of the
-     time, the attention and the vitals it already costs, or whether that is
-     double-billing. See APP_STORE_ROADMAP.md, Bundle P · P·systems. */
+     A SCORE PENALTY BELONGS HERE and is not yet wired — it lands with the ladder
+     in P·systems. This comment used to claim Act Two never bills the player for
+     reading a room wrong; that was an assistant's assumption and the owner
+     overturned it (July 2026). It costs points AS WELL as the time and his
+     attention, which is not charging twice: "your score is the only permanent
+     record of your success. The others just make your game harder." The other
+     currencies shape the attempt you are having; score is what survives it.
+     See APP_STORE_ROADMAP.md, Bundle P · P·systems for the proposed table. */
   banner("DEAD LINE — NOTHING WAS ON THE END OF IT\nHE KNOWS SOMEONE IS DOWN HERE NOW", PAL().DANGER);
   staticTick(); staticSurge = Math.max(staticSurge, 0.9);
   camera.shake += 7; haptic.heavy();
@@ -563,7 +564,9 @@ function towCollide(r, dt) {
 
 /* THE LADDER'S HOOK (owner decision, July 2026 — not yet implemented). Integrity
    must NOT scale the delivery award, but every impact on the rack costs points,
-   per impact. This function is where that belongs: it already fires exactly once
+   per impact — and it costs them ON TOP of the reserve and integrity it already
+   takes, because those two only make this attempt harder while the score is the
+   permanent record. This function is where that belongs: it already fires exactly once
    per qualifying impact, already knows the damage, and already carries FIELD
    MEDIC's wider free band — so a penalty added here inherits all three rather
    than re-deriving them. Left unwired until P·systems builds the ladder. */
