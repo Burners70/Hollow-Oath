@@ -71,8 +71,15 @@ build). The release path — **sync, then archive + upload manually in Xcode**:
    app-specific password, which isn't configured — see the Fastfile note).
 
 **Verify the build is fresh** on device: the title's bottom-right **BUILD_TAG**
-stamp reads `b<today's date> · <hash>` (from the actual bundled JS/CSS). An older
-date/hash than your last sync means the wrapper is stale — re-sync and rebuild.
+stamp reads `<hash> · b<date>` (from the actual bundled JS/CSS).
+
+> **Check the HASH, not the date.** The date only records *when you ran sync* —
+> a checkout that is weeks behind syncs perfectly happily and gets stamped with
+> today's date, which reads as fresh and is not. This shipped a build missing an
+> entire bundle in August 2026. `sync.sh` now prints the hash it stamped and
+> **warns if your checkout is behind its upstream**; if you see that warning,
+> `git pull` and sync again before archiving. The hash is printed by the script,
+> so compare the two directly rather than trusting the date.
 
 > `cd app && bundle exec fastlane build` can produce the archive from the command
 > line (it syncs first, no `pod install`), but the **upload step stays manual in

@@ -3106,15 +3106,26 @@ function drawTitle(now) {
   ctx.fillText(startLabel, sr.x + sr.w / 2, sr.y + sr.h / 2 + 6);
   ctx.shadowBlur = 0;
 
-  // build stamp + hi score along the bottom edge, out of the CTA's way
+  /* build stamp + hi score along the bottom edge, out of the CTA's way.
+
+     INSET FROM THE CORNERS, not just from the edges (August 2026). At 12px in
+     and 10px up, the build stamp sat inside an iPhone's rounded display corner
+     and was physically clipped by the glass — present in a screengrab, invisible
+     on the device. That cost a release: the stamp exists to prove a build is
+     fresh, the owner could read the date but not the hash, and a wrapper built
+     from a fortnight-old checkout shipped because the only part carrying
+     information was behind the corner radius. The rest of the app already knew
+     this — every on-screen button in css/game.css sits 18-24px in, on top of
+     env(safe-area-inset-*). This is that convention, applied to the one piece of
+     chrome that had been left on 10. */
   ctx.textAlign = "right";
   ctx.font = mono(9, 600);
   ctx.fillStyle = "rgba(155,234,249,.3)";
-  ctx.fillText(BUILD_TAG, vw - 12 - saRight, vh - 10);
+  ctx.fillText(BUILD_TAG, vw - 24 - saRight, vh - 24);
   ctx.textAlign = "left";
   ctx.font = mono(11, 600);
   ctx.fillStyle = "rgba(155,234,249,.55)";
-  ctx.fillText("hi score " + hiscore, 12 + saLeft, vh - 10);
+  ctx.fillText("hi score " + hiscore, 24 + saLeft, vh - 24);
   ctx.textAlign = "center";
 
   // settings pill (sound, music, assist, tilt, ...)
