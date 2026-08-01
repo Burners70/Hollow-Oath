@@ -559,7 +559,7 @@ Nightingale's LAMP is reach, Apgar is readout; Hippocrates' GENTLE TOUCH is
 **Substitution available:** Nikolai Pirogov (battlefield triage, and the first
 to sort casualties by urgency) is the fallback if any of the ten needs replacing.
 
-**Interaction with V1 and the codex.** Mary Seacole is a **1.01** addition —
+**Interaction with V1 and the codex.** Mary Seacole is a **1.0.1** addition —
 the twelfth entry, unlocking the ROTATION CHART from THE NULLWAVE (roadmap V1).
 So Act Two's ten start from 13 and take `FAMOUS.length` to **22**. THE FULL
 CODEX's threshold is derived (`codex.size >= FAMOUS.length`) so it follows
@@ -771,7 +771,7 @@ What that costs:
   likely to notice.
 - **New keys keep the `doids_` prefix**, per the shipped convention.
 
-**Test obligation:** an Act One 1.01 save must still load, resume and finish
+**Test obligation:** an Act One 1.0.1 save must still load, resume and finish
 after the bump. That is a regression test in `P·guard`, not a manual check.
 
 **Still deliberately unanswered:** whether Act Two progress is a single linear
@@ -835,7 +835,7 @@ re-introducing it grandly spends the reveal twice.
 | Release | Contents | Price |
 |---|---|---|
 | **1.0** | Live (in App Review at time of writing) | £2.99 |
-| **1.01** | The fixes already in branches, X onboarding, Z if ready, V15–V20 playtest defects | £2.99 |
+| **1.0.1** | The fixes already in branches, X onboarding, Z if ready, V15–V20 playtest defects | £2.99 |
 | **1.1** | Act Two, entire | **£4.99** |
 
 **There is no 1.2, and that is a simplification rather than a sacrifice.**
@@ -843,12 +843,12 @@ Bundle Q's three new caves (THE WARD, THE MINT, THE LISTENING POST) were the
 only thing 1.2 was for, and a ten-level underground network supersedes them —
 two separate cave systems with different rules would confuse, not enrich. What
 survives from Q is its core: **Laennec and AUSCULTATION move into Act Two**
-(§7.5); the ROTATION CHART stays a 1.01 utility.
+(§7.5); the ROTATION CHART stays a 1.0.1 utility.
 
 **Bundle W** (surface terrain escalation) is no longer load-bearing. It improves
 Act One but does no pricing work; it becomes optional polish.
 
-**Why 1.01 is a hard dependency, not housekeeping.** Act Two is gated behind
+**Why 1.0.1 is a hard dependency, not housekeeping.** Act Two is gated behind
 finishing the campaign, and the loudest finding from the July 2026 TestFlight
 round is that new players bounce off before the game gets good. Every player who
 quits in sector two is a player who will never see Act Two. **X onboarding is
@@ -857,8 +857,8 @@ therefore a commercial dependency of Act Two**, not a separate retention bundle
 who got through the first one. The same logic makes V15–V20 (which affect
 *finishing*) part of the same gate.
 
-**The gap is the one real cost.** A long quiet stretch between 1.01 and 1.1
-hurts App Store ranking. Two mitigations, neither needing a 1.2: split 1.01 into
+**The gap is the one real cost.** A long quiet stretch between 1.0.1 and 1.1
+hurts App Store ranking. Two mitigations, neither needing a 1.2: split 1.0.1 into
 two smaller updates if the branches allow, and use the TestFlight tuning builds
 as public "it's coming" material rather than silent internal work.
 
@@ -874,11 +874,11 @@ Review" and is now verified, which closes §15 q1 and means every feel-critical
 item is tuned on hardware rather than in a browser.
 
 **Build order versus release order (July 2026).** 1.0 is still in App Review and
-1.01 is not yet live, so "1.01 first" constrains *when Act Two ships*, not when
-it is built. Act Two is built and refined now and held until 1.01 has gone out.
+1.0.1 is not yet live, so "1.0.1 first" constrains *when Act Two ships*, not when
+it is built. Act Two is built and refined now and held until 1.0.1 has gone out.
 Practically that means Bundle P runs as a sequence of PRs against a long-lived
 integration branch with everything behind a feature flag, so `main` stays
-releasable for a 1.01 hotfix at any point.
+releasable for a 1.0.1 hotfix at any point.
 
 ## 14. Decisions taken, and what was rejected
 
@@ -891,7 +891,7 @@ pulse · vitals not fuel · **the ward is read by light, with sound and haptics 
 bonus channels** · **mostly lit, darkness as a place and an event** · THE WELL,
 lowered deeper as you clear · **fuel is a lap budget** · **you cannot shoot
 while carrying** · **she is human** · 41 seconds is her heartbeat · quickening
-finale · Act Two runs its own score and rank · pendulum debuts here · 1.01 →
+finale · Act Two runs its own score and rank · pendulum debuts here · 1.0.1 →
 1.1, no 1.2.
 
 **Locked by the July 2026 planning round, on top of the above:** the beacon is a
@@ -901,7 +901,7 @@ points (§11.0) · the deception tell is **"the world doesn't respond to you"**,
 not "perfectly level", which was false against `flatten()` (§8.1) · **ten new
 famous minds**, each tied to a system, RADIOGRAPH capped at one sweep per chamber
 (§9.1) · **persistence is a schema bump with a non-destructive migration**,
-designed during the slice (§11.2) · **Mary Seacole is a 1.01 addition**, not an
+designed during the slice (§11.2) · **Mary Seacole is a 1.0.1 addition**, not an
 Act Two one — the ROTATION CHART's unlock, behind the finale gate (roadmap V1) ·
 **device tuning is confirmed**, and build order is decoupled from release order
 (§13).
@@ -940,7 +940,7 @@ Resolved by the July 2026 planning round: ~~**is there Mac access right now?**~~
 (§13 — confirmed by the owner; the inference is now verified) ·
 ~~**does Act Two leave the surface level cache untouched?**~~ (yes — and it no
 longer matters for sequencing, because the ROTATION CHART's unlock is Mary
-Seacole rather than an Act Two rescue, so V1 ships in 1.01 ahead of Bundle P) ·
+Seacole rather than an Act Two rescue, so V1 ships in 1.0.1 ahead of Bundle P) ·
 ~~**persistence and save schema**~~ (scoped in §11.2; the remaining question is
 narrower and listed below) · ~~**terrain representation**~~ (§11.0, spans) ·
 ~~**the §8 tell**~~ (§8.1, replaced).

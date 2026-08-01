@@ -11,6 +11,25 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## Release routing corrected: the patch version is 1.0.1, and the merged work ships in 1.0 (August 2026)
+
+Two findings, both while planning the submission.
+
+**`1.01` cannot be used as a version string.** App Store version components have
+their leading zeros stripped, so `1.01` parses as `1.1` — identical to the Act
+Two release that carries the price move. Shipping it would have consumed the 1.1
+slot and forced the next version to 1.2. Every forward-looking reference is now
+`1.0.1`; this file and ROADMAP_ARCHIVE.md keep their original wording, because
+they record decisions as they were made.
+
+**The merged post-1.0 work goes into launch-day 1.0 rather than a second
+version.** With 1.0 in review, a new version could not be created at all — App
+Store Connect requires the current version to be Ready for Distribution first. So
+1.0 is removed from review, a new build uploaded, and the same version
+resubmitted. Review restarts; in exchange the fixes reach every launch-day player
+in their first download, and V·pacifism's scoring change never lands on anyone
+who had already scored under the old rules.
+
 ## V·pacifism — restraint outscores shooting again (1.01), July 2026
 
 Act One's no-harm bonus was a flat +2000 while its guns were worth more than

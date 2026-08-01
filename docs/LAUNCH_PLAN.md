@@ -83,7 +83,7 @@ well-prepared submission: who hears about it, when, and for how much.
 
 Your own TestFlight round found the learning curve is the loudest complaint
 from players who've never played a thrust/gravity game, and the fix for that
-(Bundle X onboarding) is deliberately staged for 1.01, not 1.0. That's a real
+(Bundle X onboarding) is deliberately staged for 1.0.1, not 1.0. That's a real
 signal for marketing sequencing, not just a design note: the 1.0 build will
 land best with people who already have Thrust/Gravitar/Lunar Lander muscle
 memory, and less well with a cold general audience who bounce off the
@@ -93,7 +93,7 @@ controls before the game gets good. Practically, that means:
   (below), where the reaction to "gravity, real physics, no aim-assist" is
   "finally" rather than "why won't it do what I want."
 - Hold off scaling any paid acquisition beyond the small Apple Ads test until
-  1.01 ships, rather than spending harder into an audience likely to bounce
+  1.0.1 ships, rather than spending harder into an audience likely to bounce
   off the same learning curve your testers hit.
 
 ## Press and community targets
