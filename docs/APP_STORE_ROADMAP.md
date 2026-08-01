@@ -90,7 +90,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.01 maintenance & narrative | 2 | 1.01 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 from "the pendulum sling" to a ten-level underground rescue campaign; PENDULUM_SPEC.md is now the physics reference only. **P·terrain and P·slice have both landed** — the loop runs end to end in one chamber, so the gate is open. Next is **P·persist** (designed during the slice, per §11.2) and **P·systems**; P·content authors chambers only against proven systems |
+| P | **Act Two — the descent** | 8 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice and P·feedback have landed** — the loop runs end to end in one chamber and has had its first on-device round. **The owner's next topic is P·floor** (floor variety, awaiting a conversation they asked to have separately); then **P·persist** and **P·systems**, both fully specified by the feedback round. P·content authors chambers only after P·floor sets the pattern |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -993,6 +993,24 @@ done, so the chain now starts at P·slice.
   interaction with V1: Mary Seacole is a *1.01* addition and the twelfth entry,
   so Act Two's ten start from 13 — check the codex pagination
   (`MINDS_PER_PAGE`, `js/render.js`) still lays out cleanly at 22.
+- [ ] **P·floor. Floor variety, and the pattern it sets for the other nine.**
+  *(Owner, July 2026, from the on-device round: "the floor can't all be flat.
+  Need lots more variety for interest" — and, on scoping it: "I think we should
+  get this one right so we can cascade those changes across the rest of the
+  levels." The owner asked to discuss it separately from the feedback fixes, so
+  it is **awaiting that conversation**, not blocked on code.)*
+  **The brief, as decided:** *both, flying first.* Re-author `SLICE_CHAMBER`'s
+  shape — varied clearances, ledges, steps, shelves at different heights, so the
+  ground changes the route and the swing — prove it, then dress it with materials
+  and ornament. Two passes, in that order.
+  **The hard constraint:** `__doids.chamberRoute()` must stay passable laden.
+  That is the assertion that caught P·terrain's chamber being unflyable, and the
+  provable rule it produced still governs — a fully-solid column and a route past
+  it are mutually exclusive, since a route must cross every intermediate x, so
+  every structural column needs air over its capital.
+  **Why it precedes P·content:** whatever this chamber does becomes the pattern
+  for the other nine, so authoring content first would mean re-authoring it
+  afterwards. Sequenced deliberately.
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The
