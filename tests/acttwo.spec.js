@@ -544,6 +544,63 @@ test("owner: you land on a rack to rig its sling, not merely near it", async ({ 
   expect(r.towing).toBe(true);              // and standing on it rigs the sling
 });
 
+test("owner: setting down on a rack's lid is an ordinary landing, not a hard one", async ({ page }) => {
+  /* Owner, August 2026: "not sure why there is an issue landing on the rack as
+     it is flat — should just be a normal (not hard) landing." It was going
+     through hullImpact at a 46px/s threshold with no slope, drift or attitude
+     term — stricter than Act One's own 52px/s free band and judging the approach
+     by descent speed alone. Once impacts started killing this round, that made
+     the most-repeated act in the loop lethal. It is Act One's landingEval now,
+     with the terrain slope overridden because the lid is level by construction. */
+  await slice(page);
+  const r = await page.evaluate(async () => {
+    __doids.a2Cut("c1");
+    const rk = level.racks[0], cage = rk.h * RACK_CAGE_H;
+    __doids.a2Warp(rk.x, rk.y - cage / 2 - 20, false);
+    ship.vy = 8;                                   // an ordinary approach
+    const v0 = ship.vitals;
+    for (let i = 0; i < 50; i++) await new Promise(k => requestAnimationFrame(k));
+    return { landedOn: ship.landedOn, dead: ship.dead, cost: v0 - ship.vitals };
+  });
+  expect(r.landedOn).toBe("r1");
+  expect(r.dead).toBe(false);
+  expect(r.cost).toBe(0);        // free, exactly as setting down on flat ground is
+});
+
+test("owner: the mouth of the well shaft asks whether you mean to leave, and never kills", async ({ page }) => {
+  /* Owner, August 2026: "flying to the top of the well shouldn't kill you. Maybe
+     just a card with 'are you sure you want to leave? (This will end your game)'
+     or something." The shaft is open because MERCY is above it paying the bay
+     out, so its mouth is an exit — and the one thing an exit must not be is
+     something you take by accident, hence the confirm rather than a free walk. */
+  await slice(page);
+  const up = await page.evaluate(async () => {
+    /* Placed just under the mouth and given a nudge up: climbing the full shaft
+       under gravity would need sustained thrust, and this is testing what
+       happens AT the mouth, not whether the dart can get there. */
+    __doids.a2Warp(8480, 20, false);
+    ship.vy = -60;
+    for (let i = 0; i < 60 && state === "play"; i++) await new Promise(k => requestAnimationFrame(k));
+    return { state, dead: ship.dead, kind: confirmCard && confirmCard.kind };
+  });
+  expect(up.dead).toBe(false);              // a ceiling would have killed here
+  expect(up.state).toBe("confirm");
+  expect(up.kind).toBe("leaveChamber");
+
+  // and declining puts you back inside the floor, below the mouth, rather than
+  // re-asking on the very next frame
+  const back = await page.evaluate(async () => {
+    for (let i = 0; i < 25; i++) await new Promise(k => requestAnimationFrame(k));
+    const no = confirmRowRect(1);
+    input.tap = true; input.tapX = no.x + no.w / 2; input.tapY = no.y + no.h / 2;
+    for (let i = 0; i < 30; i++) await new Promise(k => requestAnimationFrame(k));
+    return { state, dead: ship.dead, y: Math.round(ship.y) };
+  });
+  expect(back.state).toBe("play");
+  expect(back.dead).toBe(false);
+  expect(back.y).toBeGreaterThan(10);       // below the mouth, still flying
+});
+
 test("owner: a moored rack does not move, and a sustained pull parts the mounts", async ({ page }) => {
   await slice(page);
   const r = await page.evaluate(async () => {

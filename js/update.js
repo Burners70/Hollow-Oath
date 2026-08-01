@@ -251,9 +251,15 @@ function goldBurst(x, y) {
 function normAngle(a) { return ((a % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI; }
 
 /* ---------------- landing rules ---------------- */
-function landingEval() {
+/* `flat` says "the pad under you is level, don't read the terrain" — a rack's
+   lid is a machined deck floating above whatever the ground happens to be doing
+   (owner, August 2026: "not sure why there is an issue landing on the rack as it
+   is flat — should just be a normal (not hard) landing"). Everything else is the
+   shipped rule: the 52px/s free band, GENTLE HANDS' wider one, the sideways and
+   attitude limits, and the survivable ceiling above which a landing kills. */
+function landingEval(flat) {
   const s = ship;
-  const slope = Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
+  const slope = flat ? 0 : Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
   const tilt = Math.abs(normAngle(s.ang));
   const upright = tilt < 0.5;
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance
@@ -535,7 +541,12 @@ function confirmEarlyExtraction() {
 function updateConfirm() {
   if (input.tap && stateT > 0.25) {
     const yes = confirmRowRect(0), no = confirmRowRect(1);
-    if (inRect(yes, input.tapX, input.tapY)) { blip(520, 260, 0.2, "sawtooth", 0.12); confirmEarlyExtraction(); }
+    if (inRect(yes, input.tapX, input.tapY)) {
+      blip(520, 260, 0.2, "sawtooth", 0.12);
+      // one confirm overlay, more than one question — dispatch on the card
+      if (confirmCard.kind === "leaveChamber") confirmLeaveChamber();
+      else confirmEarlyExtraction();
+    }
     else if (inRect(no, input.tapX, input.tapY)) {
       blip(440, 660, 0.1, "sine", 0.08); confirmCard = null; state = "play"; stateT = 0;
     }
@@ -1319,7 +1330,16 @@ function updatePlay(dt) {
   }
 
   s.x = clamp(s.x, BOUND_X, level.W - BOUND_X);
-  if (s.y < BOUND_Y) { s.y = BOUND_Y; s.vy = Math.max(s.vy, 0); }
+  if (s.y < BOUND_Y) {
+    s.y = BOUND_Y; s.vy = Math.max(s.vy, 0);
+    /* The top of the WORLD is where a chamber's open shaft lets out, and it is
+       the world bound rather than the rock ceiling that you actually meet: the
+       shaft's roof is above BOUND_Y, so this clamp fires first and the ceiling
+       branch below can never see it. Over a declared sky exit that is not a
+       wall to bounce off, it is the way out — so ask (owner, August 2026:
+       "flying to the top of the well shouldn't kill you"). */
+    if (level.isChamber && state === "play" && atSkyExit(s.x)) { askLeaveChamber(BOUND_Y); return; }
+  }
 
   // cave roofs are unforgiving — unless the field is up. P·terrain: a chamber
   // has no level.roof, its ceiling is whichever span you're in, so roofAt takes

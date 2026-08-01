@@ -39,8 +39,17 @@ verticals at a drawn-only ledge, which were the same fault from the other side.
 **Impacts kill the hull again**, reversing July's cap — paired with removing
 chamber one's invisible wall and gating any return on a tell, so what is left is
 rock you can see. The rack is untouched: clipping a wall kills you, not the
-people in the box. Landing on a rack's lid was pulled out of the blast radius and
-uses Act One's hard-landing rule instead.
+people in the box. **Landing on a rack's lid is an ordinary landing** — it ran
+through the impact path at a threshold stricter than Act One's own, with no
+slope, drift or attitude term, so a routine set-down was billed as a hard landing
+long before killing made it lethal. It is Act One's `landingEval` now, with the
+slope overridden because a lid is level by construction.
+
+**The top of the well shaft is a way out, not a lid.** Reaching it asks — Act
+One's triage confirm overlay, reused — and confirming ends the run. Declining
+puts you back below the mouth. The hook is at the world's top bound rather than
+the rock ceiling, because the bound clamps the ship before a roof above it can
+ever be touched.
 
 **The well is a well.** The cable was a 1.5px hairline 220px long starting in
 mid-air, under a rock roof MERCY could not have lowered it through. The shaft
@@ -51,11 +60,11 @@ was indistinguishable from correct on a flat deck; it samples the whole footprin
 now and takes the deepest floor. Ceilings deliberately do not mirror it.
 
 Also: bigger lamps and far more of them, three new ornament kinds including the
-set's first ceiling furniture, both draw loops culled to the view, and an entry
-banner giving the floor's name and direction — navigation only, silent on which
-bank is real.
+set's first ceiling furniture, and both draw loops culled to the view. An entry
+banner naming the floor and its direction was added and then dropped — the
+confusion it answered was the dead end and the unstroked faces, both fixed here.
 
-Suite 169 -> 175.
+Suite 169 -> 177.
 
 ## P·floor — the chamber feature vocabulary, and a floor with shape (August 2026)
 

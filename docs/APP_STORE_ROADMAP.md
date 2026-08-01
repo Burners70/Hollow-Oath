@@ -1178,11 +1178,17 @@ done, so the chain now starts at P·slice.
     change of mind: the July objection was to dying with no way to read it
     coming, and this arrives paired with the two calls that remove the
     unreadable half. **The rack is explicitly not covered** — `towContact` is
-    untouched, so clipping a wall kills you and not the people in the box. One
-    thing had to be pulled out of the blast radius: setting down on a rack's lid
-    was routed through `hullImpact`, which made the most-repeated act in the
-    loop lethal. It uses Act One's own hard-landing rule now (35 vitals, 12 with
-    GENTLE HANDS, fatal only at zero).
+    untouched, so clipping a wall kills you and not the people in the box. **Landing
+    on a rack's lid is an ordinary landing**, and getting there took two passes.
+    It ran through `hullImpact` at a 46px/s threshold with no slope, drift or
+    attitude term — stricter than Act One's own 52px/s free band, and judging an
+    approach by descent speed alone — so a routine set-down was already billed
+    as a hard landing, and killing made that lethal on the most-repeated act in
+    the loop. The first fix charged Act One's hard-landing cost; the owner
+    rejected that too ("not sure why there is an issue landing on the rack as it
+    is flat — should just be a normal (not hard) landing"), and was right. It is
+    `landingEval(true)` now: Act One's rule with the terrain slope overridden,
+    because a lid is level by construction.
   - **§8's painted rock is out of chamber one** — "we wouldn't want any on this
     first level anyway", pending a tell. There was a 440px undrawn wall on the
     only route west. The helper stays in the vocabulary and the capability keeps
@@ -1192,9 +1198,17 @@ done, so the chain now starts at P·slice.
     starting in mid-air, and the shaft was a pocket with the hall's rock roof
     over it — so the bay hung from a scratch under a lid MERCY could not
     possibly have lowered it through. The shaft opens to the top of the world
-    and the cable is drawn thick, running up out of frame. *Consequence flagged
-    rather than hidden: the top of the shaft is still a ceiling, and ceilings
-    kill again, so flying all the way up it kills you.*
+    and the cable is drawn thick, running up out of frame. **Flying up it does
+    not kill you** — the first pass left the mouth as a lethal ceiling and the
+    owner rejected it ("maybe just a card with 'are you sure you want to leave?
+    (This will end your game)'"). A shaft declares `exit: true`, `genChamber`
+    collects `level.skyExits`, and reaching the world's top bound over one asks
+    through Act One's own triage confirm overlay. Declining shoves the hull back
+    down so it cannot re-ask every frame. Note the hook is at **BOUND_Y**, not
+    the rock ceiling: the world bound clamps the ship before it can ever touch a
+    roof above it, so the ceiling branch could never have fired. Confirming ends
+    the run the way running out of lives does; P·persist owns making it a real
+    abandonment, with provenance and a score.
   - **Fixtures sink instead of floating.** "Items on the landscape need to be
     integrated better, so they either sit on or are sunken into the ground, not
     partially floating." `snapToSurface` was a point sample — fine on a flat
@@ -1210,15 +1224,16 @@ done, so the chain now starts at P·slice.
     and from 17 fixtures to 32. Free, because both draw loops are culled to the
     view now; they were per-chamber before, so a denser chamber cost frames
     everywhere in it.
-  - **An entry banner**, because arriving in a 9000px room said nothing about
-    which way to go. Navigation only — the floor's name, the bank count and the
-    direction, all derived — and deliberately silent on *which* bank is real.
+  - **An entry banner was added and then dropped** ("Don't need that message").
+    It named the floor and gave the direction; the confusion it was written for
+    was the mezzanine dead end and the unstroked faces, both fixed in the same
+    round, so it was captioning a question the room no longer asks.
   - **Parked at the owner's steer:** the real-versus-decoy readability question
     ("don't overreact to the real/false rack tells — let that sit until I've
     played a bit more"). Recorded because it is real — the decoy's riser is the
     most legible feed line in the chamber and the true one is buried — but not
     acted on.
-  Suite 169 → 175.
+  Suite 169 → 177.
 
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →

@@ -4270,7 +4270,7 @@ function drawConfirm(now) {
   // stray over-long line on a narrow phone
   const wrapped = wrapText(confirmCard.body, Math.min(600, vw * 0.86));
   wrapped.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.33 + i * 18));
-  const labels = ["⚠ SIGNAL EARLY EXTRACTION", "RETURN TO THE SECTOR"];
+  const labels = confirmCard.labels || ["⚠ SIGNAL EARLY EXTRACTION", "RETURN TO THE SECTOR"];
   const cols = ["255,196,0", "0,229,255"];
   for (let i = 0; i < 2; i++) {
     const r = confirmRowRect(i);
@@ -4684,20 +4684,11 @@ window.__doids = {
     ship.vitals = maxVitals(); ship.fuel = maxFuel();
     camera.x = ship.x; camera.y = ship.y;
     state = "play";
-    /* Owner, August 2026 — arriving in a 9000px room with nothing to say which
-       way to go. This is NAVIGATION, not a tell: it names the floor and gives
-       the direction, and says nothing whatever about which bank is real, because
-       pointing at that would delete §7.1's whole deduction. Placed here because
-       loadChamber is currently the only way in; it belongs at the real entry the
-       moment P·persist/P·content build one. */
-    const n = level.racks.length;
-    const dir = n && level.racks[0].x < e.x ? "WEST" : "EAST";
-    // written as two whole phrases rather than assembled from " BANK" + "S",
-    // so COPY_DECK.md can quote what the player actually reads (R10's guard
-    // matches the deck against literals in js/)
-    banner((ch.name || "CHAMBER") + "\n" + n
-      + (n === 1 ? " BANK ON THIS FLOOR · " : " BANKS ON THIS FLOOR · ")
-      + dir, PAL().SAFE);
+    /* No entry banner. One was added in this round and the owner dropped it
+       ("Don't need that message"): the confusion it was written for turned out
+       to be the mezzanine dead end and the unstroked faces, both of which are
+       fixed, so a caption explaining the room was answering a question the room
+       no longer asks. */
     return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length,
       racks: level.racks.length, conduits: level.conduits.length,
       well: !!level.wellDock };

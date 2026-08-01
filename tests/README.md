@@ -17,7 +17,7 @@ npx playwright test -g "V12" # one test, by title
 
 ## Which file holds what
 
-175 tests, split by concern so an edit loads one small file instead of the whole
+177 tests, split by concern so an edit loads one small file instead of the whole
 suite. `harness.js` holds the shared per-test guard — navigate to the game, wait
 for `__doids`, and fail the test on any console error or uncaught exception.
 

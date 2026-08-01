@@ -223,31 +223,37 @@ function shipRackLanding() {
     if (Math.abs(s.x - r.x) > pad.hw + SHIP_R * 0.5) continue;
     if (s.y + SHIP_R < pad.top || s.y > r.y) continue;      // on the lid, not inside the cage
     if (s.vy < 4) continue;                                 // must be settling ONTO it
-    const vn = Math.max(0, s.vy);
+    /* Evaluate BEFORE the touchdown zeroes the velocities it is judged on. */
+    const verdict = landingEval(true);
     s.y = pad.top - SHIP_R; s.vy = 0; s.vx = 0;
     s.landed = true; s.landedOn = r.id;
     s.ang = assist ? normAngle(s.ang) : 0;
-    /* Setting down on a bank's lid is a LANDING, not an impact, and the
-       distinction became load-bearing the moment impacts started killing again
-       (owner, August 2026). Routed through hullImpact it made the most-repeated
-       act in the whole loop lethal: you drop onto the lid to rig the sling, and
-       a 60px/s set-down is an ordinary approach, not flying into a wall.
-       So it uses Act One's own hard-landing rule instead — same free band, same
-       cost, same GENTLE HANDS discount, and fatal only by taking vitals to zero.
-       What it costs is still the hull's, never the rack's: slamming INTO a rack
-       is towContact's business and always was. */
-    return rackLanding(vn);
+    rackVerdict = verdict;
+    return rackLanding();
   }
   return true;
 }
 
-/* Act One's hard landing (js/update.js), reused verbatim rather than
-   re-derived: 35 vitals, 12 with GENTLE HANDS, fatal only at zero. Returns
-   FALSE if it killed you, matching hullImpact's contract so the caller bails
-   the same way. */
-function rackLanding(vn) {
-  const safe = easyMode ? HULL_SAFE_V * 1.3 : HULL_SAFE_V;
-  if (vn <= safe) return true;
+/* A RACK'S LID IS A LANDING PAD, and setting down on it is an ordinary landing.
+   Owner, August 2026: "not sure why there is an issue landing on the rack as it
+   is flat — should just be a normal (not hard) landing."
+
+   They were right twice over. It went through hullImpact at a 46px/s threshold
+   with no slope, no drift and no attitude term — stricter than Act One's own
+   52px/s free band, and judging an approach by descent speed alone. So a routine
+   set-down was billed as a hard landing, and once impacts started killing this
+   round it became lethal on the most-repeated act in the whole loop.
+
+   It uses `landingEval(true)` now: Act One's rule, with the terrain slope
+   overridden because the lid is a machined deck and level by construction. Soft
+   is free, and only an approach Act One would itself call hard costs anything.
+   What it costs is still the hull's, never the rack's — slamming INTO a rack is
+   towContact's business and always was. */
+let rackVerdict = null;
+function rackLanding() {
+  const v = rackVerdict; rackVerdict = null;
+  if (!v || v.soft) return true;
+  if (!v.survivable) { shipDie(); return false; }
   const dmg = upgrades.gentle ? 12 : 35;
   ship.vitals -= dmg; camera.shake += 10;
   haptic.heavy();
@@ -255,6 +261,45 @@ function rackLanding(vn) {
   blip(160, 40, 0.3, "sawtooth", 0.2);
   if (ship.vitals <= 0) { shipDie(); return false; }
   return true;
+}
+
+/* ---- the way out, up the well shaft --------------------------------------
+   Owner, August 2026: "flying to the top of the well shouldn't kill you. Maybe
+   just a card with 'are you sure you want to leave? (This will end your game)'
+   or something." The shaft is open because MERCY is above it paying the bay
+   out — so its mouth is an exit, and the one thing an exit must not be is
+   something you take by accident. Act One's triage overlay is already the
+   shipped grammar for "this is irreversible, say it again", so this reuses it. */
+function atSkyExit(x) {
+  return !!level.skyExits && level.skyExits.some(e => x >= e[0] && x <= e[1]);
+}
+
+function askLeaveChamber(rY) {
+  const s = ship;
+  // shove the hull back down first, so DECLINING resumes below the mouth
+  // instead of re-asking on the very next frame
+  s.y = rY + SHIP_R + 8; s.vy = 40;
+  const left = (level.racks || []).filter(r => !r.delivered && !r.lost).length;
+  let body = "MERCY is up there. The cable goes all the way.";
+  body += "\n" + left + (left === 1 ? " bank is still down here, still on reserve."
+                                    : " banks are still down here, still on reserve.");
+  body += "\nNobody else is coming for them.";
+  body += "\nThis ends your run.";
+  confirmCard = { kicker: "THE SHAFT — UP AND OUT", title: "LEAVE THIS FLOOR?",
+    body, color: PAL().WARN, kind: "leaveChamber",
+    labels: ["⚠ CLIMB OUT AND END THE RUN", "STAY ON THIS FLOOR"] };
+  state = "confirm"; stateT = 0;
+}
+
+/* The same ending a run out of lives gets. P·persist owns making this a real
+   abandonment — provenance, Act Two's own hiscore, a chamber checkpoint to not
+   come back to — so this deliberately does no scoring of its own rather than
+   inventing an accounting that item is about to define. */
+function confirmLeaveChamber() {
+  confirmCard = null;
+  checkpoint = savedRun; clearRun();
+  state = "gameover"; stateT = 0;
+  saveHi(); recordDaily(); pickHint();
 }
 
 /* ---- §4.2 the cradle -----------------------------------------------------

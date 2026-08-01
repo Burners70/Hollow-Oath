@@ -872,9 +872,14 @@ function stalactites(x, w, o) {
 
 /* A SHAFT: vertical space, for the way in and the way down. §11.1 — a chamber's
    exit is the next chamber's entrance, and it is where MERCY's well pays out. */
+/* `exit: true` marks the mouth as a way OUT of the chamber rather than a lid —
+   collected by genChamber into level.skyExits and read by atSkyExit. Declared
+   rather than inferred from "is its top at y 0", because a chamber that happens
+   to reach the world's ceiling for scenery reasons is not offering to let you
+   leave through it. */
 function shaft(x, w, o) {
   o = o || {};
-  return { op: "room", x, y: o.top, w, h: o.bot - o.top,
+  return { op: "room", x, y: o.top, w, h: o.bot - o.top, exitUp: !!o.exit,
     roughTop: o.roughTop != null ? o.roughTop : 8,
     roughBot: o.roughBot != null ? o.roughBot : 10,
     radius: o.radius != null ? o.radius : 60,
@@ -1025,10 +1030,10 @@ const SLICE_CHAMBER = {
        had to pass through solid rock. `top: 0` puts the opening at the world's
        own ceiling with zero roughness, so no rock is drawn over it at all and
        the shaft reads as continuing up out of frame.
-       CONSEQUENCE, flagged rather than hidden: the top of the shaft is still a
-       ceiling, and ceilings kill again as of this round. Fly all the way up and
-       you die on the world's edge. */
-    shaft(8300, 380, { top: 0, bot: 1950, roughTop: 0 }),
+       Flying up it does NOT kill you (owner, same round): the mouth is declared
+       an `exit`, and reaching it asks whether you mean to leave rather than
+       billing you for touching a ceiling. See askLeaveChamber. */
+    shaft(8300, 380, { top: 0, bot: 1950, roughTop: 0, exit: true }),
 
     /* --- the rock ------------------------------------------------------ */
     /* THE STRUCTURAL COLUMN. Listed first among the rock so its bay is opened
@@ -1489,6 +1494,8 @@ function genChamber(ch) {
       docking: false, rackState: "reserve", occupants: RACK_OCCUPANTS_DEFAULT,
       taken: 0 }, ch.well) : null,
     towedRack: null,
+    // the mouths you can leave by (§11.1) — see atSkyExit/askLeaveChamber
+    skyExits: partList(ch.parts).filter(p => p.exitUp).map(p => [p.x, p.x + p.w]),
     n: 0, W: ch.W, H: ch.H, spans, spansDrawn: drawn, chamberId: ch.id,
     isChamber: true, isPlant: !!ch.plant, plantZone: ch.zone, dark: false,
     // ornaments and lights are placed against what is REALLY there, not against
