@@ -123,7 +123,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
+| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·design, P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -631,18 +631,36 @@ done, so the chain now starts at P·slice.
   the feature by the property that actually defines it (rock reaching the floor,
   with air over the capital), and the whole-room question is asserted in
   `tests/acttwo.spec.js`.
-- [ ] **P·design. Brief Design, and get the rack back first.** Runs in parallel
-  with P·terrain — it blocks P·slice, because the slice cannot be *judged* until
-  the rack reads correctly, and that is a design problem before it is a code
-  one. The hand-out is [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md),
-  written to be self-contained for someone with no repo access. Two things worth
-  knowing before briefing anyone: **the game has no in-game art assets** (all
-  visuals are procedural canvas drawing, so the deliverable is specified
-  direction plus timing numbers, not sprites), and **there is no public web
-  build** since O7, so the brief points at running `index.html` locally, the
-  demo video and the marketing stills instead. Only two real image files come out
-  of it: the twelfth star on `the_full_codex.png` (a **1.0.1** item, independent of
-  everything else — see V1) and, later, the two Act Two achievement badges.
+- [x] **P·design. The Act Two visual spec, designed and implemented.** *(Done —
+  commit `5ba57c7`, "P·design: implement the Act Two visual spec (rack, chamber,
+  sling, well)". **Not commissioned from an outside designer: Claude did the
+  design pass against [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md) and
+  Claude Code implemented the result**, which is why the brief was never sent to
+  anyone and why the item sat unchecked long after its work had merged.
+  Delivered: the rack's four-state cage silhouette with a beat that degrades in
+  *shape* rather than rate, riding the real `STATIC_PERIOD`/`staticClock` instead
+  of a second clock (§4); the conduit real-vs-fake tell, round vs rounded-square
+  (§5); plant-chamber terrain, since replaced by P·terrain's span terrain, which
+  is the "provisional heightmap stand-in" the P·terrain note records removing;
+  ornamentation, directional edge bleed, the sling and the well (§6); and all
+  three real image files (§7) — `the_full_codex` regenerated with its twelfth
+  star as a satellite cluster rather than a twelfth link in the chain, so the
+  constellation still reads once Act Two's ten more take it to 22, plus
+  `every_hollow_heard` and `gentle_hands` as SVG+PNG. Every colour routes through
+  `PAL()`/`TOK`/`shade()`.*
+
+  *Two things it did NOT do, both deliberate and both tracked elsewhere: the two
+  new badges have art but no `hollowoath.*` ID, no `GC_ACH` entry and no earn
+  condition, because "heard" and "gentle" cannot be defined until P·systems
+  builds the mechanics — that wiring is **P·ship** (see
+  [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md)). And THE FULL CODEX
+  becoming 12 needs no code change at all: the threshold is derived from
+  `FAMOUS.length`, so it moves when **V1** adds Mary Seacole.*
+
+  *The original item read "Brief Design, and get the rack back first… it blocks
+  P·slice, because the slice cannot be judged until the rack reads correctly."
+  That dependency was real and was satisfied — just in-repo rather than by a
+  hand-off, which is why P·slice and P·feedback could both close.*
 - [x] **P·slice. Vertical slice before content.** One chamber, one rack, the
   trunk cut, the tow, THE WELL, the reserve, the vitals transfusion — end to
   end and tuned on a phone, **before a single additional level is authored.**

@@ -9,12 +9,13 @@ from it — and **absorbs Bundle Q's three new caves** (see §13).*
 Last updated: August 2026 · Status: **partly built.** The July 2026 planning
 round settled terrain (§11.0), the deception tell (§8.1), the ten new famous
 minds (§9.1), persistence (§11.2) and the relay chain (§5.1a). Since then
-**P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — span
-terrain, the tether and its damage model, the trunk cut, the cradle, the
-reserve, the transfusion, THE WELL, and three chambers (THE INTAKE · THE
-WARDS · THE THEATRE) in `js/acttwo-data.js` / `-chambers.js` / `-render.js` /
-`-update.js`. Still
-unbuilt: P·systems, P·persist, P·scions and chambers four to ten (P·content).
+**P·design, P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** —
+the visual language (the rack's four states, the conduit tell, the sling, the
+well, the achievement art), span terrain, the tether and its damage model, the
+trunk cut, the cradle, the reserve, the transfusion, and three chambers
+(THE INTAKE · THE WARDS · THE THEATRE) in `js/acttwo-data.js` / `-chambers.js` /
+`-render.js` / `-update.js`. Still unbuilt: P·systems, P·persist, P·scions and
+chambers four to ten (P·content).
 
 > **This file does not track build state — [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)
 > Bundle P's checkboxes do.** Where a section here describes something that

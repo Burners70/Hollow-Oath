@@ -89,8 +89,8 @@ the order is `acttwo-data` → `acttwo-chambers` → `acttwo-render` →
 `acttwo-update`). **What each holds is in the source-file map above; what has
 LANDED versus what is still to build is Bundle P's checkboxes in
 `docs/APP_STORE_ROADMAP.md`** — that record lives in one place, not two. As of
-August 2026: `P·terrain`, `P·slice`, `P·feedback`, `P·floor` and `P·ramp` have
-landed; `P·systems`, `P·persist`, `P·scions`, `P·design` and `P·content`
+August 2026: `P·design`, `P·terrain`, `P·slice`, `P·feedback`, `P·floor` and
+`P·ramp` have landed; `P·systems`, `P·persist`, `P·scions` and `P·content`
 (chambers four to ten) have not.
 
 `js/acttwo-chambers.js` was split out of `js/acttwo-data.js` in August 2026 on
@@ -162,11 +162,13 @@ doc only when the task touches it:
   (the beacon is a relay), §8.1 (the deception tell, reversed — the old
   "perfectly level" rule was false against `flatten()`), §9.1 (ten new famous
   minds), §11.0 (span terrain), §11.2 (persistence).
-- `docs/DESIGN_BRIEF_ACT_TWO.md` — the hand-out for briefing a designer on Act
-  Two (roadmap `P·design`). Self-contained by design; read it when a design
-  handoff, the rack's visual states or the achievement art comes up. States the
-  thing outsiders always need telling: **the game has no sprites** — all visuals
-  are procedural canvas drawing, so a handoff is direction + timing numbers.
+- `docs/DESIGN_BRIEF_ACT_TWO.md` — **the spec Act Two's visuals were built to**
+  (roadmap `P·design`, landed). Written as an outside-designer hand-out, but
+  never sent: Claude did the design pass and Claude Code built it. Read it for
+  *why* the rack has four states and beats the way it does, or before touching
+  the rack, the sling, the well or the achievement art. States the thing
+  outsiders always need telling: **the game has no sprites** — all visuals are
+  procedural canvas drawing, so the deliverable is direction + timing numbers.
 - `docs/PENDULUM_SPEC.md` — superseded as a plan, but still the **tether-physics
   reference**: the sling model, damage model and tow conventions, which carried
   into Act Two unchanged and are now built (`updateTow`/`towContact` in
