@@ -42,6 +42,14 @@ really about.
 a 41-second flicker plus reveal on contact — but until it is built, both hazards
 are out: "too much for level one, but we needed to see how they work."
 
+**And the whole ornament layer is receded.** "It is lovely but non-interactive
+so it needs to be more muted — it needs to read as (interesting) background,
+rather than foreground. So the eye tells you that you are flying in front of it,
+not through it." One factor scales every accent and every glow, so the layer
+recedes together and the bank, the isolators, the cans and the well keep the
+front of the picture. It mattered most for `failing`, which is the same amber
+family as a fuel can.
+
 Suite 178.
 
 ## Three collision bugs behind "everything seemed solid" (August 2026)

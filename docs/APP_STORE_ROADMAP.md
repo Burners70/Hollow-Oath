@@ -1347,7 +1347,17 @@ done, so the chain now starts at P·slice.
   Everything is drawn with **mass** now — a dark body, a shadowed face, a lit top
   edge — which is the other half of the note ("they are very boring"): a bare
   outline reads as a diagram at any distance, a silhouette reads as an object.
-  The set: `stretcherBay`, `oxyBank`, `medCrates`, `dripStand` (hers);
+  **And the whole layer is RECEDED** (owner, same round): "it is lovely but
+  non-interactive so it needs to be more muted — it needs to read as
+  (interesting) background, rather than foreground. So the eye tells you that you
+  are flying in front of it, not through it." One factor, `ORN_BACK`, scales
+  every accent and every glow in the set, so the layer recedes together and the
+  things that ARE interactive — the bank, the isolators, the cans, the well, the
+  emplacement — keep the front of the picture. Hue still carries owner and state;
+  contrast carries depth. It mattered most for `failing`, which is PAL().WARN and
+  therefore the same amber family as a fuel can: a background object glowing in a
+  pickup's colour is precisely the confusion being removed.
+    The set: `stretcherBay`, `oxyBank`, `medCrates`, `dripStand` (hers);
   `readerHead`, `pumpSet`, `cableLoom` (his); `ventGrate`, `gantry`, `conduitRun`
   (structure, belonging to neither). The old wireframe set — `rackingFrame`,
   `pipeBank`, `crateStack`, `junctionTruss` — is gone; the junction cabinet's
@@ -1363,7 +1373,24 @@ done, so the chain now starts at P·slice.
   putting one back is a visible decision. Suite 178.
 
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
-  before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
+  before them.
+  **EVERY CHAMBER OPENS WITH AN INTRO CARD** (owner, August 2026): *"intro cards
+  for these levels should help players interpret what they are seeing as it
+  won't be obvious. Just a little allusion to the fact we are under Solace's
+  wreck, seeing the remains of her attempts to keep her people alive."*
+  This is now load-bearing rather than flavour, because the same round gave the
+  furniture a fiction it cannot state for itself: chamber one is her breached
+  intake, dressed in a hospital ship's wrecked gear with his equipment starting
+  to appear bolted over it (see the ornament note in P·floor). A player who has
+  not been told that reads a room of dark boxes; a player who has been told it
+  reads her last shift. **One line of framing converts the entire dressing
+  budget into story**, which is the cheapest narrative in the bundle.
+  Reuses Act One's shipped grammar rather than inventing a screen: `BRIEFS`
+  (js/world.js) and `toBriefing`, one entry per chamber alongside its authored
+  geometry, so a chamber is never merged without the line that explains it.
+  Copy goes in COPY_DECK.md in the same PR (R10). Keep it to an allusion — the
+  act's voice is understatement, and *"the remains of her attempts to keep her
+  people alive"* is already the whole idea in one clause. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The
   no-trolley-problem pillar is a generation invariant here exactly as V2's scan
   fairness is on the surface: **every chamber must be clearable with everyone

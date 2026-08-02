@@ -812,16 +812,36 @@ function drawConduitRunOrnament(x, y, w, now) {
    edge — rather than as wireframes, which is the other half of the note ("they
    are very boring"). A bare outline reads as a diagram at any distance; a
    silhouette with a lit edge reads as an object. */
+/* HOW FAR BACK THIS LAYER SITS. Owner, August 2026: the furniture "is lovely but
+   non-interactive so it needs to be more muted — it needs to read as
+   (interesting) background, rather than foreground. So the eye tells you that
+   you are flying in front of it, not through it."
+
+   One factor, applied to every accent and every glow in the set, so the whole
+   layer recedes together and the things that ARE interactive — the bank, the
+   isolators, the cans, the well, the emplacement — keep the front of the picture
+   to themselves. HUE still carries owner and state; it is CONTRAST that carries
+   depth, which is why muting works without costing any of the information the
+   last round added. Tune this one number, never a stroke. */
+const ORN_BACK = 0.3;
+const oa = (t, a) => shade(t.c, a * ORN_BACK);
+
 function ornTone(o, now) {
   const st = o.state || "dead";
-  if (st === "live") return { c: PAL().SAFE, glow: 0.55, lit: true };
+  /* Glow is receded by the same factor as everything else, and that matters
+     most for `failing`: PAL().WARN is the same amber family as a fuel can, and
+     a background object glowing in a pickup's colour is exactly the confusion
+     the owner is asking to remove. Muted, it still reads as amber-and-stuttering
+     without asking to be flown into. */
+  const g = a => a * ORN_BACK;
+  if (st === "live") return { c: PAL().SAFE, glow: g(0.5), lit: true };
   if (st === "failing") {
-    /* The stutter rides the real clock, not a private one: it is steady most of
-       the period and breaks up as the beat lands, which is the same shape the
-       racks' own ward uses. Dead steady under reduced flash. */
+    /* The stutter rides the real clock, not a private one: steady most of the
+       period, breaking up as the beat lands — the same shape the racks' own
+       ward uses. Dead steady under reduced flash. */
     const ph = (staticClock % STATIC_PERIOD) / STATIC_PERIOD;
     const near = ph > 0.93 && !reducedFlash;
-    return { c: PAL().WARN, glow: near ? (Math.sin(now * 42) > 0 ? 0.1 : 0.75) : 0.45, lit: true };
+    return { c: PAL().WARN, glow: g(near ? (Math.sin(now * 42) > 0 ? 0.1 : 0.7) : 0.4), lit: true };
   }
   return { c: o.owner === "his" ? TOK.VIOLET : TOK.CYAN_TEXT, glow: 0, lit: false };
 }
@@ -830,15 +850,15 @@ function ornTone(o, now) {
    ornament is built from this so the whole set reads as one material language. */
 function ornBody(x, y, w, h, t, r) {
   r = r == null ? 3 : r;
-  ctx.fillStyle = shade(TOK.VOID, .92);
+  ctx.fillStyle = shade(TOK.VOID, .9);
   ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.fill();
-  ctx.fillStyle = shade(t.c, .07);                       // the face turned away
+  ctx.fillStyle = oa(t, .05);                       // the face turned away
   ctx.beginPath(); pathRoundRect(x + w * 0.56, y, w * 0.44, h, r); ctx.fill();
-  ctx.strokeStyle = shade(t.c, t.lit ? .7 : .32); ctx.lineWidth = 1.8;
+  ctx.strokeStyle = oa(t, t.lit ? .7 : .32); ctx.lineWidth = 1.8;
   if (t.glow) { ctx.shadowColor = t.c; ctx.shadowBlur = 7 * t.glow; }
   ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = shade(t.c, t.lit ? .95 : .48); ctx.lineWidth = 2.2;
+  ctx.strokeStyle = oa(t, t.lit ? .95 : .48); ctx.lineWidth = 2.2;
   ctx.beginPath(); ctx.moveTo(x + 2.5, y); ctx.lineTo(x + w - 2.5, y); ctx.stroke();
 }
 
@@ -850,7 +870,7 @@ function drawStretcherBay(o, t) {
   const w = o.w || 96, h = o.h || 150, x = o.x, y = o.y, tiers = 3;
   ornBody(x, y, w, h, t, 4);
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .6 : .3); ctx.lineWidth = 1.6;
+  ctx.strokeStyle = oa(t, t.lit ? .6 : .3); ctx.lineWidth = 1.6;
   for (let i = 1; i <= tiers; i++) {
     const ty = y + (h / tiers) * i - 6;
     ctx.beginPath();
@@ -871,10 +891,10 @@ function drawOxyBank(o, t) {
   for (let i = 0; i < n; i++) {
     const cx = x + 3 + i * cw;
     ornBody(cx + 2, y + 14, cw - 6, h - 14, t, (cw - 6) / 2);
-    ctx.strokeStyle = shade(t.c, t.lit ? .8 : .4); ctx.lineWidth = 2;
+    ctx.strokeStyle = oa(t, t.lit ? .8 : .4); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx + cw / 2, y + 14); ctx.lineTo(cx + cw / 2, y + 5); ctx.stroke();
   }
-  ctx.strokeStyle = shade(t.c, t.lit ? .75 : .38); ctx.lineWidth = 2.6;   // the manifold
+  ctx.strokeStyle = oa(t, t.lit ? .75 : .38); ctx.lineWidth = 2.6;   // the manifold
   ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x + w, y + 5); ctx.stroke();
   if (t.glow) drawGlow(x + w - 6, y + 5, 5, t.c, t.glow);
   ctx.restore();
@@ -890,7 +910,7 @@ function drawMedCrates(o, t) {
     const cx = x + (w - cw) / 2 + jitter, cy = y + i * ch;
     ornBody(cx, cy, cw, ch - 3, t, 3);
     ctx.save();                                        // the strap across it
-    ctx.strokeStyle = shade(t.c, t.lit ? .5 : .26); ctx.lineWidth = 1.4;
+    ctx.strokeStyle = oa(t, t.lit ? .5 : .26); ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(cx + 5, cy + (ch - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (ch - 3) / 2);
     ctx.stroke();
@@ -903,7 +923,7 @@ function drawMedCrates(o, t) {
 function drawDripStand(o, t) {
   const h = o.h || 110, x = o.x, y = o.y, lean = ((Math.round(x) % 7) - 3) * 2;
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .7 : .34); ctx.lineWidth = 2;
+  ctx.strokeStyle = oa(t, t.lit ? .7 : .34); ctx.lineWidth = 2;
   ctx.beginPath();                                     // the pole
   ctx.moveTo(x + 12, y + h); ctx.lineTo(x + 12 + lean, y + 6); ctx.stroke();
   ctx.beginPath();                                     // feet
@@ -922,7 +942,7 @@ function drawDripStand(o, t) {
 function drawReaderHead(o, t) {
   const w = o.w || 76, h = o.h || 54, x = o.x, y = o.y;
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .55 : .28); ctx.lineWidth = 2;
+  ctx.strokeStyle = oa(t, t.lit ? .55 : .28); ctx.lineWidth = 2;
   ctx.beginPath();                                     // arms, into her structure
   ctx.moveTo(x + 8, y + h); ctx.lineTo(x + 2, y + h + 14);
   ctx.moveTo(x + w - 8, y + h); ctx.lineTo(x + w - 2, y + h + 14);
@@ -930,7 +950,7 @@ function drawReaderHead(o, t) {
   ctx.restore();
   ornBody(x, y, w, h, t, 5);
   ctx.save();                                          // the aperture
-  ctx.strokeStyle = shade(t.c, t.lit ? .85 : .35); ctx.lineWidth = 2;
+  ctx.strokeStyle = oa(t, t.lit ? .85 : .35); ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.26, 0, Math.PI * 2); ctx.stroke();
   if (t.glow) drawGlow(x + w / 2, y + h / 2, Math.min(w, h) * 0.3, t.c, t.glow);
   ctx.restore();
@@ -941,7 +961,7 @@ function drawPumpSet(o, t) {
   const w = o.w || 150, h = o.h || 64, x = o.x, y = o.y;
   ornBody(x, y + h * 0.34, w * 0.46, h * 0.66, t, 4);        // the motor block
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .6 : .3); ctx.lineWidth = 2.4;
+  ctx.strokeStyle = oa(t, t.lit ? .6 : .3); ctx.lineWidth = 2.4;
   for (let i = 0; i < 3; i++) {                               // the pipes
     const py = y + 8 + i * 10;
     ctx.beginPath(); ctx.moveTo(x + w * 0.2, py); ctx.lineTo(x + w, py); ctx.stroke();
@@ -956,7 +976,7 @@ function drawPumpSet(o, t) {
 function drawCableLoom(o, t) {
   const w = o.w || 200, x = o.x, y = o.y, n = Math.max(2, Math.round(w / 70));
   ctx.save();
-  ctx.lineWidth = 3.2; ctx.strokeStyle = shade(t.c, t.lit ? .55 : .3);
+  ctx.lineWidth = 3.2; ctx.strokeStyle = oa(t, t.lit ? .55 : .3);
   for (let k = 0; k < 3; k++) {
     ctx.beginPath(); ctx.moveTo(x, y + k * 4);
     for (let i = 1; i <= n; i++) {
@@ -965,7 +985,7 @@ function drawCableLoom(o, t) {
     }
     ctx.stroke();
   }
-  ctx.strokeStyle = shade(t.c, t.lit ? .8 : .4); ctx.lineWidth = 2;
+  ctx.strokeStyle = oa(t, t.lit ? .8 : .4); ctx.lineWidth = 2;
   for (let i = 0; i <= n; i++) {                              // the staples
     const px = x + (w / n) * i;
     ctx.beginPath(); ctx.moveTo(px, y - 4); ctx.lineTo(px, y + 12); ctx.stroke();
@@ -979,7 +999,7 @@ function drawVentGrateOrn(o, t) {
   const w = o.w || 70, h = o.h || 90, x = o.x, y = o.y;
   ornBody(x, y, w, h, t, 3);
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .55 : .3); ctx.lineWidth = 1.6;
+  ctx.strokeStyle = oa(t, t.lit ? .55 : .3); ctx.lineWidth = 1.6;
   for (let i = 1; i < 6; i++) {
     const gx = x + (w / 6) * i;
     ctx.beginPath(); ctx.moveTo(gx, y + 4); ctx.lineTo(gx, y + h - 4); ctx.stroke();
@@ -1001,14 +1021,14 @@ function drawVentGrateOrn(o, t) {
 function drawGantry(o, t) {
   const w = o.w || 240, x = o.x, y = o.y, deck = y + 46;
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .5 : .3); ctx.lineWidth = 2.4;
+  ctx.strokeStyle = oa(t, t.lit ? .5 : .3); ctx.lineWidth = 2.4;
   for (let hx = x + 16; hx <= x + w - 16; hx += 84) {          // hangers
     ctx.beginPath(); ctx.moveTo(hx, y); ctx.lineTo(hx, deck); ctx.stroke();
   }
   ctx.restore();
   ornBody(x, deck, w, 9, t, 2);                                 // the deck, with mass
   ctx.save();
-  ctx.strokeStyle = shade(t.c, t.lit ? .4 : .24); ctx.lineWidth = 1.5;
+  ctx.strokeStyle = oa(t, t.lit ? .4 : .24); ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(x, deck - 15); ctx.lineTo(x + w, deck - 15); ctx.stroke();
   for (let bx = x; bx <= x + w; bx += 34) {                     // stanchions
     ctx.beginPath(); ctx.moveTo(bx, deck); ctx.lineTo(bx, deck - 15); ctx.stroke();
