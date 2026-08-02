@@ -1,7 +1,7 @@
 // Shared harness for the Hollow Oath smoke specs.
 //
-// The suite drives the game headlessly through `window.__doids` (exposed at the
-// bottom of `js/render.js`). Every spec file loads the game the same way and
+// The suite drives the game headlessly through `window.__doids` (`js/debug.js`,
+// loaded after render.js). Every spec file loads the game the same way and
 // fails on any console error or uncaught exception, so that lives here rather
 // than being copy-pasted per file.
 //

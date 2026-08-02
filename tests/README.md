@@ -2,7 +2,7 @@
 
 Headless Playwright smoke suite. It loads `../index.html` over `file://` (no web
 server, no build) and drives the game through the `window.__doids` debug handle
-exposed at the bottom of `js/render.js`.
+in `js/debug.js`.
 
 ```
 npm ci && npm test          # or: npx playwright test

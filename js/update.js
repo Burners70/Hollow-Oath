@@ -1,4 +1,49 @@
 "use strict";
+/* =============================================================================
+   js/update.js — simulation. WHAT IS IN HERE, in file order.
+
+   Grep a `/* ===== title ===== *\/` banner to jump; every function below sits
+   under one of them. This index exists so a session can Read the ~150 lines it
+   needs instead of the whole file — keep it in step when you add a section.
+
+     the 41-second Static clock ............ updateStaticClock
+     banners, cards, guided coach .......... banner showCard showCoach
+                                             updateCoach updateTrainingScript
+     fragments, explosions, helpers ........ grantFragment explode goldBurst
+     landing rules and death ............... landingEval shipDie
+     sector clear / extraction / hangar .... checkSectorClear sectorClearNow
+                                             updateExtraction hangarRect
+                                             updateEarlyExtraction updateConfirm
+     breaches, Vector struggle, controls ... triggerBreach resolveBreach
+                                             updateVectorStruggle
+                                             updateCtlVisibility
+     update(dt) — the per-state dispatch ... update
+     run accounting ........................ reportRunAchievements askForRating
+                                             saveHi startFreshRun
+     the non-play screens .................. updateMenu updateHelpMenu
+                                             updateFork updateIntro updateBrief
+                                             updateClear updatePause
+                                             updateSettings resetProgress
+     updatePlay — the gameplay frame ....... updatePlay
+     Scions ................................ updateOids
+     enemies, sabotage, thrown Scions ...... updateEnemies updateSabotage
+                                             updateMercyThrow
+     the scan / reveal path ................ revealSecret updateScan
+                                             updateScionScan
+     waves, contagion, cabin, ambience ..... updateWaves updateContagion
+                                             updateCabinPulse updateNightfall
+     AMS MERCY — docking, bays, blackbox ... mercyPos bayRects updateDocking
+                                             updateBlackbox
+     fuel pods and the counterfeit scan .... updatePods revealFakePod
+                                             updatePodScan
+     the refueller economy ................. scuttleShip updateResupplySignal
+                                             updateTransfusion
+     the secret lift ....................... updateLift updateLiftTransit
+     shrines and the decoy MERCY ........... updateShrine updateDecoy
+     the finale ............................ updateBeacon resolveBeacon
+                                             updateEpilogue updateDestruct
+   ============================================================================= */
+
 /* Bundle I — the 41-second clock. "Repeating, every 41 seconds" stops being
    lore and becomes observable: from Curie Fields onward (where the briefing
    first names the figure) and everywhere down in the Hollows, the whole
@@ -117,6 +162,8 @@ function updateStaticClock(dt) {
 
 let bannerMsg = null;
 let ratingAskMsg = null;   // X6 — contextual line drawn into the win/gameover panel itself
+
+/* ===== banners, cards and the guided-coach overlay =============================== */
 /* R8 — in-flight copy lingers longer for a phone held at arm's length; the
    banner keeps its last-second alpha fade (see render), the float slows.
    V13 — an optional yFrac (0–1 of screen height) overrides the default
@@ -204,6 +251,7 @@ function updateTrainingScript(dt) {
   return false;
 }
 
+/* ===== fragments, explosions and small helpers =================================== */
 function grantFragment(queueForClear) {
   // Owner steer: a first playthrough tells only the wound/echo story — logs
   // 1–10. The Glycon logs (11–14, which name the serpent, the workshop and the
@@ -250,6 +298,7 @@ function goldBurst(x, y) {
 // several full turns past zero. Reduces to the equivalent angle in (-π, π].
 function normAngle(a) { return ((a % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI; }
 
+/* ===== landing rules and death =================================================== */
 /* ---------------- landing rules ---------------- */
 /* `flat` says "the pad under you is level, don't read the terrain" — a rack's
    lid is a machined deck floating above whatever the ground happens to be doing
@@ -336,6 +385,7 @@ function shipDie() {
   state = "dead"; stateT = 0;
 }
 
+/* ===== sector clear, extraction and the MERCY hangar ============================= */
 /* When every Scion is accounted for (saved, lost, or contained), MERCY
    closes her manifest and spools the jump drive — she has been holding
    the Static off her systems the whole time, and the moment she stops
@@ -564,6 +614,7 @@ function updateConfirm() {
   input.tap = false;
 }
 
+/* ===== breaches, the Vector struggle, control visibility ========================= */
 function triggerBreach(infected) {
   // E1 — the breach is now a two-dock recovery: RETRIEVE it back onto your ship
   // at the recovery bay, then ferry it (it fights you) to the red isolation bay.
@@ -641,6 +692,7 @@ function updateCtlVisibility() {
   }
 }
 
+/* ===== update(dt) — the per-state dispatch ======================================= */
 function update(dt) {
   stateT += dt;
   pollPad();
@@ -784,6 +836,7 @@ function update(dt) {
   }
 }
 
+/* ===== run accounting — achievements, rating prompt, hiscore ===================== */
 /* Bundle G3 — the rank system IS the achievement list. Reported at the
    ending → win transition, mirroring drawWin's rank branches exactly so
    the on-screen rank and the Game Center record can never disagree. */
@@ -854,6 +907,7 @@ function startFreshRun() {
   blip(330, 660, 0.2, "sine", 0.1);
 }
 
+/* ===== the non-play screens (menu, help, fork, intro, brief, clear, pause, settings) === */
 function updateMenu() {
   if (input.tap && stateT > 0.6) {
     if (state === "title" && inRect(settingsRect(), input.tapX, input.tapY)) {
@@ -957,7 +1011,7 @@ function updateHelpMenu() {
 }
 
 /* X3 — the first-play fork. YES flies straight in (the veteran path); NO
-   routes into the X2 trainee sector now that it's shipped (1.01 — before X2,
+   routes into the X2 trainee sector now that it's shipped (1.0 — before X2,
    "No" opened the HOW TO FLY guide instead). Either answer marks the player
    trained so the fork never shows again (until a RESET PROGRESS). */
 function updateFork() {
@@ -1216,6 +1270,7 @@ function updateSettings() {
   input.tap = false;
 }
 
+/* ===== updatePlay — the gameplay frame =========================================== */
 function updatePlay(dt) {
   // ease the headlight beams toward their target on/off + lamp-upgrade
   // brightness every tick, before any early return, so the fade keeps
@@ -1520,6 +1575,7 @@ function updatePlay(dt) {
   camera.y = lerp(camera.y, s.y + s.vy * 0.2 - 40, 1 - Math.pow(0.001, dt));
 }
 
+/* ===== Scions ==================================================================== */
 function updateOids(dt, now) {
   const s = ship;
   for (const o of level.oids) {
@@ -1674,6 +1730,7 @@ function updateOids(dt, now) {
   }
 }
 
+/* ===== enemies, sabotage, thrown Scions ========================================== */
 function updateEnemies(dt) {
   const s = ship;
   for (const t of level.turrets) {
@@ -1955,6 +2012,7 @@ function updateMercyThrow(dt) {
   haptic.heavy(); dullThud(); staticTick();
 }
 
+/* ===== the scan / reveal path ==================================================== */
 /* Bundle J2 — one reveal for both paths (fire and the landed scan) so the
    two can never drift apart. `viaFire` decides which oath flag it costs. */
 function revealSecret(sc, viaFire) {
@@ -2053,6 +2111,7 @@ function updateScionScan(dt) {
   }
 }
 
+/* ===== waves, contagion, the healing cabin, ambience, nightfall ================== */
 /* V6 — the heard-scan sonic-wave parry. An active, un-catalogued Vector from
    Avicenna Shoals on casts a telegraphed violet wavefront while you're in range;
    raise the shield as it lands (the E3 parryT window) to FLATTEN it and catalogue
@@ -2247,6 +2306,7 @@ function updateCabinMedic(dt) {
   if (s.vitals < ceiling) s.vitals = Math.min(ceiling, s.vitals + cabinMedicRate * dt);
 }
 
+/* ===== AMS MERCY — docking, bays, black boxes ==================================== */
 function killOid(o, how) {
   if (o.state === "dying") return;
   o.state = "dying"; o.deathType = how; o.deathT = 0;
@@ -2452,6 +2512,7 @@ function updateBlackbox(dt) {
   } else bb.scanT = 0;
 }
 
+/* ===== fuel pods and the counterfeit-pod scan ==================================== */
 function updatePods() {
   const s = ship;
   for (const p of level.pods) {
@@ -2547,6 +2608,8 @@ const SIGNAL_HOLD_T = 1.8;
    scuttle it. Holding THRUST this long fires the charge, and death handling
    (which spits the wreck back to the surface) breaks the soft-lock. */
 const SCUTTLE_HOLD_T = 2.4;
+
+/* ===== the refueller economy — scuttle, resupply signal, transfusion ============= */
 function scuttleShip() {
   addText(ship.x, ship.y - 46, "CHARGES SET — ABANDONING SHIP", PAL().DANGER);
   // the Hollows line only fits underground; a surface scuttle is a dip the ship
@@ -2805,6 +2868,7 @@ function finishTransfusion(rd, full) {
   rd.phase = "out"; rd.t = 0;
 }
 
+/* ===== the secret lift =========================================================== */
 /* ---- the secret lifts and what waits below ---- */
 function updateLift(dt) {
   const L = level.lift;
@@ -2906,6 +2970,7 @@ function updateLiftTransit(dt) {
   }
 }
 
+/* ===== shrines and the decoy MERCY =============================================== */
 function updateShrine(dt) {
   const sh = level.shrine;
   if (!sh || sh.found) return;
@@ -2995,6 +3060,7 @@ function decoyDown(f) {   // identified WITHOUT docking — Glycon's best lure f
     color: TOK.CYAN_INK });
 }
 
+/* ===== the finale — beacon, endings, epilogue, self-destruct ===================== */
 function updateBeacon(dt) {
   const b = level.beacon;
   if (!b || b.resolved) return;

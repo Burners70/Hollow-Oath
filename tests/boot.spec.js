@@ -232,7 +232,7 @@ test("X3: fork NO routes into the X2 trainee sector", async ({ browser }) => {
   await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => __doids.get().state)).toBe("fork");
-  // tap NO — now that X2 has shipped, this drops straight into training (1.01;
+  // tap NO — now that X2 has shipped, this drops straight into training (1.0;
   // pre-X2 it opened the HOW TO FLY guide instead)
   await page.waitForTimeout(300);
   r = await page.evaluate(() => window.forkRowRect(1));

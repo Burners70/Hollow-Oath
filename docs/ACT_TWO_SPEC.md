@@ -12,7 +12,8 @@ minds (§9.1), persistence (§11.2) and the relay chain (§5.1a). Since then
 **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — span
 terrain, the tether and its damage model, the trunk cut, the cradle, the
 reserve, the transfusion, THE WELL, and three chambers (THE INTAKE · THE
-WARDS · THE THEATRE) in `js/acttwo-data.js` / `-render.js` / `-update.js`. Still
+WARDS · THE THEATRE) in `js/acttwo-data.js` / `-chambers.js` / `-render.js` /
+`-update.js`. Still
 unbuilt: P·systems, P·persist, P·scions and chambers four to ten (P·content).
 
 > **This file does not track build state — [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)
@@ -780,7 +781,8 @@ with none is a pillar. The primitives are in `js/world.js` under the "columns of
 spans" banner — `spanAt`, `pickSpan`, `matchSpan`, `solidAt`, `levelH` — and
 `groundAt`/`roofAt` gained the optional `y` argument this section anticipated as
 "a span argument". The room/span grammar and its compiler are in
-`js/acttwo-data.js` (`compileChamber`, and `SLICE_CHAMBER` as the worked
+`js/acttwo-data.js` (`compileChamber`; `SLICE_CHAMBER`, in
+`js/acttwo-chambers.js`, is the worked
 example); drawing is `drawChamberTerrain` in `js/acttwo-render.js`. The M1
 checksum is unchanged at `1090254029`, so the table above held: collision stayed
 an O(1) column lookup, `STEP` and the tile cache both survived, and the
@@ -851,7 +853,7 @@ arriving somewhere rather than being where you started.
 campaign's exactly-one rule (GAME_DESIGN §3) because Act Two's elements are
 smaller than a sector's. The ten-row ladder as built — what each chamber
 introduces, and why size is monotonic — is the comment block above
-`BREACH_CHAMBER` in `js/acttwo-data.js`, beside the chambers it governs rather
+`BREACH_CHAMBER` in `js/acttwo-chambers.js`, beside the chambers it governs rather
 than in a doc that would drift from them. See APP_STORE_ROADMAP.md, Bundle P ·
 P·ramp.
 

@@ -29,7 +29,8 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
   add source files *unasked*, and don't convert to `type="module"` (it changes
   scoping and can fail over Capacitor's iOS `file://` origin). **Act Two is the
   standing exception** — owner decision, July 2026: Bundle P has its own
-  `js/acttwo-data.js` / `-render.js` / `-update.js`, ordered after `js/world.js`
+  `js/acttwo-data.js` / `-chambers.js` / `-render.js` / `-update.js`, ordered
+  after `js/world.js`
   and before `js/update.js` (see CLAUDE.md). The native wrapper (Bundle E)
   lives in its own `app/` directory and *copies* the web files in — the repo
   root remains the source of truth.
@@ -122,7 +123,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-data.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
+| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -174,8 +175,8 @@ to the archive in full, including its already-shipped X1/X3 slices.
 | QA | Playtest QA: legibility & fairness | Polish + design-pillar fairness |
 | Y | 1.0.1 release-fix defects | Stability + render/telegraphing fixes |
 | DS | Design-system conformance | Token layer; colourblind mode made real (**1.0**) |
-| X | Onboarding & new-player experience | Trainee sector, guided pauses, hint bank, in-app rating (**1.0.1**) |
-| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.0.1**) |
+| X | Onboarding & new-player experience | Trainee sector, guided pauses, hint bank, in-app rating (**1.0** — planned as 1.0.1, pulled into launch day by the August 2026 decision above) |
+| Z | REMIX variable gravity | Per-seed gravity scale + landing-fairness re-tune (**1.0** — same reassignment) |
 
 ---
 
@@ -652,7 +653,7 @@ done, so the chain now starts at P·slice.
   chambers won't have, which is the one failure mode the slice exists to
   prevent. Expose the new state through `__doids.get()` from day one so the
   slice is testable headlessly while it is being felt by hand.
-  *P·terrain delivered that geometry:* `SLICE_CHAMBER` (`js/acttwo-data.js`) is
+  *P·terrain delivered that geometry:* `SLICE_CHAMBER` (`js/acttwo-chambers.js`) is
   a 9000×2050 working floor with overhangs, an ordinary tight spot, a momentum
   pinch and a structural column, loadable with `__doids.loadChamber("slice")`.
   **Landed.** The loop runs end to end in `js/acttwo-update.js` (new file, the
@@ -1504,7 +1505,7 @@ done, so the chain now starts at P·slice.
   | 3 | `slice` · THE DEEP INTAKE | 9000 | the momentum pinch · the emplacement |
 
   The full ten-row ladder — what each of chambers 4–10 introduces, and in what
-  order — is written into `js/acttwo-data.js` above `BREACH_CHAMBER`, beside the
+  order — is written into `js/acttwo-chambers.js` above `BREACH_CHAMBER`, beside the
   chambers it governs rather than in a doc that would drift from them. Three of
   its properties are asserted rather than described (`tests/worldgen.spec.js`):
   **size is monotonic** and chamber one clears §11.0's floor (larger than the
