@@ -569,7 +569,8 @@ shield to catalogue it, no shot)
 
 ## 12a. Act Two — the descent (Bundle P · P·slice)
 
-**Not reachable in normal play.** Act Two is behind `__doids.loadChamber("slice")`
+**Not reachable in normal play.** Act Two is behind `__doids.loadChamber(1)`
+(or `("breach")`, `("wards")`, `("slice")` — see the ladder below)
 until P·content and P·persist wire it into the campaign, so none of this has
 shipped to a player. It is here because the house rule is that copy lands in the
 deck in the same PR as the code (R10), and because the voice of Act Two is worth
@@ -584,6 +585,49 @@ A broader "Act Two never bills the player" line stood here until July 2026 and
 was an assistant's assumption, not an owner decision: **failures do cost
 points** down here, and every impact on a rack is charged per impact. See
 APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
+
+### Chamber intro cards (`brief` on each chamber, `js/acttwo-data.js`)
+
+**Owner decision, August 2026, and it is load-bearing rather than flavour:**
+*"intro cards for these levels should help players interpret what they are
+seeing as it won't be obvious. Just a little allusion to the fact we are under
+Solace's wreck, seeing the remains of her attempts to keep her people alive."*
+The same round gave the furniture a fiction it cannot state for itself (hers,
+wrecked — then his, installed over it), so a player who has not been told reads a
+room of dark boxes where one who has reads her last shift. One line converts the
+whole dressing budget into story.
+
+**And the cards carry the one thing nothing else can say** (owner, August 2026,
+now ACT_TWO_SPEC §5.1b): the first three floors are not rooms *in* her — the
+player has measured her hull against their own ship for a whole act and it
+cannot hold three floors. They are rooms **she built**, after she came down and
+before Glycon took anyone, when her crew cut a field hospital into the caves
+beneath her to keep two hundred and fourteen people alive. Intake, wards,
+theatre. The rooms are the evidence she nearly managed it. Nobody states that;
+each card lets one clause of it through.
+
+Kept to an allusion, per the act's voice: understatement, and never a tutorial.
+Carried on the chamber beside the geometry it explains, so a chamber cannot be
+merged without its line; the QA harness shows it on load and **P·content wires it
+into `BRIEFS`/`toBriefing`** (Act One's shipped grammar — no new screen).
+
+| # | Chamber | Card |
+|---|---|---|
+| 1 | THE INTAKE | `She cut this floor herself, and decked it, and carried them down into it. His racks are standing where her beds were.` |
+| 2 | THE WARDS | `Where triage sent them. The bays are still in their rows, and someone has run new cable over every one of them.` |
+| 3 | THE THEATRE | `The deepest room she finished, and the best cut of the three. He set up in it because she had already done the hard part.` |
+
+Read down the three and the shape of it arrives without a word of exposition:
+she made this, she used it, and he took it over — the last card being the one
+that turns *"she had already done the hard part"* from praise into the worst
+thing in the act.
+
+Chambers 4–10 are unwritten; their cards are authored with their geometry, and
+they are on the other side of the **seam** (§11.1: 4–6 are his plant, and nothing
+in them was ever built for people). The ids are historical and not
+player-facing: chamber one is `breach`, chamber three is `slice` — ~20 test call
+sites and the QA harness use the latter, and renaming it would buy nothing a
+comment cannot say.
 
 ### Banners (`banner()`, `js/acttwo-update.js`)
 

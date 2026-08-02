@@ -1309,3 +1309,261 @@ test("V·pacifism: the invariant survives the modifiers that used to break it", 
   expect(r.award).toBeGreaterThan(r.guns);        // 40 guns and it still holds
   expect(r.empty).toBeGreaterThan(0);             // an unarmed sector still pays
 });
+
+/* ===========================================================================
+   P·content — THE LADDER, and the guards that now run over EVERY chamber
+   ---------------------------------------------------------------------------
+   Owner, August 2026: the slice chamber "is still too hard as an actual first
+   level… maybe this is level two — or even three", and Act Two's level design
+   should ratchet difficulty, introduce 1–2 new elements per level and grow in
+   size. THE BREACH and THE WARDS are chambers one and two; the slice is three.
+
+   The guards above were all written against `loadChamber("slice")`, because for
+   four rounds it was the only chamber there was. That is exactly the shape of
+   thing this bundle keeps getting caught by — a local assertion that passes
+   while the general property is false — so the geometry invariants run over the
+   whole ladder here rather than being copied per chamber. Adding a chamber to
+   ACT_TWO_CHAMBERS opts it in automatically, which is the point.
+   =========================================================================== */
+
+// every chamber in play order, and what it declares — see __doids.a2Ladder
+const ladder = page => page.evaluate(() => __doids.a2Ladder());
+
+test("P·content: the ladder ratchets — size, and one or two new elements a level", async ({ page }) => {
+  const L = await ladder(page);
+  expect(L.length).toBeGreaterThanOrEqual(3);
+
+  // positions are 1..n, in order, with no gaps or repeats
+  expect(L.map(c => c.n)).toEqual(L.map((_, i) => i + 1));
+
+  /* SIZE IS MONOTONIC, and chamber one is the smallest room that still clears
+     §11.0's floor ("each chamber is larger than any surface sector" — the
+     widest is sector 6 at 2200 + 6·550 = 5500). */
+  expect(L[0].W).toBeGreaterThan(5500);
+  for (let i = 1; i < L.length; i++)
+    expect(L[i].W, `${L[i].id} is larger than ${L[i - 1].id}`).toBeGreaterThan(L[i - 1].W);
+
+  /* CHAMBER ONE TEACHES THE TETHER AND NOTHING ELSE. One bank, one feed, so
+     there is nothing to deduce; no authored gap, no gun, no deception. The only
+     way to fail it is to fly badly, which is what a first level is for. */
+  const one = L[0];
+  expect(one.racks).toBe(1);
+  expect(one.conduits, "chamber one has exactly one feed — nothing to deduce").toBe(1);
+  expect(one.decoys).toEqual(0);
+  expect(one.turrets, "chamber one carries no gun").toBe(0);
+  expect(one.pinches, "chamber one authors no gap tighter than a hanging load").toEqual([]);
+  expect(one.lies, "chamber one carries no deception").toBe(false);
+
+  /* CHAMBER TWO ADDS THE DEDUCTION AND A REST-TIER GAP — and specifically NOT
+     the momentum pinch, which is chamber three's element and must not arrive
+     early: a player who meets a gap they cannot creep through before they have
+     met one they can has been taught the two are the same thing. */
+  const two = L[1];
+  expect(two.conduits).toBeGreaterThan(1);
+  expect(two.decoys).toBeGreaterThan(0);
+  expect(two.pinches).toContain("rest");
+  expect(two.pinches, "the momentum pinch waits for chamber three").not.toContain("momentum");
+  expect(two.turrets, "chamber two still carries no gun").toBe(0);
+
+  // and three is where both of those arrive
+  expect(L[2].pinches).toContain("momentum");
+  expect(L[2].turrets).toBeGreaterThan(0);
+
+  /* AN ELEMENT NEVER UN-INTRODUCES ITSELF. Once a chamber has decoys, or a gun,
+     every later chamber may have them too but none may be the first to lose
+     them and then get them back — that reads as a difficulty saw rather than a
+     ramp, and it is the thing a ten-chamber act gets wrong silently. */
+  let sawDecoy = false, sawGun = false;
+  for (const c of L) {
+    if (c.decoys > 0) sawDecoy = true;
+    else expect(sawDecoy, `${c.id} drops the deduction after it was introduced`).toBe(false);
+    if (c.turrets > 0) sawGun = true;
+    else expect(sawGun, `${c.id} drops the gun after it was introduced`).toBe(false);
+  }
+
+  // every chamber says what it is, and carries the line that explains it (§11.1)
+  for (const c of L) {
+    expect(c.name, `${c.id} has a name`).toBeTruthy();
+    expect((c.brief || "").length, `${c.id} carries its intro copy`).toBeGreaterThan(40);
+  }
+});
+
+test("P·content: every chamber is clearable with the load, and every fixture is placed", async ({ page }) => {
+  /* The three-tier route check and the fixture rule, over the whole ladder.
+     Bundle P's own instruction for P·content: "every one of the ten chambers
+     gets the same three-tier check, and the laden one is the one that matters —
+     a chamber clearable unladen but not with a rack is a trolley problem with
+     extra steps."
+
+     The tier a chamber must clear depends on what it authors. A momentum pinch
+     is DEFINED as air a hanging load cannot pass, so a chamber carrying one is
+     required to clear at the swung envelope; one that authors no such gap is
+     held to the stricter hanging tier, and chambers one and two are. */
+  const L = await ladder(page);
+  for (const ch of L) {
+    const r = await page.evaluate(id => {
+      __doids.loadChamber(id);
+      const swung = towEnvelope(90).vertical, hang = towEnvelope(0).vertical;
+      const tier = t => {
+        const q = __doids.chamberRoute(t);
+        return { rack: q.racks.every(x => x.reachable), well: q.well,
+          feeds: q.conduits.every(x => x.reachable) };
+      };
+      const bad = [];
+      const place = (kind, list, gameplay) => (list || []).forEach((o, i) => {
+        const foot = o.foot || [0, 0];
+        const base = o.y + (o.snapH != null ? o.snapH : (o.h || 0));
+        if (o.snap === "ceil") {
+          if (__doids.solidAt(o.x, o.y)) bad.push(`${kind}[${i}]@${Math.round(o.x)} in rock`);
+          return;
+        }
+        let float = -Infinity, rests = false;
+        const n = Math.max(1, Math.ceil((foot[1] - foot[0]) / STEP));
+        for (let k = 0; k <= n; k++) {
+          const px = o.x + foot[0] + (foot[1] - foot[0]) * (k / n);
+          const clear = __doids.ground(px, o.y) - base;
+          float = Math.max(float, clear);
+          if (clear <= 6) rests = true;
+        }
+        if (o.tiltA == null) {
+          if (float > 6) bad.push(`${kind}[${i}]@${Math.round(o.x)} floats ${Math.round(float)}`);
+          if (!rests) bad.push(`${kind}[${i}]@${Math.round(o.x)} never meets the deck`);
+          if (gameplay && __doids.solidAt(o.x, o.y))
+            bad.push(`${kind}[${i}]@${Math.round(o.x)} is inside rock`);
+        } else {
+          const cx = o.x + (foot[0] + foot[1]) / 2, H = 90;
+          const slope = Math.atan2(__doids.ground(cx + H, o.y) - __doids.ground(cx - H, o.y), H * 2);
+          if (Math.abs(slope) >= 0.24)
+            bad.push(`${kind}[${i}]@${Math.round(o.x)} stands on ${(slope * 180 / Math.PI).toFixed(0)}deg ground`);
+          if (Math.abs(__doids.ground(cx, o.y) - base) > 6)
+            bad.push(`${kind}[${i}]@${Math.round(o.x)} does not rest on its own middle`);
+        }
+      });
+      place("rack", level.racks, true);
+      place("isolator", level.conduits, true);
+      place("decoy", level.decoys, true);
+      place("can", level.fuelCans, true);
+      place("emplacement", level.turrets, true);
+      place("ornament", level.plantOrnaments, false);
+      place("light", level.lights, false);
+      return { bare: tier(2 * SHIP_R), swung: tier(swung), hang: tier(hang),
+        bad, exits: level.skyExits.length, cans: level.fuelCans.length,
+        haul: Math.round(Math.abs(level.wellDock.x - level.racks[0].x)) };
+    }, ch.id);
+
+    expect(r.bad, `${ch.id}: misplaced fixtures`).toEqual([]);
+    // a bare hull can always reach everything it has to operate
+    expect(r.bare.rack, `${ch.id}: the bank is reachable unladen`).toBe(true);
+    expect(r.bare.feeds, `${ch.id}: every isolator is reachable unladen`).toBe(true);
+    // and the LADEN claim, at the tier the chamber's own authoring implies
+    const laden = ch.pinches.includes("momentum") ? r.swung : r.hang;
+    expect(laden.rack, `${ch.id}: the bank connects to the well with the load on the rope`).toBe(true);
+    expect(laden.well, `${ch.id}: the well is reachable with the load on the rope`).toBe(true);
+    // §11.1 — a chamber has a way out, and fuel enough to be flown twice over
+    expect(r.exits, `${ch.id}: has a way out`).toBeGreaterThan(0);
+    expect(r.cans * 1000, `${ch.id}: carries fuel for the haul`).toBeGreaterThan(r.haul);
+  }
+});
+
+test("P·content: no chamber has a gap nobody authored, or a squeeze you cannot see", async ({ page }) => {
+  /* The two P·floor guards, generalised. They are the pair that caught four
+     accidental pinches and a dead end on the one chamber that existed then;
+     nine more chambers are coming and neither should have to be re-typed. */
+  const L = await ladder(page);
+  for (const ch of L) {
+    const r = await page.evaluate(id => {
+      __doids.loadChamber(id);
+      const S = level.spans, need = towEnvelope(0).vertical, see = need * 1.4;
+      const declared = __doids.declaredPinches();
+      const inDeclared = x => declared.some(d => x >= d.x - STEP && x <= d.x + d.w + STEP);
+      const gaps = [], squeezes = [];
+      for (let i = 0; i < S.length; i++) {
+        const x = i * STEP;
+        if (inDeclared(x)) continue;
+        for (const sp of S[i])
+          if (sp.bot - sp.top < need) gaps.push(`${Math.round(sp.bot - sp.top)}px at ${x}`);
+        const b = S[i + 1];
+        if (!S[i].length || !b || !b.length) continue;      // a sealed column is a wall
+        let best = 0;
+        for (const p of S[i]) for (const q of b)
+          best = Math.max(best, Math.min(p.bot, q.bot) - Math.max(p.top, q.top));
+        if (best < see) squeezes.push(`${Math.round(best)}px at ${x}`);
+      }
+      return { gaps, squeezes, need: Math.round(need), see: Math.round(see) };
+    }, ch.id);
+    expect(r.gaps, `${ch.id}: air tighter than ${r.need}px that nobody declared`).toEqual([]);
+    expect(r.squeezes, `${ch.id}: undeclared squeezes tighter than ${r.see}px`).toEqual([]);
+  }
+});
+
+test("P·floor: a surface only continues into a surface, never across the room", async ({ page }) => {
+  /* THE PHANTOM LINE, and it was the owner's "vertical lines that don't do
+     anything… they just look like errors" (August 2026). Not feed lines at all:
+     the terrain tile stroked each span's floor and ceiling to the neighbour
+     found by `matchSpanMutual`, a SPAN-level question. At the tip of a mezzanine
+     one span legitimately continues into two, and the span-level answer is
+     mutual and still wrong — so a shelf's milled pad at y 760 was stroked to the
+     hall deck at y 1150 across 16px of x: a bright, glowing, near-vertical line
+     in the zone accent at the end of every shelf and overhang in the act.
+
+     `matchBoundaryMutual` asks it per boundary, which is what a floor is. Held
+     here against a purpose-built chamber rather than against whichever shelf
+     happens to exist: the ceiling continues into the ceiling, the floor into the
+     floor, and the shelf's own two faces have no partner and terminate. */
+  const r = await page.evaluate(() => {
+    // a flat hall with one shelf hanging in it, and nothing else
+    const stations = [{ x: 0, ceil: 300, floor: 1200 }, { x: 3000, ceil: 300, floor: 1200 }];
+    const ch = { id: "_faces", seed: 1, W: 3000, H: 1600,
+      parts: partList([hall(stations, { roughTop: 0, roughBot: 0 }),
+        shelf(1000, 800, { y: 600, h: 200, roughTop: 0, roughBot: 0 })]) };
+    const S = compileChamber(ch, "solid");
+    const at = x => S[Math.round(x / STEP)];
+    const tip = i => {
+      // the last column of the shelf: two spans, and one span next door
+      const col = S[i], nxt = S[i + 1];
+      const out = { cols: [col.length, nxt.length], term: [], cont: [] };
+      for (const sp of col) for (const key of ["top", "bot"]) {
+        const m = matchBoundaryMutual(S, i, sp, key, +1);
+        (m ? out.cont : out.term).push(key + "@" + Math.round(sp[key]));
+      }
+      return out;
+    };
+    // find the shelf's east tip: the last column holding two spans
+    let last = -1;
+    for (let i = 0; i < S.length; i++) if (S[i].length === 2) last = i;
+    const first = S.findIndex(c => c.length === 2);
+    /* And what the OLD span-level match said at the place it went wrong: the
+       column BEFORE the shelf, where one span is about to become two. Both of
+       the shelf's openings answer with that single span, so the single span's
+       ceiling was paired with whichever of them overlapped it most — the one
+       UNDER the shelf — and stroked from the roof down to the shelf's
+       underside. The east tip is not where it failed, which is worth pinning:
+       the artefact is directional. */
+    const old = [];
+    for (const sp of S[first - 1]) {
+      const m = matchSpanMutual(S, first - 1, sp, +1);
+      if (m) old.push(Math.round(Math.abs(m.top - sp.top)), Math.round(Math.abs(m.bot - sp.bot)));
+    }
+    return { tip: tip(last), before: tip(first - 1), oldJumps: old,
+      twoSpanCols: S.filter(c => c.length === 2).length };
+  });
+
+  expect(r.twoSpanCols, "the shelf produced an overhang at all").toBeGreaterThan(20);
+
+  /* At the tip: the deck and the roof carry on, the shelf's own pad and
+     underside stop. Two continue, two terminate — never four of either. */
+  expect(r.tip.cols).toEqual([2, 1]);
+  expect(r.tip.cont.sort()).toEqual(["bot@1200", "top@300"]);
+  expect(r.tip.term.sort()).toEqual(["bot@600", "top@800"]);
+
+  /* And coming the other way — one span about to become two — the single span's
+     ceiling pairs with the ceiling and its floor with the floor, rather than
+     both being answered by whichever opening happened to overlap it most. */
+  expect(r.before.cols).toEqual([1, 2]);
+  expect(r.before.cont.sort()).toEqual(["bot@1200", "top@300"]);
+  expect(r.before.term).toEqual([]);
+
+  // the regression itself: the span-level answer jumped the height of the room
+  expect(Math.max(...r.oldJumps), "the old match crossed 400px+ of open air")
+    .toBeGreaterThan(400);
+});

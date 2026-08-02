@@ -1396,8 +1396,13 @@ function updatePlay(dt) {
       // through fuel. Reflecting off the slope's own normal sends the ship
       // away from the hill face, the way an actual bounce off an angled
       // surface would.
+      /* P·systems — the ship's y, for the same reason landingEval needed it: the
+         one-argument groundAt answers with the LOWEST floor in the column, so a
+         bounce off a mezzanine pad was reflected off the hall deck hundreds of
+         px below it. Act One passes a y that no heightmap level reads, so it is
+         unchanged there. */
       const eps = 4;
-      const slope = (groundAt(s.x + eps) - groundAt(s.x - eps)) / (2 * eps);
+      const slope = (groundAt(s.x + eps, s.y) - groundAt(s.x - eps, s.y)) / (2 * eps);
       const nlen = Math.hypot(slope, 1);
       const nx = slope / nlen, ny = -1 / nlen;   // outward normal, away from the ground
       const vn = s.vx * nx + s.vy * ny;

@@ -989,6 +989,36 @@ function matchSpanMutual(spans, i, sp, dir) {
   return matchSpan(spans[i], m) === sp ? m : null;
 }
 
+/* The same question asked of ONE BOUNDARY rather than of a whole span, which is
+   what a floor or a ceiling actually is. `key` is "top" or "bot".
+
+   Span-level matching is still right for "is this the same opening" and it is
+   wrong for "is this the same surface", because at a shelf's tip one span
+   legitimately continues into TWO. Take the column just west of a mezzanine:
+   one span, bore ceiling at 470 down to the deck at 1150. East of it: [470..760]
+   over the shelf and [900..1150] under it. The single span's best overlap is the
+   upper one and the match IS mutual (it is the only span in its column), so a
+   span-level answer strokes the single span's FLOOR — 1150 — up to the upper
+   span's floor at 760: a 390px near-vertical line, in the zone accent, with
+   glow, drawn across 16px of x at the end of every shelf and overhang in the
+   act. Owner, August 2026: "vertical lines that don't do anything… they just
+   look like errors."
+   Per boundary the answer is obviously right instead: the ceiling at 470
+   continues into the ceiling at 470, the floor at 1150 into the floor at 1150,
+   and the shelf's own two faces have no mutual partner and so TERMINATE — which
+   is what the tip of a shelf is, and what the band face is drawn to close. */
+function matchBoundaryMutual(spans, i, sp, key, dir) {
+  const nxt = spans[i + dir], cur = spans[i];
+  if (!nxt || !nxt.length) return null;
+  const near = (col, v) => {
+    let best = null, bd = Infinity;
+    for (const s of col) { const d = Math.abs(s[key] - v); if (d < bd) { bd = d; best = s; } }
+    return best;
+  };
+  const m = near(nxt, sp[key]);
+  return m && near(cur, m[key]) === sp ? m : null;
+}
+
 /* the open span at (x, y), interpolated between the two bracketing columns so
    floors and ceilings slope smoothly exactly as the heightmap's lerp does.
    y omitted means "the lowest span in the column" — the heightmap's one answer.
