@@ -119,7 +119,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-data.js`; **one owner decision is open there** — whether the entry beat is three floors of her wreck or the plant starts at chamber three |
+| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-data.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -1541,15 +1541,35 @@ done, so the chain now starts at P·slice.
   rock — a centre-origin object (rack, decoy, can) is *supposed* to sink its base,
   and a first pass that lifted those floated a decoy by 7px.
 
-  **What is still assumed rather than decided, and it is the owner's call.**
-  ACT_TWO_SPEC §11.1's beat table reads 1 entry / 2–5 plant / 6–8 deep line /
-  9 mask / 10 her. Three teaching chambers before the plant does not fit that.
-  These two are authored under the smallest assumption available — **the entry
-  beat is three floors of her wreck rather than one** — which needs no re-dressing
-  (chamber three is already `plant: false` and furnished as hers) and costs the
-  plant beat two floors. The alternative is to re-dress chamber three as the first
-  plant floor and keep 1–2 as her wreck. Both chambers are correct work either
-  way; only the labels move. **Decide before P·content authors chamber four.**
+  **THE NARRATIVE IS DECIDED (owner, August 2026), and it is better than the
+  assumption it replaces.** The open question was that §11.1's beat table (1
+  entry / 2–5 plant) cannot hold three teaching chambers, and the placeholder was
+  "the entry beat is three floors of her wreck". The owner's ruling: *"can't
+  actually be her wreck as we've seen the scale of that in act one, but it can be
+  an environment she created after crashing and before Glycon took all her crew
+  and passengers."*
+  Exactly right, and it closes a hole §5.1 had left open. She is a 320px hull the
+  player has measured against their own ship for a whole act — she cannot hold
+  three floors and must not be stretched. What she can hold is **what her crew
+  did with the time they had**: after she came down and before he took anyone,
+  they went into the caves beneath her and cut a field hospital for two hundred
+  and fourteen people. **Intake, wards, theatre**, in the order a field hospital
+  is built in and the order you descend through them. Written up as ACT_TWO_SPEC
+  **§5.1b**; §11.1's table is now 1–3 hers / 4–6 plant / 7–8 deep line / 9 mask /
+  10 her.
+  Four things it buys, all of which were already built and unmotivated:
+  the furniture has a reason to be a hospital's (a ward that ran and stopped
+  mid-shift, not a ship's fittings torn loose); **"rock overhead, mechanical
+  underfoot" becomes literal** — she never cut the roof and laid every deck plate
+  underfoot herself; the size rule stops fighting the fiction, because an
+  excavation can be any size; and the act gains a **seam** at chamber four, where
+  you stop being in a place built for people and start being in a facility that
+  was never meant for any. It also makes the taking worse, which is the test that
+  matters: she did not lose them in the crash — she kept them alive down here and
+  *then* he came, and took every one of them out of the beds she had built.
+  The chambers are renamed to match (THE INTAKE · THE WARDS · THE THEATRE) and
+  their intro cards rewritten (COPY_DECK.md §12a). Ids are unchanged and
+  historical; they are not player-facing.
 
   Also here: `loadChamber` takes a number or an id and defaults to **one** rather
   than to the slice; `a2Ladder()` reports the whole ladder with what each chamber

@@ -1101,12 +1101,12 @@ const SLICE_AT = hallRefs(SLICE_HALL);
    what it was built as and what every one of its ~20 test call sites, the QA
    harness and four rounds of notes call it — and the id is not player-facing.
    Renaming it would be twenty edits to buy nothing a comment cannot say: this
-   is the THIRD chamber now (owner, August 2026), and THE BREACH and THE WARDS
+   is the THIRD chamber now (owner, August 2026), and THE INTAKE and THE WARDS
    come before it. See the ladder above BREACH_CHAMBER. */
 const SLICE_CHAMBER = {
-  id: "slice", n: 3, name: "THE DEEP INTAKE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
-  brief: "The last of her, and the first of him. Past this floor the rock stops "
-       + "being a wreck and starts being a facility.",
+  id: "slice", n: 3, name: "THE THEATRE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
+  brief: "The deepest room she finished, and the best cut of the three. He set "
+       + "up in it because she had already done the hard part.",
   /* SOLACE's breached intake is beat 1; the plant proper is 2–5 (spec §11.1), so
      this chamber is NOT dressed as a plant — `plant` stays false and the machined
      surfaces read as her own wrecked intake gear rather than his facility. */
@@ -1424,10 +1424,10 @@ const SLICE_CHAMBER = {
    Read down the "new" column and it is the teaching order:
 
      #  chamber        W      new this level                         built
-     1  THE BREACH     5600   the tether · deliver to THE WELL       here
+     1  THE INTAKE     5600   the tether · deliver to THE WELL       here
      2  THE WARDS      7200   the deduction (decoys) · an authored   here
                               gap the load must be settled for
-     3  the slice      9000   the momentum pinch · the emplacement   above
+     3  THE THEATRE    9000   the momentum pinch · the emplacement   above
      4  plant          9600   the deception tell (§8.1) · lights-out  P·content
      5  plant         10200   two banks in one room                  P·content
      6  deep line     10800   deep readers (live, unswitchable)      P·content
@@ -1450,21 +1450,36 @@ const SLICE_CHAMBER = {
        gap tighter than a hanging load, no gun and no deception, so the only way
        to fail it is to fly badly — which is what a first level is for.
 
-   The beat table in ACT_TWO_SPEC §11.1 reads 1 entry / 2–5 plant / 6–8 deep
-   line / 9 mask / 10 her. Three teaching chambers before the plant does not fit
-   that, and re-cutting the act's narrative structure is the owner's call rather
-   than mine, so it is left open and flagged in the roadmap. The assumption these
-   two are authored under is the smallest one available: **the entry beat is
-   three floors of her wreck rather than one**, which needs no re-dressing of
-   anything (chamber three is already `plant: false` and furnished as hers) and
-   costs the plant beat two floors. Both chambers are correct work whichever way
-   that lands — only the labels move.
+   THE FICTION THAT CARRIES THREE FLOORS, decided by the owner in August 2026
+   and written up as ACT_TWO_SPEC §5.1b. They are NOT three floors of her hull —
+   the player has measured that hull against their own ship for a whole act and
+   it cannot hold them. They are three floors **she built**: after she came down
+   and before Glycon took anyone, her crew went into the caves under her and cut
+   a field hospital to keep two hundred and fourteen people alive. Intake, wards,
+   theatre, in the order any field hospital is built in.
+   It costs the plant beat two levels (§11.1 is now 1–3 hers / 4–6 plant / 7–8
+   deep line) and it buys a **seam** at chamber four the act did not have — you
+   stop being in a place built for people and start being in a facility that was
+   never meant for any. It also explains, for free, three things that were
+   already true and unmotivated: why the furniture is a hospital's, why "rock
+   overhead, mechanical underfoot" (she never cut the roof; she laid every deck
+   plate), and why a chamber may be larger than any surface sector.
    =========================================================================== */
 
-/* ---- chamber one: THE BREACH ---------------------------------------------
-   AMS SOLACE's forward intake, opened to the rock by whatever put her down
-   here. The emptiest, widest, best-lit room in the act, and it is emptiness on
-   purpose: the only new verbs are the ones the whole of Act Two is built on.
+/* ---- chamber one: THE INTAKE ---------------------------------------------
+   NOT a room in AMS SOLACE. A room she BUILT — ACT_TWO_SPEC §5.1b, owner
+   decision August 2026: the player has measured her 320px hull against their own
+   ship for a whole act, so she cannot hold three floors of interior and must not
+   be stretched to try. What she can hold is what her crew did after she came
+   down and before Glycon took anyone: they went into the caves under her and cut
+   somewhere to keep two hundred and fourteen people alive. Three floors, decked
+   by hand. Intake, wards, theatre — the order a field hospital is built in, and
+   the order you descend through them.
+
+   This is the first of them: triage. Where they carried people down out of the
+   ship and decided who was seen first. The emptiest, widest, best-lit room in
+   the act, and the emptiness is the point twice over — the beds are gone because
+   he took them, and the only new verbs are the ones all of Act Two is built on.
 
    WHAT IT TEACHES, and it is two things:
      1. THE TETHER. Cut the feed at a breaker you can see from the bank, land on
@@ -1493,7 +1508,7 @@ const SLICE_CHAMBER = {
    147px a hanging load needs to be able to see its way through. */
 const BREACH_HALL = [
   { x:  120, ceil: 620, floor: 1010, mt: MAT_MACH, mb: MAT_MACH },   // the west bulkhead   band 390
-  { x:  560, ceil: 560, floor: 1030 },   // THE BANK, stood in the breach light   band 470
+  { x:  560, ceil: 560, floor: 1030 },   // THE BANK, under the downshaft light   band 470
   { x: 1040, ceil: 600, floor: 1020, mt: MAT_ROCK },   //                         band 420
   { x: 1520, ceil: 640, floor: 1010 },   //   the roof comes down                 band 370
   { x: 2000, ceil: 620, floor: 1050 },   // THE BREAKER stands here               band 430
@@ -1508,7 +1523,7 @@ const BREACH_HALL = [
 const BREACH_AT = hallRefs(BREACH_HALL);
 
 const BREACH_CHAMBER = {
-  id: "breach", n: 1, name: "THE BREACH", seed: 40771, W: 5600, H: 1500, zone: "cyan",
+  id: "breach", n: 1, name: "THE INTAKE", seed: 40771, W: 5600, H: 1500, zone: "cyan",
   plant: false,
   matTop: MAT_ROCK, matBot: MAT_MACH,
   /* The intro card's copy (roadmap P·content, owner August 2026: "a little
@@ -1516,12 +1531,13 @@ const BREACH_CHAMBER = {
      attempts to keep her people alive"). Carried on the chamber so it is
      authored beside the geometry it explains and cannot be merged without it;
      the QA harness shows it on load, and P·content wires it into BRIEFS. */
-  brief: "Her forward intake, opened to the rock. One bank still on mains, and "
-       + "the light coming in is daylight she never saw.",
+  brief: "She cut this floor herself, and decked it, and carried them down into "
+       + "it. His racks are standing where her beds were.",
   parts: partList([
     /* --- the air ------------------------------------------------------- */
-    // THE BREACH itself: a hole up through her hull at the west end. Not an
-    // exit — you cannot leave that way — it is where the light falls on the bank.
+    // THE DOWNSHAFT her crew cut at the west end — the way they brought people
+    // in from the wreck above. Not an exit; you cannot leave that way. It is
+    // where the light still falls, onto the bank standing where her beds were.
     shaft(300, 300, { top: 120, bot: 700, roughTop: 26 }),
     hall(BREACH_HALL, { roughTop: 30, roughBot: 16 }),
     // the roof lifts over the middle so the widest air is not also the flattest
@@ -1576,8 +1592,10 @@ const BREACH_CHAMBER = {
     { x: 5000, y: 1330, r: 400, snap: "floor" }                              // the well shaft
   ],
   /* Hers, wrecked, and almost nothing of his — this is the first room in the
-     act and the ratio is the story's opening statement (§11.1). One cable loom
-     and one reader head are the only signs anyone has been down here since. */
+     act and the ratio is the story's opening statement (§5.1b, §11.1). Every
+     piece of it is a field hospital's, because that is what this floor was: she
+     built it, ran it, and it stopped mid-shift. One cable loom and one reader
+     head are the only signs he has been up this far. */
   ornaments: [
     { type: "stretcherBay", x:  760, y: BREACH_AT.deck(760),  w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
     { type: "medCrates",    x:  920, y: BREACH_AT.deck(920),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
@@ -1618,9 +1636,12 @@ const BREACH_CHAMBER = {
 };
 
 /* ---- chamber two: THE WARDS -----------------------------------------------
-   One deck down, and the first room where the answer is not in front of you.
-   This was her ward deck: rows of bays, oxygen at the head of each, and it is
-   where his cabling stops being occasional and starts being everywhere.
+   The second floor she cut (§5.1b), and the first room where the answer is not
+   in front of you. Where triage sent them: rows of bays, oxygen at the head of
+   each, and it is where his cabling stops being occasional and starts being
+   everywhere. He came UP into her floors to use them, so the higher you are in
+   her workings the more of her is left — the gradient runs the other way from
+   the one a player expects, and that is deliberate.
 
    WHAT IT ADDS, and it is two things:
      1. THE DEDUCTION (§7.1). Three breakers, one bank that matters and two that
@@ -1669,8 +1690,8 @@ const WARDS_CHAMBER = {
   id: "wards", n: 2, name: "THE WARDS", seed: 51884, W: 7200, H: 1800, zone: "cyan",
   plant: false,
   matTop: MAT_ROCK, matBot: MAT_MACH,
-  brief: "Her ward deck. The beds are still in their rows, and someone has run "
-       + "new cable over every one of them.",
+  brief: "Where triage sent them. The bays are still in their rows, and someone "
+       + "has run new cable over every one of them.",
   parts: partList([
     /* --- the air ------------------------------------------------------- */
     shaft(360, 280, { top: 160, bot: 820, roughTop: 26 }),
@@ -1732,7 +1753,7 @@ const WARDS_CHAMBER = {
   ],
   /* The ratio has moved. Chamber one had two pieces of his in thirteen; this
      room has six in twenty-one, and they are all `live` while hers are dead or
-     failing. Nobody says so — you read it off the furniture (§11.1).
+     failing. Nobody says so — you read it off the furniture (§5.1b, §11.1).
      Every piece stands in one of the flat bays: 140-1240, 3400-3900,
      5140-5600 and 6600 east. The ramps between them carry no furniture, and
      neither does the ground inside a plinth's own fillets — a bench eases its

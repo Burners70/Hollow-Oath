@@ -597,6 +597,15 @@ wrecked — then his, installed over it), so a player who has not been told read
 room of dark boxes where one who has reads her last shift. One line converts the
 whole dressing budget into story.
 
+**And the cards carry the one thing nothing else can say** (owner, August 2026,
+now ACT_TWO_SPEC §5.1b): the first three floors are not rooms *in* her — the
+player has measured her hull against their own ship for a whole act and it
+cannot hold three floors. They are rooms **she built**, after she came down and
+before Glycon took anyone, when her crew cut a field hospital into the caves
+beneath her to keep two hundred and fourteen people alive. Intake, wards,
+theatre. The rooms are the evidence she nearly managed it. Nobody states that;
+each card lets one clause of it through.
+
 Kept to an allusion, per the act's voice: understatement, and never a tutorial.
 Carried on the chamber beside the geometry it explains, so a chamber cannot be
 merged without its line; the QA harness shows it on load and **P·content wires it
@@ -604,14 +613,21 @@ into `BRIEFS`/`toBriefing`** (Act One's shipped grammar — no new screen).
 
 | # | Chamber | Card |
 |---|---|---|
-| 1 | THE BREACH | `Her forward intake, opened to the rock. One bank still on mains, and the light coming in is daylight she never saw.` |
-| 2 | THE WARDS | `Her ward deck. The beds are still in their rows, and someone has run new cable over every one of them.` |
-| 3 | THE DEEP INTAKE | `The last of her, and the first of him. Past this floor the rock stops being a wreck and starts being a facility.` |
+| 1 | THE INTAKE | `She cut this floor herself, and decked it, and carried them down into it. His racks are standing where her beds were.` |
+| 2 | THE WARDS | `Where triage sent them. The bays are still in their rows, and someone has run new cable over every one of them.` |
+| 3 | THE THEATRE | `The deepest room she finished, and the best cut of the three. He set up in it because she had already done the hard part.` |
 
-Chambers 4–10 are unwritten; their cards are authored with their geometry.
-Chamber three's name changed from `INTAKE` when it became the third floor rather
-than the first — the id stays `slice` (it is not player-facing, and ~20 test call
-sites and the QA harness use it).
+Read down the three and the shape of it arrives without a word of exposition:
+she made this, she used it, and he took it over — the last card being the one
+that turns *"she had already done the hard part"* from praise into the worst
+thing in the act.
+
+Chambers 4–10 are unwritten; their cards are authored with their geometry, and
+they are on the other side of the **seam** (§11.1: 4–6 are his plant, and nothing
+in them was ever built for people). The ids are historical and not
+player-facing: chamber one is `breach`, chamber three is `slice` — ~20 test call
+sites and the QA harness use the latter, and renaming it would buy nothing a
+comment cannot say.
 
 ### Banners (`banner()`, `js/acttwo-update.js`)
 

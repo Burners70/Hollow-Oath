@@ -136,8 +136,58 @@ originates *at* her. She's his aerial.
 
 Her interior appears **once**, as the entry corridor of level one: a breached
 intake, twenty seconds of flying through a dead ship whose silhouette the player
-already knows, and out through the bottom into his workings. That is the beat
-her size can carry, and it is the right one.
+already knows, and out through the bottom. That is the beat her size can carry,
+and it is the right one — she is a door you pass through, never a place you
+explore. What is on the other side of that door is **not** his workings yet; see
+§5.1b.
+
+### 5.1b The first three floors are HERS — and she built them
+
+**Owner decision, August 2026, and it resolves the one thing §5.1 left short.**
+The difficulty ramp (roadmap P·ramp) needs three teaching chambers before the
+plant, and §5.1 is right that she cannot hold three floors of interior: the
+player has measured her hull against their own ship for a whole act, and
+stretching a 320px lozenge into a dungeon is precisely the mistake §5.1 exists
+to forbid.
+
+So they are not floors **of** her. They are floors **she made**.
+
+She came down answering a call that was bait (§5.2). Before Glycon took anyone,
+her crew did the only thing a hospital ship's crew stranded on a rock could do:
+they went down into the caves beneath her and built somewhere to keep two
+hundred and fourteen people alive. Three floors, cut and decked by hand.
+**Intake, wards, theatre** — the order any field hospital is built in, and the
+order you descend through them.
+
+That is why the caves are the shallow end of this network and not a coincidence
+(§5.4): she did not excavate from nothing, she **adapted what was already
+there**. Which is also, exactly, the "rock overhead, mechanical underfoot" rule
+the chambers are authored to — she never cut the roof, and she laid every deck
+plate underfoot herself.
+
+Four things fall out of it, and all four are already built:
+
+- **The furniture has a reason to be a hospital's.** Stretcher bays, oxygen
+  banks, drip stands, spilled supply crates: not a ship's fittings torn loose,
+  but a ward that ran and then stopped mid-shift. Nothing about the dressing
+  changes; what changes is that it now makes sense.
+- **The "hers, wrecked — then his, installed over it" gradient gets a
+  mechanism.** He came UP into her floors to use them, so the top three carry
+  his cabling stapled over her decking, and the deep ones carry almost nothing
+  of hers. There is a **seam** at the third floor, which is where a player
+  stops being in a place built for people and starts being in a facility that
+  was never meant for any.
+- **The scale objection disappears.** An excavation can be any size; §11.0's
+  "each chamber is larger than any surface sector" stops fighting the fiction
+  and starts belonging to it.
+- **It makes the taking worse.** She did not lose them in the crash. She kept
+  them alive down here — triaged, warded, operated on — and *then* he came, and
+  took every one of them out of the beds she had built for them. The rooms are
+  the evidence that she nearly managed it.
+
+**Writing rule, per §3.1: nobody says any of this.** You read it off a room of
+made things — decking laid over cave floor, beds in rows, a theatre lamp — and
+one line of framing per chamber (the intro cards, roadmap P·content).
 
 ### 5.1a The relay chain (owner refinement, July 2026)
 
@@ -176,6 +226,13 @@ counterfeit he ever ran was somebody asking for help, and a hospital ship cannot
 not answer. It is the trap the whole first act teaches the player to see, run
 once, perfectly, on the people who came before them. *Lost with all hands* is
 what the record says, because no one was left to file a correction.
+
+**And there is a gap in that record, which is where Act Two lives.** She was not
+taken on arrival. She came down, she could not leave, and for however long it
+lasted her crew kept two hundred and fourteen people alive underneath her — the
+three floors of §5.1b. *Lost with all hands* compresses all of that into four
+words, and the whole of the descent is the player finding out how much those
+four words were hiding.
 
 ### 5.3 Both endings open the door, differently
 
@@ -768,28 +825,28 @@ a rack flatline be total loss without training the player to save-scum.
 
 | Beat | Levels | Content |
 |---|---|---|
-| **Entry** | 1 | SOLACE's breached intake; out through the bottom. Placed feed, one rack, teaching tow. |
-| **The plant** | 2–5 | Racks. Ward rounds begin. Pulse-reading, false floors, the first painted rock. |
-| **The deep line** | 6–8 | Deep readers: live, unswitchable, and they light you up. Anomaly geology. THE LAST HEART (§12). |
+| **Her floors** | 1–3 | The field hospital she built under the wreck (§5.1b): intake, wards, theatre. His racks stand in her rooms and his cabling is stapled over her decking, but the rooms are hers. Placed feeds, one rack each, teaching the tow — then the deduction, then the momentum pinch and the first gun. |
+| **The plant** | 4–6 | Through the seam and into what was never built for people. Pulse-reading proper, false floors, the first painted rock. Ward rounds begin. |
+| **The deep line** | 7–8 | Deep readers: live, unswitchable, and they light you up. Anomaly geology. THE LAST HEART (§12). |
 | **The mask** | 9 | The husk in the mask. No fight. |
 | **Her** | 10 | One rescue, the climb, the quickening. |
 
-Each level introduces exactly one new element, per the campaign's existing rule
-(GAME_DESIGN §3).
+**Revised August 2026** from 1 entry / 2–5 plant, and the reason is the ramp
+rather than the story: Act Two needs three teaching chambers before it can ask
+anything, because the tether, the delivery criterion, the deduction, the
+momentum pinch and the gun cannot all arrive in the room where the tether is
+new. The fiction that carries three floors is §5.1b — they are hers, and she
+built them — which costs the plant beat two levels and buys a **seam** at
+chamber four that the act did not previously have. The plant is stronger for
+arriving somewhere rather than being where you started.
 
-> **Open, August 2026 — the beat table above is not settled.** The owner's
-> difficulty note ("as an actual first level this is still too hard… maybe this
-> is level two, or even three") produced a three-chamber teaching ramp before the
-> plant, which 1 entry / 2–5 plant cannot hold. The two new chambers are authored
-> under the smallest assumption available — **the entry beat is three floors of
-> her wreck rather than one**, making it 1–3 entry / 4–6 plant / 7–8 deep line —
-> because it needs no re-dressing (chamber three is already `plant: false` and
-> furnished as hers) and costs the plant beat two floors. The alternative is to
-> re-dress chamber three as the first plant floor. **Owner's call, and it wants
-> making before P·content authors chamber four.** The rule quoted above is
-> widened by the same note, from exactly one new element to one or two. The
-> ten-row ladder as built is the comment block above `BREACH_CHAMBER` in
-> `js/acttwo-data.js`; see APP_STORE_ROADMAP.md, Bundle P · P·ramp.
+**One or two new elements per level** (owner, August 2026), widened from the
+campaign's exactly-one rule (GAME_DESIGN §3) because Act Two's elements are
+smaller than a sector's. The ten-row ladder as built — what each chamber
+introduces, and why size is monotonic — is the comment block above
+`BREACH_CHAMBER` in `js/acttwo-data.js`, beside the chambers it governs rather
+than in a doc that would drift from them. See APP_STORE_ROADMAP.md, Bundle P ·
+P·ramp.
 
 ### 11.2 Persistence and the save schema
 
@@ -932,7 +989,8 @@ releasable for a 1.0.1 hotfix at any point.
 
 ## 14. Decisions taken, and what was rejected
 
-**Locked:** SOLACE as wellhead, not dungeon · the reading finds the crack, not
+**Locked:** SOLACE as wellhead, not dungeon · **the first three floors are ones
+she BUILT, not rooms in her** (§5.1b) · the reading finds the crack, not
 just the expertise · originals are not degraded · racks (arithmetic, not
 mysticism) · three tiers · hurry vs. care vs. cost · rack ECG going flat ·
 continuous drain with a bite on the beat · flatline is death, never partial ·
