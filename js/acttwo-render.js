@@ -834,23 +834,24 @@ function ornTone(o, now) {
      the owner is asking to remove. Muted, it still reads as amber-and-stuttering
      without asking to be flown into. */
   const g = a => a * ORN_BACK;
-  if (st === "live") return { c: PAL().SAFE, glow: g(0.5), lit: true };
+  const body = ORN_BODY[o.owner] || ORN_BODY.hers;
+  if (st === "live") return { c: PAL().SAFE, body, glow: g(0.5), lit: true };
   if (st === "failing") {
     /* The stutter rides the real clock, not a private one: steady most of the
        period, breaking up as the beat lands — the same shape the racks' own
        ward uses. Dead steady under reduced flash. */
     const ph = (staticClock % STATIC_PERIOD) / STATIC_PERIOD;
     const near = ph > 0.93 && !reducedFlash;
-    return { c: PAL().WARN, glow: g(near ? (Math.sin(now * 42) > 0 ? 0.1 : 0.7) : 0.4), lit: true };
+    return { c: PAL().WARN, body, glow: g(near ? (Math.sin(now * 42) > 0 ? 0.1 : 0.7) : 0.4), lit: true };
   }
-  return { c: o.owner === "his" ? TOK.VIOLET : TOK.CYAN_TEXT, glow: 0, lit: false };
+  return { c: o.owner === "his" ? TOK.VIOLET : TOK.CYAN_TEXT, body, glow: 0, lit: false };
 }
 
 /* A solid body: dark fill, a shadowed right-hand face, a lit top edge. Every
    ornament is built from this so the whole set reads as one material language. */
 function ornBody(x, y, w, h, t, r) {
   r = r == null ? 3 : r;
-  ctx.fillStyle = shade(TOK.VOID, .9);
+  ctx.fillStyle = t.body || ORN_BODY.hers;      // dark steel, never black
   ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.fill();
   ctx.fillStyle = oa(t, .05);                       // the face turned away
   ctx.beginPath(); pathRoundRect(x + w * 0.56, y, w * 0.44, h, r); ctx.fill();
@@ -1057,7 +1058,17 @@ function drawPlantOrnaments(now, cx, viewW) {
   for (const o of level.plantOrnaments) {
     if (o.x > vx1 || o.x + (o.w || 140) < vx0) continue;   // not in frame
     const fn = PLANT_ORNAMENTS[o.type];
-    if (fn) fn(o, ornTone(o, now), now);
+    if (!fn) continue;
+    const t = ornTone(o, now);
+    if (!o.tiltA) { fn(o, t, now); continue; }
+    // stood on a slope: rotate about the middle of its own base, so it rests on
+    // the ground rather than being driven into it
+    const bx = o.x + (o.foot ? (o.foot[0] + o.foot[1]) / 2 : 0);
+    const by = o.y + (o.h || 0);
+    ctx.save();
+    ctx.translate(bx, by); ctx.rotate(o.tiltA); ctx.translate(-bx, -by);
+    fn(o, t, now);
+    ctx.restore();
   }
 }
 

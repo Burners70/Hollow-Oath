@@ -431,6 +431,29 @@ function plantPal(zoneKey) { return PLANT_ZONES[zoneKey] || PLANT_ZONES.cyan; }
    cast, though, which ties Act Two's stone to Act One's. */
 const ROCK_PAL = { top: "#3b3454", bottom: "#241f38" };
 
+/* The BODY tone of manufactured furniture — dark, but never black. Owner,
+   August 2026: "I'd avoid using black for object fills as it reads as
+   absence/accident too." They are right and it was compounding a second bug: a
+   near-black rectangle drawn over lit rock reads as a hole in the world, so a
+   half-sunk crate did not look sunk, it looked like a rendering fault. A dark
+   STEEL still gives the silhouette that makes an object an object, and says
+   "thing" rather than "nothing". Two tones, so hers and his are separable in
+   silhouette as well as by accent. */
+const ORN_BODY = { hers: "#262d3f", his: "#2c2642" };
+
+/* How far a rigid object may tilt to follow the ground it stands on. Owner,
+   same round: "some of these items are too sunken — it looks like accidental,
+   not design." The footprint rule that stopped things floating did it by
+   sinking them to the DEEPEST ground underneath, which on the ramp down to the
+   well buried a stretcher bay most of its height. Neither extreme is right,
+   because a rigid box on a slope does neither: it TILTS. So a floor ornament
+   takes the slope across its own footprint, rests on the middle of it, and only
+   sinks the couple of px that reads as settled. Clamped at ~13°, because past
+   that a tilted crate stops reading as furniture and starts reading as debris —
+   and at that point the authoring is wrong, not the placement: put the furniture
+   somewhere a person would have put it. */
+const ORN_TILT_MAX = 0.22;
+
 /* ================================================================
    P·terrain — the chamber authoring grammar, compiled to spans at load.
 
@@ -1184,34 +1207,34 @@ const SLICE_CHAMBER = {
      `failing` piece stutters on the Static's own 41-second beat, so it is
      visibly on the same clock as a failing bank of people. */
   ornaments: [
-    { type: "medCrates",    x:  620, y: onDeck(620),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "medCrates",    x:  880, y: onDeck(880),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
     { type: "conduitRun",   x:  760, y: onDeck(760),  w: 420, snap: "floor", owner: "his", state: "live" },
     { type: "gantry",       x:  840, y: onRoof(840),  w: 280, snap: "ceil", owner: "hers", state: "dead" },
     { type: "dripStand",    x: 1180, y: onDeck(1180), h: 110, snap: "floor", owner: "hers", state: "dead" },
     { type: "stretcherBay", x: 1560, y: onDeck(1560), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
     { type: "oxyBank",      x: 1660, y: onDeck(1660), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "failing" },
     { type: "medCrates",    x: 2020, y: onDeck(2020), w: 84, h: 104, n: 2, snap: "floor", owner: "hers", state: "dead" },
-    { type: "ventGrate",    x: 2350, y: onDeck(2350), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 2200, y: onDeck(2200), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
     { type: "pumpSet",      x: 2860, y: onDeck(2860), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
     { type: "gantry",       x: 3020, y: onRoof(3020), w: 300, snap: "ceil", owner: "hers", state: "dead" },
     { type: "conduitRun",   x: 3180, y: onDeck(3180), w: 460, snap: "floor", owner: "his", state: "live" },
-    { type: "stretcherBay", x: 3480, y: onDeck(3480), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
-    { type: "dripStand",    x: 3620, y: onDeck(3620), h: 110, snap: "floor", owner: "hers", state: "dead" },
-    { type: "ventGrate",    x: 3880, y: onDeck(3880), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 3100, y: onDeck(3100), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "dripStand",    x: 3300, y: onDeck(3300), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 4060, y: onDeck(4060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
     { type: "oxyBank",      x: 4040, y: onDeck(4040), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "dead" },
     { type: "readerHead",   x: 4260, y: onDeck(4260), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
     { type: "gantry",       x: 4610, y: onRoof(4610), w: 190, snap: "ceil", owner: "hers", state: "dead" },
     { type: "cableLoom",    x: 4900, y: onDeck(4900), w: 220, snap: "floor", owner: "his", state: "live" },
-    { type: "medCrates",    x: 5240, y: onDeck(5240), w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "medCrates",    x: 5000, y: onDeck(5000), w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
     { type: "stretcherBay", x: 5680, y: onDeck(5680), w: 96, h: 150, snap: "floor", owner: "hers", state: "failing" },
     { type: "ventGrate",    x: 6060, y: onDeck(6060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
-    { type: "cableLoom",    x: 6260, y: onDeck(6260), w: 180, snap: "floor", owner: "his", state: "live" },
+    { type: "cableLoom",    x: 6100, y: onDeck(6100), w: 180, snap: "floor", owner: "his", state: "live" },
     { type: "gantry",       x: 7040, y: onRoof(7040), w: 240, snap: "ceil", owner: "hers", state: "dead" },
     { type: "conduitRun",   x: 7060, y: onDeck(7060), w: 460, snap: "floor", owner: "his", state: "live" },
     { type: "medCrates",    x: 7560, y: onDeck(7560), w: 90, h: 216, n: 4, snap: "floor", owner: "hers", state: "dead" },
-    { type: "readerHead",   x: 7800, y: onDeck(7800), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
-    { type: "pumpSet",      x: 7980, y: onDeck(7980), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
-    { type: "stretcherBay", x: 8180, y: onDeck(8180), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 7430, y: onDeck(7430), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "pumpSet",      x: 7180, y: onDeck(7180), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
+    { type: "stretcherBay", x: 7500, y: onDeck(7500), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
     { type: "conduitRun",   x: 8340, y: 1900, w: 300, snap: "floor", owner: "his", state: "live" }
   ],
   /* ---- P·slice: one rack, its feed, and THE WELL ---------------------------
@@ -1358,9 +1381,37 @@ function surfaceAcross(o, spans, ceil) {
   return best;
 }
 
+/* The SLOPE of the deck an object stands on, measured over a baseline wide
+   enough not to be reading noise. Taking it from the object's own two ends was
+   the first attempt and it was badly wrong for small furniture: a 90px crate
+   stack across a deck carrying ±20px of value noise reports up to 24° of slope
+   on ground that is running at 7°, so the whole set stood about drunkenly. So:
+   a minimum baseline regardless of the object's size, several samples, and the
+   ends AVERAGED — which is a two-tap low-pass, and enough. */
+const ORN_TILT_BASE = 200;      // px, the shortest baseline worth trusting
+function deckTilt(o, spans) {
+  const half = Math.max(ORN_TILT_BASE, o.foot[1] - o.foot[0]) / 2;
+  const cx = o.x + (o.foot[0] + o.foot[1]) / 2;
+  const at = dx => { const sp = spanAt(cx + dx, o.y, spans); return sp ? sp.bot : null; };
+  const l1 = at(-half), l2 = at(-half * 0.7), r1 = at(half), r2 = at(half * 0.7);
+  if (l1 == null || l2 == null || r1 == null || r2 == null) return 0;
+  const run = half * 1.7;       // between the two averaged shoulders
+  return clamp(Math.atan2(((r1 + r2) - (l1 + l2)) / 2, run), -ORN_TILT_MAX, ORN_TILT_MAX);
+}
+
 function snapToSurface(list, spans) {
   return (list || []).map(o => {
     if (!o.snap) return Object.assign({}, o);
+    /* A rigid object that TILTS: it takes the slope across its own footprint and
+       sits on the middle of it, which is what something with a flat base
+       actually does on a ramp. Reserved for furniture — a rack, a breaker or a
+       fuel can is small, upright by construction, and keeps the deepest-floor
+       rule that stops it floating. */
+    if (o.tilt && o.snap === "floor" && o.foot) {
+      const c = spanAt(o.x + (o.foot[0] + o.foot[1]) / 2, o.y, spans);
+      if (c) return Object.assign({}, o,
+        { y: c.bot - (o.h || 0) - 2, tiltA: deckTilt(o, spans) });
+    }
     // the INTERPOLATED surface, i.e. the one collision and groundAt see — not
     // the nearest sampled column, which is a fraction of a slope away from it
     const sp = surfaceAcross(o, spans, o.snap === "ceil");
@@ -1552,7 +1603,10 @@ function genChamber(ch) {
        rigid?", not "how wide is it". */
     plantOrnaments: snapToSurface((ch.ornaments || []).map(o =>
       Object.assign({}, o, { foot: o.type === "conduitRun" ? [0, 0]
-        : [0, o.w || (o.scale ? 80 * o.scale : 80)] })), spans),
+        : [0, o.w || (o.scale ? 80 * o.scale : 80)],
+        // a conduit run already lays itself along the terrain, and a gantry
+        // hangs from the roof; everything else stands on the deck and tilts
+        tilt: o.type !== "conduitRun" && o.snap !== "ceil" })), spans),
     /* A light is an ANCHOR, not a rigid box: the fitting is drawn symmetric
        about it, so the footprint rule would sink it below its own surface on a
        slope and hide it. Point snap, and site fixtures off the steep bits. */

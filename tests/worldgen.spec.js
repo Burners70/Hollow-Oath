@@ -1047,9 +1047,32 @@ test("P·floor: every fixture is placed against the profile, never at a typed y"
           if (clear <= 6) rests = true;
         }
       }
-      out.push({ kind, i, gameplay: !!gameplay, ceil,
+      let midDrop = 0, tiltErr = 0, centreClear = true, deckSlope = 0;
+      if (o.tiltA != null) {
+        const cx = o.x + (foot[0] + foot[1]) / 2;
+        midDrop = __doids.ground(cx, o.y) - base;
+        centreClear = !__doids.solidAt(cx, base - 6);
+        /* Measured over a WIDE baseline, deliberately not the object's own
+           footprint: the whole point of the fix is that a short baseline reads
+           the deck's ±20px value noise as slope, so checking against a short
+           one would just re-assert the bug. This is the deck's genuine trend,
+           with a loose tolerance — it is checking that the tilt is the ground's
+           and not an invention, not re-deriving the filter. */
+        /* Narrow enough to stay under the object. At ±150 this window reached
+           onto a neighbouring bench and reported the slope of THAT, disagreeing
+           in sign with a perfectly good placement — a measurement artefact, not
+           a bug in the thing measured. */
+        const H = 90;
+        const want = Math.atan2(__doids.ground(cx + H, o.y)
+          - __doids.ground(cx - H, o.y), H * 2);
+        // clamped at ORN_TILT_MAX, so only compare inside the clamp
+        tiltErr = Math.abs(want) > 0.2 ? 0 : want - o.tiltA;
+        deckSlope = want;
+      }
+      out.push({ kind, i, gameplay: !!gameplay, ceil, tiltA: o.tiltA,
         x: Math.round(o.x), y: Math.round(o.y),
         buried: __doids.solidAt(o.x, o.y),
+        midDrop, tiltErr, centreClear, deckSlope,
         float: Math.round(float), gap: Math.round(gap), rests });
     });
     check("rack", level.racks, true);
@@ -1069,6 +1092,40 @@ test("P·floor: every fixture is placed against the profile, never at a typed y"
        across the floor a rigid object has to be sunk somewhere. What is banned
        is a gap: nowhere under its footprint may the object's base sit clear of
        the ground. And it has to touch somewhere, or it is buried entirely. */
+    if (o.tiltA != null) {
+      /* A tilted object rests on the MIDDLE of its footprint and follows the
+         slope from there, which is what a rigid base does on a ramp — so the
+         end-to-end float/sink test does not describe it. What has to hold is
+         that it meets the ground where it claims to and that the tilt is the
+         ground's own slope, not an invention. */
+      /* Burial is checked at the middle of the footprint, not at the origin: a
+         tilted object is DRAWN rotated about that middle, so its un-rotated
+         top-left corner is meaningless and can legitimately sit under the deck
+         on a rising slope. */
+      expect(o.centreClear, `${o.kind}[${o.i}] at ${o.x},${o.y} is inside rock`).toBe(true);
+      expect(Math.abs(o.midDrop), `${o.kind}[${o.i}] at ${o.x},${o.y} rests on its own middle`)
+        .toBeLessThanOrEqual(6);
+      /* Asserted as SIGN and BOUND, not as a magnitude. The game filters the
+         deck's slope with averaged shoulders over its own baseline; any probe
+         written here uses a different one, so two honest measurements of rough
+         ground disagree by a few degrees and chasing that tolerance measures the
+         filters rather than the placement. Sign-and-bound still catches what
+         matters — a tilt taken at the wrong x, inverted, or not tracking the
+         ground at all — and cannot drift. */
+      expect(Math.abs(o.tiltA), `${o.kind}[${o.i}] at ${o.x},${o.y} tilts past the clamp`)
+        .toBeLessThanOrEqual(0.221);
+      if (Math.abs(o.deckSlope) > 0.05)
+        expect(Math.sign(o.tiltA), `${o.kind}[${o.i}] at ${o.x},${o.y} tilts against its ground`)
+          .toBe(Math.sign(o.deckSlope));
+      /* And furniture is SITED where furniture goes. The tilt clamp keeps a
+         crate from toppling, but a crate on 50° ground is not a placement
+         problem the renderer can solve — nobody stacked supplies on the wall of
+         a sump. Authoring, asserted: the deck's trend under any ornament stays
+         inside the clamp. */
+      expect(Math.abs(o.deckSlope), `${o.kind}[${o.i}] at ${o.x},${o.y} stands on ground too steep for furniture`)
+        .toBeLessThan(0.24);
+      continue;
+    }
     if (o.ceil) {
       // roof fittings are the asymmetric case — they hang from the lowest rock
       // under them and may leave a small gap, because a buried lamp is no lamp

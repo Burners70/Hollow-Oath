@@ -42,6 +42,17 @@ really about.
 a 41-second flicker plus reveal on contact — but until it is built, both hazards
 are out: "too much for level one, but we needed to see how they work."
 
+**Furniture tilts to its ground, and is never black.** "Some of these items are
+too sunken — it looks like accidental, not design", and "I'd avoid using black
+for object fills as it reads as absence/accident too." The same failure twice
+over: the rule that stopped things floating sank them to the deepest ground
+underneath, and a near-black body made the buried part read as a hole rather
+than as a buried object. A rigid box on a slope tilts, so now they do — slope
+measured over a baseline wide enough not to be reading deck noise, bodies in a
+dark steel. Eight pieces sited on 15–64° ground moved onto gentle deck, and
+there is a guard: an ornament's ground must be inside the tilt clamp, because a
+clamp is not a substitute for siting.
+
 **And the whole ornament layer is receded.** "It is lovely but non-interactive
 so it needs to be more muted — it needs to read as (interesting) background,
 rather than foreground. So the eye tells you that you are flying in front of it,

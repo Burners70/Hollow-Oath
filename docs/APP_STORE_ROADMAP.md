@@ -1347,6 +1347,30 @@ done, so the chain now starts at P·slice.
   Everything is drawn with **mass** now — a dark body, a shadowed face, a lit top
   edge — which is the other half of the note ("they are very boring"): a bare
   outline reads as a diagram at any distance, a silhouette reads as an object.
+  **Furniture TILTS to its ground, and is never black** (owner, August 2026:
+  "some of these items are too sunken — it looks like accidental, not design",
+  and "I'd avoid using black for object fills as it reads as absence/accident
+  too"). Both notes were the same failure compounding. The footprint rule that
+  stopped things floating did it by sinking them to the DEEPEST ground under
+  them, which on the ramp to the well head buried a stretcher bay most of its
+  height — and because the body fill was near-black, the buried part read as a
+  hole in the world rather than as a buried object. A rigid box on a slope does
+  neither: it tilts. So a floor ornament takes the deck's slope across its own
+  footprint, rests on the middle of it, and sinks the couple of px that reads as
+  settled; bodies are a dark STEEL (`ORN_BODY`, per owner) so a silhouette still
+  says "thing" rather than "nothing".
+  Two things that cost a round each and are worth knowing before P·content
+  places anything:
+  - **Measure the slope over a baseline, not over the object.** Taken from a
+    90px crate's own two ends, the deck's ±20px value noise reports 24° on
+    ground running at 7°, and the whole set stood about drunkenly. There is a
+    minimum baseline (`ORN_TILT_BASE`), several samples, and the ends averaged.
+  - **A tilt clamp is not a substitute for siting.** Clamped at ~13°, because
+    past that a crate reads as debris — but eight pieces were sited on 15–64°
+    ground (a drip stand on the wall of the sump), and no renderer fixes that.
+    They moved onto gentle deck, and the guard now asserts it: an ornament's
+    ground must be inside the clamp. Nobody stacked supplies on a wall.
+
   **And the whole layer is RECEDED** (owner, same round): "it is lovely but
   non-interactive so it needs to be more muted — it needs to read as
   (interesting) background, rather than foreground. So the eye tells you that you
