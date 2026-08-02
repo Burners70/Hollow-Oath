@@ -35,7 +35,7 @@ truth for what to build next — that's APP_STORE_ROADMAP.md.
 
 | Doc | What it is |
 |-----|------------|
-| [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) | The 19 shipped roadmap bundles (A–N, R, S, U, QA, Y), moved out of the plan with their acceptance notes and code anchors. Grep here for a bundle/item ID the plan no longer mentions. |
+| [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) | The 22 shipped roadmap bundles (A–N, R, S, U, QA, Y, DS, X, Z), moved out of the plan with their acceptance notes and code anchors. Grep here for a bundle/item ID the plan no longer mentions. |
 | [CHANGELOG.md](CHANGELOG.md) | Change history, incl. the DOIDS → Hollow Oath rename log. |
 | [RELEASE_READINESS_REVIEW.md](RELEASE_READINESS_REVIEW.md) | July 2026 QA snapshot, closed — every bug it found is fixed and its recommendations were folded into the roadmap. |
 | [ROADMAP.md](ROADMAP.md) | The v2/v3 build-out log and the design reasoning trail behind shipped features. Superseded as a plan by APP_STORE_ROADMAP.md. |

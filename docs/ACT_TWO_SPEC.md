@@ -1,16 +1,23 @@
 # Act Two — the descent (working title)
 
-*Design spec. Proposed, not built — no game code has changed. Companion to
+*Design spec — the target, not a report of what runs. Companion to
 [GAME_DESIGN.md](GAME_DESIGN.md) (read that first) and
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md), where this replaces Bundle P.
 **Supersedes [PENDULUM_SPEC.md](PENDULUM_SPEC.md)** — see §12 for what survives
 from it — and **absorbs Bundle Q's three new caves** (see §13).*
 
-Last updated: July 2026 · Status: **planned in detail, unbuilt.** The July 2026
-planning round settled terrain (§11.0), the deception tell (§8.1), the ten new
-famous minds (§9.1), persistence (§11.2) and the relay chain (§5.1a); the build
-order lives in APP_STORE_ROADMAP.md Bundle P, phased, with **P·terrain gating
-P·slice and P·slice gating everything after it.**
+Last updated: August 2026 · Status: **partly built.** The July 2026 planning
+round settled terrain (§11.0), the deception tell (§8.1), the ten new famous
+minds (§9.1), persistence (§11.2) and the relay chain (§5.1a). Since then
+**P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — span
+terrain, the tether and its damage model, the trunk cut, the cradle, the
+reserve, the transfusion, THE WELL, and three chambers (THE INTAKE · THE
+WARDS · THE THEATRE) in `js/acttwo-data.js` / `-render.js` / `-update.js`. Still
+unbuilt: P·systems, P·persist, P·scions and chambers four to ten (P·content).
+
+> **This file does not track build state — [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)
+> Bundle P's checkboxes do.** Where a section here describes something that
+> already runs, read it as the specification the code was written against.
 The act has no name yet; the owner's steer is that it should come out of the
 work rather than be chosen up front.
 

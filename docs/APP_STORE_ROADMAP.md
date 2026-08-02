@@ -26,8 +26,11 @@ and the code architecture. [ROADMAP.md](ROADMAP.md) is the *historical* build-ou
   July 2026 split, `index.html` is a thin shell over `css/game.css` and ordered,
   **non-module** `<script src="js/*.js">` tags sharing one global scope (see
   `../CLAUDE.md` for the per-file map). Work inside those existing files; don't
-  add source files, and don't convert to `type="module"` (it changes scoping and
-  can fail over Capacitor's iOS `file://` origin). The native wrapper (Bundle E)
+  add source files *unasked*, and don't convert to `type="module"` (it changes
+  scoping and can fail over Capacitor's iOS `file://` origin). **Act Two is the
+  standing exception** — owner decision, July 2026: Bundle P has its own
+  `js/acttwo-data.js` / `-render.js` / `-update.js`, ordered after `js/world.js`
+  and before `js/update.js` (see CLAUDE.md). The native wrapper (Bundle E)
   lives in its own `app/` directory and *copies* the web files in — the repo
   root remains the source of truth.
 - **Keep the `doids_` localStorage prefix and the `__doids` debug handle.** They are
@@ -119,7 +122,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-data.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
+| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-data.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 

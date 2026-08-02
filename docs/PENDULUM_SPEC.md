@@ -16,7 +16,11 @@
 > the reasoning. **Read this file for the physics; read ACT_TWO_SPEC.md for
 > what to build.**
 
-*Design + implementation spec. Proposed, not built — no code has changed.
+*Design + implementation spec. The tether physics it specifies **has since been
+built** — Act Two's `P·slice` implements §4.1–§4.4 in `js/acttwo-update.js`
+(`updateTow`, `towContact`, `cradleRack`, `partSling`) and `js/acttwo-render.js`
+(`drawSlingLine`, `drawSlingTell`). Read this for the model and the reasoning;
+read the code for what actually runs.
 Companion to [GAME_DESIGN.md](GAME_DESIGN.md) (read that first) and
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (where this slots in as Bundle P).
 Supersedes the old "pendulum carry" proposal in ROADMAP.md § Future ideas —
