@@ -20,8 +20,8 @@ now serves the marketing/support/privacy pages only, from a separate
 `gh-pages` branch.
 
 **Working on the code with Claude?** Start with [CLAUDE.md](CLAUDE.md) — a
-navigation map (section index into `index.html`, doc guide, conventions) that
-keeps sessions from re-reading the whole codebase.
+navigation map (the `js/` file map, doc guide, conventions) that keeps sessions
+from re-reading the whole codebase.
 
 **New developers / writers:** start with [GAME_DESIGN.md](docs/GAME_DESIGN.md) — the full
 game definition, evolved narrative canon (the Static, Glycon), mechanics, secrets,
@@ -53,7 +53,8 @@ haptics, and gyro need an actual phone, i.e. the iOS build via `app/` (see
 - Ferry Scions to the hospital mothership **AMS MERCY** — dock in the dashed bay to
   drop them off, refuel, and heal.
 - Turrets track and shoot you. You can shoot back… but completing a sector without
-  firing a single shot earns the **Hippocratic bonus** (*primum non nocere*, +2000).
+  firing a single shot earns the **Hippocratic bonus** (*primum non nocere*) — and
+  it always pays more than destroying every gun in the sector would have.
 - Your hull health is a live **ECG trace** — the beat races as your vitals fall,
   and it can tell you other things too, if you watch it.
 - **Not every Scion you rescue is what it seems.** Watch how they wave. Listen to
@@ -88,7 +89,7 @@ once first.
 Zero dependencies and **no build step**: static files you can run by opening
 `index.html`. It's a thin shell — `css/game.css` plus ordered, non-module
 `<script src="js/*.js">` tags sharing one global scope (input, audio, platform,
-world, update, render, main). Canvas rendering with glow effects, seeded
+world, the three `acttwo-*` files, update, render, main). Canvas rendering with glow effects, seeded
 procedural terrain, multi-touch virtual buttons with safe-area insets, and a
 tiny Web Audio synth (thrust noise, laser blips, explosions, and a lub-dub
 heartbeat when a Scion comes aboard). `app/` wraps the same files with Capacitor

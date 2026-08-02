@@ -73,9 +73,9 @@ Bundle B, nothing uses a red cross; the medical emblem throughout is the
 - **EVERY HOLLOW HEARD and GENTLE HANDS art is delivered, wiring is not.**
   `every_hollow_heard.svg`/`.png` and `gentle_hands.svg`/`.png` exist now in
   `assets/gamecenter/achievements/` (same house style, `generate.py` regenerates
-  both) — ahead of P·design's own "hold these until the act's chambers exist"
-  guidance, again because there was no reason to wait on art that was already in
-  hand. Neither has an `hollowoath.*` ID, a `GC_ACH` entry in `js/platform.js`,
+  both) — delivered by **P·design** ahead of its own "hold these until the act's
+  chambers exist" guidance, because there was no reason to wait on art that was
+  already in hand. Neither has an `hollowoath.*` ID, a `GC_ACH` entry in `js/platform.js`,
   nor an earn condition yet: both depend on Act Two rescue mechanics that
   P·systems hasn't built. Adding the row to the ID table above and wiring
   `gc.achieve(...)` is **P·ship**'s job once those mechanics exist to define

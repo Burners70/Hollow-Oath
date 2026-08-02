@@ -214,10 +214,13 @@ for i in range(len(pts) - 1):
 for x, y in pts:
     cst.append(f'<circle cx="{x}" cy="{y}" r="9" fill="#fff"/>')
     cst.append(f'<circle cx="{x}" cy="{y}" r="16" fill="none" stroke="{GOLD}" stroke-width="3" opacity="0.6"/>')
-# 1.2 (Bundle P, Act Two) adds a twelfth Scion mind to the codex. It joins as its
-# OWN small satellite cluster off the existing eleven-star chain (a dashed
-# connector, not another link in the chain) so the constellation still reads at
-# a glance once Act Two's ten more push the total to 22 — "stay legible", not
+# The twelfth Scion mind. The ART was delivered by Bundle P's P·design, but the
+# twelfth MIND is Mary Seacole and she arrives with roadmap V1 in 1.0.1 — the
+# achievement threshold is derived from FAMOUS.length, so it moves on its own and
+# needs no code change. Act Two's ten more follow in 1.1.
+# It joins as its OWN small satellite cluster off the existing eleven-star chain
+# (a dashed connector, not another link in the chain) so the constellation still
+# reads at a glance once those ten push the total to 22 — "stay legible", not
 # "grow the chain forever".
 sat = '''
 <g filter="url(#glow)" opacity="0.85">
@@ -247,7 +250,7 @@ body = f'''
 shell("the_full_codex", 9, GOLD, body)
 
 # ------------------------------------------------------- 10. EVERY HOLLOW HEARD
-# 1.2 (Bundle P, Act Two). The racks are life-support machines a player reads
+# 1.1 (Bundle P, Act Two). The racks are life-support machines a player reads
 # by ear as much as by eye (docs/ACT_TWO_SPEC.md §7.5) — an ECG line either side
 # of the rod says "heard", not just "seen". Signature cyan (the default accent),
 # not a semantic PAL() colour: this is brand art, not in-HUD state.
@@ -265,7 +268,7 @@ body = f'''
 shell("every_hollow_heard", 10, CYAN, body)
 
 # ------------------------------------------------------------- 11. GENTLE HANDS
-# 1.2 (Bundle P, Act Two). Safe mint (PAL().SAFE's hue in this design system,
+# 1.1 (Bundle P, Act Two). Safe mint (PAL().SAFE's hue in this design system,
 # reused here as brand art) — two cradling arcs around the rod, rescue without
 # harm. No cross anywhere; the medical mark stays the single-serpent rod.
 def cradling_hand(tx, ty, rot, mirror):

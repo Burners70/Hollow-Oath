@@ -1,12 +1,28 @@
 # Design brief — Act Two (update 1.1)
 
-*A hand-out brief for a designer with no repo access. Everything needed to start
-is in this file; the underlying design decisions live in
+*Written as a hand-out for a designer with no repo access. Everything needed to
+start is in this file; the underlying design decisions live in
 [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) and the build order in
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) Bundle P, but you shouldn't need
 either to do the work below.*
 
-Last updated: July 2026 · Status: **open brief, nothing delivered yet.**
+Last updated: August 2026 · Status: **delivered — this brief was answered.**
+
+> **It was never sent to an outside designer.** Claude did the design pass
+> against this document and Claude Code implemented the result (commit
+> `5ba57c7`; roadmap **P·design**, now checked off). §4's four rack states, §5's
+> conduit tell, §6's ornamentation, sling and well, and all three of §7's image
+> files are built and in the repo.
+>
+> **So read this as the specification the Act Two visuals were built to, not as
+> an open ask.** It stays in `docs/` because it is still the clearest single
+> account of *why* the rack looks and beats the way it does, and because it is
+> the right starting point if any of it is ever re-briefed — to an outside
+> designer or to another session. Two things in it are genuinely still open, and
+> neither is design work: the two new achievement badges have art but no earn
+> conditions (that is **P·ship**, once P·systems defines "heard" and "gentle"),
+> and §5's plant-chamber terrain treatment was explicitly provisional and has
+> since been replaced by P·terrain's span terrain.
 
 ---
 

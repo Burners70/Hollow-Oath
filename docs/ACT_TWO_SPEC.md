@@ -1,16 +1,25 @@
 # Act Two — the descent (working title)
 
-*Design spec. Proposed, not built — no game code has changed. Companion to
+*Design spec — the target, not a report of what runs. Companion to
 [GAME_DESIGN.md](GAME_DESIGN.md) (read that first) and
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md), where this replaces Bundle P.
 **Supersedes [PENDULUM_SPEC.md](PENDULUM_SPEC.md)** — see §12 for what survives
 from it — and **absorbs Bundle Q's three new caves** (see §13).*
 
-Last updated: July 2026 · Status: **planned in detail, unbuilt.** The July 2026
-planning round settled terrain (§11.0), the deception tell (§8.1), the ten new
-famous minds (§9.1), persistence (§11.2) and the relay chain (§5.1a); the build
-order lives in APP_STORE_ROADMAP.md Bundle P, phased, with **P·terrain gating
-P·slice and P·slice gating everything after it.**
+Last updated: August 2026 · Status: **partly built.** The July 2026 planning
+round settled terrain (§11.0), the deception tell (§8.1), the ten new famous
+minds (§9.1), persistence (§11.2) and the relay chain (§5.1a). Since then
+**P·design, P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** —
+the visual language (the rack's four states, the conduit tell, the sling, the
+well, the achievement art), span terrain, the tether and its damage model, the
+trunk cut, the cradle, the reserve, the transfusion, and three chambers
+(THE INTAKE · THE WARDS · THE THEATRE) in `js/acttwo-data.js` / `-chambers.js` /
+`-render.js` / `-update.js`. Still unbuilt: P·systems, P·persist, P·scions and
+chambers four to ten (P·content).
+
+> **This file does not track build state — [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md)
+> Bundle P's checkboxes do.** Where a section here describes something that
+> already runs, read it as the specification the code was written against.
 The act has no name yet; the owner's steer is that it should come out of the
 work rather than be chosen up front.
 
@@ -773,7 +782,8 @@ with none is a pillar. The primitives are in `js/world.js` under the "columns of
 spans" banner — `spanAt`, `pickSpan`, `matchSpan`, `solidAt`, `levelH` — and
 `groundAt`/`roofAt` gained the optional `y` argument this section anticipated as
 "a span argument". The room/span grammar and its compiler are in
-`js/acttwo-data.js` (`compileChamber`, and `SLICE_CHAMBER` as the worked
+`js/acttwo-data.js` (`compileChamber`; `SLICE_CHAMBER`, in
+`js/acttwo-chambers.js`, is the worked
 example); drawing is `drawChamberTerrain` in `js/acttwo-render.js`. The M1
 checksum is unchanged at `1090254029`, so the table above held: collision stayed
 an O(1) column lookup, `STEP` and the tile cache both survived, and the
@@ -844,7 +854,7 @@ arriving somewhere rather than being where you started.
 campaign's exactly-one rule (GAME_DESIGN §3) because Act Two's elements are
 smaller than a sector's. The ten-row ladder as built — what each chamber
 introduces, and why size is monotonic — is the comment block above
-`BREACH_CHAMBER` in `js/acttwo-data.js`, beside the chambers it governs rather
+`BREACH_CHAMBER` in `js/acttwo-chambers.js`, beside the chambers it governs rather
 than in a doc that would drift from them. See APP_STORE_ROADMAP.md, Bundle P ·
 P·ramp.
 

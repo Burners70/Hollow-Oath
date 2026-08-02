@@ -230,5 +230,5 @@ prefix deliberately. Full detail: [CHANGELOG.md](CHANGELOG.md); driving brief:
   bay (right, contain saboteurs, resolve breaches).
 - Darkness overlay: offscreen canvas punched with radial lights
   (`drawDarkness`); lamp radius via `lampRadius()`.
-- `window.__doids` (bottom of `js/render.js`) exposes state + `go(n)`/`launch()`
+- `window.__doids` (`js/debug.js`) exposes state + `go(n)`/`launch()`
   for headless testing — the smoke suite in `tests/` drives it.

@@ -17,7 +17,7 @@ shouldn't be in the folder.
 | [COPY_DECK.md](COPY_DECK.md) | Editing any user-facing text/wording. Any PR that changes a player-facing string updates this deck too. |
 | [DESIGN_SYSTEM_STARTER.md](DESIGN_SYSTEM_STARTER.md) | Adding UI/HUD: the colour, type, spacing and glow tokens as actually shipped in `css/game.css` / `js/render.js`. |
 | [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md) | **The 1.1 plan.** Act Two — the ten-level underground rescue campaign beneath SOLACE, where the pendulum debuts. Supersedes PENDULUM_SPEC.md and absorbs Bundle Q's caves. Read this for *what to build*. |
-| [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md) | **Briefing a designer on Act Two.** A self-contained hand-out for someone with no repo access: what we need (the rack's four states first), the non-negotiables (token layer, colourblind swap, reduced flash, no red cross, perf), and the two genuine image files. Explains up front that the game has no sprites — the deliverable is specified direction, not art. |
+| [DESIGN_BRIEF_ACT_TWO.md](DESIGN_BRIEF_ACT_TWO.md) | **The spec Act Two's visuals were built to** (roadmap `P·design`, landed — Claude designed against it, Claude Code implemented it; it was never sent to an outside designer). The rack's four states, the non-negotiables (token layer, colourblind swap, reduced flash, no red cross, perf), and the three image files, all delivered. Read it for *why* the rack reads as it does, or before re-briefing any of it. Explains up front that the game has no sprites — the deliverable is specified direction, not art. |
 | [PENDULUM_SPEC.md](PENDULUM_SPEC.md) | **Superseded as a plan; still the physics reference.** The tether model, damage model and tow conventions, which carry over into Act Two unchanged. Read this for *how the sling works*. |
 | [HOLLOWS_EXPANSION_SPEC.md](HOLLOWS_EXPANSION_SPEC.md) | Bundle Q. Its three new caves are absorbed into Act Two; what survives is the core (Laennec/AUSCULTATION, now an Act Two upgrade, and the ROTATION CHART as a 1.0.1 utility). |
 | [GAMECENTER_ACHIEVEMENTS.md](GAMECENTER_ACHIEVEMENTS.md) | Touching ranks / Game Center achievements. |
@@ -35,7 +35,7 @@ truth for what to build next — that's APP_STORE_ROADMAP.md.
 
 | Doc | What it is |
 |-----|------------|
-| [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) | The 19 shipped roadmap bundles (A–N, R, S, U, QA, Y), moved out of the plan with their acceptance notes and code anchors. Grep here for a bundle/item ID the plan no longer mentions. |
+| [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) | The 22 shipped roadmap bundles (A–N, R, S, U, QA, Y, DS, X, Z), moved out of the plan with their acceptance notes and code anchors. Grep here for a bundle/item ID the plan no longer mentions. |
 | [CHANGELOG.md](CHANGELOG.md) | Change history, incl. the DOIDS → Hollow Oath rename log. |
 | [RELEASE_READINESS_REVIEW.md](RELEASE_READINESS_REVIEW.md) | July 2026 QA snapshot, closed — every bug it found is fixed and its recommendations were folded into the roadmap. |
 | [ROADMAP.md](ROADMAP.md) | The v2/v3 build-out log and the design reasoning trail behind shipped features. Superseded as a plan by APP_STORE_ROADMAP.md. |

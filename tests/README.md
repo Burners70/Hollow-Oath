@@ -2,7 +2,7 @@
 
 Headless Playwright smoke suite. It loads `../index.html` over `file://` (no web
 server, no build) and drives the game through the `window.__doids` debug handle
-exposed at the bottom of `js/render.js`.
+in `js/debug.js`.
 
 ```
 npm ci && npm test          # or: npx playwright test
@@ -17,7 +17,7 @@ npx playwright test -g "V12" # one test, by title
 
 ## Which file holds what
 
-178 tests, split by concern so an edit loads one small file instead of the whole
+186 tests, split by concern so an edit loads one small file instead of the whole
 suite. `harness.js` holds the shared per-test guard — navigate to the game, wait
 for `__doids`, and fail the test on any console error or uncaught exception.
 

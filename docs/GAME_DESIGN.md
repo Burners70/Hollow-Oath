@@ -310,7 +310,7 @@ rank (§2.5), distinct from breaking it in combat.
 | Counterfeit MERCY docked (the trap) | −200 (and fuel drain) |
 | Field refuel (transfusion line) | **−4 per unit delivered** (U2; each fill caps at `maxFuel × 0.9^refuels`, floored at 35; charge floors the tally at 0) |
 | Transfusion line snapped (drifted past the limit) | −50 (remainder lost) |
-| Sector clear | +1000 (+ Hippocratic if no shots fired: **500 + 1.25 × the sector's gun value**, so ~1,125 early and ~3,700 on the most heavily armed — V·pacifism, 1.01. It was a flat +2000, which the late sectors' guns outscored) |
+| Sector clear | +1000 (+ Hippocratic if no shots fired: **500 + 1.25 × the sector's gun value**, so ~1,125 early and ~3,700 on the most heavily armed — V·pacifism, 1.0. It was a flat +2000, which the late sectors' guns outscored) |
 | Scion lost | −250 (famous −500); crash with passengers −250 each |
 | Endings | fire +3000 · answered +6000 (+2000 no-fire run) |
 
@@ -398,7 +398,7 @@ last).
    2026 and its scaffolding is dormant in `js/input.js`; don't resurface it
    without an owner reversal.)
 
-**Debug/test handle**: `window.__doids` exposes state plus `go(n)` (jump to
+**Debug/test handle**: `window.__doids` (`js/debug.js`, loaded after render) exposes state plus `go(n)` (jump to
 sector), `launch()`, `warpLift()`, `warpShrine()`, `give(upgrade)`,
 `reset()`. All headless tests drive this. `get()` now also reports
 `firedAtSecret` / `firedAtCombat` (the flags behind the HOLLOW KEEPER rank).

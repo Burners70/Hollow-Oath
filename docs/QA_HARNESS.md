@@ -4,7 +4,7 @@
 (or any browser) without needing a Mac, Safari Web Inspector, or typed console
 commands. It never touches game code — it loads whatever build's `index.html`
 you point it at in an `<iframe>` and drives that build's existing
-`window.__doids` debug handle (see `js/render.js`, bottom) from a tap menu.
+`window.__doids` debug handle (`js/debug.js`) from a tap menu.
 
 ## Why it exists
 

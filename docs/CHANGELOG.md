@@ -5,7 +5,8 @@ below ships in the **1.0 launch build** — 1.0 has not yet gone out to users, s
 there are no post-release versions to separate yet.
 
 **Convention going forward:** once 1.0 is live, start each new entry with a
-`**Release:** 1.01` (or 1.1, 1.2) line, so a reader can tell what an existing
+`**Release:** 1.0.1` (or 1.1) line — **never `1.01`**, which the App Store parses
+as 1.1 (APP_STORE_ROADMAP.md § Versioning) — so a reader can tell what an existing
 player already has from what's queued in the next update. Entries stay in this
 file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and

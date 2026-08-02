@@ -164,7 +164,7 @@ so it never shows again (a RESET PROGRESS in Settings brings it back).
 > footnote `you can reopen HOW TO FLY any time from HELP`
 
 **YES** launches straight in (the veteran path — story intro then Level 1).
-**NO** routes into the X2 trainee sector below (1.01 — before X2 shipped, "No"
+**NO** routes into the X2 trainee sector below (1.0 — before X2 shipped, "No"
 opened the HOW TO FLY guide above instead; the guide is still reachable any
 time from HELP).
 
@@ -477,7 +477,13 @@ shield to catalogue it, no shot)
 ## 11. Sector clear, endings, epilogue, ranks
 
 - **Sector clear** (`drawClear`): `<SECTOR> CLEAR` · optional
-  `PRIMUM NON NOCERE — Hippocratic bonus +2000` · optional `EVERY TRIP COUNTED
+  `PRIMUM NON NOCERE — Hippocratic bonus +<award>` — the number is **derived,
+  not fixed**: `noFireAward(level)` = 500 + 1.25 × the sector's gun value, so
+  it reads ~+1125 on the early sectors and ~+3700 on the most heavily armed.
+  It said a flat `+2000` until August 2026, which had been wrong since
+  V·pacifism replaced the flat award; the one screen that tells a player
+  restraint paid was under-reporting it by ~1,700 exactly where the pacifist
+  run is hardest. · optional `EVERY TRIP COUNTED
   — efficiency bonus +1000` (owner feature: every rescued Scion delivered in
   the minimum possible number of MERCY-bay trips for the sector's Scion count)
   · `⏱ STOPWATCH BEAT +500` · `saved <n>/<n> · ✝ lost <n>` · `(a signal source
@@ -586,7 +592,7 @@ was an assistant's assumption, not an owner decision: **failures do cost
 points** down here, and every impact on a rack is charged per impact. See
 APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
 
-### Chamber intro cards (`brief` on each chamber, `js/acttwo-data.js`)
+### Chamber intro cards (`brief` on each chamber, `js/acttwo-chambers.js`)
 
 **Owner decision, August 2026, and it is load-bearing rather than flavour:**
 *"intro cards for these levels should help players interpret what they are

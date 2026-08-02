@@ -208,7 +208,7 @@ Nightingale) overwhelming an older GPU at 2× DPR. If that were dropping an A12
 to ~20 fps in a dark sector, a tester would have reported the game feeling
 sluggish or juddery rather than "no errors". Combined with the instrumented
 59–60 fps pass on the 16 Pro, that's enough for 1.0 — a perf regression on old
-hardware would be a 1.01 fix, not a review rejection. Buying an A12 to close
+hardware would be a 1.0.1 fix, not a review rejection. Buying an A12 to close
 the cell properly is not worth it.
 
 **Column header note:** the old header said *A11–A13, iOS 16*. The XS Max and

@@ -1310,6 +1310,35 @@ test("V·pacifism: the invariant survives the modifiers that used to break it", 
   expect(r.empty).toBeGreaterThan(0);             // an unarmed sector still pays
 });
 
+/* V·pacifism, the half that was missed: the award became derived, but the ONE
+   screen that tells a player restraint paid went on printing the old flat
+   "+2000" — so on the most heavily armed sectors it under-reported by ~1,700,
+   and on the early ones it over-promised. Assert against noFireAward rather
+   than a number, for the same reason as the tests above. */
+test("V·pacifism: the clear screen prints the award actually paid", async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    // the most heavily armed sector, where the flat constant was furthest out
+    __doids.go(6); __doids.launch();
+    level.firedShots = 0;
+    const award = __doids.noFireAward(), guns = __doids.gunValue();
+
+    // drive the real screen, then read what it actually put on the canvas
+    const drawn = [];
+    const real = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (t, ...a) {
+      drawn.push(String(t)); return real.call(this, t, ...a);
+    };
+    clearCards.length = 0; state = "clear"; stateT = 0;
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    CanvasRenderingContext2D.prototype.fillText = real;
+    return { award, guns, lines: drawn.join("\n") };
+  });
+  expect(r.guns).toBeGreaterThan(1000);                    // genuinely armed
+  expect(r.lines).toContain("Hippocratic bonus +" + r.award);
+  expect(r.award).not.toBe(2000);                          // and it is not the old constant
+  expect(r.lines).not.toContain("Hippocratic bonus +2000");
+});
+
 /* ===========================================================================
    P·content — THE LADDER, and the guards that now run over EVERY chamber
    ---------------------------------------------------------------------------
