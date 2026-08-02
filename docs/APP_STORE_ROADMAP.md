@@ -1004,9 +1004,42 @@ done, so the chain now starts at P·slice.
   **§8.1's tell has had its first pass** in P·feedback — settling dust, which
   reads both hazards off `solidAt` — so what remains here are the grit and
   lamp-shadow channels layered on that, not the tell from scratch.
-  **Check the false floor's own silhouette before adding a channel** (found
-  while flying P·floor, and present on `main` too, so it is old): the end faces
-  of a drawn-only ledge render as full-height vertical walls up to the ceiling.
+  **THE TELL IS DECIDED (owner, August 2026), and it is one rule for both
+  hazards.** *"If it's a fake wall, it should have a 41 second flicker, should
+  disappear on contact (with bullet, ship or shield — or the rack). This may
+  answer our invisible wall issue too — it is exactly the reverse: flicking into
+  view every 41 seconds, becoming visible on impact."*
+  So a deception is **honest on the beat and honest once touched**:
+  - **Every 41 seconds it shows the truth briefly** — the painted rock flicks
+    into view, the false floor flicks out of it — on the Static's own clock, the
+    one the whole act already runs on. A player who watches a room for one beat
+    before committing can read it; a player who charges through cannot. That is
+    the difference between a hazard and a trap, and it costs the act nothing to
+    add because the clock is already there.
+  - **Contact reveals it permanently** — ship, shield, bullet or the rack. So
+    the first time it catches you is the only time, which is what stops a
+    deception being a memory test across retries.
+  Implementation notes for whoever builds it: both views are already compiled
+  (`spans` / `spansDrawn`, from parts that declare a `view`), so the mechanism is
+  a per-part reveal flag, a recompile of the DRAWN view when the flag or the
+  flicker changes, and `invalidateTiles()`. A part with a `view` belongs in the
+  drawn view iff `(p.view === "drawn") !== revealed`. The beat is `staticBeat`
+  (js/update.js), already exposed as an exact per-frame flag rather than inferred
+  from the clock. Contact hooks: `shipSolidCollide`, the projectile test, the
+  shield, and `towContact`.
+  **This unblocks §8's painted rock returning to authored content**, which is
+  currently held out of chamber one for want of exactly this.
+
+  **§8's PAINTED ROCK IS NOW GATED ON THIS ITEM.** Owner, August 2026: "we need
+  to give some sort of clue to the invisible walls so they aren't unfair… we
+  wouldn't want any on this first level anyway." Chamber one's was removed, so
+  the deception layer is currently one-sided — a false floor and no invisible
+  wall. The tell is what unblocks putting them back, which makes this item
+  content-gating rather than polish.
+  **The false floor's silhouette bug is fixed** (it was the same
+  `matchSpan` fault as the missing wall outlines — see P·floor's second round):
+  the end faces of a drawn-only ledge used to render as full-height vertical
+  walls up to the ceiling.
   That is a louder tell than the dust and it is the wrong kind — it gives the
   hazard away by drawing something that is not there, rather than by the world
   failing to respond to you. Worth settling what a projected ledge's edge should
@@ -1139,8 +1172,249 @@ done, so the chain now starts at P·slice.
   the same artefact is on `main` at the old chamber's false floor — and the
   deception tells are P·systems' item, so guessing at the intended look here
   would be the same overreach this bundle keeps recording.
+  **THE SECOND ON-DEVICE ROUND (owner, August 2026), and it found more than the
+  first.** Played on a phone through the QA harness, on the re-authored floor.
+  Thirteen notes; the two that mattered most were both cases of the chamber
+  being *provably* fine and *actually* unflyable.
+  - **"I couldn't get any further west. Everything seemed solid."** It was
+    solid, at the altitude they were flying. The gallery mezzanine ended at
+    exactly the x where the neck's roof was descending to meet it, so the upper
+    corridor tapered into a wedge and closed; the way on was a blind 400px dive
+    underneath. Every guard passed, because the corridor overlapped the space
+    beyond it by 113px — comfortably more than the 105.2 a hanging load needs.
+    **Traversable and findable are different properties and only one had a
+    test.** The neck is re-cut as a floor hump instead of a roof plunge (same
+    360px band, same tempo beat, roof now continuous), and there is a new guard:
+    outside a declared pinch, no transition between adjacent columns may be
+    tighter than 1.4× the at-rest tow envelope. Derived, so it moves with the
+    sling; above the 113 that failed, below the 172 of the tightest legitimate
+    feature in the chamber.
+  - **"There's a dodgy thing going on with the outline. Missing for part of the
+    wall."** Correct, and it is a shipped bug rather than an authoring slip:
+    `matchSpan` never returns null for a non-empty column (it falls back to
+    nearest-midpoint, which is what stitches a sloping floor), so where a column
+    holds two spans and its neighbour holds one, BOTH answer with that one. The
+    rock between them is then drawn — and collided — as if it tapered into
+    nothing. `matchSpanMutual` requires the match to be mutual, so the losing
+    span terminates in a face. Used by `spanAt` and the tile builder from the
+    same call, deliberately: the rock you see and the rock you hit have to end
+    in the same place. It also fixes the full-height verticals at a drawn-only
+    ledge, which were the same bug from the other side.
+  - **Impacts kill the hull again** (`hullImpact`), reversing July's cap. Not a
+    change of mind: the July objection was to dying with no way to read it
+    coming, and this arrives paired with the two calls that remove the
+    unreadable half. **The rack is explicitly not covered** — `towContact` is
+    untouched, so clipping a wall kills you and not the people in the box. **Landing
+    on a rack's lid is an ordinary landing**, and getting there took two passes.
+    It ran through `hullImpact` at a 46px/s threshold with no slope, drift or
+    attitude term — stricter than Act One's own 52px/s free band, and judging an
+    approach by descent speed alone — so a routine set-down was already billed
+    as a hard landing, and killing made that lethal on the most-repeated act in
+    the loop. The first fix charged Act One's hard-landing cost; the owner
+    rejected that too ("not sure why there is an issue landing on the rack as it
+    is flat — should just be a normal (not hard) landing"), and was right. It is
+    `landingEval(true)` now: Act One's rule with the terrain slope overridden,
+    because a lid is level by construction.
+  - **§8's painted rock is out of chamber one** — "we wouldn't want any on this
+    first level anyway", pending a tell. There was a 440px undrawn wall on the
+    only route west. The helper stays in the vocabulary and the capability keeps
+    its test against a purpose-built chamber, so re-adding one is a decision
+    rather than a slip. See P·systems for the tell, which is now gating content.
+  - **The well is a well.** Its cable was a 1.5px hairline exactly 220px long
+    starting in mid-air, and the shaft was a pocket with the hall's rock roof
+    over it — so the bay hung from a scratch under a lid MERCY could not
+    possibly have lowered it through. The shaft opens to the top of the world
+    and the cable is drawn thick, running up out of frame. **Flying up it does
+    not kill you** — the first pass left the mouth as a lethal ceiling and the
+    owner rejected it ("maybe just a card with 'are you sure you want to leave?
+    (This will end your game)'"). A shaft declares `exit: true`, `genChamber`
+    collects `level.skyExits`, and reaching the world's top bound over one asks
+    through Act One's own triage confirm overlay. Declining shoves the hull back
+    down so it cannot re-ask every frame. Note the hook is at **BOUND_Y**, not
+    the rock ceiling: the world bound clamps the ship before it can ever touch a
+    roof above it, so the ceiling branch could never have fired. Confirming ends
+    the run the way running out of lives does; P·persist owns making it a real
+    abandonment, with provenance and a score.
+  - **Fixtures sink instead of floating.** "Items on the landscape need to be
+    integrated better, so they either sit on or are sunken into the ground, not
+    partially floating." `snapToSurface` was a point sample — fine on a flat
+    deck, wrong the moment P·floor gave it a slope. It samples the whole
+    footprint now and takes the deepest floor, so an object rests at its lowest
+    point and buries into everything higher. Ceilings deliberately do NOT mirror
+    it (a buried lamp is no lamp), and a rigid roof fitting must not straddle a
+    roof step *or a corner fillet* — a `bore`'s 110px radius bows the roof down
+    invisibly, which cost three placements before it was written down.
+  - **Lamps are bigger and there are far more of them**, and more furniture:
+    three new ornament kinds (`pipeBank`, `crateStack`, `gantry` — the first
+    ceiling furniture the set has had) taking the chamber from 13 pieces to 27,
+    and from 17 fixtures to 32. Free, because both draw loops are culled to the
+    view now; they were per-chamber before, so a denser chamber cost frames
+    everywhere in it.
+  - **An entry banner was added and then dropped** ("Don't need that message").
+    It named the floor and gave the direction; the confusion it was written for
+    was the mezzanine dead end and the unstroked faces, both fixed in the same
+    round, so it was captioning a question the room no longer asks.
+  - **Parked at the owner's steer:** the real-versus-decoy readability question
+    ("don't overreact to the real/false rack tells — let that sit until I've
+    played a bit more"). Recorded because it is real — the decoy's riser is the
+    most legible feed line in the chamber and the true one is buried — but not
+    acted on.
+  Suite 169 → 177.
+
+  **A THIRD ON-DEVICE ROUND (owner, August 2026) — and "everything seemed solid"
+  was never the level.** The owner got stuck going west twice more, past the
+  fixes above. Chasing it properly, by flying the hull west at a range of
+  altitudes and recording where it stopped, turned up **three collision and
+  geometry bugs**, all of them older than P·floor and all of them newly lethal
+  because impacts kill again.
+  1. **`spanAt` interpolated toward the wrong neighbour span.** It picked with
+     `matchSpan` — biggest overlap wins — which is the wrong question wherever
+     the span count changes, i.e. at the end of every shelf and overhang. West
+     of the gallery mezzanine one column holds `[605..1208]` and the next holds
+     `[584..802]` and `[920..1258]`; the single span pairs with the LOWER
+     neighbour (288px of overlap beats 197), so a hull flying the upper corridor
+     at y 741 — open air in both columns — was handed `[762..1233]`, reported as
+     buried, and killed against nothing at all. It interpolates toward *the span
+     the queried y is in* now. **This was the blocker, and it was invisible to
+     every guard**, because the flood fill asks about span overlap and never
+     about what `solidAt` says between two columns. There is now a test that
+     does: if a height is open in two adjacent columns, it is open between them.
+  2. **Wall damage billed speed, not the closing component.** The buried branch
+     charged `hypot(vx, vy)` and the lateral branch charged `vx`, so skimming a
+     17° roof at cruise was priced as a head-on impact — fatal. Both take the
+     real surface normal now: the burial path from the direction the correction
+     pushes the hull, the lateral path from `solidNormal`, which reads the
+     face's orientation off the solid field on an eight-point ring. Flying ALONG
+     a slope costs nothing; flying INTO a wall still costs everything. This is
+     the same discipline `towContact` has always used on the payload.
+  3. **`cornerInset` rounded the wrong way.** `r − √(r²−d²)` measured from the
+     end is 0 at the corner and grows to r just inside it, then drops back to 0 —
+     so a filleted room was full height at its very edge, pinched `radius` px in,
+     and jumped out again by the whole radius. A `bore`'s 110px radius put a
+     110px STEP in the roof 110px inside each end. It measures from the corner
+     inward now, and `d` is clamped at zero because `compileChamber` samples from
+     `floor(x/STEP)`, so a part's first column sits fractionally outside it and
+     was being handed the un-filleted height.
+  With the fillet working, `column()` gives its bay one by default, sized so the
+  ease finishes exactly where the column starts — full headroom over the capital,
+  and no one-column roof step to fly into. That closes the general form of the
+  problem for P·content: **a rectangle unioned into the hall has vertical ends,
+  and a vertical end in the ROOF is one you cannot see coming.**
+  Also fixed: crate stacks drew upward from an origin `snapToSurface` was placing
+  as if they hung below it, so a stack floated its own height clear of the deck
+  ("what is this floating pile meant to be?"). Every ornament draws down-right
+  from a top-left origin now, and `h` is the whole object — one convention.
+  Suite 177 → 178.
+
+  **A FOURTH ROUND (owner, August 2026) — two more, both of them mine.**
+  - **"Landing assist wasn't working… and it seemed much harder than before."**
+    `landingEval` measured the ground's slope with the ONE-argument `groundAt`,
+    which answers with the lowest floor in the column. Correct for Act One and
+    badly wrong on a mezzanine: setting down on a milled, level pad was judged
+    against the hall deck far below it. Measured over the chamber, **23 sample
+    points on flat pads read ≥0.25 slope** — the threshold that refuses a soft
+    landing — while the pad itself read ~0. So a legal landing came back as a
+    hard one, cost 35 vitals, and the auto-level never ran, because the assist
+    only fires once a touchdown has counted. It passes the ship's y now.
+  - **"I don't really understand why that thin wall to the right is flyable."**
+    It was not a wall and never had been — it was the previous round's fix
+    overreaching. Stroking a flank wherever a span had no mutual continuation
+    drew a full-height line at the end of every mezzanine, where the air plainly
+    carries on. What actually ends there is the rock BAND between two spans, so
+    that is what is stroked now: the face of the mass, its own height and no
+    more. The punch quads went back to plain `matchSpan` at the same time, so
+    the drawn air follows collision instead of leaving a rock sliver behind the
+    phantom line. **Net: the outline the owner asked for in round two is still
+    there, and it is now the right object.**
+  Suite 178.
+
+  **THE FURNITURE GETS A FICTION (owner decision, August 2026)**, asked what
+  these objects actually ARE so the design has something to hang off. The answer
+  sets a pattern for all ten chambers: **hers, wrecked — then his, installed over
+  it.** Chamber one is AMS SOLACE's own breached intake, so its furniture is a
+  hospital ship's and almost none of it runs — stretcher bays, oxygen banks, a
+  drip stand, spilled supply crates. What is his is sparse here and all of it
+  working: a reader head, a pump set, cabling stapled across her structure. That
+  ratio inverts as the act descends (§11.1) until the plant chambers are his
+  equipment with her wreckage underneath. **The mix is the story, and it is a
+  tell a player reads without being told whose room they are in.**
+  Second decision in the same breath: **an ornament carries STATE** — dead,
+  failing or live. State drives the accent through `PAL()` so it swaps under
+  colourblind mode with everything else; owner drives the body tone. A `failing`
+  piece stutters on the Static's own 41-second beat, so a failing box and a
+  failing bank of people are visibly on one clock. Dressing that reports
+  something beats dressing that fills space, and it reuses machinery that exists.
+  Everything is drawn with **mass** now — a dark body, a shadowed face, a lit top
+  edge — which is the other half of the note ("they are very boring"): a bare
+  outline reads as a diagram at any distance, a silhouette reads as an object.
+  **Furniture TILTS to its ground, and is never black** (owner, August 2026:
+  "some of these items are too sunken — it looks like accidental, not design",
+  and "I'd avoid using black for object fills as it reads as absence/accident
+  too"). Both notes were the same failure compounding. The footprint rule that
+  stopped things floating did it by sinking them to the DEEPEST ground under
+  them, which on the ramp to the well head buried a stretcher bay most of its
+  height — and because the body fill was near-black, the buried part read as a
+  hole in the world rather than as a buried object. A rigid box on a slope does
+  neither: it tilts. So a floor ornament takes the deck's slope across its own
+  footprint, rests on the middle of it, and sinks the couple of px that reads as
+  settled; bodies are a dark STEEL (`ORN_BODY`, per owner) so a silhouette still
+  says "thing" rather than "nothing".
+  Two things that cost a round each and are worth knowing before P·content
+  places anything:
+  - **Measure the slope over a baseline, not over the object.** Taken from a
+    90px crate's own two ends, the deck's ±20px value noise reports 24° on
+    ground running at 7°, and the whole set stood about drunkenly. There is a
+    minimum baseline (`ORN_TILT_BASE`), several samples, and the ends averaged.
+  - **A tilt clamp is not a substitute for siting.** Clamped at ~13°, because
+    past that a crate reads as debris — but eight pieces were sited on 15–64°
+    ground (a drip stand on the wall of the sump), and no renderer fixes that.
+    They moved onto gentle deck, and the guard now asserts it: an ornament's
+    ground must be inside the clamp. Nobody stacked supplies on a wall.
+
+  **And the whole layer is RECEDED** (owner, same round): "it is lovely but
+  non-interactive so it needs to be more muted — it needs to read as
+  (interesting) background, rather than foreground. So the eye tells you that you
+  are flying in front of it, not through it." One factor, `ORN_BACK`, scales
+  every accent and every glow in the set, so the layer recedes together and the
+  things that ARE interactive — the bank, the isolators, the cans, the well, the
+  emplacement — keep the front of the picture. Hue still carries owner and state;
+  contrast carries depth. It mattered most for `failing`, which is PAL().WARN and
+  therefore the same amber family as a fuel can: a background object glowing in a
+  pickup's colour is precisely the confusion being removed.
+    The set: `stretcherBay`, `oxyBank`, `medCrates`, `dripStand` (hers);
+  `readerHead`, `pumpSet`, `cableLoom` (his); `ventGrate`, `gantry`, `conduitRun`
+  (structure, belonging to neither). The old wireframe set — `rackingFrame`,
+  `pipeBank`, `crateStack`, `junctionTruss` — is gone; the junction cabinet's
+  reasoning trail stays recorded in P·feedback above.
+  *(The "thin line on the ceiling near a lamp" was the `gantry`, drawn as three
+  hairline strokes with no body. It has a deck with mass now.)*
+  **And chamber one now carries NO deception of either kind.** With the tell
+  specified but unbuilt, the owner pulled the false floor as well as the painted
+  rock: "as with the invisible walls, let's remove fake walls from this level
+  anyway, it is too much for level one but we needed to see how they work."
+  `chamberLies` is false for it, so the two views are literally the same array —
+  and the worldgen test asserts *zero* of each rather than being deleted, so
+  putting one back is a visible decision. Suite 178.
+
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
-  before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
+  before them.
+  **EVERY CHAMBER OPENS WITH AN INTRO CARD** (owner, August 2026): *"intro cards
+  for these levels should help players interpret what they are seeing as it
+  won't be obvious. Just a little allusion to the fact we are under Solace's
+  wreck, seeing the remains of her attempts to keep her people alive."*
+  This is now load-bearing rather than flavour, because the same round gave the
+  furniture a fiction it cannot state for itself: chamber one is her breached
+  intake, dressed in a hospital ship's wrecked gear with his equipment starting
+  to appear bolted over it (see the ornament note in P·floor). A player who has
+  not been told that reads a room of dark boxes; a player who has been told it
+  reads her last shift. **One line of framing converts the entire dressing
+  budget into story**, which is the cheapest narrative in the bundle.
+  Reuses Act One's shipped grammar rather than inventing a screen: `BRIEFS`
+  (js/world.js) and `toBriefing`, one entry per chamber alongside its authored
+  geometry, so a chamber is never merged without the line that explains it.
+  Copy goes in COPY_DECK.md in the same PR (R10). Keep it to an allusion — the
+  act's voice is understatement, and *"the remains of her attempts to keep her
+  people alive"* is already the whole idea in one clause. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The
   no-trolley-problem pillar is a generation invariant here exactly as V2's scan
   fairness is on the surface: **every chamber must be clearable with everyone

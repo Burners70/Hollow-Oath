@@ -548,16 +548,37 @@ function buildSpanTile(x0, x1, spans, H, pal) {
       let any = false;
       for (let i = i0; i < i1; i++) {
         const xa = i * STEP, xb = (i + 1) * STEP;
+        const nxt = spans[i + 1] || [], prv = spans[i - 1] || [];
         for (const sp of spans[i]) {
-          const fwd = matchSpan(spans[i + 1], sp), m = fwd || sp;
+          const m = matchSpan(nxt, sp) || sp;
           if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top); any = true; }
           if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot); any = true; }
-          // a flank belongs to the rock pass: a wall is where the mass is cut
+          /* A flank belongs to the rock pass: a wall is where the mass is cut.
+             Only where the AIR ends against solid rock, though — a column with
+             no spans at all. Stroking it wherever a span had no mutual
+             continuation drew a full-height line at the end of every mezzanine,
+             where the air plainly carries on: "I don't really understand why
+             that thin wall to the right is flyable" (owner, August 2026). It was
+             not a wall and never had been. What actually ends there is the rock
+             BAND between two spans, and that is stroked below. */
           if (mat === "rock") {
-            if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); any = true; }
-            if (i > i0 && !matchSpan(spans[i - 1], sp)) {
+            if (!nxt.length) { tctx.moveTo(xb, sp.top); tctx.lineTo(xb, sp.bot); any = true; }
+            if (i > i0 && !prv.length) {
               tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); any = true;
             }
+          }
+        }
+        /* THE END OF A SHELF, drawn as what it is: the face of the rock band
+           between two spans, the height of the mass and no more. This is the
+           outline that was missing when the owner first flew west — and the
+           previous fix drew it as the full height of the air instead, which is
+           how a mezzanine's tip became a wall you could fly through. */
+        if (mat === "rock") {
+          const airAt = (col, y) => col.some(z => y > z.top && y < z.bot);
+          for (let k = 0; k + 1 < spans[i].length; k++) {
+            const bt = spans[i][k].bot, bb = spans[i][k + 1].top, mid = (bt + bb) / 2;
+            if (nxt.length && airAt(nxt, mid)) { tctx.moveTo(xb, bt); tctx.lineTo(xb, bb); any = true; }
+            if (i > i0 && prv.length && airAt(prv, mid)) { tctx.moveTo(xa, bt); tctx.lineTo(xa, bb); any = true; }
           }
         }
       }
@@ -614,36 +635,56 @@ const LIGHT_AMBIENT = 0.10;
    hang from a short stem under a cowl that throws the light down; floor fittings
    are uplighters on a squat base with an angled head. Both silhouettes are
    deliberately NOT a plain horizontal bar — see the note at the call site. */
+/* Owner, August 2026: "the ceiling lamps are nice but too small and
+   infrequent." Both halves are fixed — the count and the radii are in the
+   chamber's own `lights` list, and the FITTING is scaled here so every chamber
+   gets it. `k` defaults to the size the note asked for and a chamber can
+   override per fixture with `fit`, which is what a big bay lamp wants.
+   Drawn with a bracket and a housing rather than as a bigger cowl: at this size
+   a bare trapezoid reads as a shape, and a lamp has to read as hardware. */
 function drawLightFitting(L, tint) {
-  const ceil = L.snap === "ceil";
+  const ceil = L.snap === "ceil", k = L.fit || 1.9;
+  const S = n => n * k;
   ctx.save();
   ctx.strokeStyle = shade(tint, .55); ctx.lineWidth = 2;
   ctx.fillStyle = shade(TOK.VOID, .95);
   if (ceil) {
-    ctx.beginPath(); ctx.moveTo(L.x, L.y - 12); ctx.lineTo(L.x, L.y - 3); ctx.stroke();
+    // the stem, and a bracket across it so it is bolted to something
+    ctx.beginPath(); ctx.moveTo(L.x, L.y - S(13)); ctx.lineTo(L.x, L.y - S(3)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(L.x - S(6), L.y - S(12)); ctx.lineTo(L.x + S(6), L.y - S(12)); ctx.stroke();
     ctx.beginPath();                       // the cowl: wider at the bottom
-    ctx.moveTo(L.x - 7, L.y - 3); ctx.lineTo(L.x + 7, L.y - 3);
-    ctx.lineTo(L.x + 12, L.y + 4); ctx.lineTo(L.x - 12, L.y + 4);
+    ctx.moveTo(L.x - S(7), L.y - S(3)); ctx.lineTo(L.x + S(7), L.y - S(3));
+    ctx.lineTo(L.x + S(12), L.y + S(4)); ctx.lineTo(L.x - S(12), L.y + S(4));
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = shade(tint, .9);       // the lamp behind it
-    ctx.fillRect(L.x - 9, L.y + 3, 18, 3);
+    ctx.fillRect(L.x - S(9), L.y + S(2.5), S(18), S(3.5));
+    // and a soft bloom right at the tube, so the fitting is itself a light
+    drawGlow(L.x, L.y + S(4), S(9), tint, .55);
   } else {
     ctx.beginPath();                       // base
-    ctx.moveTo(L.x - 10, L.y + 5); ctx.lineTo(L.x + 10, L.y + 5);
-    ctx.lineTo(L.x + 6, L.y - 4); ctx.lineTo(L.x - 6, L.y - 4);
+    ctx.moveTo(L.x - S(10), L.y + S(5)); ctx.lineTo(L.x + S(10), L.y + S(5));
+    ctx.lineTo(L.x + S(6), L.y - S(4)); ctx.lineTo(L.x - S(6), L.y - S(4));
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = shade(tint, .9);       // head, aimed up and away
     ctx.beginPath();
-    ctx.moveTo(L.x - 6, L.y - 4); ctx.lineTo(L.x + 6, L.y - 4);
-    ctx.lineTo(L.x + 9, L.y - 11); ctx.lineTo(L.x - 3, L.y - 11);
+    ctx.moveTo(L.x - S(6), L.y - S(4)); ctx.lineTo(L.x + S(6), L.y - S(4));
+    ctx.lineTo(L.x + S(9), L.y - S(11)); ctx.lineTo(L.x - S(3), L.y - S(11));
     ctx.closePath(); ctx.fill();
+    drawGlow(L.x + S(3), L.y - S(9), S(8), tint, .5);
   }
   ctx.restore();
 }
 
-function drawChamberLights(now) {
+/* `cx`/`viewW` are the visible band. Culling to it is what makes "more light
+   sources" (owner, August 2026) free: every fixture used to build a radial
+   gradient and fill up to an 880px square every frame whether or not it was
+   anywhere near the screen, so the cost was per-CHAMBER rather than per-view
+   and tripling the count would have tripled it. Now it is per-view, and a
+   chamber can be lit as densely as it likes. */
+function drawChamberLights(now, cx, viewW) {
   const lights = level.lights;
   if (!lights || !lights.length) return;
+  const vx0 = cx != null ? cx : -Infinity, vx1 = cx != null ? cx + viewW : Infinity;
   const H = level.H || WORLD_H;
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
@@ -654,10 +695,11 @@ function drawChamberLights(now) {
   ctx.fillRect(0, -260, level.W, H + 320);
   for (let i = 0; i < lights.length; i++) {
     const L = lights[i];
+    const r = L.r || 340;
+    if (L.x + r < vx0 || L.x - r > vx1) continue;          // not in frame
     // a slow, shallow breath, out of phase per fixture so the hall never pulses
     // as one object; dead steady when reduced flash is on
     const flick = reducedFlash ? 1 : 0.93 + 0.07 * Math.sin(now * 1.7 + i * 2.1);
-    const r = L.r || 340;
     const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, r);
     const tint = L.warm ? TOK.GOLD_WARM : TOK.CYAN_PALE;
     g.addColorStop(0, shade(tint, .40 * flick));
@@ -720,60 +762,21 @@ function drawMachinedPanelTicks(x0, x1) {
   ctx.restore();
 }
 
-/* ---- §5 ornamentation — decorative first, some becomes solid later; solid/
-   filled forms rather than thin wireframes, which read as unfinished at a
-   glance. World-space furniture dressing a plant chamber. */
-/* Owner feedback: this is the "blue thing that looks like a picnic table", and it
-   was being read as a gun that shoots you — two horizontal rails with an A-frame
-   between them is a trestle in silhouette, and the eye fills in the rest. It has
-   never had any code that can fire; what killed the owner near it was §8's
-   painted rock 200px to its right.
-
-   Redrawn as what it is: a junction cabinet, boxy and solid, with cable stubs
-   leaving it at the bottom. A closed box with conduits entering it cannot be
-   mistaken for something with a barrel. */
-function drawJunctionTruss(x, y, scale, color) {
-  const w = 46 * scale, h = 40 * scale;
-  ctx.save();
-  ctx.fillStyle = TOK.VOID;
-  ctx.strokeStyle = color; ctx.lineWidth = 2.2 * scale;
-  ctx.shadowColor = color; ctx.shadowBlur = 5;
-  ctx.fillRect(x, y - h, w, h);
-  ctx.strokeRect(x, y - h, w, h);
-  ctx.shadowBlur = 0;
-  // a door seam and two latches, so it reads as something openable
-  ctx.strokeStyle = shade(color, .45); ctx.lineWidth = 1.4 * scale;
-  ctx.beginPath();
-  ctx.moveTo(x + w * 0.5, y - h + 3); ctx.lineTo(x + w * 0.5, y - 3);
-  ctx.moveTo(x + w * 0.5 - 5, y - h * 0.62); ctx.lineTo(x + w * 0.5 + 5, y - h * 0.62);
-  ctx.moveTo(x + w * 0.5 - 5, y - h * 0.38); ctx.lineTo(x + w * 0.5 + 5, y - h * 0.38);
-  ctx.stroke();
-  // cable stubs into the deck
-  ctx.strokeStyle = shade(color, .6); ctx.lineWidth = 2 * scale;
-  ctx.beginPath();
-  ctx.moveTo(x + w * 0.22, y); ctx.lineTo(x + w * 0.22, y + 7 * scale);
-  ctx.moveTo(x + w * 0.78, y); ctx.lineTo(x + w * 0.78, y + 7 * scale);
-  ctx.stroke();
-  ctx.restore();
-}
-/* Owner feedback ("some odd artefacts like this line above the dart") — a conduit
-   run FOLLOWS THE FLOOR. It was one straight horizontal line snapped only at its
-   left-hand end, so over a hall with 22px of roughness, a ramp, or the drop into
-   the shaft, the right-hand end hung in mid-air: a perfectly straight line across
-   open space, which is unreadable as anything. Sampled along its length instead,
-   the same fix trunkPath makes for the same reason. */
+/* A service run laid along the deck, with a light travelling its length on the
+   rack's own heartbeat — the one ornament that is genuinely wired into the
+   network rather than dressing beside it. Follows the terrain as it draws, so
+   it needs no footprint snapping (see the note in genChamber). */
 function drawConduitRunOrnament(x, y, w, now) {
   const at = px => {
     if (!level.spans) return y;
-    const col = level.spans[clamp(Math.round(px / STEP), 0, level.spans.length - 1)] || [];
-    const sp = pickSpan(col, y);
+    const sp = spanAt(px, y);        // the interpolated deck, as collision sees it
     return sp ? sp.bot - 4 : y;
   };
   const step = 48, pts = [];
   for (let px = x; px < x + w; px += step) pts.push({ x: px, y: at(px) });
   pts.push({ x: x + w, y: at(x + w) });
   ctx.save();
-  ctx.strokeStyle = shade(TOK.CYAN, .4); ctx.lineWidth = 2;
+  ctx.strokeStyle = shade(TOK.CYAN, .4); ctx.lineWidth = 2.6;
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -783,38 +786,289 @@ function drawConduitRunOrnament(x, y, w, now) {
   drawGlow(pts[gi].x, pts[gi].y, 6, TOK.CYAN, 1);
   ctx.restore();
 }
-function drawRackingFrameOrnament(x, y, w, h, color) {
-  ctx.save();
-  ctx.strokeStyle = shade(color || TOK.CYAN_TEXT, .6); ctx.lineWidth = 1.6;
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath(); pathRoundRect(x, y + i * (h / 3), w, h / 3 - 6, 4); ctx.stroke();
+
+/* ---- THE FURNITURE, and whose it is ---------------------------------------
+   Owner decision, August 2026, asked what these things ARE in the game world so
+   the design has something to hang off: **hers, wrecked — then his, installed
+   over it.** Chamber one is AMS SOLACE's own breached intake, so its furniture
+   is a hospital ship's: stretcher bays, oxygen banks, drip stands, spilled
+   supply crates. As the act descends into his plant (§11.1, beats 2–5) his
+   equipment appears bolted over and through hers — reader heads, pump sets,
+   cable looms stapled across her structure — until by chamber five it is
+   almost all his. The mix is the story, and it is a tell a player can read
+   without being told: you always know whose room you are standing in.
+
+   And they CARRY STATE — dead, failing or live (same round) — because dressing
+   that reports something is worth more than dressing that just fills space:
+     dead    unpowered. Dark body, cold outline, no glow. Most of hers.
+     failing amber, and it STUTTERS on the Static's own 41-second beat, so a
+             failing box and a failing bank of people are visibly on one clock.
+     live    steady, lit. Almost all of his, early on. That contrast is the
+             point: his machinery works and hers does not.
+   State drives the accent through PAL() so it swaps under colourblind mode with
+   everything else; OWNER drives the body tone, cyan for hers and violet for his.
+
+   All of them are drawn with MASS — a dark body, a shadowed face and a lit top
+   edge — rather than as wireframes, which is the other half of the note ("they
+   are very boring"). A bare outline reads as a diagram at any distance; a
+   silhouette with a lit edge reads as an object. */
+/* HOW FAR BACK THIS LAYER SITS. Owner, August 2026: the furniture "is lovely but
+   non-interactive so it needs to be more muted — it needs to read as
+   (interesting) background, rather than foreground. So the eye tells you that
+   you are flying in front of it, not through it."
+
+   One factor, applied to every accent and every glow in the set, so the whole
+   layer recedes together and the things that ARE interactive — the bank, the
+   isolators, the cans, the well, the emplacement — keep the front of the picture
+   to themselves. HUE still carries owner and state; it is CONTRAST that carries
+   depth, which is why muting works without costing any of the information the
+   last round added. Tune this one number, never a stroke. */
+const ORN_BACK = 0.3;
+const oa = (t, a) => shade(t.c, a * ORN_BACK);
+
+function ornTone(o, now) {
+  const st = o.state || "dead";
+  /* Glow is receded by the same factor as everything else, and that matters
+     most for `failing`: PAL().WARN is the same amber family as a fuel can, and
+     a background object glowing in a pickup's colour is exactly the confusion
+     the owner is asking to remove. Muted, it still reads as amber-and-stuttering
+     without asking to be flown into. */
+  const g = a => a * ORN_BACK;
+  const body = ORN_BODY[o.owner] || ORN_BODY.hers;
+  if (st === "live") return { c: PAL().SAFE, body, glow: g(0.5), lit: true };
+  if (st === "failing") {
+    /* The stutter rides the real clock, not a private one: steady most of the
+       period, breaking up as the beat lands — the same shape the racks' own
+       ward uses. Dead steady under reduced flash. */
+    const ph = (staticClock % STATIC_PERIOD) / STATIC_PERIOD;
+    const near = ph > 0.93 && !reducedFlash;
+    return { c: PAL().WARN, body, glow: g(near ? (Math.sin(now * 42) > 0 ? 0.1 : 0.7) : 0.4), lit: true };
   }
-  ctx.restore();
+  return { c: o.owner === "his" ? TOK.VIOLET : TOK.CYAN_TEXT, body, glow: 0, lit: false };
 }
-function drawVentGrateOrnament(x, y, w, h, color) {
-  const c = color || TOK.CYAN_TEXT;
-  ctx.save();
-  ctx.strokeStyle = shade(c, .75); ctx.lineWidth = 1.6;
-  ctx.shadowColor = c; ctx.shadowBlur = 4;
-  for (let i = 0; i < 6; i++) {
-    const gx = x + (w / 6) * i;
-    ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx, y + h); ctx.stroke();
-  }
+
+/* A solid body: dark fill, a shadowed right-hand face, a lit top edge. Every
+   ornament is built from this so the whole set reads as one material language. */
+function ornBody(x, y, w, h, t, r) {
+  r = r == null ? 3 : r;
+  ctx.fillStyle = t.body || ORN_BODY.hers;      // dark steel, never black
+  ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.fill();
+  ctx.fillStyle = oa(t, .05);                       // the face turned away
+  ctx.beginPath(); pathRoundRect(x + w * 0.56, y, w * 0.44, h, r); ctx.fill();
+  ctx.strokeStyle = oa(t, t.lit ? .7 : .32); ctx.lineWidth = 1.8;
+  if (t.glow) { ctx.shadowColor = t.c; ctx.shadowBlur = 7 * t.glow; }
+  ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = shade(c, .4);
-  ctx.strokeRect(x, y, w, h);
+  ctx.strokeStyle = oa(t, t.lit ? .95 : .48); ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(x + 2.5, y); ctx.lineTo(x + w - 2.5, y); ctx.stroke();
+}
+
+/* ---- HERS: a hospital ship's guts, and none of it working ---------------- */
+
+// tiered stretcher bays. One tier always sags — nothing here was shut down
+// tidily, it stopped mid-shift.
+function drawStretcherBay(o, t) {
+  const w = o.w || 96, h = o.h || 150, x = o.x, y = o.y, tiers = 3;
+  ornBody(x, y, w, h, t, 4);
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .6 : .3); ctx.lineWidth = 1.6;
+  for (let i = 1; i <= tiers; i++) {
+    const ty = y + (h / tiers) * i - 6;
+    ctx.beginPath();
+    if (i === 2) {                                   // the collapsed one
+      ctx.moveTo(x + 4, ty - 4); ctx.quadraticCurveTo(x + w / 2, ty + 12, x + w - 4, ty - 2);
+    } else { ctx.moveTo(x + 4, ty); ctx.lineTo(x + w - 4, ty); }
+    ctx.stroke();
+  }
   ctx.restore();
 }
+
+// a bank of gas cylinders under a manifold. Reads as medical because of the
+// shape — round shoulders, a regulator head — not because of a label.
+function drawOxyBank(o, t) {
+  const n = o.n || 4, w = o.w || 92, h = o.h || 96, x = o.x, y = o.y;
+  const cw = (w - 6) / n;
+  ctx.save();
+  for (let i = 0; i < n; i++) {
+    const cx = x + 3 + i * cw;
+    ornBody(cx + 2, y + 14, cw - 6, h - 14, t, (cw - 6) / 2);
+    ctx.strokeStyle = oa(t, t.lit ? .8 : .4); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + cw / 2, y + 14); ctx.lineTo(cx + cw / 2, y + 5); ctx.stroke();
+  }
+  ctx.strokeStyle = oa(t, t.lit ? .75 : .38); ctx.lineWidth = 2.6;   // the manifold
+  ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x + w, y + 5); ctx.stroke();
+  if (t.glow) drawGlow(x + w - 6, y + 5, 5, t.c, t.glow);
+  ctx.restore();
+}
+
+// spilled supply crates. Staggered deterministically from x — a chamber has to
+// compile the same way every load, so nothing here may use Math.random.
+function drawMedCrates(o, t) {
+  const n = o.n || 3, w = o.w || 90, h = o.h || 170, x = o.x, y = o.y, ch = h / n;
+  for (let i = 0; i < n; i++) {
+    const jitter = ((Math.round(x) + i * 37) % 11) - 5;
+    const cw = w - (n - 1 - i) * 9;
+    const cx = x + (w - cw) / 2 + jitter, cy = y + i * ch;
+    ornBody(cx, cy, cw, ch - 3, t, 3);
+    ctx.save();                                        // the strap across it
+    ctx.strokeStyle = oa(t, t.lit ? .5 : .26); ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx + 5, cy + (ch - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (ch - 3) / 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// a drip stand, bent. The lightest thing in the set on purpose: a room of nothing
+// but boxes reads as a warehouse.
+function drawDripStand(o, t) {
+  const h = o.h || 110, x = o.x, y = o.y, lean = ((Math.round(x) % 7) - 3) * 2;
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .7 : .34); ctx.lineWidth = 2;
+  ctx.beginPath();                                     // the pole
+  ctx.moveTo(x + 12, y + h); ctx.lineTo(x + 12 + lean, y + 6); ctx.stroke();
+  ctx.beginPath();                                     // feet
+  ctx.moveTo(x, y + h); ctx.lineTo(x + 24, y + h); ctx.stroke();
+  ctx.beginPath();                                     // the hook
+  ctx.moveTo(x + 12 + lean, y + 6); ctx.lineTo(x + 24 + lean, y + 6);
+  ctx.lineTo(x + 24 + lean, y + 14); ctx.stroke();
+  ornBody(x + 18 + lean, y + 14, 13, 26, t, 4);        // the bag, long empty
+  ctx.restore();
+}
+
+/* ---- HIS: installed over the top of it, and running ---------------------- */
+
+// a reader head on its mounting arms — the thing that is actually doing this to
+// them. Squat, lensed, bolted to whatever was already there.
+function drawReaderHead(o, t) {
+  const w = o.w || 76, h = o.h || 54, x = o.x, y = o.y;
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .55 : .28); ctx.lineWidth = 2;
+  ctx.beginPath();                                     // arms, into her structure
+  ctx.moveTo(x + 8, y + h); ctx.lineTo(x + 2, y + h + 14);
+  ctx.moveTo(x + w - 8, y + h); ctx.lineTo(x + w - 2, y + h + 14);
+  ctx.stroke();
+  ctx.restore();
+  ornBody(x, y, w, h, t, 5);
+  ctx.save();                                          // the aperture
+  ctx.strokeStyle = oa(t, t.lit ? .85 : .35); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.26, 0, Math.PI * 2); ctx.stroke();
+  if (t.glow) drawGlow(x + w / 2, y + h / 2, Math.min(w, h) * 0.3, t.c, t.glow);
+  ctx.restore();
+}
+
+// pumps and their pipework. The horizontal counterweight to all the uprights.
+function drawPumpSet(o, t) {
+  const w = o.w || 150, h = o.h || 64, x = o.x, y = o.y;
+  ornBody(x, y + h * 0.34, w * 0.46, h * 0.66, t, 4);        // the motor block
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .6 : .3); ctx.lineWidth = 2.4;
+  for (let i = 0; i < 3; i++) {                               // the pipes
+    const py = y + 8 + i * 10;
+    ctx.beginPath(); ctx.moveTo(x + w * 0.2, py); ctx.lineTo(x + w, py); ctx.stroke();
+  }
+  ctx.restore();
+  ornBody(x + w * 0.56, y + h * 0.44, w * 0.3, h * 0.56, t, 3);   // the condenser
+  if (t.glow) drawGlow(x + w * 0.2, y + h * 0.6, 7, t.c, t.glow);
+}
+
+// cabling stapled across her surfaces. Sags between fixings, because his work
+// down here was fast and it was not for her benefit.
+function drawCableLoom(o, t) {
+  const w = o.w || 200, x = o.x, y = o.y, n = Math.max(2, Math.round(w / 70));
+  ctx.save();
+  ctx.lineWidth = 3.2; ctx.strokeStyle = oa(t, t.lit ? .55 : .3);
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath(); ctx.moveTo(x, y + k * 4);
+    for (let i = 1; i <= n; i++) {
+      const px = x + (w / n) * i, prev = x + (w / n) * (i - 1);
+      ctx.quadraticCurveTo((prev + px) / 2, y + k * 4 + 13, px, y + k * 4);
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = oa(t, t.lit ? .8 : .4); ctx.lineWidth = 2;
+  for (let i = 0; i <= n; i++) {                              // the staples
+    const px = x + (w / n) * i;
+    ctx.beginPath(); ctx.moveTo(px, y - 4); ctx.lineTo(px, y + 12); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---- structure, belonging to neither ------------------------------------- */
+
+function drawVentGrateOrn(o, t) {
+  const w = o.w || 70, h = o.h || 90, x = o.x, y = o.y;
+  ornBody(x, y, w, h, t, 3);
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .55 : .3); ctx.lineWidth = 1.6;
+  for (let i = 1; i < 6; i++) {
+    const gx = x + (w / 6) * i;
+    ctx.beginPath(); ctx.moveTo(gx, y + 4); ctx.lineTo(gx, y + h - 4); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* An overhead walkway, hung from the roof — CEILING furniture, which is what a
+   tall bay needs to stop reading as an empty void above the deck.
+
+   AUTHORING RULE, learned three times over while placing these: a rigid roof
+   fitting must not straddle a change in the roof. It hangs from the LOWEST rock
+   under its whole footprint (see surfaceAcross — a buried lamp is no lamp), so
+   a 150px step or a corner fillet anywhere along it becomes that much daylight
+   at the other end. A `bore`'s default 110px radius counts, and is the one that
+   caught this: it bows the roof down by up to the full radius for `radius` px
+   past each end, which is invisible in the station list. Site these in the flat
+   middle of a bay. */
+function drawGantry(o, t) {
+  const w = o.w || 240, x = o.x, y = o.y, deck = y + 46;
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .5 : .3); ctx.lineWidth = 2.4;
+  for (let hx = x + 16; hx <= x + w - 16; hx += 84) {          // hangers
+    ctx.beginPath(); ctx.moveTo(hx, y); ctx.lineTo(hx, deck); ctx.stroke();
+  }
+  ctx.restore();
+  ornBody(x, deck, w, 9, t, 2);                                 // the deck, with mass
+  ctx.save();
+  ctx.strokeStyle = oa(t, t.lit ? .4 : .24); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x, deck - 15); ctx.lineTo(x + w, deck - 15); ctx.stroke();
+  for (let bx = x; bx <= x + w; bx += 34) {                     // stanchions
+    ctx.beginPath(); ctx.moveTo(bx, deck); ctx.lineTo(bx, deck - 15); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 const PLANT_ORNAMENTS = {
-  conduitRun: (o, now) => drawConduitRunOrnament(o.x, o.y, o.w || 120, now),
-  rackingFrame: o => drawRackingFrameOrnament(o.x, o.y, o.w || 90, o.h || 130, o.color),
-  junctionTruss: o => drawJunctionTruss(o.x, o.y, o.scale || 1, o.color || TOK.CYAN_TEXT),
-  ventGrate: o => drawVentGrateOrnament(o.x, o.y, o.w || 70, o.h || 90, o.color)
+  // hers
+  stretcherBay: drawStretcherBay,
+  oxyBank: drawOxyBank,
+  medCrates: drawMedCrates,
+  dripStand: drawDripStand,
+  // his
+  readerHead: drawReaderHead,
+  pumpSet: drawPumpSet,
+  cableLoom: drawCableLoom,
+  // structure
+  ventGrate: drawVentGrateOrn,
+  gantry: drawGantry,
+  conduitRun: (o, t, now) => drawConduitRunOrnament(o.x, o.y, o.w || 120, now)
 };
-function drawPlantOrnaments(now) {
+
+function drawPlantOrnaments(now, cx, viewW) {
+  const vx0 = cx != null ? cx - 260 : -Infinity, vx1 = cx != null ? cx + viewW + 260 : Infinity;
   for (const o of level.plantOrnaments) {
+    if (o.x > vx1 || o.x + (o.w || 140) < vx0) continue;   // not in frame
     const fn = PLANT_ORNAMENTS[o.type];
-    if (fn) fn(o, now);
+    if (!fn) continue;
+    const t = ornTone(o, now);
+    if (!o.tiltA) { fn(o, t, now); continue; }
+    // stood on a slope: rotate about the middle of its own base, so it rests on
+    // the ground rather than being driven into it
+    const bx = o.x + (o.foot ? (o.foot[0] + o.foot[1]) / 2 : 0);
+    const by = o.y + (o.h || 0);
+    ctx.save();
+    ctx.translate(bx, by); ctx.rotate(o.tiltA); ctx.translate(-bx, -by);
+    fn(o, t, now);
+    ctx.restore();
   }
 }
 
@@ -1070,8 +1324,25 @@ function drawWellBay(well, now) {
   const sway = Math.sin(now / 2.6 + (well.phase || 0)) * 18;
   const bx = well.x + sway, by = well.y;
   ctx.save();
-  ctx.strokeStyle = shade(TOK.CYAN_TEXT, .35); ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(well.x, well.y - 220); ctx.lineTo(bx, by); ctx.stroke();
+  /* THE CABLE. Owner, August 2026: "the well should have a thick cable going up
+     off the top of the screen." It was a 1.5px hairline exactly 220px long,
+     starting at a point in mid-air — so it could only ever end in nothing, and
+     the bay read as hanging from a scratch. It runs to the top of the world now
+     (and past it, so there is no visible terminus at any zoom), which is only
+     honest because the shaft above it is open: MERCY is up there paying it out.
+     Drawn as three strokes — a dark core, the cable, and a highlight down one
+     side — because a single thick line at this width reads as a bar. */
+  const capY = -400;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = shade(TOK.VOID, .95); ctx.lineWidth = 13;
+  ctx.beginPath(); ctx.moveTo(well.x, capY); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.strokeStyle = shade(TOK.CYAN_TEXT, .55); ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.moveTo(well.x, capY); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.strokeStyle = shade(TOK.VOID, .55); ctx.lineWidth = 4;      // the lay of it
+  ctx.beginPath(); ctx.moveTo(well.x + 1.5, capY); ctx.lineTo(bx + 1.5, by); ctx.stroke();
+  ctx.strokeStyle = shade(TOK.CYAN_PALE, .6); ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(well.x - 2.4, capY); ctx.lineTo(bx - 2.4, by); ctx.stroke();
+  ctx.lineCap = "butt";
   ctx.translate(bx, by); ctx.rotate(sway * 0.004);
   ctx.strokeStyle = TOK.GOLD; ctx.lineWidth = 2.5;
   ctx.shadowColor = TOK.GOLD; ctx.shadowBlur = 10;

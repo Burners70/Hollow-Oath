@@ -598,6 +598,27 @@ APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
 | Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
+
+### Confirm card — leaving by the well shaft (`js/acttwo-update.js`)
+
+| Field | Copy |
+|---|---|
+| Kicker | `THE SHAFT — UP AND OUT` |
+| Title | `LEAVE THIS FLOOR?` |
+| Body | mixed case, assembled: `MERCY is up there. The cable goes all the way.` / `<n> bank(s) still down here, still on reserve.` / `Nobody else is coming for them.` / `This ends your run.` |
+| Buttons | `⚠ CLIMB OUT AND END THE RUN` / `STAY ON THIS FLOOR` |
+
+Owner, August 2026: "flying to the top of the well shouldn't kill you. Maybe
+just a card with 'are you sure you want to leave? (This will end your game)' or
+something." The shaft is open because MERCY is above it paying the bay out, so
+it is a way out rather than a lid — and an exit you can take by accident is
+worse than a wall. Reuses Act One's triage confirm overlay (`confirmCard`),
+which is the shipped grammar for "this is irreversible, say it again".
+
+**An entry banner was added in this round and then dropped** ("Don't need that
+message"). It named the floor and gave the direction; the confusion it was
+written for was the mezzanine dead end and the unstroked rock faces, both since
+fixed, so it was captioning a question the room no longer asks.
 | Landing beside one of his decoy boxes | `NOBODY IN IT — AND IT WAS WAITING FOR YOU` / `HIS BOXES BLEED YOU FOR LOOKING` |
 
 The flatline line was `THE CHAMBER IS THE UNIT OF RETRY` until the July 2026

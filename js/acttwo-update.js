@@ -223,18 +223,83 @@ function shipRackLanding() {
     if (Math.abs(s.x - r.x) > pad.hw + SHIP_R * 0.5) continue;
     if (s.y + SHIP_R < pad.top || s.y > r.y) continue;      // on the lid, not inside the cage
     if (s.vy < 4) continue;                                 // must be settling ONTO it
-    const vn = Math.max(0, s.vy);
+    /* Evaluate BEFORE the touchdown zeroes the velocities it is judged on. */
+    const verdict = landingEval(true);
     s.y = pad.top - SHIP_R; s.vy = 0; s.vx = 0;
     s.landed = true; s.landedOn = r.id;
     s.ang = assist ? normAngle(s.ang) : 0;
-    /* The same free band the hull gets against rock, so setting down on a bank of
-       people is not held to a stricter standard than setting down on stone —
-       what it costs above that is the hull's, never the rack's. Slamming INTO a
-       rack is towContact's business and always was. */
-    if (vn > HULL_SAFE_V) return hullImpact(vn);
-    return true;
+    rackVerdict = verdict;
+    return rackLanding();
   }
   return true;
+}
+
+/* A RACK'S LID IS A LANDING PAD, and setting down on it is an ordinary landing.
+   Owner, August 2026: "not sure why there is an issue landing on the rack as it
+   is flat — should just be a normal (not hard) landing."
+
+   They were right twice over. It went through hullImpact at a 46px/s threshold
+   with no slope, no drift and no attitude term — stricter than Act One's own
+   52px/s free band, and judging an approach by descent speed alone. So a routine
+   set-down was billed as a hard landing, and once impacts started killing this
+   round it became lethal on the most-repeated act in the whole loop.
+
+   It uses `landingEval(true)` now: Act One's rule, with the terrain slope
+   overridden because the lid is a machined deck and level by construction. Soft
+   is free, and only an approach Act One would itself call hard costs anything.
+   What it costs is still the hull's, never the rack's — slamming INTO a rack is
+   towContact's business and always was. */
+let rackVerdict = null;
+function rackLanding() {
+  const v = rackVerdict; rackVerdict = null;
+  if (!v || v.soft) return true;
+  if (!v.survivable) { shipDie(); return false; }
+  const dmg = upgrades.gentle ? 12 : 35;
+  ship.vitals -= dmg; camera.shake += 10;
+  haptic.heavy();
+  addText(ship.x, ship.y - 30, "HARD LANDING -" + dmg, PAL().DANGER);
+  blip(160, 40, 0.3, "sawtooth", 0.2);
+  if (ship.vitals <= 0) { shipDie(); return false; }
+  return true;
+}
+
+/* ---- the way out, up the well shaft --------------------------------------
+   Owner, August 2026: "flying to the top of the well shouldn't kill you. Maybe
+   just a card with 'are you sure you want to leave? (This will end your game)'
+   or something." The shaft is open because MERCY is above it paying the bay
+   out — so its mouth is an exit, and the one thing an exit must not be is
+   something you take by accident. Act One's triage overlay is already the
+   shipped grammar for "this is irreversible, say it again", so this reuses it. */
+function atSkyExit(x) {
+  return !!level.skyExits && level.skyExits.some(e => x >= e[0] && x <= e[1]);
+}
+
+function askLeaveChamber(rY) {
+  const s = ship;
+  // shove the hull back down first, so DECLINING resumes below the mouth
+  // instead of re-asking on the very next frame
+  s.y = rY + SHIP_R + 8; s.vy = 40;
+  const left = (level.racks || []).filter(r => !r.delivered && !r.lost).length;
+  let body = "MERCY is up there. The cable goes all the way.";
+  body += "\n" + left + (left === 1 ? " bank is still down here, still on reserve."
+                                    : " banks are still down here, still on reserve.");
+  body += "\nNobody else is coming for them.";
+  body += "\nThis ends your run.";
+  confirmCard = { kicker: "THE SHAFT — UP AND OUT", title: "LEAVE THIS FLOOR?",
+    body, color: PAL().WARN, kind: "leaveChamber",
+    labels: ["⚠ CLIMB OUT AND END THE RUN", "STAY ON THIS FLOOR"] };
+  state = "confirm"; stateT = 0;
+}
+
+/* The same ending a run out of lives gets. P·persist owns making this a real
+   abandonment — provenance, Act Two's own hiscore, a chamber checkpoint to not
+   come back to — so this deliberately does no scoring of its own rather than
+   inventing an accounting that item is about to define. */
+function confirmLeaveChamber() {
+  confirmCard = null;
+  checkpoint = savedRun; clearRun();
+  state = "gameover"; stateT = 0;
+  saveHi(); recordDaily(); pickHint();
 }
 
 /* ---- §4.2 the cradle -----------------------------------------------------
@@ -908,41 +973,36 @@ function chamberEntryPos() {
    rock, and with no lateral test the hull flew straight through all three
    ("shouldn't be able to fly through the steel surface").
 
-   A chamber impact HURTS rather than killing outright, which is the same
-   round's other note. Act One's cave-roof rule is untouched — instant death
-   unless the field is up — because down here there are overhangs, a pinch the
-   design asks you to carry speed through, and a load on a rope: an unforgiving
-   ceiling would make the tether unflyable. It is also what made §8's painted
-   rock read as a turret that shoots you, since an invisible wall that kills on
-   contact has no other available explanation. */
-const HULL_SAFE_V = 46;        // a brush below this costs nothing
-const HULL_DMG_K = 0.28;       // vitals per px/s of normal closing speed over it
-/* Capped, and the cap is the whole point of the change. Act One's worst landing
-   costs a flat 35 of a 100-vitals pool, so an uncapped linear ramp is off that
-   scale immediately: at K=0.5 a 320px/s wall hit billed 137 and killed outright
-   from full health, which is the instakill this was written to remove. One
-   impact can now never be fatal on its own — it takes a run of bad flying, or a
-   hull already hurt, which is the difference between a punishing wall and a
-   trap. Deliberately just under a hard landing: you were, after all, flying. */
-const HULL_DMG_MAX = 30;
+   A CHAMBER IMPACT KILLS THE HULL. Owner decision, August 2026, on the
+   re-authored floor: "I think impacts should still be instakill for the ship
+   (but not the rack)." This reverses the July round's cap, and the reversal is
+   coherent rather than a change of mind — the objection then was to dying with
+   no way to read it coming, not to dying. It arrives paired with two other
+   calls from the same session that remove the unreadable half: §8's invisible
+   walls get a tell before they are used again, and chamber one carries none at
+   all. What is left is rock you can see, which is what Act One has always
+   killed you for touching.
 
-/* The cost of putting the hull into rock. Returns FALSE if it killed you, so
-   callers inside updatePlay can bail exactly the way the `shipDie(); return;`
-   paths they replace do. */
+   THE RACK IS NOT COVERED BY THIS, and the separation is the point. A payload's
+   contact damage is `towContact` — a threshold on the NORMAL component, costing
+   reserve and integrity — and it is untouched. The people in the box do not die
+   because you clipped a wall; you do. */
+const HULL_SAFE_V = 46;        // a brush below this still costs nothing
+
+/* Putting the hull into rock. Returns FALSE if it killed you, so callers inside
+   updatePlay bail exactly the way the `shipDie(); return;` paths they replace
+   do. The free band survives the reversal, and so does FIELD MEDIC's wider one
+   (§4.4): setting down against a wall and grazing a sloped deck are not what
+   "impact" means, and a hair-trigger would make the tether unflyable in a way
+   an honest wall does not. */
 function hullImpact(vn) {
-  const s = ship;
   const safe = easyMode ? HULL_SAFE_V * 1.3 : HULL_SAFE_V;   // §4.4's FIELD MEDIC contract
   if (vn <= safe) { camera.shake += 1.5; return true; }
-  const dmg = Math.round(Math.min(HULL_DMG_MAX,
-    (vn - safe) * HULL_DMG_K * (easyMode ? 0.5 : 1)));
-  camera.shake += Math.min(9, 2 + dmg * 0.3);
+  camera.shake += 9;
   blip(150, 60, 0.22, "sawtooth", 0.16);
-  haptic.medium();
-  if (dmg < 1) return true;
-  s.vitals -= dmg;
-  addText(s.x, s.y - 30, "IMPACT -" + dmg, PAL().DANGER);
-  if (s.vitals <= 0) { shipDie(); return false; }
-  return true;
+  haptic.heavy();
+  shipDie();
+  return false;
 }
 
 /* The ceiling, in a chamber only — shoved back down off the rock and billed for
@@ -954,6 +1014,22 @@ function hullCeilingImpact(rY) {
   s.y = rY + SHIP_R + 1;
   s.vy = Math.abs(s.vy) * 0.35 + 12;
   return hullImpact(vn);
+}
+
+/* The outward normal of whatever mass the hull is against, read off the solid
+   field rather than from a terrain gradient — which matters because down here a
+   face can be a floor, a roof, a column's flank or the underside of a shelf, and
+   `groundAt` only knows about one of those. Eight samples on a ring; the open
+   ones average to a direction pointing away from the rock, which is the outward
+   normal at any orientation. Null when the hull is enclosed. */
+function solidNormal(x, y, r) {
+  let nx = 0, ny = 0;
+  for (let k = 0; k < 8; k++) {
+    const a = k * Math.PI / 4, sx = Math.cos(a), sy = Math.sin(a);
+    if (!solidAt(x + sx * r, y + sy * r)) { nx += sx; ny += sy; }
+  }
+  const l = Math.hypot(nx, ny);
+  return l > 0.001 ? { x: nx / l, y: ny / l } : null;
 }
 
 /* Walls, pillar flanks and painted rock. Called from updatePlay AFTER the
@@ -976,7 +1052,16 @@ function shipSolidCollide() {
     if (!s.landed) {
       for (const side of [-1, 1]) {
         if (!solidAt(s.x + side * SHIP_R, s.y)) continue;
-        const vn = Math.max(0, s.vx * side);
+        /* The CLOSING speed against the real surface, not `vx`. Sampling one
+           point to the side cannot tell a wall from a roof that has sloped down
+           to hull-centre height, and billing `vx` for the latter charged a full
+           head-on impact for skimming a 17° ceiling — fatal, once impacts
+           started killing. solidNormal reads the face's actual orientation off
+           the local field, so flying ALONG a slope costs nothing and flying
+           INTO a wall costs all of it. */
+        const n = solidNormal(s.x, s.y, SHIP_R + 2);
+        const vn = n ? Math.max(0, -(s.vx * n.x + s.vy * n.y))
+                     : Math.max(0, s.vx * side);
         s.x -= side * 4;
         s.vx = side > 0 ? Math.min(0, s.vx) * 0.3 : Math.max(0, s.vx) * 0.3;
         if (!hullImpact(vn)) return false;
@@ -985,13 +1070,27 @@ function shipSolidCollide() {
     s.a2FreeX = s.x; s.a2FreeY = s.y;
     return true;
   }
-  const vn = Math.hypot(s.vx, s.vy);
+  /* THE NORMAL COMPONENT, not the speed — and the distinction became lethal
+     when impacts started killing. This billed `hypot(vx, vy)`, so grazing a 17°
+     roof at cruise was charged as a full head-on impact and killed outright.
+     The rack's own damage model has always measured the normal (towContact,
+     §4.3: a rack sliding along a floor is a graze and a rack driven into it is
+     a slam) and the hull gets the same treatment now.
+     The surface normal is taken from the direction the correction PUSHES the
+     hull, which needs no gradient estimate and is exactly right for a face of
+     any orientation: you are shoved out along the normal, by definition. */
+  const vx0 = s.vx, vy0 = s.vy, x0 = s.x, y0 = s.y;
   if (s.a2FreeX != null && !solidAt(s.a2FreeX, s.a2FreeY)) { s.x = s.a2FreeX; s.y = s.a2FreeY; }
   else {
     const col = level.spans[clamp(Math.round(s.x / STEP), 0, level.spans.length - 1)] || [];
     const sp = pickSpan(col, s.y);
     if (sp) s.y = clamp(s.y, sp.top + SHIP_R + 1, sp.bot - SHIP_R - 1);
   }
+  let nx = s.x - x0, ny = s.y - y0;
+  const nl = Math.hypot(nx, ny);
+  // no push means no face to take a normal from — fall back to the speed
+  const vn = nl > 0.001 ? Math.max(0, -(vx0 * (nx / nl) + vy0 * (ny / nl)))
+                        : Math.hypot(vx0, vy0);
   s.vx *= 0.2; s.vy *= 0.2;
   s.landed = false;
   return hullImpact(vn);

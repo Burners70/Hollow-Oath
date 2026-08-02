@@ -11,6 +11,146 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## The furniture gets a fiction, and two more bugs (August 2026)
+
+**Landing assist and a wall that was never there.** `landingEval` measured ground
+slope with the one-argument `groundAt`, which answers with the lowest floor in
+the column — so a milled, level mezzanine pad was judged against the hall deck
+far below it. 23 sample points on flat pads read at or above the slope that
+refuses a soft landing. A legal landing came back hard, cost 35 vitals, and the
+auto-level never ran, because the assist only fires once a touchdown counts. And
+the previous round's outline fix overreached: stroking a flank wherever a span
+had no mutual continuation drew a full-height line at the end of every
+mezzanine, where the air plainly carries on. What ends there is the rock band
+between two spans, so that is what is stroked now.
+
+**Asked what the ornaments ARE, the answer sets a pattern for all ten chambers:
+hers, wrecked — then his, installed over it.** Chamber one is SOLACE's own
+breached intake, so its furniture is a hospital ship's and almost none of it
+runs: stretcher bays, oxygen banks, a drip stand, spilled crates. What is his is
+sparse and all working — a reader head, a pump set, cabling stapled across her
+structure. That ratio inverts as the act descends, and the mix is a tell a player
+reads without being told whose room they are in.
+
+Ornaments also carry **state** — dead, failing or live — with the accent through
+`PAL()` and a `failing` piece stuttering on the Static's own 41-second beat, so
+it is visibly on the same clock as a failing bank of people. And they are drawn
+with mass rather than as wireframes, which is what "they are very boring" was
+really about.
+
+**Chamber one now carries no deception of either kind.** The tell is specified —
+a 41-second flicker plus reveal on contact — but until it is built, both hazards
+are out: "too much for level one, but we needed to see how they work."
+
+**Furniture tilts to its ground, and is never black.** "Some of these items are
+too sunken — it looks like accidental, not design", and "I'd avoid using black
+for object fills as it reads as absence/accident too." The same failure twice
+over: the rule that stopped things floating sank them to the deepest ground
+underneath, and a near-black body made the buried part read as a hole rather
+than as a buried object. A rigid box on a slope tilts, so now they do — slope
+measured over a baseline wide enough not to be reading deck noise, bodies in a
+dark steel. Eight pieces sited on 15–64° ground moved onto gentle deck, and
+there is a guard: an ornament's ground must be inside the tilt clamp, because a
+clamp is not a substitute for siting.
+
+**And the whole ornament layer is receded.** "It is lovely but non-interactive
+so it needs to be more muted — it needs to read as (interesting) background,
+rather than foreground. So the eye tells you that you are flying in front of it,
+not through it." One factor scales every accent and every glow, so the layer
+recedes together and the bank, the isolators, the cans and the well keep the
+front of the picture. It mattered most for `failing`, which is the same amber
+family as a fuel can.
+
+Suite 178.
+
+## Three collision bugs behind "everything seemed solid" (August 2026)
+
+The owner got stuck flying west twice more, past the previous round's fixes.
+Chasing it by flying the hull west at a range of altitudes and recording where it
+stopped found three bugs, all older than P·floor and all newly lethal because
+impacts kill again.
+
+**`spanAt` interpolated toward the wrong neighbour span.** It chose with
+`matchSpan` — biggest overlap wins — which is the wrong question wherever the
+span count changes, i.e. at the end of every shelf. West of the gallery mezzanine
+a hull flying the upper corridor at an altitude that was open air in *both*
+bracketing columns was handed an interpolated span that excluded it, reported as
+buried in rock, and killed against nothing. It interpolates toward the span the
+queried y is actually in now. Every guard missed this: the flood fill asks about
+span overlap and never about what `solidAt` says *between* two columns. There is
+now a test that does.
+
+**Wall damage billed speed rather than the closing component**, so skimming a 17°
+roof at cruise was priced as a head-on impact. Both collision paths take the real
+surface normal now — the burial path from the direction the correction pushes the
+hull, the lateral path from an eight-point read of the solid field.
+
+**`cornerInset` rounded the wrong way**, leaving a step of the full radius one
+radius inside each end of any filleted part. With it fixed, a structural column's
+bay is filleted by default, sized so the ease finishes where the column starts:
+full headroom over the capital and no one-column roof step to fly into.
+
+Also: crate stacks drew upward from an origin snapped as if they hung below it,
+so they floated their own height clear of the deck. Every ornament draws
+down-right from a top-left origin now.
+
+Suite 175 -> 178.
+
+## P·floor, second on-device round — a wall you could not see, and one you could not pass (August 2026)
+
+The owner flew the re-authored floor on a phone. Thirteen notes; the two that
+mattered were both cases of the chamber being provably fine and actually
+unflyable.
+
+**"I couldn't get any further west. Everything seemed solid."** It was solid, at
+the altitude they were flying. The gallery mezzanine ended at exactly the x where
+the neck's roof descended to meet it, so the upper corridor tapered into a wedge;
+the way on was a blind 400px dive underneath. Every guard passed, because the
+corridor overlapped the space beyond by 113px against the 105.2 a hanging load
+needs. **Traversable and findable are different properties and only one of them
+had a test.** The neck is re-cut as a floor hump rather than a roof plunge, and a
+new guard requires every undeclared transition to be at least 1.4x the at-rest
+tow envelope.
+
+**"A dodgy thing going on with the outline — missing for part of the wall."** A
+shipped bug, not an authoring slip. `matchSpan` never returns null for a
+non-empty column, so where a column holds two spans and its neighbour holds one,
+both answer with that one and the rock between them is drawn — and collided — as
+if it tapered away. `matchSpanMutual` makes the match mutual so the losing span
+ends in a face, and `spanAt` and the tile builder share the call: the rock you
+see and the rock you hit end in the same place. It also fixes the full-height
+verticals at a drawn-only ledge, which were the same fault from the other side.
+
+**Impacts kill the hull again**, reversing July's cap — paired with removing
+chamber one's invisible wall and gating any return on a tell, so what is left is
+rock you can see. The rack is untouched: clipping a wall kills you, not the
+people in the box. **Landing on a rack's lid is an ordinary landing** — it ran
+through the impact path at a threshold stricter than Act One's own, with no
+slope, drift or attitude term, so a routine set-down was billed as a hard landing
+long before killing made it lethal. It is Act One's `landingEval` now, with the
+slope overridden because a lid is level by construction.
+
+**The top of the well shaft is a way out, not a lid.** Reaching it asks — Act
+One's triage confirm overlay, reused — and confirming ends the run. Declining
+puts you back below the mouth. The hook is at the world's top bound rather than
+the rock ceiling, because the bound clamps the ship before a roof above it can
+ever be touched.
+
+**The well is a well.** The cable was a 1.5px hairline 220px long starting in
+mid-air, under a rock roof MERCY could not have lowered it through. The shaft
+opens to the top of the world and the cable runs up out of frame.
+
+**Fixtures sink rather than float.** `snapToSurface` sampled one column, which
+was indistinguishable from correct on a flat deck; it samples the whole footprint
+now and takes the deepest floor. Ceilings deliberately do not mirror it.
+
+Also: bigger lamps and far more of them, three new ornament kinds including the
+set's first ceiling furniture, and both draw loops culled to the view. An entry
+banner naming the floor and its direction was added and then dropped — the
+confusion it answered was the dead end and the unstroked faces, both fixed here.
+
+Suite 169 -> 177.
+
 ## P·floor — the chamber feature vocabulary, and a floor with shape (August 2026)
 
 Act Two's slice chamber was one 8050x620 room with 22px of noise on the deck. The

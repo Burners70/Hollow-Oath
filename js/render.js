@@ -392,7 +392,7 @@ function drawWorld(now) {
     drawMachinedPanelTicks(cx, cx + viewW);
     // the fixtures that make the room lit (§9.2). After the terrain so they
     // light it, before scenery/oids so those are not washed out.
-    drawChamberLights(now);
+    drawChamberLights(now, cx, viewW);
   } else {
     // terrain — cached per 512px chunk (Bundle D4), not retraced every frame;
     // T2 threads the sector's biome palette (grad/stroke/glow) through the cache
@@ -439,7 +439,7 @@ function drawWorld(now) {
   // Bundle P §4/§5/§6 (js/acttwo-render.js) — the rack network, its
   // furniture, and the tow/dock pieces; each a no-op until Bundle P's
   // chamber authoring sets the field.
-  if (level.plantOrnaments) drawPlantOrnaments(now);
+  if (level.plantOrnaments) drawPlantOrnaments(now, cx, viewW);
   // P·slice — trunks under the racks they feed, so a line never covers the box
   drawConduits(now);
   drawDecoys(now);
@@ -4270,7 +4270,7 @@ function drawConfirm(now) {
   // stray over-long line on a narrow phone
   const wrapped = wrapText(confirmCard.body, Math.min(600, vw * 0.86));
   wrapped.forEach((l, i) => ctx.fillText(l, vw / 2, vh * 0.33 + i * 18));
-  const labels = ["⚠ SIGNAL EARLY EXTRACTION", "RETURN TO THE SECTOR"];
+  const labels = confirmCard.labels || ["⚠ SIGNAL EARLY EXTRACTION", "RETURN TO THE SECTOR"];
   const cols = ["255,196,0", "0,229,255"];
   for (let i = 0; i < 2; i++) {
     const r = confirmRowRect(i);
@@ -4684,6 +4684,11 @@ window.__doids = {
     ship.vitals = maxVitals(); ship.fuel = maxFuel();
     camera.x = ship.x; camera.y = ship.y;
     state = "play";
+    /* No entry banner. One was added in this round and the owner dropped it
+       ("Don't need that message"): the confusion it was written for turned out
+       to be the mezzanine dead end and the unstroked faces, both of which are
+       fixed, so a caption explaining the room was answering a question the room
+       no longer asks. */
     return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length,
       racks: level.racks.length, conduits: level.conduits.length,
       well: !!level.wellDock };
@@ -5045,7 +5050,9 @@ window.__doids = {
   declaredPinches: () => {
     const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
     return ((ch && ch.parts) || []).filter(p => p.pinch)
-      .map(p => ({ kind: p.pinch, x: p.x, w: p.w }));
+      // the authored extent, which is wider than the overhead mass's own part
+      .map(p => ({ kind: p.pinch, x: p.pinchX != null ? p.pinchX : p.x,
+        w: p.pinchW != null ? p.pinchW : p.w }));
   },
   /* Sample the RENDERED canvas at a world point — the honest way, which took
      two attempts. Centring the camera on the point puts it at screen centre,
