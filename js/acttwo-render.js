@@ -762,48 +762,10 @@ function drawMachinedPanelTicks(x0, x1) {
   ctx.restore();
 }
 
-/* ---- §5 ornamentation — decorative first, some becomes solid later; solid/
-   filled forms rather than thin wireframes, which read as unfinished at a
-   glance. World-space furniture dressing a plant chamber. */
-/* Owner feedback: this is the "blue thing that looks like a picnic table", and it
-   was being read as a gun that shoots you — two horizontal rails with an A-frame
-   between them is a trestle in silhouette, and the eye fills in the rest. It has
-   never had any code that can fire; what killed the owner near it was §8's
-   painted rock 200px to its right.
-
-   Redrawn as what it is: a junction cabinet, boxy and solid, with cable stubs
-   leaving it at the bottom. A closed box with conduits entering it cannot be
-   mistaken for something with a barrel. */
-function drawJunctionTruss(x, y, scale, color) {
-  const w = 46 * scale, h = 40 * scale;
-  ctx.save();
-  ctx.fillStyle = TOK.VOID;
-  ctx.strokeStyle = color; ctx.lineWidth = 2.2 * scale;
-  ctx.shadowColor = color; ctx.shadowBlur = 5;
-  ctx.fillRect(x, y - h, w, h);
-  ctx.strokeRect(x, y - h, w, h);
-  ctx.shadowBlur = 0;
-  // a door seam and two latches, so it reads as something openable
-  ctx.strokeStyle = shade(color, .45); ctx.lineWidth = 1.4 * scale;
-  ctx.beginPath();
-  ctx.moveTo(x + w * 0.5, y - h + 3); ctx.lineTo(x + w * 0.5, y - 3);
-  ctx.moveTo(x + w * 0.5 - 5, y - h * 0.62); ctx.lineTo(x + w * 0.5 + 5, y - h * 0.62);
-  ctx.moveTo(x + w * 0.5 - 5, y - h * 0.38); ctx.lineTo(x + w * 0.5 + 5, y - h * 0.38);
-  ctx.stroke();
-  // cable stubs into the deck
-  ctx.strokeStyle = shade(color, .6); ctx.lineWidth = 2 * scale;
-  ctx.beginPath();
-  ctx.moveTo(x + w * 0.22, y); ctx.lineTo(x + w * 0.22, y + 7 * scale);
-  ctx.moveTo(x + w * 0.78, y); ctx.lineTo(x + w * 0.78, y + 7 * scale);
-  ctx.stroke();
-  ctx.restore();
-}
-/* Owner feedback ("some odd artefacts like this line above the dart") — a conduit
-   run FOLLOWS THE FLOOR. It was one straight horizontal line snapped only at its
-   left-hand end, so over a hall with 22px of roughness, a ramp, or the drop into
-   the shaft, the right-hand end hung in mid-air: a perfectly straight line across
-   open space, which is unreadable as anything. Sampled along its length instead,
-   the same fix trunkPath makes for the same reason. */
+/* A service run laid along the deck, with a light travelling its length on the
+   rack's own heartbeat — the one ornament that is genuinely wired into the
+   network rather than dressing beside it. Follows the terrain as it draws, so
+   it needs no footprint snapping (see the note in genChamber). */
 function drawConduitRunOrnament(x, y, w, now) {
   const at = px => {
     if (!level.spans) return y;
@@ -814,7 +776,7 @@ function drawConduitRunOrnament(x, y, w, now) {
   for (let px = x; px < x + w; px += step) pts.push({ x: px, y: at(px) });
   pts.push({ x: x + w, y: at(x + w) });
   ctx.save();
-  ctx.strokeStyle = shade(TOK.CYAN, .4); ctx.lineWidth = 2;
+  ctx.strokeStyle = shade(TOK.CYAN, .4); ctx.lineWidth = 2.6;
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -824,95 +786,209 @@ function drawConduitRunOrnament(x, y, w, now) {
   drawGlow(pts[gi].x, pts[gi].y, 6, TOK.CYAN, 1);
   ctx.restore();
 }
-function drawRackingFrameOrnament(x, y, w, h, color) {
-  ctx.save();
-  ctx.strokeStyle = shade(color || TOK.CYAN_TEXT, .6); ctx.lineWidth = 1.6;
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath(); pathRoundRect(x, y + i * (h / 3), w, h / 3 - 6, 4); ctx.stroke();
+
+/* ---- THE FURNITURE, and whose it is ---------------------------------------
+   Owner decision, August 2026, asked what these things ARE in the game world so
+   the design has something to hang off: **hers, wrecked — then his, installed
+   over it.** Chamber one is AMS SOLACE's own breached intake, so its furniture
+   is a hospital ship's: stretcher bays, oxygen banks, drip stands, spilled
+   supply crates. As the act descends into his plant (§11.1, beats 2–5) his
+   equipment appears bolted over and through hers — reader heads, pump sets,
+   cable looms stapled across her structure — until by chamber five it is
+   almost all his. The mix is the story, and it is a tell a player can read
+   without being told: you always know whose room you are standing in.
+
+   And they CARRY STATE — dead, failing or live (same round) — because dressing
+   that reports something is worth more than dressing that just fills space:
+     dead    unpowered. Dark body, cold outline, no glow. Most of hers.
+     failing amber, and it STUTTERS on the Static's own 41-second beat, so a
+             failing box and a failing bank of people are visibly on one clock.
+     live    steady, lit. Almost all of his, early on. That contrast is the
+             point: his machinery works and hers does not.
+   State drives the accent through PAL() so it swaps under colourblind mode with
+   everything else; OWNER drives the body tone, cyan for hers and violet for his.
+
+   All of them are drawn with MASS — a dark body, a shadowed face and a lit top
+   edge — rather than as wireframes, which is the other half of the note ("they
+   are very boring"). A bare outline reads as a diagram at any distance; a
+   silhouette with a lit edge reads as an object. */
+function ornTone(o, now) {
+  const st = o.state || "dead";
+  if (st === "live") return { c: PAL().SAFE, glow: 0.55, lit: true };
+  if (st === "failing") {
+    /* The stutter rides the real clock, not a private one: it is steady most of
+       the period and breaks up as the beat lands, which is the same shape the
+       racks' own ward uses. Dead steady under reduced flash. */
+    const ph = (staticClock % STATIC_PERIOD) / STATIC_PERIOD;
+    const near = ph > 0.93 && !reducedFlash;
+    return { c: PAL().WARN, glow: near ? (Math.sin(now * 42) > 0 ? 0.1 : 0.75) : 0.45, lit: true };
   }
-  ctx.restore();
+  return { c: o.owner === "his" ? TOK.VIOLET : TOK.CYAN_TEXT, glow: 0, lit: false };
 }
-function drawVentGrateOrnament(x, y, w, h, color) {
-  const c = color || TOK.CYAN_TEXT;
-  ctx.save();
-  ctx.strokeStyle = shade(c, .75); ctx.lineWidth = 1.6;
-  ctx.shadowColor = c; ctx.shadowBlur = 4;
-  for (let i = 0; i < 6; i++) {
-    const gx = x + (w / 6) * i;
-    ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx, y + h); ctx.stroke();
-  }
+
+/* A solid body: dark fill, a shadowed right-hand face, a lit top edge. Every
+   ornament is built from this so the whole set reads as one material language. */
+function ornBody(x, y, w, h, t, r) {
+  r = r == null ? 3 : r;
+  ctx.fillStyle = shade(TOK.VOID, .92);
+  ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.fill();
+  ctx.fillStyle = shade(t.c, .07);                       // the face turned away
+  ctx.beginPath(); pathRoundRect(x + w * 0.56, y, w * 0.44, h, r); ctx.fill();
+  ctx.strokeStyle = shade(t.c, t.lit ? .7 : .32); ctx.lineWidth = 1.8;
+  if (t.glow) { ctx.shadowColor = t.c; ctx.shadowBlur = 7 * t.glow; }
+  ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = shade(c, .4);
-  ctx.strokeRect(x, y, w, h);
-  ctx.restore();
-}
-/* Owner, August 2026: "the rooms are still very sparse." Three more kinds, and
-   many more of them per chamber. Chosen so the set covers the three things a
-   working floor actually has — services (pipes), stores (crates) and structure
-   (a gantry overhead) — rather than three more variations on a box, and so that
-   two of them are CEILING furniture, which the old set had none of and which is
-   what makes a tall bay read as a room rather than as a void with a floor. */
-const PLANT_ORNAMENTS = {
-  conduitRun: (o, now) => drawConduitRunOrnament(o.x, o.y, o.w || 120, now),
-  rackingFrame: o => drawRackingFrameOrnament(o.x, o.y, o.w || 90, o.h || 130, o.color),
-  junctionTruss: o => drawJunctionTruss(o.x, o.y, o.scale || 1, o.color || TOK.CYAN_TEXT),
-  ventGrate: o => drawVentGrateOrnament(o.x, o.y, o.w || 70, o.h || 90, o.color),
-  pipeBank: o => drawPipeBank(o.x, o.y, o.w || 200, o.n || 4, o.color),
-  crateStack: o => drawCrateStack(o.x, o.y, o.w || 90, o.h || 60, o.n || 3, o.color),
-  gantry: o => drawGantry(o.x, o.y, o.w || 260, o.color)
-};
-
-/* A run of service pipes along a face, with flange collars. Horizontal, so it
-   reads as plumbing rather than as more racking, and quiet: this is background
-   that makes the room feel used, not a point of interest competing with the
-   fixtures that matter. */
-function drawPipeBank(x, y, w, n, color) {
-  const c = color || TOK.CYAN_TEXT;
-  ctx.save();
-  ctx.lineWidth = 2.2;
-  for (let i = 0; i < n; i++) {
-    const py = y - 6 - i * 9;
-    ctx.strokeStyle = shade(c, .18 + i * 0.05);
-    ctx.beginPath(); ctx.moveTo(x, py); ctx.lineTo(x + w, py); ctx.stroke();
-  }
-  ctx.strokeStyle = shade(c, .34); ctx.lineWidth = 1.4;
-  for (let fx = x + 20; fx < x + w; fx += 78) {
-    ctx.beginPath(); ctx.moveTo(fx, y - 2); ctx.lineTo(fx, y - 4 - n * 9); ctx.stroke();
-  }
-  ctx.restore();
+  ctx.strokeStyle = shade(t.c, t.lit ? .95 : .48); ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(x + 2.5, y); ctx.lineTo(x + w - 2.5, y); ctx.stroke();
 }
 
-/* Stores, stacked and staggered so a row of them never reads as a repeated
-   stamp. Deterministic from x, because a chamber has to compile the same way
-   every load (the spanChecksum contract) and a jittering crate would undo it.
+/* ---- HERS: a hospital ship's guts, and none of it working ---------------- */
 
-   DRAWN DOWN-RIGHT FROM A TOP-LEFT ORIGIN, and `h` is the whole stack's height
-   — the same convention every other ornament uses, and the fix for the "what is
-   this floating pile meant to be?" the owner hit. It drew UPWARD from its origin
-   while snapToSurface was placing that origin as if the object hung below it, so
-   the whole stack sat its own height clear of the deck. One convention is worth
-   more than the flexibility of two. */
-function drawCrateStack(x, y, w, h, n, color) {
-  const c = color || TOK.CYAN_TEXT;
-  const ch = h / n;
+// tiered stretcher bays. One tier always sags — nothing here was shut down
+// tidily, it stopped mid-shift.
+function drawStretcherBay(o, t) {
+  const w = o.w || 96, h = o.h || 150, x = o.x, y = o.y, tiers = 3;
+  ornBody(x, y, w, h, t, 4);
   ctx.save();
-  ctx.strokeStyle = shade(c, .45); ctx.lineWidth = 1.6;
-  ctx.fillStyle = shade(TOK.VOID, .8);
-  for (let i = 0; i < n; i++) {
-    const jitter = ((Math.round(x) + i * 37) % 11) - 5;
-    const cw = w - (n - 1 - i) * 9;                 // widest crate at the bottom
-    const cx = x + (w - cw) / 2 + jitter, cy = y + i * ch;
-    ctx.beginPath(); pathRoundRect(cx, cy, cw, ch - 3, 3); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = shade(t.c, t.lit ? .6 : .3); ctx.lineWidth = 1.6;
+  for (let i = 1; i <= tiers; i++) {
+    const ty = y + (h / tiers) * i - 6;
     ctx.beginPath();
-    ctx.moveTo(cx + 5, cy + (ch - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (ch - 3) / 2);
+    if (i === 2) {                                   // the collapsed one
+      ctx.moveTo(x + 4, ty - 4); ctx.quadraticCurveTo(x + w / 2, ty + 12, x + w - 4, ty - 2);
+    } else { ctx.moveTo(x + 4, ty); ctx.lineTo(x + w - 4, ty); }
     ctx.stroke();
   }
   ctx.restore();
 }
 
+// a bank of gas cylinders under a manifold. Reads as medical because of the
+// shape — round shoulders, a regulator head — not because of a label.
+function drawOxyBank(o, t) {
+  const n = o.n || 4, w = o.w || 92, h = o.h || 96, x = o.x, y = o.y;
+  const cw = (w - 6) / n;
+  ctx.save();
+  for (let i = 0; i < n; i++) {
+    const cx = x + 3 + i * cw;
+    ornBody(cx + 2, y + 14, cw - 6, h - 14, t, (cw - 6) / 2);
+    ctx.strokeStyle = shade(t.c, t.lit ? .8 : .4); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + cw / 2, y + 14); ctx.lineTo(cx + cw / 2, y + 5); ctx.stroke();
+  }
+  ctx.strokeStyle = shade(t.c, t.lit ? .75 : .38); ctx.lineWidth = 2.6;   // the manifold
+  ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x + w, y + 5); ctx.stroke();
+  if (t.glow) drawGlow(x + w - 6, y + 5, 5, t.c, t.glow);
+  ctx.restore();
+}
+
+// spilled supply crates. Staggered deterministically from x — a chamber has to
+// compile the same way every load, so nothing here may use Math.random.
+function drawMedCrates(o, t) {
+  const n = o.n || 3, w = o.w || 90, h = o.h || 170, x = o.x, y = o.y, ch = h / n;
+  for (let i = 0; i < n; i++) {
+    const jitter = ((Math.round(x) + i * 37) % 11) - 5;
+    const cw = w - (n - 1 - i) * 9;
+    const cx = x + (w - cw) / 2 + jitter, cy = y + i * ch;
+    ornBody(cx, cy, cw, ch - 3, t, 3);
+    ctx.save();                                        // the strap across it
+    ctx.strokeStyle = shade(t.c, t.lit ? .5 : .26); ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx + 5, cy + (ch - 3) / 2); ctx.lineTo(cx + cw - 5, cy + (ch - 3) / 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// a drip stand, bent. The lightest thing in the set on purpose: a room of nothing
+// but boxes reads as a warehouse.
+function drawDripStand(o, t) {
+  const h = o.h || 110, x = o.x, y = o.y, lean = ((Math.round(x) % 7) - 3) * 2;
+  ctx.save();
+  ctx.strokeStyle = shade(t.c, t.lit ? .7 : .34); ctx.lineWidth = 2;
+  ctx.beginPath();                                     // the pole
+  ctx.moveTo(x + 12, y + h); ctx.lineTo(x + 12 + lean, y + 6); ctx.stroke();
+  ctx.beginPath();                                     // feet
+  ctx.moveTo(x, y + h); ctx.lineTo(x + 24, y + h); ctx.stroke();
+  ctx.beginPath();                                     // the hook
+  ctx.moveTo(x + 12 + lean, y + 6); ctx.lineTo(x + 24 + lean, y + 6);
+  ctx.lineTo(x + 24 + lean, y + 14); ctx.stroke();
+  ornBody(x + 18 + lean, y + 14, 13, 26, t, 4);        // the bag, long empty
+  ctx.restore();
+}
+
+/* ---- HIS: installed over the top of it, and running ---------------------- */
+
+// a reader head on its mounting arms — the thing that is actually doing this to
+// them. Squat, lensed, bolted to whatever was already there.
+function drawReaderHead(o, t) {
+  const w = o.w || 76, h = o.h || 54, x = o.x, y = o.y;
+  ctx.save();
+  ctx.strokeStyle = shade(t.c, t.lit ? .55 : .28); ctx.lineWidth = 2;
+  ctx.beginPath();                                     // arms, into her structure
+  ctx.moveTo(x + 8, y + h); ctx.lineTo(x + 2, y + h + 14);
+  ctx.moveTo(x + w - 8, y + h); ctx.lineTo(x + w - 2, y + h + 14);
+  ctx.stroke();
+  ctx.restore();
+  ornBody(x, y, w, h, t, 5);
+  ctx.save();                                          // the aperture
+  ctx.strokeStyle = shade(t.c, t.lit ? .85 : .35); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.26, 0, Math.PI * 2); ctx.stroke();
+  if (t.glow) drawGlow(x + w / 2, y + h / 2, Math.min(w, h) * 0.3, t.c, t.glow);
+  ctx.restore();
+}
+
+// pumps and their pipework. The horizontal counterweight to all the uprights.
+function drawPumpSet(o, t) {
+  const w = o.w || 150, h = o.h || 64, x = o.x, y = o.y;
+  ornBody(x, y + h * 0.34, w * 0.46, h * 0.66, t, 4);        // the motor block
+  ctx.save();
+  ctx.strokeStyle = shade(t.c, t.lit ? .6 : .3); ctx.lineWidth = 2.4;
+  for (let i = 0; i < 3; i++) {                               // the pipes
+    const py = y + 8 + i * 10;
+    ctx.beginPath(); ctx.moveTo(x + w * 0.2, py); ctx.lineTo(x + w, py); ctx.stroke();
+  }
+  ctx.restore();
+  ornBody(x + w * 0.56, y + h * 0.44, w * 0.3, h * 0.56, t, 3);   // the condenser
+  if (t.glow) drawGlow(x + w * 0.2, y + h * 0.6, 7, t.c, t.glow);
+}
+
+// cabling stapled across her surfaces. Sags between fixings, because his work
+// down here was fast and it was not for her benefit.
+function drawCableLoom(o, t) {
+  const w = o.w || 200, x = o.x, y = o.y, n = Math.max(2, Math.round(w / 70));
+  ctx.save();
+  ctx.lineWidth = 3.2; ctx.strokeStyle = shade(t.c, t.lit ? .55 : .3);
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath(); ctx.moveTo(x, y + k * 4);
+    for (let i = 1; i <= n; i++) {
+      const px = x + (w / n) * i, prev = x + (w / n) * (i - 1);
+      ctx.quadraticCurveTo((prev + px) / 2, y + k * 4 + 13, px, y + k * 4);
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = shade(t.c, t.lit ? .8 : .4); ctx.lineWidth = 2;
+  for (let i = 0; i <= n; i++) {                              // the staples
+    const px = x + (w / n) * i;
+    ctx.beginPath(); ctx.moveTo(px, y - 4); ctx.lineTo(px, y + 12); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---- structure, belonging to neither ------------------------------------- */
+
+function drawVentGrateOrn(o, t) {
+  const w = o.w || 70, h = o.h || 90, x = o.x, y = o.y;
+  ornBody(x, y, w, h, t, 3);
+  ctx.save();
+  ctx.strokeStyle = shade(t.c, t.lit ? .55 : .3); ctx.lineWidth = 1.6;
+  for (let i = 1; i < 6; i++) {
+    const gx = x + (w / 6) * i;
+    ctx.beginPath(); ctx.moveTo(gx, y + 4); ctx.lineTo(gx, y + h - 4); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /* An overhead walkway, hung from the roof — CEILING furniture, which is what a
-   tall bay needs to stop reading as an empty void above the deck. Snapped with
-   snap:"ceil", so its hangers meet real rock.
+   tall bay needs to stop reading as an empty void above the deck.
 
    AUTHORING RULE, learned three times over while placing these: a rigid roof
    fitting must not straddle a change in the roof. It hangs from the LOWEST rock
@@ -922,28 +998,46 @@ function drawCrateStack(x, y, w, h, n, color) {
    caught this: it bows the roof down by up to the full radius for `radius` px
    past each end, which is invisible in the station list. Site these in the flat
    middle of a bay. */
-function drawGantry(x, y, w, color) {
-  const c = color || TOK.CYAN_TEXT;
+function drawGantry(o, t) {
+  const w = o.w || 240, x = o.x, y = o.y, deck = y + 46;
   ctx.save();
-  ctx.strokeStyle = shade(c, .4); ctx.lineWidth = 2;
-  const deck = y + 46;
+  ctx.strokeStyle = shade(t.c, t.lit ? .5 : .3); ctx.lineWidth = 2.4;
   for (let hx = x + 16; hx <= x + w - 16; hx += 84) {          // hangers
     ctx.beginPath(); ctx.moveTo(hx, y); ctx.lineTo(hx, deck); ctx.stroke();
   }
-  ctx.beginPath(); ctx.moveTo(x, deck); ctx.lineTo(x + w, deck); ctx.stroke();
-  ctx.strokeStyle = shade(c, .22); ctx.lineWidth = 1.3;
-  ctx.beginPath(); ctx.moveTo(x, deck - 13); ctx.lineTo(x + w, deck - 13); ctx.stroke();
-  for (let bx = x; bx < x + w; bx += 34) {                     // handrail stanchions
-    ctx.beginPath(); ctx.moveTo(bx, deck); ctx.lineTo(bx, deck - 13); ctx.stroke();
+  ctx.restore();
+  ornBody(x, deck, w, 9, t, 2);                                 // the deck, with mass
+  ctx.save();
+  ctx.strokeStyle = shade(t.c, t.lit ? .4 : .24); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x, deck - 15); ctx.lineTo(x + w, deck - 15); ctx.stroke();
+  for (let bx = x; bx <= x + w; bx += 34) {                     // stanchions
+    ctx.beginPath(); ctx.moveTo(bx, deck); ctx.lineTo(bx, deck - 15); ctx.stroke();
   }
   ctx.restore();
 }
+
+const PLANT_ORNAMENTS = {
+  // hers
+  stretcherBay: drawStretcherBay,
+  oxyBank: drawOxyBank,
+  medCrates: drawMedCrates,
+  dripStand: drawDripStand,
+  // his
+  readerHead: drawReaderHead,
+  pumpSet: drawPumpSet,
+  cableLoom: drawCableLoom,
+  // structure
+  ventGrate: drawVentGrateOrn,
+  gantry: drawGantry,
+  conduitRun: (o, t, now) => drawConduitRunOrnament(o.x, o.y, o.w || 120, now)
+};
+
 function drawPlantOrnaments(now, cx, viewW) {
   const vx0 = cx != null ? cx - 260 : -Infinity, vx1 = cx != null ? cx + viewW + 260 : Infinity;
   for (const o of level.plantOrnaments) {
     if (o.x > vx1 || o.x + (o.w || 140) < vx0) continue;   // not in frame
     const fn = PLANT_ORNAMENTS[o.type];
-    if (fn) fn(o, now);
+    if (fn) fn(o, ornTone(o, now), now);
   }
 }
 

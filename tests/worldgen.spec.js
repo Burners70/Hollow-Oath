@@ -655,26 +655,25 @@ test("P·terrain: drawn and solid terrain agree — except where §8 says they l
     __doids.loadChamber("slice");
     return __doids.deceptions();
   });
-  /* Chamber one declares ONE of the two, and that is the August 2026 owner call
-     rather than an omission: "we need to give some sort of clue to the invisible
-     walls so they aren't unfair… we wouldn't want any on this first level
-     anyway." There was a 440px undrawn wall sitting on the only route west,
-     which is a trap in a tutorial chamber. Asserted as zero rather than deleted
-     so that re-adding one to chamber one is a visible decision and not a slip;
-     the MODEL's ability to hold one is proven in the next test. */
-  expect(r.falseFloors).toBeGreaterThan(0);
+  /* Chamber one declares NEITHER, and that is two August 2026 owner calls rather
+     than an omission. First the invisible wall: "we need to give some sort of
+     clue… we wouldn't want any on this first level anyway" — there was a 440px
+     undrawn wall on the only route west, a trap rather than a hazard in a
+     tutorial floor. Then the false floor, once the tell was specified: "as with
+     the invisible walls, let's remove fake walls from this level anyway, it is
+     too much for level one but we needed to see how they work."
+     Asserted as ZERO rather than the tests being deleted, so that putting one
+     back into chamber one is a visible decision and never a slip. The model's
+     ability to hold both is proven in the next test, against a chamber built
+     for the purpose. */
+  expect(r.falseFloors).toBe(0);
   expect(r.paintedRock).toBe(0);
-
-  // a false floor: drawn geometry has a ledge there, collision does not, so the
-  // real ground is strictly lower than the ledge you can see
-  const ff = await page.evaluate(() => __doids.falseFloorProbe());
-  expect(ff).not.toBeNull();
-  expect(ff.drawnLedge).toBeLessThan(ff.realGround);   // you drop
-  expect(ff.solidAtLedge).toBe(false);                 // nothing there to land on
-
-  // and the two views differ ONLY inside a part that declared a view, so a
-  // deception can only ever be deliberate — never drift
   expect(r.undeclaredColumns).toBe(0);
+
+  // an honest chamber costs nothing: the two views are the SAME array, not two
+  // arrays that happen to agree
+  const same = await page.evaluate(() => level.spansDrawn === level.spans);
+  expect(same).toBe(true);
 });
 
 test("P·terrain: the model still holds an invisible wall, even though chamber one does not", async ({ page }) => {

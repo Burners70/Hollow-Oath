@@ -11,6 +11,39 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## The furniture gets a fiction, and two more bugs (August 2026)
+
+**Landing assist and a wall that was never there.** `landingEval` measured ground
+slope with the one-argument `groundAt`, which answers with the lowest floor in
+the column — so a milled, level mezzanine pad was judged against the hall deck
+far below it. 23 sample points on flat pads read at or above the slope that
+refuses a soft landing. A legal landing came back hard, cost 35 vitals, and the
+auto-level never ran, because the assist only fires once a touchdown counts. And
+the previous round's outline fix overreached: stroking a flank wherever a span
+had no mutual continuation drew a full-height line at the end of every
+mezzanine, where the air plainly carries on. What ends there is the rock band
+between two spans, so that is what is stroked now.
+
+**Asked what the ornaments ARE, the answer sets a pattern for all ten chambers:
+hers, wrecked — then his, installed over it.** Chamber one is SOLACE's own
+breached intake, so its furniture is a hospital ship's and almost none of it
+runs: stretcher bays, oxygen banks, a drip stand, spilled crates. What is his is
+sparse and all working — a reader head, a pump set, cabling stapled across her
+structure. That ratio inverts as the act descends, and the mix is a tell a player
+reads without being told whose room they are in.
+
+Ornaments also carry **state** — dead, failing or live — with the accent through
+`PAL()` and a `failing` piece stuttering on the Static's own 41-second beat, so
+it is visibly on the same clock as a failing bank of people. And they are drawn
+with mass rather than as wireframes, which is what "they are very boring" was
+really about.
+
+**Chamber one now carries no deception of either kind.** The tell is specified —
+a 41-second flicker plus reveal on contact — but until it is built, both hazards
+are out: "too much for level one, but we needed to see how they work."
+
+Suite 178.
+
 ## Three collision bugs behind "everything seemed solid" (August 2026)
 
 The owner got stuck flying west twice more, past the previous round's fixes.

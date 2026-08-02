@@ -1328,6 +1328,40 @@ done, so the chain now starts at P·slice.
     there, and it is now the right object.**
   Suite 178.
 
+  **THE FURNITURE GETS A FICTION (owner decision, August 2026)**, asked what
+  these objects actually ARE so the design has something to hang off. The answer
+  sets a pattern for all ten chambers: **hers, wrecked — then his, installed over
+  it.** Chamber one is AMS SOLACE's own breached intake, so its furniture is a
+  hospital ship's and almost none of it runs — stretcher bays, oxygen banks, a
+  drip stand, spilled supply crates. What is his is sparse here and all of it
+  working: a reader head, a pump set, cabling stapled across her structure. That
+  ratio inverts as the act descends (§11.1) until the plant chambers are his
+  equipment with her wreckage underneath. **The mix is the story, and it is a
+  tell a player reads without being told whose room they are in.**
+  Second decision in the same breath: **an ornament carries STATE** — dead,
+  failing or live. State drives the accent through `PAL()` so it swaps under
+  colourblind mode with everything else; owner drives the body tone. A `failing`
+  piece stutters on the Static's own 41-second beat, so a failing box and a
+  failing bank of people are visibly on one clock. Dressing that reports
+  something beats dressing that fills space, and it reuses machinery that exists.
+  Everything is drawn with **mass** now — a dark body, a shadowed face, a lit top
+  edge — which is the other half of the note ("they are very boring"): a bare
+  outline reads as a diagram at any distance, a silhouette reads as an object.
+  The set: `stretcherBay`, `oxyBank`, `medCrates`, `dripStand` (hers);
+  `readerHead`, `pumpSet`, `cableLoom` (his); `ventGrate`, `gantry`, `conduitRun`
+  (structure, belonging to neither). The old wireframe set — `rackingFrame`,
+  `pipeBank`, `crateStack`, `junctionTruss` — is gone; the junction cabinet's
+  reasoning trail stays recorded in P·feedback above.
+  *(The "thin line on the ceiling near a lamp" was the `gantry`, drawn as three
+  hairline strokes with no body. It has a deck with mass now.)*
+  **And chamber one now carries NO deception of either kind.** With the tell
+  specified but unbuilt, the owner pulled the false floor as well as the painted
+  rock: "as with the invisible walls, let's remove fake walls from this level
+  anyway, it is too much for level one but we needed to see how they work."
+  `chamberLies` is false for it, so the two views are literally the same array —
+  and the worldgen test asserts *zero* of each rather than being deleted, so
+  putting one back is a visible decision. Suite 178.
+
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →
   the mask 9 → her 10), one new element per level per GAME_DESIGN §3. The

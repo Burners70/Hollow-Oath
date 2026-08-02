@@ -1086,11 +1086,17 @@ const SLICE_CHAMBER = {
     pinch(2140, 280, "rest", { floor: 1120 }),
     // stalactites off the raw roof on the way down into the sump
     stalactites(2460, 240, { y: 620, h: 170, n: 4, dy: 95 }),
-    /* §8 — FALSE FLOOR: drawn as a milled ledge, absent from collision. Sited
-       in the sump, where a deck 190px below is exactly what you were trying to
-       avoid. The tell is the settling dust (P·feedback); the remaining
-       channels are P·systems. */
-    falseFloor(3020, 420, { y: 1250 }),
+    /* §8's FALSE FLOOR is out of this chamber too (owner, August 2026): "as with
+       the invisible walls, let's remove fake walls from this level anyway, it is
+       too much for level one but we needed to see how they work." Which is the
+       right read of what a slice chamber is for — the hazard was authored here
+       to prove the terrain model could hold a lie at all, and it has. Chamber
+       one now carries NO deception of either kind, and `chamberLies` is false
+       for it, so the two views are literally the same array.
+       The capability keeps its own test against a purpose-built chamber, and
+       the tell the owner specified in the same round — a 41-second flicker plus
+       reveal on contact — is written up against P·systems, which is what these
+       come back behind. */
     // the gallery mezzanine, running on into the structural bay
     shelf(3980, 640, { y: 800, h: 140 }),
     /* §8's PAINTED ROCK is deliberately NOT in this chamber (owner, August
@@ -1166,34 +1172,47 @@ const SLICE_CHAMBER = {
      particular runs a light along its length on the rack's own heartbeat.
      `snap` sits an ornament on the floor of whatever span its y falls in, so a
      retune of the terrain doesn't leave the furniture hovering. */
+  /* THE FURNITURE. Owner decision, August 2026: **hers, wrecked — then his,
+     installed over it.** This is chamber one, AMS SOLACE's own breached intake,
+     so almost everything is a hospital ship's and almost none of it is running:
+     stretcher bays, oxygen banks, a drip stand, spilled supply crates, all
+     `dead`. What is `his` is sparse here and all of it `live` — a reader head, a
+     pump set, cabling stapled across her structure — because he has only just
+     started on this floor. That ratio inverts as the act descends (§11.1): by
+     the plant chambers it is his equipment with her wreckage underneath.
+     `state` is dead/failing/live and drives the accent through PAL(); a
+     `failing` piece stutters on the Static's own 41-second beat, so it is
+     visibly on the same clock as a failing bank of people. */
   ornaments: [
-    { type: "crateStack",   x:  620, y: onDeck(620),  w: 88, h: 168, n: 3, snap: "floor" },
-    { type: "conduitRun",   x:  760, y: onDeck(760),  w: 420, snap: "floor" },
-    { type: "gantry",       x:  840, y: onRoof(840),  w: 280, snap: "ceil" },
-    { type: "rackingFrame", x: 1560, y: onDeck(1560), w: 90, h: 140, snap: "floor" },
-    { type: "pipeBank",     x: 1620, y: onDeck(1620), w: 220, n: 4, snap: "floor" },
-    { type: "crateStack",   x: 2020, y: onDeck(2020), w: 84, h: 104, n: 2, snap: "floor" },
-    { type: "ventGrate",    x: 2350, y: onDeck(2350), w: 70, h: 90,  snap: "floor" },
-    { type: "pipeBank",     x: 2860, y: onDeck(2860), w: 240, n: 5, snap: "floor" },
-    { type: "gantry",       x: 3020, y: onRoof(3020), w: 300, snap: "ceil" },
-    { type: "conduitRun",   x: 3180, y: onDeck(3180), w: 460, snap: "floor" },
-    { type: "crateStack",   x: 3480, y: onDeck(3480), w: 92, h: 174, n: 3, snap: "floor" },
-    { type: "ventGrate",    x: 3880, y: onDeck(3880), w: 70, h: 90,  snap: "floor" },
-    { type: "rackingFrame", x: 4060, y: onDeck(4060), w: 90, h: 140, snap: "floor" },
-    { type: "gantry",       x: 4610, y: onRoof(4610), w: 190, snap: "ceil" },
-    { type: "pipeBank",     x: 4900, y: onDeck(4900), w: 220, n: 4, snap: "floor" },
-    { type: "junctionTruss",x: 5060, y: onDeck(5060), scale: 1.2, snap: "floor" },
-    { type: "crateStack",   x: 5240, y: onDeck(5240), w: 88, h: 168, n: 3, snap: "floor" },
-    { type: "rackingFrame", x: 5680, y: onDeck(5680), w: 90, h: 140, snap: "floor" },
-    { type: "ventGrate",    x: 6060, y: onDeck(6060), w: 70, h: 90,  snap: "floor" },
-    { type: "pipeBank",     x: 6260, y: onDeck(6260), w: 180, n: 3, snap: "floor" },
-    { type: "gantry",       x: 7040, y: onRoof(7040), w: 240, snap: "ceil" },
-    { type: "conduitRun",   x: 7060, y: onDeck(7060), w: 460, snap: "floor" },
-    { type: "crateStack",   x: 7560, y: onDeck(7560), w: 90, h: 216, n: 4, snap: "floor" },
-    { type: "junctionTruss",x: 7800, y: onDeck(7800), scale: 1.1, snap: "floor" },
-    { type: "pipeBank",     x: 7980, y: onDeck(7980), w: 220, n: 4, snap: "floor" },
-    { type: "rackingFrame", x: 8180, y: onDeck(8180), w: 90, h: 140, snap: "floor" },
-    { type: "conduitRun",   x: 8340, y: 1900, w: 300, snap: "floor" }
+    { type: "medCrates",    x:  620, y: onDeck(620),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x:  760, y: onDeck(760),  w: 420, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x:  840, y: onRoof(840),  w: 280, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "dripStand",    x: 1180, y: onDeck(1180), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 1560, y: onDeck(1560), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x: 1660, y: onDeck(1660), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "failing" },
+    { type: "medCrates",    x: 2020, y: onDeck(2020), w: 84, h: 104, n: 2, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 2350, y: onDeck(2350), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "pumpSet",      x: 2860, y: onDeck(2860), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 3020, y: onRoof(3020), w: 300, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x: 3180, y: onDeck(3180), w: 460, snap: "floor", owner: "his", state: "live" },
+    { type: "stretcherBay", x: 3480, y: onDeck(3480), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "dripStand",    x: 3620, y: onDeck(3620), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 3880, y: onDeck(3880), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x: 4040, y: onDeck(4040), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 4260, y: onDeck(4260), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 4610, y: onRoof(4610), w: 190, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 4900, y: onDeck(4900), w: 220, snap: "floor", owner: "his", state: "live" },
+    { type: "medCrates",    x: 5240, y: onDeck(5240), w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 5680, y: onDeck(5680), w: 96, h: 150, snap: "floor", owner: "hers", state: "failing" },
+    { type: "ventGrate",    x: 6060, y: onDeck(6060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 6260, y: onDeck(6260), w: 180, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 7040, y: onRoof(7040), w: 240, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x: 7060, y: onDeck(7060), w: 460, snap: "floor", owner: "his", state: "live" },
+    { type: "medCrates",    x: 7560, y: onDeck(7560), w: 90, h: 216, n: 4, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 7800, y: onDeck(7800), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "pumpSet",      x: 7980, y: onDeck(7980), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
+    { type: "stretcherBay", x: 8180, y: onDeck(8180), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x: 8340, y: 1900, w: 300, snap: "floor", owner: "his", state: "live" }
   ],
   /* ---- P·slice: one rack, its feed, and THE WELL ---------------------------
      "One chamber, one rack, the trunk cut, the tow, THE WELL, the reserve, the

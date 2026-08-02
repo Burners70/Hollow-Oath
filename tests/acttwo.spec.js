@@ -725,19 +725,13 @@ test("owner: a plant emplacement takes several rounds; an Act One turret still t
    and it is one mechanism serving both hazards. */
 test("owner: the chamber still lies, and dust is what gives it away", async ({ page }) => {
   await slice(page);
-  const lies = await page.evaluate(() => {
-    /* Chamber one's lie is the FALSE FLOOR and only the false floor: the painted
-       rock came out in August 2026 (owner — no invisible walls on the first
-       level until §8.1's tell exists). A false floor is the honest half of the
-       pair: it is drawn, so you can see it, and committing to it drops you onto
-       a real deck rather than killing you against something that was never
-       there. Authored at x 3020 w 420, ledge at y 1250. */
-    const ledgeIsSolid = __doids.solid(3200, 1280);
-    const drawnOnly = level.spansDrawn !== level.spans;
-    return { ledgeIsSolid, drawnOnly };
-  });
-  expect(lies.ledgeIsSolid).toBe(false);   // the ledge you can see is not there
-  expect(lies.drawnOnly).toBe(true);       // and the two views still differ
+  /* Chamber one no longer lies at all — both hazards came out in August 2026
+     (owner: "too much for level one, but we needed to see how they work"), so
+     what this asserts now is the DUST, which is terrain information whether or
+     not the terrain is being honest. It settles on what is solid, which is why
+     it reads a lie when there is one to read. */
+  const honest = await page.evaluate(() => level.spansDrawn === level.spans);
+  expect(honest).toBe(true);
 
   /* The tell: dust settles on what is SOLID, never on what is drawn. Asserted as
      the property rather than by counting motes — the pool is randomised, and a
@@ -747,7 +741,7 @@ test("owner: the chamber still lies, and dust is what gives it away", async ({ p
      assertions, which made this flake — the check has to be taken against the
      same frame the sample came from. */
   const dust = await page.evaluate(async () => {
-    __doids.a2Warp(3200, 1100, false);        // above the false floor
+    __doids.a2Warp(3200, 1100, false);        // over the sump floor
     for (let i = 0; i < 90; i++) await new Promise(k => requestAnimationFrame(k));
     const motes = __doids.dust();
     const settled = motes.filter(m => m.settled);
