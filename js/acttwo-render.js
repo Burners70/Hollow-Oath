@@ -506,7 +506,7 @@ function buildSpanTile(x0, x1, spans, H, pal) {
     for (let i = i0; i < i1; i++) {
       const xa = i * STEP, xb = (i + 1) * STEP;
       for (const sp of spans[i]) {
-        const m = matchSpanMutual(spans, i, sp, 1) || sp;
+        const m = matchSpan(spans[i + 1], sp) || sp;
         if (sp.mb === "mach") {
           tctx.beginPath();
           tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
@@ -528,7 +528,7 @@ function buildSpanTile(x0, x1, spans, H, pal) {
     for (let i = i0; i < i1; i++) {
       const xa = i * STEP, xb = (i + 1) * STEP;
       for (const sp of spans[i]) {
-        const m = matchSpanMutual(spans, i, sp, 1) || sp;
+        const m = matchSpan(spans[i + 1], sp) || sp;
         tctx.beginPath();
         tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
         tctx.lineTo(xb, m.bot);  tctx.lineTo(xa, sp.bot);
@@ -548,16 +548,37 @@ function buildSpanTile(x0, x1, spans, H, pal) {
       let any = false;
       for (let i = i0; i < i1; i++) {
         const xa = i * STEP, xb = (i + 1) * STEP;
+        const nxt = spans[i + 1] || [], prv = spans[i - 1] || [];
         for (const sp of spans[i]) {
-          const fwd = matchSpanMutual(spans, i, sp, 1), m = fwd || sp;
+          const m = matchSpan(nxt, sp) || sp;
           if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top); any = true; }
           if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot); any = true; }
-          // a flank belongs to the rock pass: a wall is where the mass is cut
+          /* A flank belongs to the rock pass: a wall is where the mass is cut.
+             Only where the AIR ends against solid rock, though — a column with
+             no spans at all. Stroking it wherever a span had no mutual
+             continuation drew a full-height line at the end of every mezzanine,
+             where the air plainly carries on: "I don't really understand why
+             that thin wall to the right is flyable" (owner, August 2026). It was
+             not a wall and never had been. What actually ends there is the rock
+             BAND between two spans, and that is stroked below. */
           if (mat === "rock") {
-            if (!fwd) { tctx.moveTo(xb, m.top); tctx.lineTo(xb, m.bot); any = true; }
-            if (i > i0 && !matchSpanMutual(spans, i, sp, -1)) {
+            if (!nxt.length) { tctx.moveTo(xb, sp.top); tctx.lineTo(xb, sp.bot); any = true; }
+            if (i > i0 && !prv.length) {
               tctx.moveTo(xa, sp.top); tctx.lineTo(xa, sp.bot); any = true;
             }
+          }
+        }
+        /* THE END OF A SHELF, drawn as what it is: the face of the rock band
+           between two spans, the height of the mass and no more. This is the
+           outline that was missing when the owner first flew west — and the
+           previous fix drew it as the full height of the air instead, which is
+           how a mezzanine's tip became a wall you could fly through. */
+        if (mat === "rock") {
+          const airAt = (col, y) => col.some(z => y > z.top && y < z.bot);
+          for (let k = 0; k + 1 < spans[i].length; k++) {
+            const bt = spans[i][k].bot, bb = spans[i][k + 1].top, mid = (bt + bb) / 2;
+            if (nxt.length && airAt(nxt, mid)) { tctx.moveTo(xb, bt); tctx.lineTo(xb, bb); any = true; }
+            if (i > i0 && prv.length && airAt(prv, mid)) { tctx.moveTo(xa, bt); tctx.lineTo(xa, bb); any = true; }
           }
         }
       }

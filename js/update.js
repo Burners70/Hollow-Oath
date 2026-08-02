@@ -259,7 +259,17 @@ function normAngle(a) { return ((a % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 
    attitude limits, and the survivable ceiling above which a landing kills. */
 function landingEval(flat) {
   const s = ship;
-  const slope = flat ? 0 : Math.abs(groundAt(s.x + 10) - groundAt(s.x - 10)) / 20;
+  /* The slope of the surface you are landing ON, which needs the ship's y to
+     pick a span. With one argument groundAt answers with the LOWEST floor in the
+     column — right for Act One, and badly wrong on a mezzanine, where it
+     measured the hall deck far below and handed back whatever slope THAT had.
+     Setting down on a milled, level pad was being judged against ground the
+     player could not even see, so a legal landing came back "GROUND TOO STEEP"
+     — harder than before, and the auto-level never ran because the touchdown
+     never counted as soft (owner, August 2026: "landing assist wasn't working as
+     I landed here… and it seemed much harder than before"). */
+  const slope = flat ? 0
+    : Math.abs(groundAt(s.x + 10, s.y) - groundAt(s.x - 10, s.y)) / 20;
   const tilt = Math.abs(normAngle(s.ang));
   const upright = tilt < 0.5;
   const tol = easyMode ? 1.3 : 1;           // FIELD MEDIC widens every tolerance

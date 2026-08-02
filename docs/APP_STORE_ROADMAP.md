@@ -1004,6 +1004,32 @@ done, so the chain now starts at P·slice.
   **§8.1's tell has had its first pass** in P·feedback — settling dust, which
   reads both hazards off `solidAt` — so what remains here are the grit and
   lamp-shadow channels layered on that, not the tell from scratch.
+  **THE TELL IS DECIDED (owner, August 2026), and it is one rule for both
+  hazards.** *"If it's a fake wall, it should have a 41 second flicker, should
+  disappear on contact (with bullet, ship or shield — or the rack). This may
+  answer our invisible wall issue too — it is exactly the reverse: flicking into
+  view every 41 seconds, becoming visible on impact."*
+  So a deception is **honest on the beat and honest once touched**:
+  - **Every 41 seconds it shows the truth briefly** — the painted rock flicks
+    into view, the false floor flicks out of it — on the Static's own clock, the
+    one the whole act already runs on. A player who watches a room for one beat
+    before committing can read it; a player who charges through cannot. That is
+    the difference between a hazard and a trap, and it costs the act nothing to
+    add because the clock is already there.
+  - **Contact reveals it permanently** — ship, shield, bullet or the rack. So
+    the first time it catches you is the only time, which is what stops a
+    deception being a memory test across retries.
+  Implementation notes for whoever builds it: both views are already compiled
+  (`spans` / `spansDrawn`, from parts that declare a `view`), so the mechanism is
+  a per-part reveal flag, a recompile of the DRAWN view when the flag or the
+  flicker changes, and `invalidateTiles()`. A part with a `view` belongs in the
+  drawn view iff `(p.view === "drawn") !== revealed`. The beat is `staticBeat`
+  (js/update.js), already exposed as an exact per-frame flag rather than inferred
+  from the clock. Contact hooks: `shipSolidCollide`, the projectile test, the
+  shield, and `towContact`.
+  **This unblocks §8's painted rock returning to authored content**, which is
+  currently held out of chamber one for want of exactly this.
+
   **§8's PAINTED ROCK IS NOW GATED ON THIS ITEM.** Owner, August 2026: "we need
   to give some sort of clue to the invisible walls so they aren't unfair… we
   wouldn't want any on this first level anyway." Chamber one's was removed, so
@@ -1279,6 +1305,28 @@ done, so the chain now starts at P·slice.
   ("what is this floating pile meant to be?"). Every ornament draws down-right
   from a top-left origin now, and `h` is the whole object — one convention.
   Suite 177 → 178.
+
+  **A FOURTH ROUND (owner, August 2026) — two more, both of them mine.**
+  - **"Landing assist wasn't working… and it seemed much harder than before."**
+    `landingEval` measured the ground's slope with the ONE-argument `groundAt`,
+    which answers with the lowest floor in the column. Correct for Act One and
+    badly wrong on a mezzanine: setting down on a milled, level pad was judged
+    against the hall deck far below it. Measured over the chamber, **23 sample
+    points on flat pads read ≥0.25 slope** — the threshold that refuses a soft
+    landing — while the pad itself read ~0. So a legal landing came back as a
+    hard one, cost 35 vitals, and the auto-level never ran, because the assist
+    only fires once a touchdown has counted. It passes the ship's y now.
+  - **"I don't really understand why that thin wall to the right is flyable."**
+    It was not a wall and never had been — it was the previous round's fix
+    overreaching. Stroking a flank wherever a span had no mutual continuation
+    drew a full-height line at the end of every mezzanine, where the air plainly
+    carries on. What actually ends there is the rock BAND between two spans, so
+    that is what is stroked now: the face of the mass, its own height and no
+    more. The punch quads went back to plain `matchSpan` at the same time, so
+    the drawn air follows collision instead of leaving a rock sliver behind the
+    phantom line. **Net: the outline the owner asked for in round two is still
+    there, and it is now the right object.**
+  Suite 178.
 
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them. Structure per spec §11.1 (entry → plant 2–5 → deep line 6–8 →

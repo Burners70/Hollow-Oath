@@ -453,6 +453,16 @@ both stagecraft (§2):
 > `paintedRock()` is still in the authoring vocabulary — the capability keeps its
 > own test against a purpose-built chamber — but authored content does not get
 > another one until the channels below exist. See APP_STORE_ROADMAP.md, P·systems.
+>
+> **And the tell itself is now decided (owner, August 2026): the 41-second
+> flicker, plus reveal on contact.** One rule serving both hazards, and the
+> reverse of each other — the painted rock flicks INTO view on the beat, the
+> false floor flicks OUT of it; either becomes permanently honest the moment a
+> ship, shield, bullet or rack touches it. It runs on the Static's own clock,
+> so a player who watches a room for one beat can read it and a player who
+> charges through cannot, and it makes the first time a lie catches you the
+> only time. The grit and lamp-shadow channels below are additive to this, not
+> alternatives to it.
 
 
 **The first draft's tell was false against the code, and had to go.** It read:
