@@ -777,6 +777,20 @@ a rack flatline be total loss without training the player to save-scum.
 Each level introduces exactly one new element, per the campaign's existing rule
 (GAME_DESIGN §3).
 
+> **Open, August 2026 — the beat table above is not settled.** The owner's
+> difficulty note ("as an actual first level this is still too hard… maybe this
+> is level two, or even three") produced a three-chamber teaching ramp before the
+> plant, which 1 entry / 2–5 plant cannot hold. The two new chambers are authored
+> under the smallest assumption available — **the entry beat is three floors of
+> her wreck rather than one**, making it 1–3 entry / 4–6 plant / 7–8 deep line —
+> because it needs no re-dressing (chamber three is already `plant: false` and
+> furnished as hers) and costs the plant beat two floors. The alternative is to
+> re-dress chamber three as the first plant floor. **Owner's call, and it wants
+> making before P·content authors chamber four.** The rule quoted above is
+> widened by the same note, from exactly one new element to one or two. The
+> ten-row ladder as built is the comment block above `BREACH_CHAMBER` in
+> `js/acttwo-data.js`; see APP_STORE_ROADMAP.md, Bundle P · P·ramp.
+
 ### 11.2 Persistence and the save schema
 
 Promoted out of §15's open questions into real scope (owner, July 2026: *"agree

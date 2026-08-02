@@ -390,6 +390,18 @@ function drawWorld(now) {
     // plant — an intake's own wrecked gear is milled too. The function itself
     // walks materials and skips raw rock.
     drawMachinedPanelTicks(cx, cx + viewW);
+    /* THE FURNITURE IS LIT BY THE ROOM, which is why it is drawn here rather
+       than down with the rack network below. Owner, August 2026: "fill still
+       looks like a gap." It was one — drawChamberLights lifts the whole chamber
+       additively, and the furniture used to be drawn after it, so every lamp
+       pool brightened the rock and left the boxes at their literal value: a dark
+       shape punched through a lit wall. Lighting them with the room is also the
+       truest reading of the owner's own note on this layer ("the eye tells you
+       that you are flying in front of it, not through it") — a thing the room's
+       lamps fall on is IN the room; a thing they don't is a hole in it.
+       Nothing was between the two calls: a chamber has no scenery, no anomalies,
+       no lift and no shrine, and its mothership is parked off-world. */
+    if (level.plantOrnaments) drawPlantOrnaments(now, cx, viewW);
     // the fixtures that make the room lit (§9.2). After the terrain so they
     // light it, before scenery/oids so those are not washed out.
     drawChamberLights(now, cx, viewW);
@@ -439,7 +451,8 @@ function drawWorld(now) {
   // Bundle P §4/§5/§6 (js/acttwo-render.js) — the rack network, its
   // furniture, and the tow/dock pieces; each a no-op until Bundle P's
   // chamber authoring sets the field.
-  if (level.plantOrnaments) drawPlantOrnaments(now, cx, viewW);
+  // (the furniture is drawn further up, inside the chamber branch, so the room's
+  // own lamps light it — see the note there)
   // P·slice — trunks under the racks they feed, so a line never covers the box
   drawConduits(now);
   drawDecoys(now);
@@ -4671,8 +4684,16 @@ window.__doids = {
      Exposed from day one so the representation is testable headlessly while
      P·slice is being felt by hand (Bundle P's own instruction). */
   // load a compiled chamber as the live level. Terrain only — see genChamber.
+  /* Takes an id ("breach"), a chamber NUMBER (1, or "1"), or nothing — which is
+     chamber one now that there are three. It used to default to "slice", which
+     was right when the slice was the only chamber and is wrong now that it is
+     the third: a caller asking for "the chamber" means the first one. Every
+     existing call site names "slice" explicitly, so none of them moved. */
   loadChamber: id => {
-    const ch = ACT_TWO_CHAMBERS.find(c => c.id === (id || "slice"));
+    const key = id == null || id === "" ? 1 : id;
+    const num = Number(key);
+    const ch = ACT_TWO_CHAMBERS.find(c => c.id === key)
+      || (Number.isFinite(num) ? ACT_TWO_CHAMBERS.find(c => c.n === num) : null);
     if (!ch) return null;
     level = genChamber(ch);
     resetActTwo(); dustReset();       // P·slice — a fresh chamber attempt, and its own tallies
@@ -4689,10 +4710,24 @@ window.__doids = {
        to be the mezzanine dead end and the unstroked faces, both of which are
        fixed, so a caption explaining the room was answering a question the room
        no longer asks. */
-    return { id: ch.id, W: ch.W, H: ch.H, cols: level.spans.length,
+    return { id: ch.id, n: ch.n, name: ch.name, brief: ch.brief,
+      W: ch.W, H: ch.H, cols: level.spans.length,
       racks: level.racks.length, conduits: level.conduits.length,
+      decoys: level.decoys.length, turrets: level.turrets.length,
       well: !!level.wellDock };
   },
+  /* The ladder, for anything that needs to offer a choice of chamber — today
+     the QA harness's picker, tomorrow P·content's real progression. Ordered,
+     and it reports what each chamber HAS, because that is the ladder: the
+     harness shows "1 · THE BREACH · 1 feed, no decoys, no guns" rather than a
+     bare id, and a chamber that quietly grew a gun is then visible. */
+  a2Ladder: () => ACT_TWO_CHAMBERS.map(c => ({
+    id: c.id, n: c.n, name: c.name, brief: c.brief, W: c.W, H: c.H,
+    racks: (c.racks || []).length, conduits: (c.conduits || []).length,
+    decoys: (c.decoys || []).length, turrets: (c.turrets || []).length,
+    pinches: partList(c.parts).filter(p => p.pinch).map(p => p.pinch),
+    lies: chamberLies(c)
+  })),
 
   /* ---- P·slice drivers. Every feel value in Act Two is tuned on hardware, so
      the suite's job is the machinery: reach a state in one call and assert the
@@ -4760,7 +4795,8 @@ window.__doids = {
      the first would have failed silently. */
   // every chamber the build knows about, so the rig's picker fills itself in as
   // P·content adds the other nine rather than needing an edit per chamber
-  a2Chambers: () => ACT_TWO_CHAMBERS.map(c => ({ id: c.id, name: c.name })),
+  // (the QA harness's existing picker feed — a2Ladder above is the fuller one)
+  a2Chambers: () => ACT_TWO_CHAMBERS.map(c => ({ id: c.id, n: c.n, name: c.name })),
   // park the ship where a slung load hangs at the bay's own slot — the dock
   // window is measured on the RACK, so this is the pose that matters
   a2WarpWell: () => {

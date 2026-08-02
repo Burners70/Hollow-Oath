@@ -119,7 +119,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 7 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback and P·floor have landed** — the loop runs end to end in one chamber, has had its first on-device round, and that chamber is now a floor with shape. Next are **P·systems** (the ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors the other nine against P·floor's vocabulary |
+| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-data.js`; **one owner decision is open there** — whether the entry beat is three floors of her wreck or the plant starts at chamber three |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -1388,6 +1388,82 @@ done, so the chain now starts at P·slice.
   reasoning trail stays recorded in P·feedback above.
   *(The "thin line on the ceiling near a lamp" was the `gantry`, drawn as three
   hairline strokes with no body. It has a deck with mass now.)*
+  **A FIFTH ROUND (owner, August 2026) — three readability calls, and two of
+  them were things nobody could have seen in the data.**
+  - **"Still don't like the vertical lines that don't do anything. If they are
+    feed lines (real or fake), they should have a pulse going down them or
+    something. As it is they just look like errors."** They were errors, and not
+    feed lines. The terrain tile stroked each span's floor and ceiling to the
+    neighbour `matchSpanMutual` found — a SPAN-level question. At the tip of a
+    mezzanine one span legitimately continues into two, so the span-level answer
+    is *mutual and still wrong*: a shelf's milled pad at y 760 was stroked to the
+    hall deck at y 1150 across 16px of x, giving a bright, glowing, near-vertical
+    line in the zone accent at the end of **every shelf and overhang in the act**.
+    `matchBoundaryMutual` (js/world.js) asks it per boundary, which is what a
+    floor is — the ceiling continues into the ceiling, the floor into the floor,
+    and the shelf's own two faces have no partner and terminate, which is what
+    the rock band's face is already drawn to close. Used by the edge pass, the
+    punch quads and the machined band together, because a fill and a stroke that
+    disagree about where a shelf stops leave a rock sliver behind the phantom.
+  - **And the feed lines got the pulse anyway**, because they had the same
+    complaint coming. A trunk carried ONE bead placed by arc-length fraction, so
+    a beat's speed depended on the run's length and each part of the line was lit
+    in proportion to how much of the line it was: measured on chamber three, 87%
+    of every cycle on the buried horizontal and **4.6% on the riser at the
+    isolator**. A beat is emitted per heartbeat and travels at a fixed speed now,
+    so spacing is identical on every trunk — which is also the honest model,
+    since what runs in the line is the bank's own pulse and a pulse does not slow
+    down because the vessel is longer. Between the beats a dashed overlay
+    advances at the same speed, so every riser carries a continuous current. And
+    the line finally **dims where it passes through rock**, which the comment
+    here has claimed since P·feedback while one uniform stroke drew the lot —
+    per stretch, off `solidAt`, so it is right about rock anywhere along the run
+    and not just about which segment index it is. The real-versus-fake tell is
+    untouched: still silhouette alone, and a decoy flows exactly as convincingly
+    as a real feed, or §7.1's deduction becomes decoration.
+  - **"Ornaments are looking better, but fill still looks like a gap (knock back
+    is working well on those that do have a colour fill)."** Measured, because
+    both failure modes look plausible in source: sampling the rendered canvas
+    over all 21 floor-standing pieces — body pixel against the rock behind it —
+    the shipped set came out at a mean ratio of **0.75**. The furniture was on
+    average *darker than the room it stood in*, which is not something an object
+    can be. Two causes. The tones sat at luma ~45, INSIDE the rock gradient's own
+    range (~35 bottom, ~58 top), so a body against rock matched the rock at some
+    height in every tile. And the whole layer was drawn **after**
+    `drawChamberLights`, which lifts the room additively — so every lamp pool
+    brightened the rock and left the furniture at its literal value: a dark shape
+    punched through a lit wall. The draw call moved into the chamber branch
+    (js/render.js), which is also the truest reading of the owner's own note on
+    this layer — a thing the room's lamps fall on is IN the room; a thing they do
+    not is a hole in it — and `ornBody` rules a vertical gradient down the body,
+    because a flat fill of any value reads as a cutout at silhouette scale.
+    Lifting clear of the rock and then lighting it overshot to 1.43, which is the
+    same mistake from the other side (ORN_BACK exists because this layer must
+    recede); tuned to ~1.15 and **asserted as the ratio, not the colour**, so a
+    future retune of the tones, the rock palette or the ambient lift still has to
+    keep the furniture brighter than its room and dimmer than the foreground.
+  - **"The instakill on wall impact should only be as in act one — so using a
+    shield allows a shield bounce."** Act One's two lethal contacts have always
+    consulted the shield first (the roof branch bounces; the landing branch
+    bounces between `soft` and `survivable`). A chamber's LATERAL rock never did,
+    because no such surface existed before P·slice — so the one answer Act One
+    gives you to a bad approach was simply missing, and August's reversal to
+    instakill removed it without anybody noticing it had gone. `hullShieldBounce`
+    reflects off `solidNormal` — the same face the damage model reads — for the
+    reason the ground bounce reflects off the local slope: down here a face is a
+    floor, a roof, a flank or the underside of a shelf, and a vertical-only
+    bounce is meaningless against three of those. Costs the shipped 4 fuel and
+    nothing else. Tested by flying the hull into the structural column's flank at
+    a lethal speed, once with the field down and once with it up.
+  - **One more of the same class, found on the way:** Act One's ground shield
+    bounce measured the slope with the ONE-argument `groundAt`, which answers with
+    the lowest floor in the column — the identical fault `landingEval` had in the
+    fourth round. Bouncing off a mezzanine pad was reflected off the hall deck
+    hundreds of px below it. And the `conduitRun` ornament's travelling light
+    `Math.floor`ed onto its 48px samples, so on a 460px run it jumped a whole 48px
+    eight times a second: a stepping light is an indicator, and what it is meant
+    to read as is flow.
+
   **And chamber one now carries NO deception of either kind.** With the tell
   specified but unbuilt, the owner pulled the false floor as well as the painted
   rock: "as with the invisible walls, let's remove fake walls from this level
@@ -1396,8 +1472,97 @@ done, so the chain now starts at P·slice.
   and the worldgen test asserts *zero* of each rather than being deleted, so
   putting one back is a visible decision. Suite 178.
 
+- [x] **P·ramp. The difficulty ladder, and the first two chambers.** *(Owner,
+  August 2026, on the fifth on-device round.)* **"As an actual first level in act
+  two, this is still too hard, even after removing the false walls (that should
+  come a lot later). This is because we've been building and testing the model.
+  Don't lose this, but maybe this is level two — or even three. As with act one,
+  our level design should progressively: ratchet up difficulty; introduce 1–2 new
+  elements only per level (on the first level, the whole pendulum concept is new,
+  as well as the new success criteria, etc); increase in size."**
+
+  A correct read of what the slice chamber IS. It was built to put every mechanic
+  in one room so the loop could be judged end to end, and a room built to exercise
+  everything at once is the opposite of a room built to teach one thing. Counted:
+  it opens on a bank whose feed must be deduced from three isolators (two decoys,
+  one up a climb), and the haul crosses an authored rest gap, a 280px sump, a
+  540px climb, a structural column, three mezzanines, a momentum pinch you cannot
+  creep through, and an armoured emplacement. **Nine things, in the room where the
+  tether itself is new.**
+
+  **Landed.** The slice becomes chamber **three** and keeps every coordinate — the
+  owner's "don't lose this" is the instruction worth honouring, because that
+  geometry was tuned over four flights. Two chambers are authored below it:
+
+  | # | id | W | new this level |
+  |---|---|---|---|
+  | 1 | `breach` · THE BREACH | 5600 | the tether · deliver to THE WELL |
+  | 2 | `wards` · THE WARDS | 7200 | the deduction (decoys) · a rest-tier gap |
+  | 3 | `slice` · THE DEEP INTAKE | 9000 | the momentum pinch · the emplacement |
+
+  The full ten-row ladder — what each of chambers 4–10 introduces, and in what
+  order — is written into `js/acttwo-data.js` above `BREACH_CHAMBER`, beside the
+  chambers it governs rather than in a doc that would drift from them. Three of
+  its properties are asserted rather than described (`tests/worldgen.spec.js`):
+  **size is monotonic** and chamber one clears §11.0's floor (larger than the
+  widest surface sector, 5500); **an element is introduced alone** — chamber one
+  has one feed and therefore nothing to deduce, no authored gap, no gun and no
+  deception, so the only way to fail it is to fly badly; and **an element never
+  un-introduces itself**, which is the difficulty saw a ten-chamber act gets wrong
+  silently.
+
+  **The geometry guards now run over every chamber, not over "slice".** All four
+  P·floor guards were written against the one chamber that existed; adding a
+  second is exactly when a local assertion that happens to pass stops being worth
+  anything. Three tests iterate `ACT_TWO_CHAMBERS` now — the three-tier route
+  check (at the tier the chamber's own authoring implies: a chamber with a
+  momentum pinch is held to the swung envelope, one without to the stricter
+  hanging one), the fixture rule, and the accidental-pinch/findability pair. A
+  new chamber opts in by existing.
+
+  **They earned it on the first compile, three times.** A stalactite comb whose
+  top sat *below* the roof left a 25px channel over it for 100px — an
+  unladen-only gap nobody authored (the rule is now written on `stalactites()`);
+  a `gallery` whose `floor` reached below the deck dug a trench the depth of the
+  difference with an invisible step at each end, and a fixture sited near one
+  floated 20px; and six pieces of furniture stood on a 14.6° grade, all of them
+  clamped, which reads as debris. Chamber two's deck is cut as **flat bays and
+  ramps** because of the last one: elevation change belongs where nobody stands
+  furniture, and a plinth's own fillets are deck slope like any other.
+
+  **One latent bug in shipped code, found by the same guard.** `snapToSurface`
+  takes the deepest floor across a footprint so an extended object sinks rather
+  than floats — correct, and it overshoots for a small one: an isolator's ±16px
+  footprint means a couple of px of the deck's own value noise can put its origin
+  *below* the floor at its own x, which is not a sunken breaker but a breaker
+  inside rock. All three of chamber two's isolators compiled that way; chamber
+  three has always been one noise sample away and got lucky. It lifts back out
+  now, by exactly the depth it was buried and only when the ORIGIN itself lands in
+  rock — a centre-origin object (rack, decoy, can) is *supposed* to sink its base,
+  and a first pass that lifted those floated a decoy by 7px.
+
+  **What is still assumed rather than decided, and it is the owner's call.**
+  ACT_TWO_SPEC §11.1's beat table reads 1 entry / 2–5 plant / 6–8 deep line /
+  9 mask / 10 her. Three teaching chambers before the plant does not fit that.
+  These two are authored under the smallest assumption available — **the entry
+  beat is three floors of her wreck rather than one** — which needs no re-dressing
+  (chamber three is already `plant: false` and furnished as hers) and costs the
+  plant beat two floors. The alternative is to re-dress chamber three as the first
+  plant floor and keep 1–2 as her wreck. Both chambers are correct work either
+  way; only the labels move. **Decide before P·content authors chamber four.**
+
+  Also here: `loadChamber` takes a number or an id and defaults to **one** rather
+  than to the slice; `a2Ladder()` reports the whole ladder with what each chamber
+  holds; the QA harness's picker is ordered by chamber number and annotated with
+  it ("2 · THE WARDS (3 feeds, 2 decoys, rest gap)"), so a tester reaching for
+  "the first level" does not have to know which id that is. Suite 178 → 186.
+
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them.
+  **Chambers one to three exist** — see P·ramp above for the ladder, the guards
+  that now run over every chamber, and the one open owner decision (whether the
+  entry beat is three floors or the plant starts at chamber three). What remains
+  here is chambers four to ten, and the beat structure they hang on.
   **EVERY CHAMBER OPENS WITH AN INTRO CARD** (owner, August 2026): *"intro cards
   for these levels should help players interpret what they are seeing as it
   won't be obvious. Just a little allusion to the fact we are under Solace's

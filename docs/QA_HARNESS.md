@@ -167,12 +167,20 @@ relying on a branch link staying fresh.
 
 ### Act Two (Bundle P) — needs a `P·slice` build or later
 
+**Three chambers now.** `1 · THE BREACH` (the tether and the delivery criterion,
+and nothing else), `2 · THE WARDS` (the deduction, and the first authored gap)
+and `3 · THE DEEP INTAKE` — the old slice chamber, unchanged, promoted to third
+because it was built to exercise every mechanic at once and that is the opposite
+of a first level. Fly them in order; the ladder is the thing under test as much
+as any one room is.
+
 Every button here is feature-detected, so on an older build it reports that the
 build doesn't have it rather than failing silently.
 
 | Button | Calls | Notes |
 |---|---|---|
-| Chamber picker + **Load chamber** | `__doids.loadChamber(id)` | The picker fills itself from `__doids.a2Chambers()`, so it grows as `P·content` adds chambers — no edit per chamber. Hides the chrome on success. |
+| Chamber picker + **Load chamber** | `__doids.loadChamber(n)` | Act Two is a **ladder** now (P·ramp): the picker fills itself from `__doids.a2Ladder()`, ordered by chamber number and annotated with what each room holds — *"2 · THE WARDS (3 feeds, 2 decoys, rest gap)"* — so reaching for "the first level" does not mean knowing which id that is. Falls back to `a2Chambers()` on an older build. Grows as P·content adds chambers, no edit per chamber. Hides the chrome on success, and shows the chamber's **intro card** over the game for nine seconds. |
+| **Ladder** | `__doids.a2Ladder()` | The whole ladder as a dump: size, feeds, decoys, guns, authored gaps and whether the chamber carries a deception. This is how you check that difficulty still ratchets after authoring a room. |
 | **Dials** | `__doids.a2Dials()` | The live feel values *and* the geometry they imply (`envelopeAtRest`, `envelopeSwung`, `momentumGap`, `restGap`). Exposed through `__doids` because a top-level `const` is **not** a property of `window` — `contentWindow.SLING_L` is `undefined`. |
 | **Act Two state** | `__doids.get().actTwo` | The focused dump: racks, feeds, tow, transfusion line, well. Far more readable on a phone than the whole `get()`. |
 | **Route check** | `__doids.chamberRoute(need)` ×3 | The clearable-laden invariant, at bare-ship / swung-up / hanging heights. See above for reading it. |

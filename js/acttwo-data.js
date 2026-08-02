@@ -438,8 +438,38 @@ const ROCK_PAL = { top: "#3b3454", bottom: "#241f38" };
    half-sunk crate did not look sunk, it looked like a rendering fault. A dark
    STEEL still gives the silhouette that makes an object an object, and says
    "thing" rather than "nothing". Two tones, so hers and his are separable in
-   silhouette as well as by accent. */
-const ORN_BODY = { hers: "#262d3f", his: "#2c2642" };
+   silhouette as well as by accent.
+
+   ---- and it was still not enough (owner, August 2026, third pass on this) ----
+   "Ornaments are looking better, but fill still looks like a gap." Correct, and
+   the numbers say why: the old tones sat at luma ~45, INSIDE the rock
+   gradient's own range (~35 at the bottom of a tile, ~58 at the top). So a body
+   drawn against rock was the same value as the rock at some height in every
+   single tile, and a body drawn against lit rock was darker than it — which is
+   a hole, whatever hue it is. The sinking that is supposed to read as
+   "installed" can only read that way if the buried part still reads as an
+   object.
+
+   These are lifted clear of the rock's whole range instead of merely off black,
+   and each is a PAIR: `lit` is the top of the body and `base` its own shade, so
+   ornBody can rule a vertical gradient down it. A flat fill of any single value
+   reads as a cutout at silhouette scale; the gradient is what says solid. They
+   stay desaturated steel, so hue still belongs to the accent (and therefore to
+   PAL()) and CONTRAST still carries the depth ORN_BACK is managing. */
+const ORN_BODY = {
+  hers: { lit: "#495468", base: "#2d3546" },   // cold steel, her ship's
+  his:  { lit: "#4d4670", base: "#312c4a" }    // violet steel, his kit
+};
+/* The values were picked by sampling the rendered canvas rather than by eye,
+   because both failure modes here look plausible in source. Measured over all
+   21 floor-standing pieces in chamber one — body pixel against the rock behind
+   it — the shipped set came out at a mean ratio of **0.75**: the furniture was
+   on average DARKER than the room it stood in, which is the whole complaint in
+   one number and is not a thing an object can be. Lifting it clear of the rock
+   and then lighting it with the room (see ornBody, js/acttwo-render.js)
+   overshot to **1.43**, which reads as foreground and would have re-broken the
+   note that put ORN_BACK in. These land it near **1.15**: brighter than the
+   rock in every light, never competing with the bank, the cans or the hull. */
 
 /* How far a rigid object may tilt to follow the ground it stands on. Owner,
    same round: "some of these items are too sunken — it looks like accidental,
@@ -909,7 +939,18 @@ function bore(x, w, o) {
 /* STALACTITES, or a cut comb in steel — teeth off a boundary. Shallow on
    purpose: a spike that seals a passage is a bug and not a hazard, and one
    that leaves less than the swung tow envelope makes a stretch unladen-only
-   without anybody authoring it. */
+   without anybody authoring it.
+
+   AUTHORING RULE, and it cost a compile on chamber two: `y` must sit ABOVE the
+   roof everywhere along the feature's width, with margin for the hall's own
+   `roughTop`. This is a `rock` part, so it does not hang from the ceiling — it
+   is a block placed at an absolute y. Put its top inside the air and you have
+   not made teeth, you have made a bar with a slot over it: chamber two's first
+   pass left a 25px channel between the comb and the roof for 100px, which is
+   under the 48px a load trailing at your own level needs and would have been
+   an unladen-only gap nobody authored. Take the *highest* roof across the whole
+   width (the lowest ceil value of the stations it spans), subtract the
+   roughness, and start above that. */
 function stalactites(x, w, o) {
   o = o || {};
   return { op: "rock", x, y: o.y, w, h: o.h != null ? o.h : 90,
@@ -1037,16 +1078,35 @@ const SLICE_HALL = [
   { x: 8120, ceil: 510, floor: 1300 },   //   the ramp down              band 790
   { x: 8680, ceil: 560, floor: 1420 }    // THE WELL HEAD                band 860
 ];
-const hallCeil  = x => Math.round(hallAt(SLICE_HALL, x).ceil);
-const hallFloor = x => Math.round(hallAt(SLICE_HALL, x).floor);
-// where a fixture that stands on the deck wants to be told to look, and where
-// one hung from the roof does. snapToSurface does the rest, so these only have
-// to land inside the right span — never on the surface itself.
-const onDeck = x => hallFloor(x) - 40;
-const onRoof = x => hallCeil(x) + 40;
+/* Where a fixture that stands on the deck wants to be told to look, and where
+   one hung from the roof does. snapToSurface does the rest, so these only have
+   to land inside the right span — never on the surface itself.
 
+   A FACTORY, one per chamber, rather than the four module-level consts this
+   started as. Those closed over `SLICE_HALL` by name, which was fine while
+   there was one chamber and is the first thing in the way of there being three:
+   every fixture in a second chamber would have been placed against the FIRST
+   chamber's profile, silently, and snapToSurface would then have moved it onto
+   some real surface — so the bug would not have been a fixture in mid-air, it
+   would have been a chamber whose furniture was in plausible but arbitrary
+   places. Bound to its own stations, it cannot happen. */
+function hallRefs(stations) {
+  const ceil = x => Math.round(hallAt(stations, x).ceil);
+  const floor = x => Math.round(hallAt(stations, x).floor);
+  return { ceil, floor, deck: x => floor(x) - 40, roof: x => ceil(x) + 40 };
+}
+const SLICE_AT = hallRefs(SLICE_HALL);
+
+/* CHAMBER THREE, and the id stays `slice`. It is the vertical slice — that is
+   what it was built as and what every one of its ~20 test call sites, the QA
+   harness and four rounds of notes call it — and the id is not player-facing.
+   Renaming it would be twenty edits to buy nothing a comment cannot say: this
+   is the THIRD chamber now (owner, August 2026), and THE BREACH and THE WARDS
+   come before it. See the ladder above BREACH_CHAMBER. */
 const SLICE_CHAMBER = {
-  id: "slice", name: "INTAKE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
+  id: "slice", n: 3, name: "THE DEEP INTAKE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
+  brief: "The last of her, and the first of him. Past this floor the rock stops "
+       + "being a wreck and starts being a facility.",
   /* SOLACE's breached intake is beat 1; the plant proper is 2–5 (spec §11.1), so
      this chamber is NOT dressed as a plant — `plant` stays false and the machined
      surfaces read as her own wrecked intake gear rather than his facility. */
@@ -1158,36 +1218,36 @@ const SLICE_CHAMBER = {
      on the deck are the failing original plant. */
   lights: [
     { x:  380, y:  300, r: 420, snap: "ceil", fit: 2.4 },   // down the entry shaft
-    { x:  700, y: onDeck(700),  r: 340, snap: "floor", warm: true },
-    { x:  900, y: onRoof(900),  r: 460, snap: "ceil" },
-    { x: 1300, y: onDeck(1300), r: 320, snap: "floor", warm: true },
-    { x: 1450, y: onRoof(1450), r: 420, snap: "ceil" },
-    { x: 1780, y: onRoof(1780), r: 380, snap: "ceil" },
-    { x: 2100, y: onRoof(2100), r: 340, snap: "ceil" },
-    { x: 2260, y: onDeck(2260), r: 300, snap: "floor", warm: true },
-    { x: 2800, y: onRoof(2800), r: 380, snap: "ceil" },
-    { x: 3040, y: onRoof(3040), r: 420, snap: "ceil" },
-    { x: 3200, y: onDeck(3200), r: 340, snap: "floor", warm: true },
-    { x: 3400, y: onRoof(3400), r: 440, snap: "ceil" },
-    { x: 3320, y: onDeck(3320), r: 340, snap: "floor", warm: true },
-    { x: 3900, y: onRoof(3900), r: 320, snap: "ceil" },
-    { x: 4180, y: onRoof(4180), r: 400, snap: "ceil" },
-    { x: 4380, y: onDeck(4380), r: 340, snap: "floor", warm: true },
-    { x: 4520, y: onRoof(4520), r: 420, snap: "ceil" },
-    { x: 4800, y: onRoof(4800), r: 380, snap: "ceil", fit: 2.2 },  // the top of the bay
-    { x: 5240, y: onRoof(5240), r: 400, snap: "ceil" },
-    { x: 5460, y: onDeck(5460), r: 300, snap: "floor", warm: true },
-    { x: 5620, y: onRoof(5620), r: 340, snap: "ceil" },
-    { x: 6060, y: onRoof(6060), r: 320, snap: "ceil" },
-    { x: 6180, y: onDeck(6180), r: 280, snap: "floor", warm: true },
-    { x: 6360, y: onRoof(6360), r: 320, snap: "ceil" },
-    { x: 6900, y: onDeck(6900), r: 340, snap: "floor", warm: true },
-    { x: 7060, y: onRoof(7060), r: 440, snap: "ceil" },
-    { x: 7420, y: onRoof(7420), r: 420, snap: "ceil" },
-    { x: 7560, y: onDeck(7560), r: 320, snap: "floor", warm: true },
-    { x: 7900, y: onRoof(7900), r: 400, snap: "ceil" },
-    { x: 8060, y: onDeck(8060), r: 340, snap: "floor", warm: true },
-    { x: 8180, y: onRoof(8180), r: 420, snap: "ceil" },
+    { x:  700, y: SLICE_AT.deck(700),  r: 340, snap: "floor", warm: true },
+    { x:  900, y: SLICE_AT.roof(900),  r: 460, snap: "ceil" },
+    { x: 1300, y: SLICE_AT.deck(1300), r: 320, snap: "floor", warm: true },
+    { x: 1450, y: SLICE_AT.roof(1450), r: 420, snap: "ceil" },
+    { x: 1780, y: SLICE_AT.roof(1780), r: 380, snap: "ceil" },
+    { x: 2100, y: SLICE_AT.roof(2100), r: 340, snap: "ceil" },
+    { x: 2260, y: SLICE_AT.deck(2260), r: 300, snap: "floor", warm: true },
+    { x: 2800, y: SLICE_AT.roof(2800), r: 380, snap: "ceil" },
+    { x: 3040, y: SLICE_AT.roof(3040), r: 420, snap: "ceil" },
+    { x: 3200, y: SLICE_AT.deck(3200), r: 340, snap: "floor", warm: true },
+    { x: 3400, y: SLICE_AT.roof(3400), r: 440, snap: "ceil" },
+    { x: 3320, y: SLICE_AT.deck(3320), r: 340, snap: "floor", warm: true },
+    { x: 3900, y: SLICE_AT.roof(3900), r: 320, snap: "ceil" },
+    { x: 4180, y: SLICE_AT.roof(4180), r: 400, snap: "ceil" },
+    { x: 4380, y: SLICE_AT.deck(4380), r: 340, snap: "floor", warm: true },
+    { x: 4520, y: SLICE_AT.roof(4520), r: 420, snap: "ceil" },
+    { x: 4800, y: SLICE_AT.roof(4800), r: 380, snap: "ceil", fit: 2.2 },  // the top of the bay
+    { x: 5240, y: SLICE_AT.roof(5240), r: 400, snap: "ceil" },
+    { x: 5460, y: SLICE_AT.deck(5460), r: 300, snap: "floor", warm: true },
+    { x: 5620, y: SLICE_AT.roof(5620), r: 340, snap: "ceil" },
+    { x: 6060, y: SLICE_AT.roof(6060), r: 320, snap: "ceil" },
+    { x: 6180, y: SLICE_AT.deck(6180), r: 280, snap: "floor", warm: true },
+    { x: 6360, y: SLICE_AT.roof(6360), r: 320, snap: "ceil" },
+    { x: 6900, y: SLICE_AT.deck(6900), r: 340, snap: "floor", warm: true },
+    { x: 7060, y: SLICE_AT.roof(7060), r: 440, snap: "ceil" },
+    { x: 7420, y: SLICE_AT.roof(7420), r: 420, snap: "ceil" },
+    { x: 7560, y: SLICE_AT.deck(7560), r: 320, snap: "floor", warm: true },
+    { x: 7900, y: SLICE_AT.roof(7900), r: 400, snap: "ceil" },
+    { x: 8060, y: SLICE_AT.deck(8060), r: 340, snap: "floor", warm: true },
+    { x: 8180, y: SLICE_AT.roof(8180), r: 420, snap: "ceil" },
     { x: 8480, y: 1850, r: 380, snap: "floor" }          // the bottom of the well shaft
   ],
   /* dressing. These are #69's existing ornaments (js/acttwo-render.js), which
@@ -1207,34 +1267,34 @@ const SLICE_CHAMBER = {
      `failing` piece stutters on the Static's own 41-second beat, so it is
      visibly on the same clock as a failing bank of people. */
   ornaments: [
-    { type: "medCrates",    x:  880, y: onDeck(880),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
-    { type: "conduitRun",   x:  760, y: onDeck(760),  w: 420, snap: "floor", owner: "his", state: "live" },
-    { type: "gantry",       x:  840, y: onRoof(840),  w: 280, snap: "ceil", owner: "hers", state: "dead" },
-    { type: "dripStand",    x: 1180, y: onDeck(1180), h: 110, snap: "floor", owner: "hers", state: "dead" },
-    { type: "stretcherBay", x: 1560, y: onDeck(1560), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
-    { type: "oxyBank",      x: 1660, y: onDeck(1660), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "failing" },
-    { type: "medCrates",    x: 2020, y: onDeck(2020), w: 84, h: 104, n: 2, snap: "floor", owner: "hers", state: "dead" },
-    { type: "ventGrate",    x: 2200, y: onDeck(2200), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
-    { type: "pumpSet",      x: 2860, y: onDeck(2860), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
-    { type: "gantry",       x: 3020, y: onRoof(3020), w: 300, snap: "ceil", owner: "hers", state: "dead" },
-    { type: "conduitRun",   x: 3180, y: onDeck(3180), w: 460, snap: "floor", owner: "his", state: "live" },
-    { type: "stretcherBay", x: 3100, y: onDeck(3100), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
-    { type: "dripStand",    x: 3300, y: onDeck(3300), h: 110, snap: "floor", owner: "hers", state: "dead" },
-    { type: "ventGrate",    x: 4060, y: onDeck(4060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
-    { type: "oxyBank",      x: 4040, y: onDeck(4040), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "dead" },
-    { type: "readerHead",   x: 4260, y: onDeck(4260), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
-    { type: "gantry",       x: 4610, y: onRoof(4610), w: 190, snap: "ceil", owner: "hers", state: "dead" },
-    { type: "cableLoom",    x: 4900, y: onDeck(4900), w: 220, snap: "floor", owner: "his", state: "live" },
-    { type: "medCrates",    x: 5000, y: onDeck(5000), w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
-    { type: "stretcherBay", x: 5680, y: onDeck(5680), w: 96, h: 150, snap: "floor", owner: "hers", state: "failing" },
-    { type: "ventGrate",    x: 6060, y: onDeck(6060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
-    { type: "cableLoom",    x: 6100, y: onDeck(6100), w: 180, snap: "floor", owner: "his", state: "live" },
-    { type: "gantry",       x: 7040, y: onRoof(7040), w: 240, snap: "ceil", owner: "hers", state: "dead" },
-    { type: "conduitRun",   x: 7060, y: onDeck(7060), w: 460, snap: "floor", owner: "his", state: "live" },
-    { type: "medCrates",    x: 7560, y: onDeck(7560), w: 90, h: 216, n: 4, snap: "floor", owner: "hers", state: "dead" },
-    { type: "readerHead",   x: 7430, y: onDeck(7430), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
-    { type: "pumpSet",      x: 7180, y: onDeck(7180), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
-    { type: "stretcherBay", x: 7500, y: onDeck(7500), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "medCrates",    x:  880, y: SLICE_AT.deck(880),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x:  760, y: SLICE_AT.deck(760),  w: 420, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x:  840, y: SLICE_AT.roof(840),  w: 280, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "dripStand",    x: 1180, y: SLICE_AT.deck(1180), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 1560, y: SLICE_AT.deck(1560), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x: 1660, y: SLICE_AT.deck(1660), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "failing" },
+    { type: "medCrates",    x: 2020, y: SLICE_AT.deck(2020), w: 84, h: 104, n: 2, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 2200, y: SLICE_AT.deck(2200), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "pumpSet",      x: 2860, y: SLICE_AT.deck(2860), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 3020, y: SLICE_AT.roof(3020), w: 300, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x: 3180, y: SLICE_AT.deck(3180), w: 460, snap: "floor", owner: "his", state: "live" },
+    { type: "stretcherBay", x: 3100, y: SLICE_AT.deck(3100), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "dripStand",    x: 3300, y: SLICE_AT.deck(3300), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 4060, y: SLICE_AT.deck(4060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x: 4040, y: SLICE_AT.deck(4040), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 4260, y: SLICE_AT.deck(4260), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 4610, y: SLICE_AT.roof(4610), w: 190, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 4900, y: SLICE_AT.deck(4900), w: 220, snap: "floor", owner: "his", state: "live" },
+    { type: "medCrates",    x: 5000, y: SLICE_AT.deck(5000), w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 5680, y: SLICE_AT.deck(5680), w: 96, h: 150, snap: "floor", owner: "hers", state: "failing" },
+    { type: "ventGrate",    x: 6060, y: SLICE_AT.deck(6060), w: 70, h: 90,  snap: "floor", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 6100, y: SLICE_AT.deck(6100), w: 180, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 7040, y: SLICE_AT.roof(7040), w: 240, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x: 7060, y: SLICE_AT.deck(7060), w: 460, snap: "floor", owner: "his", state: "live" },
+    { type: "medCrates",    x: 7560, y: SLICE_AT.deck(7560), w: 90, h: 216, n: 4, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 7430, y: SLICE_AT.deck(7430), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "pumpSet",      x: 7180, y: SLICE_AT.deck(7180), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
+    { type: "stretcherBay", x: 7500, y: SLICE_AT.deck(7500), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
     { type: "conduitRun",   x: 8340, y: 1900, w: 300, snap: "floor", owner: "his", state: "live" }
   ],
   /* ---- P·slice: one rack, its feed, and THE WELL ---------------------------
@@ -1251,7 +1311,7 @@ const SLICE_CHAMBER = {
      because it needs the tether in hand, and a route that lets you avoid the
      pinch would never answer it. */
   racks: [
-    { id: "r1", x: 1150, y: onDeck(1150), occupants: 10, label: "BANK 1 · 10 SOULS", snap: "floor" }
+    { id: "r1", x: 1150, y: SLICE_AT.deck(1150), occupants: 10, label: "BANK 1 · 10 SOULS", snap: "floor" }
   ],
   /* Several conduits run through each chamber; one is the rack's (§7.1). You
      close a feed at its ISOLATOR — a floor-mounted breaker you land beside and
@@ -1274,11 +1334,11 @@ const SLICE_CHAMBER = {
      hall gives you room to land in — the stoop and the creep are deliberately
      not places you are asked to set down. */
   conduits: [
-    { id: "c1", rack: "r1", real: true,  x: 2000, y: onDeck(2000), snap: "floor",
+    { id: "c1", rack: "r1", real: true,  x: 2000, y: SLICE_AT.deck(2000), snap: "floor",
       label: "ISOLATOR 1" },
-    { id: "c2", rack: null, real: false, x: 3250, y: onDeck(3250), snap: "floor",
+    { id: "c2", rack: null, real: false, x: 3250, y: SLICE_AT.deck(3250), snap: "floor",
       label: "ISOLATOR 2" },
-    { id: "c3", rack: null, real: false, x: 4450, y: onDeck(4450), snap: "floor",
+    { id: "c3", rack: null, real: false, x: 4450, y: SLICE_AT.deck(4450), snap: "floor",
       label: "ISOLATOR 3" }
   ],
   /* One box per decoy feed (owner feedback), same size and same mounting as the
@@ -1288,7 +1348,7 @@ const SLICE_CHAMBER = {
      here, up on the gallery mezzanine, where getting a look at it costs a climb
      as well as the vitals. */
   decoys: [
-    { id: "d1", conduit: "c2", x: 3560, y: onDeck(3560), snap: "floor", label: "BANK 2 · 10 SOULS" },
+    { id: "d1", conduit: "c2", x: 3560, y: SLICE_AT.deck(3560), snap: "floor", label: "BANK 2 · 10 SOULS" },
     { id: "d2", conduit: "c3", x: 4180, y: 660, snap: "floor", mount: "wall",
       label: "BANK 3 · 9 SOULS" }
   ],
@@ -1301,7 +1361,7 @@ const SLICE_CHAMBER = {
      unladen — which is the only answer available, since a slung rack cannot be
      shot for or shielded. Move or delete this line freely; nothing references it. */
   turrets: [
-    { x: 3300, y: onDeck(3300), snap: "floor" }
+    { x: 3300, y: SLICE_AT.deck(3300), snap: "floor" }
   ],
   /* THE WELL (§7.6) — MERCY cannot land and cannot descend, so she pays out a
      docking bay on a cable. It hangs in the shaft at the END of the floor,
@@ -1318,19 +1378,422 @@ const SLICE_CHAMBER = {
      authored hazards: the painted rock at 5150, the false floor at 3020, and
      both pinches. */
   fuel: [
-    { x:  620, y: onDeck(620)  },
-    { x: 1780, y: onDeck(1780) },
-    { x: 2700, y: onDeck(2700) },
-    { x: 3420, y: onDeck(3420) },
-    { x: 4300, y: onDeck(4300) },
-    { x: 5300, y: onDeck(5300) },
-    { x: 6300, y: onDeck(6300) },
-    { x: 7060, y: onDeck(7060) },
-    { x: 7620, y: onDeck(7620) },
-    { x: 8200, y: onDeck(8200) }
+    { x:  620, y: SLICE_AT.deck(620)  },
+    { x: 1780, y: SLICE_AT.deck(1780) },
+    { x: 2700, y: SLICE_AT.deck(2700) },
+    { x: 3420, y: SLICE_AT.deck(3420) },
+    { x: 4300, y: SLICE_AT.deck(4300) },
+    { x: 5300, y: SLICE_AT.deck(5300) },
+    { x: 6300, y: SLICE_AT.deck(6300) },
+    { x: 7060, y: SLICE_AT.deck(7060) },
+    { x: 7620, y: SLICE_AT.deck(7620) },
+    { x: 8200, y: SLICE_AT.deck(8200) }
   ].map(f => Object.assign(f, { snap: "floor" }))
 };
-const ACT_TWO_CHAMBERS = [SLICE_CHAMBER];
+
+/* ===========================================================================
+   THE FIRST TWO CHAMBERS, AND THE LADDER THEY START
+   ---------------------------------------------------------------------------
+   Owner, August 2026, on the chamber above after four on-device rounds:
+
+     "As an actual first level in act two, this is still too hard, even after
+      removing the false walls (that should come a lot later). This is because
+      we've been building and testing the model. Don't lose this, but maybe this
+      is level two — or even three. As with act one, our level design should
+      progressively: ratchet up difficulty; introduce 1–2 new elements only per
+      level (on the first level, the whole pendulum concept is new, as well as
+      the new success criteria, etc); increase in size."
+
+   That is a correct read of what the chamber above IS. It was built as a
+   vertical slice — its job was to put every mechanic in one room so the loop
+   could be judged end to end — and a room built to exercise everything at once
+   is the exact opposite of a room built to teach one thing. Counted: it opens
+   on a bank you must first deduce the feed of from three isolators (two of them
+   decoys, one of those up a climb), and the haul crosses an authored rest gap,
+   a 280px sump, a 540px climb, a structural column, three mezzanines, a
+   momentum pinch you cannot creep through, and an armoured emplacement. Nine
+   things, in the room where the tether itself is new.
+
+   So it becomes chamber THREE, and the two below are what comes first. Nothing
+   about it is lost — that was the owner's other instruction and it is the one
+   worth honouring, because the geometry in it was tuned over four flights.
+
+   THE LADDER, which is the part meant to outlive these two chambers. Act One's
+   rule is one new element per sector (GAME_DESIGN §3, ACT_TWO_SPEC §11.1); the
+   owner has widened it to 1–2 here, because Act Two's elements are smaller.
+   Read down the "new" column and it is the teaching order:
+
+     #  chamber        W      new this level                         built
+     1  THE BREACH     5600   the tether · deliver to THE WELL       here
+     2  THE WARDS      7200   the deduction (decoys) · an authored   here
+                              gap the load must be settled for
+     3  the slice      9000   the momentum pinch · the emplacement   above
+     4  plant          9600   the deception tell (§8.1) · lights-out  P·content
+     5  plant         10200   two banks in one room                  P·content
+     6  deep line     10800   deep readers (live, unswitchable)      P·content
+     7  deep line     11400   anomaly geology (Bundle Z gravity)     P·content
+     8  deep line     12000   THE LAST HEART (§12)                   P·content
+     9  the mask      12600   no fight — the husk                    P·content
+    10  her           13200   one rescue, the climb, the quickening  P·content
+
+   Three properties of that table are load-bearing and should survive any
+   re-ordering of the rows:
+     · SIZE IS MONOTONIC. 5600 is deliberately just past the widest surface
+       sector (5500), which is §11.0's floor for a chamber — so chamber one is
+       the smallest room that still satisfies "larger than any surface sector",
+       and every later one is larger than the last.
+     · AN ELEMENT IS INTRODUCED ALONE AND THEN COMPOUNDS. Chamber two adds the
+       deduction to chamber one's tow; chamber three adds the pinch and the gun
+       to both. Nothing is introduced in a room that also introduces something
+       else it interacts with.
+     · WHAT A CHAMBER TEACHES, IT TEACHES WITHOUT A HAZARD. Chamber one has no
+       gap tighter than a hanging load, no gun and no deception, so the only way
+       to fail it is to fly badly — which is what a first level is for.
+
+   The beat table in ACT_TWO_SPEC §11.1 reads 1 entry / 2–5 plant / 6–8 deep
+   line / 9 mask / 10 her. Three teaching chambers before the plant does not fit
+   that, and re-cutting the act's narrative structure is the owner's call rather
+   than mine, so it is left open and flagged in the roadmap. The assumption these
+   two are authored under is the smallest one available: **the entry beat is
+   three floors of her wreck rather than one**, which needs no re-dressing of
+   anything (chamber three is already `plant: false` and furnished as hers) and
+   costs the plant beat two floors. Both chambers are correct work whichever way
+   that lands — only the labels move.
+   =========================================================================== */
+
+/* ---- chamber one: THE BREACH ---------------------------------------------
+   AMS SOLACE's forward intake, opened to the rock by whatever put her down
+   here. The emptiest, widest, best-lit room in the act, and it is emptiness on
+   purpose: the only new verbs are the ones the whole of Act Two is built on.
+
+   WHAT IT TEACHES, and it is two things:
+     1. THE TETHER. Cut the feed at a breaker you can see from the bank, land on
+        the lid, pull the mounts, and fly a mass that swings.
+     2. THE SUCCESS CRITERION. A chamber is not cleared by killing anything or
+        by reaching the far side — it is cleared by putting the people in that
+        box into MERCY's bay. Nothing else in the room competes for attention
+        with that.
+
+   WHAT IT DELIBERATELY HAS NOT GOT: a second isolator (so there is nothing to
+   deduce — one feed, one bank, and the run between them is traceable by eye,
+   which is §7.1's own "placed-and-visible for the first chamber or two"), an
+   authored gap of any tier, a gun, a deception, and a haul long enough to need
+   the transfusion. Each of those arrives later, alone.
+
+   The deck still rolls and the roof still moves, because a flat room is a dull
+   room and P·floor's whole point was that the ground should change the swing —
+   but the clear band never drops near the 105px a hanging load occupies, so the
+   floor shapes the flight without ever threatening it. */
+/* YOU HAVE TO BE ABLE TO SEE THE ROOF. The first pass ran bands of 590-850 the
+   length of the floor, and the camera shows roughly 690px of world at this zoom
+   — so from anywhere near the deck the ceiling was off the top of the screen and
+   the first room in an UNDERGROUND act read as open sky. Bands here run 360-560
+   for most of the floor and open out only at the well head, which is where the
+   shaft goes up anyway and where a big room is the point. Nothing is near the
+   147px a hanging load needs to be able to see its way through. */
+const BREACH_HALL = [
+  { x:  120, ceil: 620, floor: 1010, mt: MAT_MACH, mb: MAT_MACH },   // the west bulkhead   band 390
+  { x:  560, ceil: 560, floor: 1030 },   // THE BANK, stood in the breach light   band 470
+  { x: 1040, ceil: 600, floor: 1020, mt: MAT_ROCK },   //                         band 420
+  { x: 1520, ceil: 640, floor: 1010 },   //   the roof comes down                 band 370
+  { x: 2000, ceil: 620, floor: 1050 },   // THE BREAKER stands here               band 430
+  { x: 2500, ceil: 560, floor: 1090 },   //   and the deck rolls away             band 530
+  { x: 3000, ceil: 600, floor: 1070 },   //                                       band 470
+  { x: 3450, ceil: 660, floor: 1020, mb: MAT_ROCK },   // THE LOW SPOT — tightest band 360
+  { x: 3900, ceil: 620, floor: 1080 },   //                                       band 460
+  { x: 4400, ceil: 560, floor: 1140, mb: MAT_MACH },   //   opening out           band 580
+  { x: 4950, ceil: 520, floor: 1210 },   // THE WELL HEAD                         band 690
+  { x: 5480, ceil: 540, floor: 1240 }    //                                       band 700
+];
+const BREACH_AT = hallRefs(BREACH_HALL);
+
+const BREACH_CHAMBER = {
+  id: "breach", n: 1, name: "THE BREACH", seed: 40771, W: 5600, H: 1500, zone: "cyan",
+  plant: false,
+  matTop: MAT_ROCK, matBot: MAT_MACH,
+  /* The intro card's copy (roadmap P·content, owner August 2026: "a little
+     allusion to the fact we are under Solace's wreck, seeing the remains of her
+     attempts to keep her people alive"). Carried on the chamber so it is
+     authored beside the geometry it explains and cannot be merged without it;
+     the QA harness shows it on load, and P·content wires it into BRIEFS. */
+  brief: "Her forward intake, opened to the rock. One bank still on mains, and "
+       + "the light coming in is daylight she never saw.",
+  parts: partList([
+    /* --- the air ------------------------------------------------------- */
+    // THE BREACH itself: a hole up through her hull at the west end. Not an
+    // exit — you cannot leave that way — it is where the light falls on the bank.
+    shaft(300, 300, { top: 120, bot: 700, roughTop: 26 }),
+    hall(BREACH_HALL, { roughTop: 30, roughBot: 16 }),
+    // the roof lifts over the middle so the widest air is not also the flattest
+    /* A gallery lifts the ROOF. Its `floor` only has to reach down into the
+       hall's air — set below the deck it digs a trench the depth of the
+       difference, with a step at each end that no station list shows and that
+       any fixture sited near it then floats on. Kept above the deck (which runs
+       1070-1090 here) and with zero floor roughness, so it touches the ceiling
+       and nothing else. */
+    gallery(2450, 620, { top: 470, floor: 1000, rise: 60, roughBot: 0 }),
+    // THE WELL SHAFT — open to the top of the world, and the way out (§11.1)
+    shaft(4820, 360, { top: 0, bot: 1400, roughTop: 0, exit: true }),
+
+    /* --- the rock ------------------------------------------------------ */
+    /* The one overhang. It is 620px east of the bank, which is the P·floor
+       correction applied before it could bite: an overhang at hanging-load
+       height in the first metre of a haul is clipped on every single run. Its
+       underside leaves 290px and the air over it 245px, so BOTH ways past it
+       are comfortable — in this chamber an overhang is scenery you learn to
+       read, not a choice with a wrong answer. */
+    /* Moved east with the roof. An overhang needs a comfortable route BOTH ways
+       past it — about 2x160 of clearance plus its own thickness — and the band
+       west of the gallery is now 370-470px, which cannot hold one. It sits in
+       the 580px air on the way in from the well instead, where it leaves 227px
+       over and 219px under. Still 3700px clear of the bank, so a fresh load
+       never meets it in the first metre of a haul (the P·floor rule). */
+    shelf(4300, 380, { y: 800, h: 110 }),
+    // a plinth to set down on and think, in the middle of the floor
+    bench(2400, 260, { y: 1000 }),
+    // teeth off the raw roof, well clear of anything — the ceiling should not
+    // be a ruled line just because nothing is asked of it here
+    // (see the authoring rule on stalactites(): the top starts well above the
+    // roughest roof across the whole width, or the comb leaves a slot over it)
+    stalactites(3300, 200, { y: 480, h: 240, n: 3, dy: 60 })
+  ]),
+  lights: [
+    { x:  420, y:  260, r: 480, snap: "ceil", fit: 2.6 },                    // down the breach
+    { x:  620, y: BREACH_AT.deck(620),  r: 340, snap: "floor", warm: true },
+    { x:  900, y: BREACH_AT.roof(900),  r: 440, snap: "ceil" },
+    { x: 1340, y: BREACH_AT.deck(1340), r: 320, snap: "floor", warm: true },
+    { x: 1560, y: BREACH_AT.roof(1560), r: 420, snap: "ceil" },
+    { x: 1940, y: BREACH_AT.roof(1940), r: 380, snap: "ceil" },
+    { x: 2180, y: BREACH_AT.deck(2180), r: 320, snap: "floor", warm: true },
+    { x: 2620, y: BREACH_AT.roof(2620), r: 460, snap: "ceil", fit: 2.2 },
+    { x: 2980, y: BREACH_AT.deck(2980), r: 340, snap: "floor", warm: true },
+    { x: 3140, y: BREACH_AT.roof(3140), r: 400, snap: "ceil" },
+    { x: 3640, y: BREACH_AT.roof(3640), r: 380, snap: "ceil" },
+    { x: 3820, y: BREACH_AT.deck(3820), r: 320, snap: "floor", warm: true },
+    { x: 4180, y: BREACH_AT.roof(4180), r: 420, snap: "ceil" },
+    { x: 4460, y: BREACH_AT.deck(4460), r: 340, snap: "floor", warm: true },
+    { x: 4640, y: BREACH_AT.roof(4640), r: 400, snap: "ceil" },
+    { x: 5000, y: 1330, r: 400, snap: "floor" }                              // the well shaft
+  ],
+  /* Hers, wrecked, and almost nothing of his — this is the first room in the
+     act and the ratio is the story's opening statement (§11.1). One cable loom
+     and one reader head are the only signs anyone has been down here since. */
+  ornaments: [
+    { type: "stretcherBay", x:  760, y: BREACH_AT.deck(760),  w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "medCrates",    x:  920, y: BREACH_AT.deck(920),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "gantry",       x:  840, y: BREACH_AT.roof(840),  w: 260, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x: 1400, y: BREACH_AT.deck(1400), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "failing" },
+    { type: "dripStand",    x: 1620, y: BREACH_AT.deck(1620), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 2260, y: BREACH_AT.deck(2260), w: 70, h: 90, snap: "floor", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 2060, y: BREACH_AT.deck(2060), w: 200, snap: "floor", owner: "his", state: "live" },
+    { type: "conduitRun",   x: 2760, y: BREACH_AT.deck(2760), w: 420, snap: "floor", owner: "his", state: "live" },
+    { type: "medCrates",    x: 3020, y: BREACH_AT.deck(3020), w: 84, h: 104, n: 2, snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 3860, y: BREACH_AT.deck(3860), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "gantry",       x: 4120, y: BREACH_AT.roof(4120), w: 240, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 4380, y: BREACH_AT.deck(4380), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "medCrates",    x: 4560, y: BREACH_AT.deck(4560), w: 90, h: 130, n: 3, snap: "floor", owner: "hers", state: "dead" }
+  ],
+  racks: [
+    { id: "r1", x: 560, y: BREACH_AT.deck(560), occupants: 8, label: "BANK 1 · 8 SOULS", snap: "floor" }
+  ],
+  /* ONE feed, and the breaker is 1440px east of the bank — far enough that the
+     run has to be followed and near enough that it can be, which is the whole
+     of §7.1 in chamber one. There is nothing to deduce here on purpose: the
+     deduction is chamber two's element and putting it in the room where the
+     tether is new is what made the slice chamber a bad first level. */
+  conduits: [
+    { id: "c1", rack: "r1", real: true, x: 2000, y: BREACH_AT.deck(2000), snap: "floor",
+      label: "ISOLATOR 1" }
+  ],
+  decoys: [],
+  turrets: [],
+  well: { x: 5000, y: 700 },
+  /* Generous, and weighted to the laden leg exactly as chamber three's are. A
+     first level should never be lost to arithmetic the player has had no chance
+     to learn. */
+  fuel: [
+    { x:  860 }, { x: 1700 }, { x: 2340 }, { x: 2900 },
+    { x: 3560 }, { x: 4020 }, { x: 4520 }, { x: 4880 }
+  ].map(f => Object.assign(f, { y: BREACH_AT.deck(f.x), snap: "floor" }))
+};
+
+/* ---- chamber two: THE WARDS -----------------------------------------------
+   One deck down, and the first room where the answer is not in front of you.
+   This was her ward deck: rows of bays, oxygen at the head of each, and it is
+   where his cabling stops being occasional and starts being everywhere.
+
+   WHAT IT ADDS, and it is two things:
+     1. THE DEDUCTION (§7.1). Three breakers, one bank that matters and two that
+        are his — same size, same mounting, same beat, so they cannot be told
+        apart by looking. Going to check one costs vitals. Cutting the wrong
+        line costs you nothing but time here, and time is the resource the
+        reserve is spending. One of the decoy banks is up on a mezzanine, so
+        the cheap answer costs a climb.
+     2. AN AUTHORED GAP AT THE REST TIER. The first place the floor asks you to
+        stop carrying speed and let the load hang still before you thread it.
+        Sized from `restGapPx()`, so it moves with the sling and can never
+        silently become a momentum pinch — which is chamber three's element and
+        must not arrive early.
+
+   Still no gun, no deception, and no momentum pinch. The haul is roughly half
+   again chamber one's, which is what makes the transfusion worth reaching for
+   once rather than a mechanic you are forced through on your first tow. */
+const WARDS_HALL = [
+  /* The deck is cut as BAYS AND RAMPS, deliberately, and it is the authoring
+     rule chamber two exists to demonstrate as much as the deduction is: an
+     ornament's ground has to stay inside the tilt clamp (ORN_TILT_MAX), so
+     elevation change belongs in stretches nobody stands furniture on. The
+     first pass ran a single 14.6-degree grade through the middle of the ward
+     and put six pieces of furniture on it; they all clamped, and clamped
+     furniture reads as debris. Flat bays carry the rooms, ramps carry the
+     descent, and the fixture guard is what says which is which. */
+  { x:  140, ceil: 620, floor: 1140, mt: MAT_MACH, mb: MAT_MACH },   // west bulkhead    band 520
+  { x:  600, ceil: 560, floor: 1150 },   // THE WARD HEAD — the bank stands    band 590
+  { x: 1240, ceil: 600, floor: 1150 },   //   bay: flat, and furnished         band 550
+  { x: 1640, ceil: 700, floor: 1120, mt: MAT_ROCK },   // the roof comes down  band 420
+  { x: 2000, ceil: 760, floor: 1100, mb: MAT_ROCK },   // THE SLOT             band 340
+  { x: 2320, ceil: 760, floor: 1100 },   //   flat across the authored gap     band 340
+  { x: 3000, ceil: 660, floor: 1230, mb: MAT_MACH },   //   the ramp down      band 570
+  { x: 3400, ceil: 620, floor: 1280 },   // THE LONG WARD (domed — see below)  band 660
+  { x: 3900, ceil: 610, floor: 1280 },   //   bay: flat, and furnished         band 670
+  { x: 4400, ceil: 560, floor: 1200 },   //   the ramp up, under the mezzanine band 640
+  { x: 4900, ceil: 620, floor: 1160, mb: MAT_ROCK },   // THE NARROWS          band 540
+  { x: 5600, ceil: 600, floor: 1170 },   //   bay: flat, and furnished         band 570
+  { x: 6100, ceil: 560, floor: 1250, mb: MAT_MACH },   //   opening out        band 690
+  { x: 6600, ceil: 520, floor: 1330 },   // THE WELL HEAD                      band 810
+  { x: 7080, ceil: 550, floor: 1360 }    //                                    band 810
+];
+const WARDS_AT = hallRefs(WARDS_HALL);
+
+const WARDS_CHAMBER = {
+  id: "wards", n: 2, name: "THE WARDS", seed: 51884, W: 7200, H: 1800, zone: "cyan",
+  plant: false,
+  matTop: MAT_ROCK, matBot: MAT_MACH,
+  brief: "Her ward deck. The beds are still in their rows, and someone has run "
+       + "new cable over every one of them.",
+  parts: partList([
+    /* --- the air ------------------------------------------------------- */
+    shaft(360, 280, { top: 160, bot: 820, roughTop: 26 }),
+    hall(WARDS_HALL, { roughTop: 34, roughBot: 18 }),
+    // a dome over the long ward, so the low ground reads as a room and not a
+    // ditch — and it is what gives the mezzanine below air above it as well as
+    // under it, which is what an overhang has to have to be a choice
+    // above the deck (1266-1280 here) and no floor roughness — see the note on
+    // chamber one's gallery: a gallery that reaches below the deck digs a trench
+    gallery(3160, 800, { top: 420, floor: 1200, rise: 80, roughBot: 0 }),
+    shaft(6100, 360, { top: 0, bot: 1720, roughTop: 0, exit: true }),
+
+    /* --- the rock ------------------------------------------------------ */
+    /* THE SLOT. An ordinary tight spot at the derived rest gap — the first
+       laden stretch out of the ward head, which is the teaching: what a hanging
+       load asks first is that you stop barrelling along. On FLAT deck, because
+       pinch() pins the floor to one height and a pinch authored across a grade
+       puts a step inside the one gap in the room that has to be read exactly. */
+    pinch(2020, 260, "rest", { floor: 1100 }),
+    // teeth off the raw roof. Top well above the roughest ceiling across the
+    // whole width — see the authoring rule on stalactites()
+    stalactites(1760, 220, { y: 470, h: 320, n: 4, dy: 70 }),
+    /* The overhang, under the dome. You meet it unladen on the way west and it
+       is 2600px clear of the bank, so a fresh load never has to negotiate it in
+       the first metre of a haul (the P·floor correction). Both ways past are
+       generous: ~300px over it and ~510px under. */
+    shelf(3260, 440, { y: 640, h: 130 }),
+    // a plinth to set down on, in the flat bay before the narrows
+    bench(4820, 240, { y: 1080 }),
+    /* The mezzanine the wall-mounted decoy is racked on. East of the slot, so
+       the climb to go and look at it is a decision made with the load already
+       moving — which is what gives "is it worth checking" a price. */
+    shelf(4380, 420, { y: 780, h: 130 })
+  ]),
+  lights: [
+    { x:  480, y:  300, r: 460, snap: "ceil", fit: 2.5 },
+    { x:  660, y: WARDS_AT.deck(660),  r: 340, snap: "floor", warm: true },
+    { x:  980, y: WARDS_AT.roof(980),  r: 440, snap: "ceil" },
+    { x: 1300, y: WARDS_AT.deck(1300), r: 320, snap: "floor", warm: true },
+    { x: 1480, y: WARDS_AT.roof(1480), r: 400, snap: "ceil" },
+    { x: 1900, y: WARDS_AT.deck(1900), r: 300, snap: "floor", warm: true },
+    { x: 2400, y: WARDS_AT.roof(2400), r: 360, snap: "ceil" },
+    { x: 2700, y: WARDS_AT.deck(2700), r: 340, snap: "floor", warm: true },
+    { x: 2960, y: WARDS_AT.roof(2960), r: 420, snap: "ceil" },
+    { x: 3520, y: WARDS_AT.roof(3520), r: 460, snap: "ceil", fit: 2.2 },
+    { x: 3560, y: WARDS_AT.deck(3560), r: 340, snap: "floor", warm: true },
+    { x: 3820, y: WARDS_AT.roof(3820), r: 420, snap: "ceil" },
+    { x: 3980, y: WARDS_AT.deck(3980), r: 320, snap: "floor", warm: true },
+    { x: 4560, y: WARDS_AT.roof(4560), r: 380, snap: "ceil" },
+    { x: 4760, y: WARDS_AT.deck(4760), r: 300, snap: "floor", warm: true },
+    { x: 5080, y: WARDS_AT.roof(5080), r: 400, snap: "ceil" },
+    { x: 5260, y: WARDS_AT.deck(5260), r: 340, snap: "floor", warm: true },
+    { x: 5560, y: WARDS_AT.roof(5560), r: 420, snap: "ceil" },
+    { x: 5960, y: WARDS_AT.deck(5960), r: 340, snap: "floor", warm: true },
+    { x: 6060, y: WARDS_AT.roof(6060), r: 400, snap: "ceil" },
+    { x: 6600, y: WARDS_AT.deck(6600), r: 340, snap: "floor", warm: true },
+    { x: 6800, y: WARDS_AT.roof(6800), r: 420, snap: "ceil" },
+    { x: 6280, y: 1650, r: 380, snap: "floor" }                            // the well shaft
+  ],
+  /* The ratio has moved. Chamber one had two pieces of his in thirteen; this
+     room has six in twenty-one, and they are all `live` while hers are dead or
+     failing. Nobody says so — you read it off the furniture (§11.1).
+     Every piece stands in one of the flat bays: 140-1240, 3400-3900,
+     5140-5600 and 6600 east. The ramps between them carry no furniture, and
+     neither does the ground inside a plinth's own fillets — a bench eases its
+     ends over `radius` px and that ease is deck slope like any other, which is
+     what caught two pieces here after the grades were already fixed. */
+  ornaments: [
+    { type: "stretcherBay", x:  760, y: WARDS_AT.deck(760),  w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x:  880, y: WARDS_AT.deck(880),  w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "failing" },
+    { type: "gantry",       x:  860, y: WARDS_AT.roof(860),  w: 280, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 1020, y: WARDS_AT.deck(1020), w: 220, snap: "floor", owner: "his", state: "live" },
+    { type: "dripStand",    x: 1180, y: WARDS_AT.deck(1180), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "medCrates",    x:  980, y: WARDS_AT.deck(980),  w: 88, h: 168, n: 3, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 1120, y: WARDS_AT.deck(1120), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "conduitRun",   x:  620, y: WARDS_AT.deck(620),  w: 460, snap: "floor", owner: "his", state: "live" },
+    { type: "stretcherBay", x: 3460, y: WARDS_AT.deck(3460), w: 96, h: 150, snap: "floor", owner: "hers", state: "dead" },
+    { type: "oxyBank",      x: 3580, y: WARDS_AT.deck(3580), w: 92, h: 96, n: 4, snap: "floor", owner: "hers", state: "dead" },
+    { type: "medCrates",    x: 3720, y: WARDS_AT.deck(3720), w: 90, h: 216, n: 4, snap: "floor", owner: "hers", state: "dead" },
+    { type: "pumpSet",      x: 3840, y: WARDS_AT.deck(3840), w: 150, h: 64, snap: "floor", owner: "his", state: "live" },
+    { type: "conduitRun",   x: 3440, y: WARDS_AT.deck(3440), w: 440, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 3600, y: WARDS_AT.roof(3600), w: 300, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "cableLoom",    x: 5200, y: WARDS_AT.deck(5200), w: 170, snap: "floor", owner: "his", state: "live" },
+    { type: "dripStand",    x: 5260, y: WARDS_AT.deck(5260), h: 110, snap: "floor", owner: "hers", state: "dead" },
+    { type: "ventGrate",    x: 5330, y: WARDS_AT.deck(5330), w: 70, h: 90, snap: "floor", owner: "hers", state: "dead" },
+    { type: "stretcherBay", x: 5420, y: WARDS_AT.deck(5420), w: 96, h: 150, snap: "floor", owner: "hers", state: "failing" },
+    { type: "medCrates",    x: 6560, y: WARDS_AT.deck(6560), w: 84, h: 104, n: 2, snap: "floor", owner: "hers", state: "dead" },
+    { type: "readerHead",   x: 6700, y: WARDS_AT.deck(6700), w: 76, h: 54, snap: "floor", owner: "his", state: "live" },
+    { type: "gantry",       x: 6620, y: WARDS_AT.roof(6620), w: 240, snap: "ceil", owner: "hers", state: "dead" },
+    { type: "conduitRun",   x: 6480, y: WARDS_AT.deck(6480), w: 400, snap: "floor", owner: "his", state: "live" }
+  ],
+  racks: [
+    { id: "r1", x: 600, y: WARDS_AT.deck(600), occupants: 11, label: "BANK 1 · 11 SOULS", snap: "floor" }
+  ],
+  conduits: [
+    { id: "c1", rack: "r1", real: true,  x: 2700, y: WARDS_AT.deck(2700), snap: "floor",
+      label: "ISOLATOR 1" },
+    { id: "c2", rack: null, real: false, x: 3980, y: WARDS_AT.deck(3980), snap: "floor",
+      label: "ISOLATOR 2" },
+    { id: "c3", rack: null, real: false, x: 5260, y: WARDS_AT.deck(5260), snap: "floor",
+      label: "ISOLATOR 3" }
+  ],
+  /* Same size, same mounting, same beat as the real bank — if any of that
+     differed a decoy would be identifiable by looking and §7.1's deduction
+     would be decoration. One is racked on the mezzanine, which is the mount a
+     plant uses for a bank it does not want on the walking floor. */
+  decoys: [
+    { id: "d1", conduit: "c2", x: 3620, y: WARDS_AT.deck(3620), snap: "floor", label: "BANK 2 · 11 SOULS" },
+    { id: "d2", conduit: "c3", x: 4560, y: 700, snap: "floor", mount: "wall", label: "BANK 3 · 10 SOULS" }
+  ],
+  turrets: [],
+  well: { x: 6280, y: 820 },
+  fuel: [
+    { x:  900 }, { x: 1560 }, { x: 2400 }, { x: 3060 }, { x: 3660 },
+    { x: 4240 }, { x: 4700 }, { x: 5340 }, { x: 5860 }, { x: 6200 }
+  ].map(f => Object.assign(f, { y: WARDS_AT.deck(f.x), snap: "floor" }))
+};
+
+/* IN PLAY ORDER, which is also the order the ladder above reads in. `n` on each
+   chamber is its position, so nothing has to infer it from this array's index —
+   __doids.loadChamber takes either an id or a number, and a chamber that is
+   later re-ordered carries its own answer. */
+const ACT_TWO_CHAMBERS = [BREACH_CHAMBER, WARDS_CHAMBER, SLICE_CHAMBER];
 
 /* compile a chamber to a level-shaped object — TERRAIN ONLY. Deliberately no
    racks, no well, no tow, no oids, no reserve: those are P·slice/P·systems and
@@ -1416,9 +1879,38 @@ function snapToSurface(list, spans) {
     // the nearest sampled column, which is a fraction of a slope away from it
     const sp = surfaceAcross(o, spans, o.snap === "ceil");
     if (!sp) return Object.assign({}, o);
-    return Object.assign({}, o, o.snap === "ceil"
-      ? { y: sp.top + 10 }                       // hung from the ceiling
-      : { y: sp.bot - (o.h || 0) - 2 });         // standing on the floor
+    if (o.snap === "ceil") return Object.assign({}, o, { y: sp.top + 10 });
+    /* Standing on the floor: the deepest ground under the whole footprint, so
+       it sinks rather than floats — and then LIFTED BACK OUT if that buried its
+       own origin.
+
+       The deepest-floor rule is right for an extended rigid object and can
+       overshoot for a small one: an isolator's footprint is ±16px, so a couple
+       of px of the deck's own value noise between its two shoulders is enough
+       to put the origin below the floor at its own x. That is not a sunken
+       breaker, it is a breaker inside rock, and the fixture guard rightly calls
+       it unreachable. Chamber two produced it on all three of its isolators on
+       the first compile; chamber three has always been one noise sample away
+       from the same thing and simply got lucky, which is the kind of latent
+       fault worth fixing where it lives rather than by nudging coordinates.
+
+       Lifting can never reintroduce the float this rule exists to prevent: the
+       lift is exactly the depth it was buried by, so a fixture buried 1px ends
+       up 1px proud at the deepest point of its footprint. Anything buried by
+       more than the guard's tolerance was unreachable and wants moving, which
+       is authoring and not arithmetic. */
+    let y = sp.bot - (o.h || 0) - 2;
+    /* …and the test is whether the ORIGIN lands in rock, not whether the local
+       floor differs from the deepest one. Those are not the same question and
+       the difference is the whole tolerance: a centre-origin object (a rack, a
+       decoy, a can) has its origin half a cage up in clear air and is SUPPOSED
+       to sink its base into the deck, so lifting it by the difference floats it
+       — which is exactly what a first pass at this did, by 7px, to a decoy that
+       had been sitting correctly for four rounds. Only a base-origin object
+       (`h: 0` — an isolator) can have its origin buried at all. */
+    const local = spanAt(o.x, o.y, spans);
+    if (local && y >= local.bot) y = local.bot - (o.h || 0) - 2;
+    return Object.assign({}, o, { y });
   });
 }
 

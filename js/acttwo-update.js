@@ -995,9 +995,54 @@ const HULL_SAFE_V = 46;        // a brush below this still costs nothing
    (§4.4): setting down against a wall and grazing a sloped deck are not what
    "impact" means, and a hair-trigger would make the tether unflyable in a way
    an honest wall does not. */
-function hullImpact(vn) {
+/* THE FIELD TURNS A WALL INTO A BOUNCE, exactly as it already does on Act One's
+   ground and cave roofs. Owner, August 2026: "the instakill on wall impact
+   should only be as in act one — so using a shield allows a shield bounce."
+
+   Both of Act One's lethal contacts have always consulted the shield first
+   (updatePlay, js/update.js: the roof branch bounces, and the landing branch
+   bounces between `soft` and `survivable`). A chamber's LATERAL rock never did,
+   because no such surface existed until P·slice — so the one answer Act One
+   gives you to a bad approach was simply missing down here, and the reversal to
+   instakill removed it without anybody noticing it had gone.
+
+   Reflected off the face's own normal rather than vertically, for the same
+   reason the ground bounce reflects off the local slope (see the note there): a
+   chamber's rock is a floor, a roof, a column's flank or the underside of a
+   shelf, and a vertical-only bounce is meaningless against three of those. It
+   is the same `solidNormal` the damage model reads, so the surface that decides
+   whether you are billed is the surface you come off.
+
+   Costs the shipped 4 fuel and nothing else — a bounce is the field doing its
+   job, not a cheaper crash. */
+function hullShieldBounce(n, vx0, vy0) {
+  const s = ship;
+  if (n) {
+    const vn = vx0 * n.x + vy0 * n.y;
+    s.vx = (vx0 - 2 * vn * n.x) * 0.65;
+    s.vy = (vy0 - 2 * vn * n.y) * 0.45;
+    /* and shoved clear ALONG the normal. Without it the hull can still be
+       inside the face's tolerance next frame, which re-triggers the bounce and
+       burns the fuel again every tick — the exact failure Act One's ground
+       bounce was fixed for on-device. */
+    s.x += n.x * 6; s.y += n.y * 6;
+  } else { s.vx = -vx0 * 0.5; s.vy = -vy0 * 0.5; }
+  s.landed = false;
+  s.fuel = Math.max(0, s.fuel - 4);
+  camera.shake += 6;
+  haptic.medium();
+  addText(s.x, s.y - 30, "SHIELD BOUNCE", PAL().SAFE);
+  blip(200, 380, 0.15, "sine", 0.12);
+}
+
+/* `n` is the outward normal of whatever was hit and `vx0`/`vy0` the velocity the
+   hull arrived with. Both are only needed for the shield case, and both are
+   taken BEFORE the caller damps anything, so the deflection is computed off the
+   real approach rather than off the correction that has already fired. */
+function hullImpact(vn, n, vx0, vy0) {
   const safe = easyMode ? HULL_SAFE_V * 1.3 : HULL_SAFE_V;   // §4.4's FIELD MEDIC contract
   if (vn <= safe) { camera.shake += 1.5; return true; }
+  if (ship.shield) { hullShieldBounce(n, vx0, vy0); return true; }
   camera.shake += 9;
   blip(150, 60, 0.22, "sawtooth", 0.16);
   haptic.heavy();
@@ -1008,12 +1053,18 @@ function hullImpact(vn) {
 /* The ceiling, in a chamber only — shoved back down off the rock and billed for
    it, where Act One dies. Called from updatePlay's existing roof block so the
    span-picking `roofAt(s.x, s.y)` above it is not duplicated here. */
+/* The shield case never arrives here — updatePlay's roof block tests `s.shield`
+   first and bounces there, which is Act One's own path and is left alone. The
+   normal is passed anyway rather than left to the null fallback: a ceiling's
+   outward normal points DOWN, and a helper that is correct only because of the
+   order of its one caller is a trap for the next person to touch that order. */
 function hullCeilingImpact(rY) {
   const s = ship;
-  const vn = Math.max(0, -s.vy);
+  const vx0 = s.vx, vy0 = s.vy;
+  const vn = Math.max(0, -vy0);
   s.y = rY + SHIP_R + 1;
   s.vy = Math.abs(s.vy) * 0.35 + 12;
-  return hullImpact(vn);
+  return hullImpact(vn, { x: 0, y: 1 }, vx0, vy0);
 }
 
 /* The outward normal of whatever mass the hull is against, read off the solid
@@ -1060,11 +1111,12 @@ function shipSolidCollide() {
            the local field, so flying ALONG a slope costs nothing and flying
            INTO a wall costs all of it. */
         const n = solidNormal(s.x, s.y, SHIP_R + 2);
-        const vn = n ? Math.max(0, -(s.vx * n.x + s.vy * n.y))
-                     : Math.max(0, s.vx * side);
+        const vx0 = s.vx, vy0 = s.vy;   // the approach, kept for the shield bounce
+        const vn = n ? Math.max(0, -(vx0 * n.x + vy0 * n.y))
+                     : Math.max(0, vx0 * side);
         s.x -= side * 4;
         s.vx = side > 0 ? Math.min(0, s.vx) * 0.3 : Math.max(0, s.vx) * 0.3;
-        if (!hullImpact(vn)) return false;
+        if (!hullImpact(vn, n, vx0, vy0)) return false;
       }
     }
     s.a2FreeX = s.x; s.a2FreeY = s.y;
@@ -1089,11 +1141,11 @@ function shipSolidCollide() {
   let nx = s.x - x0, ny = s.y - y0;
   const nl = Math.hypot(nx, ny);
   // no push means no face to take a normal from — fall back to the speed
-  const vn = nl > 0.001 ? Math.max(0, -(vx0 * (nx / nl) + vy0 * (ny / nl)))
-                        : Math.hypot(vx0, vy0);
+  const n = nl > 0.001 ? { x: nx / nl, y: ny / nl } : null;
+  const vn = n ? Math.max(0, -(vx0 * n.x + vy0 * n.y)) : Math.hypot(vx0, vy0);
   s.vx *= 0.2; s.vy *= 0.2;
   s.landed = false;
-  return hullImpact(vn);
+  return hullImpact(vn, n, vx0, vy0);
 }
 
 /* ---- the dispatch -------------------------------------------------------

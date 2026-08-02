@@ -98,6 +98,22 @@
     -webkit-overflow-scrolling: touch;
   }
   #dump.open { display: block; }
+
+  /* THE INTRO CARD. Act Two's chambers each open with one line of framing
+     (roadmap P·content, owner August 2026) and the game has no route into a
+     chamber yet, so the rig shows it — the copy is authored on the chamber and
+     P·content wires it into BRIEFS. Over the game, never inside the iframe:
+     shrinking the iframe shrinks the game, which is the mistake this whole
+     floating layout exists to avoid. */
+  #brief {
+    display: none; position: absolute; left: 0; right: 0; top: 18%;
+    z-index: 24; pointer-events: none; text-align: center;
+    padding: 0 calc(28px + env(safe-area-inset-left));
+    font-size: 15px; line-height: 1.5; letter-spacing: .02em;
+    color: #bfeefb; text-shadow: 0 0 14px rgba(0,229,255,.55);
+  }
+  #brief.open { display: block; animation: briefIn .5s ease-out; }
+  @keyframes briefIn { from { opacity: 0 } to { opacity: 1 } }
 </style>
 </head>
 <body>
@@ -115,8 +131,9 @@
       <div class="grp act2">
         <h3>Act Two — the descent (Bundle P)</h3>
         <div class="row">
-          <select id="chamberSel"><option value="slice">slice</option></select>
+          <select id="chamberSel"><option value="1">1 · THE BREACH</option></select>
           <button class="a2" data-run="loadChamber">Load chamber</button>
+          <button class="a2" data-run="a2Ladder">Ladder</button>
           <button class="a2" data-run="a2Dials">Dials</button>
           <button class="a2" data-run="a2State">Act Two state</button>
           <button class="a2" data-run="a2Route">Route check</button>
@@ -235,6 +252,7 @@
   </div>
 
   <button id="peek" title="show/hide the harness chrome">◧</button>
+  <div id="brief"></div>
   <pre id="dump"></pre>
 </div>
 
@@ -267,6 +285,7 @@
   var status = document.getElementById("status");
   var srcInput = document.getElementById("srcInput");
   var dump = document.getElementById("dump");
+  var brief = document.getElementById("brief");
   var menu = document.getElementById("menu");
 
   /* Harness preferences. NOTE the same-origin consequence: this page and the
@@ -368,16 +387,32 @@
   }
   function firstRackId(d) { var s = a2(d); return s && s.racks.length ? s.racks[0].id : null; }
 
+  /* Act Two is a LADDER now, not one room (owner, August 2026), so the picker is
+     ordered by chamber number and says what each one holds — a tester reaching
+     for "the first level" should not have to know which id that is. Falls back
+     to a2Chambers on a build that predates a2Ladder, because this rig is shared
+     across branches and every Act Two control is feature-detected. */
   function fillChambers(d) {
-    if (typeof d.a2Chambers !== "function") return;
+    var full = typeof d.a2Ladder === "function";
+    if (!full && typeof d.a2Chambers !== "function") return;
     try {
       var sel = document.getElementById("chamberSel");
-      var list = d.a2Chambers();
+      var list = full ? d.a2Ladder() : d.a2Chambers();
       if (!list || !list.length) return;
       sel.innerHTML = "";
-      list.forEach(function (c) {
+      list.forEach(function (c, i) {
         var o = document.createElement("option");
-        o.value = c.id; o.textContent = c.id + (c.name ? " · " + c.name : "");
+        o.value = c.n != null ? String(c.n) : c.id;
+        var bits = [];
+        if (full) {
+          bits.push(c.conduits + " feed" + (c.conduits === 1 ? "" : "s"));
+          if (c.decoys) bits.push(c.decoys + " decoy" + (c.decoys === 1 ? "" : "s"));
+          if (c.pinches && c.pinches.length) bits.push(c.pinches.join("+") + " gap");
+          if (c.turrets) bits.push(c.turrets + " gun" + (c.turrets === 1 ? "" : "s"));
+          if (c.lies) bits.push("deception");
+        }
+        o.textContent = (c.n != null ? c.n + " · " : "") + (c.name || c.id)
+          + (bits.length ? "  (" + bits.join(", ") + ")" : "");
         sel.appendChild(o);
       });
     } catch (e) {}
@@ -400,8 +435,23 @@
       var info = d.loadChamber(id);
       if (!info) { status.textContent = "no chamber '" + id + "' in this build"; return; }
       setHidden(true);   // you loaded it to fly it
-      status.textContent = id + " · " + info.W + "x" + info.H + " · " +
+      /* The intro card, shown here because the harness is still the only route
+         into a chamber (roadmap P·content owns wiring it into BRIEFS). Owner,
+         August 2026: the cards are load-bearing, not flavour — "a little
+         allusion to the fact we are under Solace's wreck, seeing the remains of
+         her attempts to keep her people alive" — because a player who has not
+         been told that reads a room of dark boxes rather than her last shift. */
+      status.textContent = (info.name || info.id) + " · " + info.W + "x" + info.H + " · " +
         info.racks + " rack(s), " + info.conduits + " feed(s)" + (info.well ? ", well" : "");
+      if (info.brief) {
+        brief.textContent = info.brief;
+        brief.classList.add("open");
+        setTimeout(function () { brief.classList.remove("open"); }, 9000);
+      }
+    },
+    a2Ladder: function (d) {
+      if (!needA2(d, "a2Ladder")) return;
+      showDump(d.a2Ladder(), "the chamber ladder — tap to dismiss");
     },
     a2Dials: function (d) {
       if (!needA2(d, "a2Dials")) return;

@@ -831,3 +831,220 @@ test("P·slice: FIELD MEDIC halves what giving costs you (H-bundle contract)", a
   // per unit of reserve delivered, FIELD MEDIC bleeds you half as hard
   expect(medic.spent / medic.given).toBeLessThan(full.spent / full.given * 0.75);
 });
+
+/* ===========================================================================
+   THE FIFTH ON-DEVICE ROUND (owner, August 2026) — three readability calls and
+   the guards for them. Two of the three were assertions nobody could have made
+   from the data: the furniture was measurably darker than the room it stood in,
+   and the feed lines were measurably still.
+   =========================================================================== */
+
+test("owner: a feed line carries a current, and dims where it runs through rock", async ({ page }) => {
+  /* "Still don't like the vertical lines that don't do anything. If they are
+     feed lines (real or fake), they should have a pulse going down them or
+     something. As it is they just look like errors."
+
+     A trunk used to carry ONE bead, placed by arc-length fraction, so a beat's
+     speed depended on the run's length and each part of the line was lit in
+     proportion to how much of the line it was — measured on chamber three, 87%
+     of every cycle on the buried horizontal and 4.6% on the riser at the
+     isolator. A 45px stub lit for a twentieth of a second is a static line.
+     Asserted as the PROPERTY rather than as a bead count: a point on a riser is
+     bright at some moment in a flow period and dark at another, i.e. the line
+     does something. And the buried half is dimmer than the open half, which is
+     what makes it read as a service run rather than a wire draped over the
+     world — the comment claimed that for two rounds while one uniform stroke
+     drew the lot. */
+  const spot = await page.evaluate(() => {
+    __doids.loadChamber("wards");
+    const c = level.conduits.find(k => k.id === "c3");   // the long wall-mount riser
+    const p = c.path, a = p[p.length - 2], b = p[p.length - 1];
+    let air = null, rock = null;
+    for (let f = 0.05; f < 0.95; f += 0.02) {
+      const x = lerp(a.x, b.x, f), y = lerp(a.y, b.y, f);
+      if (!solidAt(x, y)) { if (!air) air = { x, y }; }
+      else if (!rock) rock = { x, y };
+    }
+    return { air, rock, rise: Math.round(Math.abs(b.y - a.y)) };
+  });
+  expect(spot.rise, "the wall-mounted bank's riser is a long vertical run").toBeGreaterThan(300);
+  expect(spot.air).not.toBeNull();
+
+  // six samples across one flow period — the point must be lit at some of them
+  const lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+  const seen = [];
+  for (let i = 0; i < 6; i++) {
+    seen.push(lum(await page.evaluate(p => __doids.samplePixel(p.x, p.y), spot.air)));
+    await page.waitForTimeout(45);
+  }
+  const lo = Math.min(...seen), hi = Math.max(...seen);
+  expect(hi - lo, `a riser at ${Math.round(spot.air.x)},${Math.round(spot.air.y)} `
+    + `never changes across a flow period: ${seen.map(v => v.toFixed(0)).join(",")}`)
+    .toBeGreaterThan(6);
+});
+
+test("owner: the furniture is never darker than the room it stands in", async ({ page }) => {
+  /* "Ornaments are looking better, but fill still looks like a gap."
+
+     Measured, because the two failure modes look identical in source. Sampling
+     the rendered canvas over every floor-standing piece in a chamber — body
+     pixel against the rock behind it — the shipped set came out at a mean ratio
+     of 0.75: the furniture was on average DARKER than the room, which is not
+     something an object can be. Two causes, both fixed: the tones sat inside the
+     rock gradient's own value range, and the whole layer was drawn AFTER
+     drawChamberLights, so every lamp pool brightened the rock and left the
+     boxes at their literal value.
+
+     The guard is the ratio, not the colour — a future retune of ORN_BODY, of the
+     rock palette or of the ambient lift can move every number here and this
+     still says the only thing that matters. The upper bound is the other half
+     of the owner's note on this layer ("it needs to read as (interesting)
+     background… you are flying in front of it, not through it"): furniture that
+     outshines the room is the same mistake from the other side. */
+  const r = await page.evaluate(() => {
+    __doids.loadChamber("slice");
+    const lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+    const out = [];
+    for (const o of level.plantOrnaments) {
+      // the box-bodied pieces only: a drip stand and a cable loom are strokes,
+      // and sampling "the body" of something with no body measures the wall
+      if (!["stretcherBay", "medCrates", "ventGrate", "pumpSet", "readerHead"].includes(o.type)) continue;
+      const w = o.w || 90, h = o.h || 110;
+      const body = lum(__doids.samplePixel(o.x + w * 0.22, o.y + h * 0.45));
+      const rock = lum(__doids.samplePixel(o.x - w * 1.3, o.y + h * 1.6));
+      out.push({ type: o.type, x: Math.round(o.x), body: +body.toFixed(1),
+        rock: +rock.toFixed(1), ratio: +(body / Math.max(1, rock)).toFixed(2) });
+    }
+    return out;
+  });
+  expect(r.length).toBeGreaterThan(8);
+  const mean = r.reduce((a, v) => a + v.ratio, 0) / r.length;
+  expect(mean, `furniture reads as a hole in the room (mean body/rock ${mean.toFixed(2)}): `
+    + r.map(v => `${v.type}@${v.x} ${v.ratio}`).join(", ")).toBeGreaterThan(1.0);
+  expect(mean, `furniture outshines the room it is meant to sit behind (${mean.toFixed(2)})`)
+    .toBeLessThan(1.9);
+  // and no single piece is a hole, however the mean lands
+  for (const v of r)
+    expect(v.body, `${v.type}@${v.x} has no visible body`).toBeGreaterThan(45);
+});
+
+test("owner: the shield turns a chamber wall into a bounce, as it does in Act One", async ({ page }) => {
+  /* "The instakill on wall impact should only be as in act one — so using a
+     shield allows a shield bounce."
+
+     Act One's two lethal contacts have always consulted the shield first: the
+     cave-roof branch bounces and the landing branch bounces between `soft` and
+     `survivable`. A chamber's LATERAL rock never did, because no such surface
+     existed before P·slice — so the one answer Act One gives you to a bad
+     approach was missing exactly where impacts had just been made lethal again.
+
+     Flown, not reasoned about: drive the hull into the flank of chamber three's
+     structural column at a speed that kills, once with the field down and once
+     with it up. */
+  const run = async shield => page.evaluate(sh => {
+    __doids.loadChamber("slice");
+    // beside the structural column (4600..4810), at hall altitude, aimed at it
+    __doids.a2Warp(4380, 900);
+    /* Held on the INPUT, not on the ship: updatePlay recomputes `s.shield` from
+       the button every frame, so a test that pokes the flag is testing nothing —
+       it is off again before collision runs. */
+    input.shield = sh;
+    ship.vx = 420; ship.vy = 0; ship.landed = false;
+    const fuel0 = ship.fuel;
+    for (let i = 0; i < 40 && !ship.dead; i++) update(1 / 60);
+    const out = { dead: ship.dead, x: Math.round(ship.x), vx: Math.round(ship.vx),
+      fuelSpent: Math.round(fuel0 - ship.fuel), shielded: ship.shield };
+    input.shield = false;
+    return out;
+  }, shield);
+
+  const bare = await run(false);
+  expect(bare.dead, "an unshielded hull driven into a column flank still dies").toBe(true);
+
+  const held = await run(true);
+  expect(held.shielded, "the field was actually up for the impact").toBe(true);
+  expect(held.dead, "the field turns the same impact into a bounce").toBe(false);
+  // …and it is a BOUNCE, not a pass-through: sent back the way it came
+  expect(held.vx, "the hull is deflected off the face rather than stopped in it")
+    .toBeLessThan(0);
+  // Act One's price for a bounce, and no more
+  expect(held.fuelSpent, "a bounce costs the shipped 4 fuel").toBeGreaterThan(0);
+  expect(held.fuelSpent).toBeLessThan(20);
+});
+
+test("P·content: no chamber kills you against nothing", async ({ page }) => {
+  /* THE THING THE LAST FIVE ROUNDS KEPT PROVING, made into a test.
+
+     Every collision bug this bundle has paid for was invisible to a passing
+     guard, and every one was found the same way: by flying the hull and
+     recording where it stopped. The flood fill asks whether two columns' spans
+     overlap; it never asks what `solidAt` says BETWEEN two columns, which is
+     exactly where `spanAt` was interpolating toward the wrong neighbour and
+     killing a hull in open air. "I couldn't get any further west, everything
+     seemed solid" was that, twice, past two rounds of fixes.
+
+     So: fly every chamber end to end at every altitude, both directions, and
+     ask the one question a fill cannot — did the hull ever die, or stop, with
+     NOTHING in front of it? Not "did it get through": a level-flight sweep rams
+     honest walls all day and should. The correction shoves the hull clear
+     before it kills, so the check is made against the position it died FROM and
+     looks a hull-length ahead along the direction of travel.
+
+     Cheap to widen: drop the altitude step and it takes longer and finds more. */
+  const ids = await page.evaluate(() => ACT_TWO_CHAMBERS.map(c => c.id));
+  expect(ids.length).toBeGreaterThanOrEqual(3);
+  for (const id of ids) {
+    const r = await page.evaluate(id => {
+      const bad = [];
+      let flights = 0;
+      const openAt = (x, y) => {
+        if (solidAt(x, y)) return false;
+        for (let k = 0; k < 8; k++) {
+          const a = k * Math.PI / 4;
+          if (solidAt(x + Math.cos(a) * (SHIP_R + 3), y + Math.sin(a) * (SHIP_R + 3))) return false;
+        }
+        return true;
+      };
+      const somethingThere = (x, y, dir) => {
+        for (let d = 0; d <= 60; d += 4)
+          for (let o = -SHIP_R; o <= SHIP_R; o += SHIP_R)
+            if (solidAt(x + dir * d, y + o)) return true;
+        return false;
+      };
+      __doids.loadChamber(id);
+      const W = level.W, H = level.H;
+      for (const dir of [-1, 1]) {
+        for (let y0 = 120; y0 < H - 120; y0 += 90) {
+          const x0 = dir < 0 ? W - 200 : 200;
+          __doids.loadChamber(id);
+          if (!openAt(x0, y0)) continue;            // no honest place to start
+          __doids.a2Warp(x0, y0);
+          flights++;
+          let last = ship.x, stuck = 0;
+          for (let i = 0; i < 2600; i++) {
+            ship.vx = dir * 240; ship.vy = 0; ship.landed = false;
+            const px = ship.x, py = ship.y;
+            update(1 / 60);
+            if (ship.dead) {
+              if (!somethingThere(px, py, dir))
+                bad.push(`died against nothing at ${Math.round(px)},${Math.round(py)} (flying ${dir < 0 ? "west" : "east"} at y${y0})`);
+              break;
+            }
+            if (Math.abs(ship.x - last) < 0.5) {
+              if (++stuck > 40) {
+                if (!somethingThere(ship.x, ship.y, dir))
+                  bad.push(`stopped against nothing at ${Math.round(ship.x)},${Math.round(ship.y)} (flying ${dir < 0 ? "west" : "east"} at y${y0})`);
+                break;
+              }
+            } else stuck = 0;
+            last = ship.x;
+            if (dir < 0 ? ship.x < 200 : ship.x > W - 200) break;
+          }
+        }
+      }
+      return { flights, bad };
+    }, id);
+    expect(r.flights, `${id}: the sweep actually flew`).toBeGreaterThan(6);
+    expect(r.bad, `${id}: the hull was stopped by something that is not there`).toEqual([]);
+  }
+});

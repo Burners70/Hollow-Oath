@@ -143,43 +143,163 @@ function strokeTrunkPath(c) {
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.stroke();
 }
-// where along the whole run a fraction 0..1 falls, and whether it is underground
-function trunkPointAt(c, f) {
+
+/* ---- A FEED LINE CARRIES A CURRENT (owner, August 2026) --------------------
+   "Still don't like the vertical lines that don't do anything. If they are feed
+   lines (real or fake), they should have a pulse going down them or something.
+   As it is they just look like errors."
+
+   Three faults, and they compound into exactly that reading.
+
+   1. THE LINE NEVER DIMMED WHERE IT PASSES THROUGH ROCK, though the comment
+      above has claimed since P·feedback that it did. Only the moving BEAD's
+      alpha was dropped; `strokeTrunkPath` is one path and one `stroke()`, so
+      the whole polyline drew at one value. The run sits 26px UNDER the deck and
+      is drawn after the terrain, so the buried half read as a bright cyan line
+      lying on top of the floor — a wire painted across the world, which is a
+      rendering error, not plumbing. Worse, decoy c3's riser climbs 504px to a
+      wall-mounted bank and passes behind the gallery mezzanine on the way: full
+      alpha, straight through solid rock.
+      Buriedness is asked of `solidAt` now — the same predicate collision and
+      §8.1's dust use — rather than inferred from "is this the first or last
+      segment", which was wrong at both ends (26px of every riser is below the
+      deck) and blind to rock anywhere in between.
+
+   2. ONE BEAD FOR THE WHOLE RUN, placed by arc-length fraction, so a beat's
+      SPEED was a function of the trunk's length and each part of the line got
+      lit in proportion to how much of the line it was. Measured on this
+      chamber: the real feed's beat spends 87% of every cycle on the buried
+      horizontal and 4.6% on the riser at the isolator. A 45px stub lit for a
+      twentieth of a second is a static line. A beat is EMITTED per heartbeat
+      now and travels at a fixed speed, so spacing is the same on every trunk
+      regardless of length — which is also the honest model, since what runs in
+      the line is the bank's own pulse and a pulse does not slow down because
+      the vessel is longer.
+
+   3. NOTHING HAPPENED BETWEEN THE BEATS. Discrete beads still leave the line
+      dead in the gaps; this is a service run, not a string of lights. A dashed
+      overlay advancing at the same speed gives every part of the path —
+      risers included — a continuous travelling current. `lineDashOffset`
+      measures along path length, so carrying the phase across the per-segment
+      strokes keeps it seamless through every corner.
+
+   The real-versus-fake tell is untouched: still silhouette alone (a round beat
+   on a living line, a rounded square on a faked one), so it survives colourblind
+   mode, and a decoy flows exactly as convincingly as a real feed — which it must,
+   or §7.1's deduction becomes decoration. */
+const TRUNK_FLOW_V = 190;                                 // px/s the current travels
+const TRUNK_DASH = [13, 29];                              // the flow: on, off
+const TRUNK_DASH_LEN = TRUNK_DASH[0] + TRUNK_DASH[1];
+const TRUNK_ROCK_A = 0.34;                                // what survives being seen through rock
+const TRUNK_ROCK_STEP = 22;                               // px between solidAt probes
+
+/* The run as runs-of-like-visibility: consecutive samples that are all in rock
+   or all in air, so the whole trunk is a handful of polyline strokes rather than
+   one per probe. `s` is the distance along the whole path at which each run
+   starts, which is what lets the dash phase carry across them. */
+function trunkRuns(c) {
   const pts = trunkPts(c);
-  let total = 0;
-  const seg = [];
+  const runs = [];
+  let s = 0, cur = null;
+  const push = (x, y, rock) => {
+    if (!cur || cur.rock !== rock) {
+      // start a new run AT the previous point, so the two meet with no gap
+      if (cur) cur.pts.push({ x, y });
+      cur = { rock, s, pts: [] };
+      if (runs.length) { const p = runs[runs.length - 1].pts; cur.pts.push(p[p.length - 1]); }
+      runs.push(cur);
+    }
+    cur.pts.push({ x, y });
+  };
   for (let i = 1; i < pts.length; i++) {
-    const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-    seg.push(d); total += d;
+    const a = pts[i - 1], b = pts[i];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const n = Math.max(1, Math.ceil(d / TRUNK_ROCK_STEP));
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, x = lerp(a.x, b.x, t0), y = lerp(a.y, b.y, t0);
+      // sampled at the MIDDLE of the step, so a run is classified by the rock it
+      // actually crosses rather than by the state at one of its ends
+      const mt = (k + 0.5) / n;
+      push(x, y, solidAt(lerp(a.x, b.x, mt), lerp(a.y, b.y, mt)));
+      s += d / n;
+    }
   }
-  let want = clamp(f, 0, 1) * total;
-  for (let i = 0; i < seg.length; i++) {
-    if (want > seg[i] && i < seg.length - 1) { want -= seg[i]; continue; }
-    const t = seg[i] > 0 ? want / seg[i] : 0;
-    return { x: lerp(pts[i].x, pts[i + 1].x, t), y: lerp(pts[i].y, pts[i + 1].y, t),
-      buried: i > 0 && i < seg.length - 1 };
+  if (cur) cur.pts.push(pts[pts.length - 1]);
+  return { runs, total: s };
+}
+// where along the whole run a distance falls, and whether it is inside rock there
+function trunkPointAtDist(c, want) {
+  const pts = trunkPts(c);
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    if (want <= acc + d || i === pts.length - 1) {
+      const t = d > 0 ? clamp((want - acc) / d, 0, 1) : 0;
+      const x = lerp(a.x, b.x, t), y = lerp(a.y, b.y, t);
+      return { x, y, buried: solidAt(x, y) };
+    }
+    acc += d;
   }
   return { x: pts[0].x, y: pts[0].y, buried: false };
 }
+// kept as a fraction-taking wrapper: the network ripple is authored as 0..1
+function trunkPointAt(c, f) {
+  const g = trunkRuns(c);
+  return trunkPointAtDist(c, clamp(f, 0, 1) * g.total);
+}
 function drawConduitTrunk(c, real, now, rippleDelayFrac) {
+  const g = trunkRuns(c);
   ctx.save();
-  ctx.strokeStyle = shade(TOK.CYAN, .25); ctx.lineWidth = 3;
-  strokeTrunkPath(c);
-  const phase = (now % RACK_PULSE_PERIOD) / RACK_PULSE_PERIOD;
-  const p = trunkPointAt(c, phase);
-  // the beat dims where the run passes under the deck — the same current, seen
-  // through rock, which is exactly what tells you the line is buried
-  const a = p.buried ? 0.45 : 1;
-  ctx.globalAlpha = a;
-  ctx.fillStyle = TOK.CYAN; ctx.shadowColor = TOK.CYAN; ctx.shadowBlur = 12 * a;
-  if (real) { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); }
-  else { ctx.beginPath(); pathRoundRect(p.x - 5.5, p.y - 5.5, 11, 11, 4); ctx.fill(); }
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  /* The run itself, per stretch, so what you see through rock is dimmer and
+     thinner than what runs in open air. That difference is the whole reading:
+     a bright riser rising out of a faint buried line is a service run coming up
+     out of the deck, where one uniform line is a wire draped over the world. */
+  for (const r of g.runs) {
+    if (r.pts.length < 2) continue;
+    ctx.strokeStyle = shade(TOK.CYAN, (r.rock ? TRUNK_ROCK_A : 1) * .3);
+    ctx.lineWidth = r.rock ? 2.2 : 3.4;
+    ctx.beginPath(); ctx.moveTo(r.pts[0].x, r.pts[0].y);
+    for (let i = 1; i < r.pts.length; i++) ctx.lineTo(r.pts[i].x, r.pts[i].y);
+    ctx.stroke();
+  }
+  /* THE FLOW. The dash phase at a point is its distance along the path minus
+     `v·t`, so the pattern travels toward the load at TRUNK_FLOW_V — and adding
+     each run's own start distance is what stops it restarting at every corner.
+     Reduced flash keeps the motion (movement is not what that setting is for)
+     but drops the contrast between the flow and the line under it. */
+  const flowA = reducedFlash ? .34 : .62;
+  ctx.setLineDash(TRUNK_DASH);
+  for (const r of g.runs) {
+    if (r.pts.length < 2) continue;
+    ctx.strokeStyle = shade(TOK.CYAN, (r.rock ? TRUNK_ROCK_A : 1) * flowA);
+    ctx.lineWidth = r.rock ? 2.2 : 3.4;
+    const off = (r.s - now * TRUNK_FLOW_V) % TRUNK_DASH_LEN;
+    ctx.lineDashOffset = off;
+    ctx.beginPath(); ctx.moveTo(r.pts[0].x, r.pts[0].y);
+    for (let i = 1; i < r.pts.length; i++) ctx.lineTo(r.pts[i].x, r.pts[i].y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  /* THE BEATS — one per heartbeat, at the same speed as the flow, so the two
+     agree and the spacing between beats is `v · RACK_PULSE_PERIOD` on every
+     trunk in the game. */
+  const gap = TRUNK_FLOW_V * RACK_PULSE_PERIOD;
+  ctx.fillStyle = TOK.CYAN; ctx.shadowColor = TOK.CYAN;
+  for (let d = (now * TRUNK_FLOW_V) % gap; d <= g.total; d += gap) {
+    const p = trunkPointAtDist(c, d);
+    const a = p.buried ? TRUNK_ROCK_A : 1;
+    ctx.globalAlpha = a; ctx.shadowBlur = 12 * a;
+    if (real) { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); }
+    else { ctx.beginPath(); pathRoundRect(p.x - 5.5, p.y - 5.5, 11, 11, 4); ctx.fill(); }
+  }
   ctx.shadowBlur = 0; ctx.globalAlpha = 1;
   if (rippleDelayFrac != null) {
     const rt = networkRippleT(rippleDelayFrac);
     if (rt > 0 && rt < 1) {
-      const q = trunkPointAt(c, rt);
-      drawGlow(q.x, q.y, 9, TOK.CYAN, 0.7 * rt * (q.buried ? 0.45 : 1));
+      const q = trunkPointAtDist(c, rt * g.total);
+      drawGlow(q.x, q.y, 9, TOK.CYAN, 0.7 * rt * (q.buried ? TRUNK_ROCK_A : 1));
     }
   }
   ctx.restore();
@@ -329,11 +449,22 @@ function drawConduits(now) {
   if (!level.conduits) return;
   level.conduits.forEach((c, i) => {
     if (c.cut) {
-      // a closed feed: the line goes dark and slack, with the break visible
+      /* A closed feed: dark, slack and STILL. That contrast is worth more now
+         than it was — a live trunk visibly flows, so a dead one reads as dead
+         from across the room rather than needing its handle inspected. Split by
+         rock like a live one, so the two states differ in motion and value
+         alone and not in how the run is drawn. */
       ctx.save();
-      ctx.strokeStyle = shade(TOK.CYAN, .12); ctx.lineWidth = 2.5;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
       ctx.setLineDash([5, 9]);
-      strokeTrunkPath(c);
+      for (const r of trunkRuns(c).runs) {
+        if (r.pts.length < 2) continue;
+        ctx.strokeStyle = shade(TOK.CYAN, (r.rock ? TRUNK_ROCK_A : 1) * .14);
+        ctx.lineWidth = r.rock ? 1.8 : 2.5;
+        ctx.beginPath(); ctx.moveTo(r.pts[0].x, r.pts[0].y);
+        for (let i = 1; i < r.pts.length; i++) ctx.lineTo(r.pts[i].x, r.pts[i].y);
+        ctx.stroke();
+      }
       ctx.restore();
     } else {
       drawConduitTrunk(c, c.real, now, (i % 4) / 4);
@@ -506,32 +637,43 @@ function buildSpanTile(x0, x1, spans, H, pal) {
     for (let i = i0; i < i1; i++) {
       const xa = i * STEP, xb = (i + 1) * STEP;
       for (const sp of spans[i]) {
-        const m = matchSpan(spans[i + 1], sp) || sp;
+        // per boundary, for the same reason the punch and the edges are — see
+        // the note on the punch below; a paved band swept to the wrong
+        // neighbour paints a 400px wedge of steel across open air
+        const mt = matchBoundaryMutual(spans, i, sp, "top", +1) || sp;
+        const mb = matchBoundaryMutual(spans, i, sp, "bot", +1) || sp;
         if (sp.mb === "mach") {
           tctx.beginPath();
-          tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot);
-          tctx.lineTo(xb, m.bot + MACH_BAND); tctx.lineTo(xa, sp.bot + MACH_BAND);
+          tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, mb.bot);
+          tctx.lineTo(xb, mb.bot + MACH_BAND); tctx.lineTo(xa, sp.bot + MACH_BAND);
           tctx.closePath(); tctx.fill();
         }
         if (sp.mt === "mach") {
           tctx.beginPath();
-          tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
-          tctx.lineTo(xb, m.top - MACH_BAND); tctx.lineTo(xa, sp.top - MACH_BAND);
+          tctx.moveTo(xa, sp.top); tctx.lineTo(xb, mt.top);
+          tctx.lineTo(xb, mt.top - MACH_BAND); tctx.lineTo(xa, sp.top - MACH_BAND);
           tctx.closePath(); tctx.fill();
         }
       }
     }
 
-    // punch the open space out of the rock
+    /* Punch the open space out of the rock — PER BOUNDARY, the same way the
+       edges below are stroked, so the drawn air ends where the drawn surface
+       ends. Per SPAN it narrowed the single span west of a mezzanine down to
+       the upper opening's floor, leaving a wedge of rock drawn across air that
+       `spanAt` reports as open: the sliver behind the phantom line. Both halves
+       of the same fault, and they have to be fixed together or the fill and the
+       stroke disagree about where the shelf stops. */
     tctx.globalCompositeOperation = "destination-out";
     tctx.fillStyle = "#000";
     for (let i = i0; i < i1; i++) {
       const xa = i * STEP, xb = (i + 1) * STEP;
       for (const sp of spans[i]) {
-        const m = matchSpan(spans[i + 1], sp) || sp;
+        const mt = matchBoundaryMutual(spans, i, sp, "top", +1) || sp;
+        const mb = matchBoundaryMutual(spans, i, sp, "bot", +1) || sp;
         tctx.beginPath();
-        tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top);
-        tctx.lineTo(xb, m.bot);  tctx.lineTo(xa, sp.bot);
+        tctx.moveTo(xa, sp.top); tctx.lineTo(xb, mt.top);
+        tctx.lineTo(xb, mb.bot);  tctx.lineTo(xa, sp.bot);
         tctx.closePath(); tctx.fill();
       }
     }
@@ -550,9 +692,25 @@ function buildSpanTile(x0, x1, spans, H, pal) {
         const xa = i * STEP, xb = (i + 1) * STEP;
         const nxt = spans[i + 1] || [], prv = spans[i - 1] || [];
         for (const sp of spans[i]) {
-          const m = matchSpan(nxt, sp) || sp;
-          if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, m.top); any = true; }
-          if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, m.bot); any = true; }
+          /* MUTUAL, and this is the last place in the terrain that was not.
+             The fill quads above use plain `matchSpan` on purpose (see the note
+             there — the drawn air has to follow collision), but a BOUNDARY
+             stroked to a non-mutual neighbour is not a floor, it is a diagonal
+             drawn between two unrelated surfaces. At the tip of a mezzanine the
+             upper span's `bot` is the shelf's milled pad and the single span
+             next door has its `bot` on the hall deck 530px below, so the pad's
+             edge was stroked from one to the other across 16px of x: a bright,
+             near-vertical, glowing line from a shelf down to the floor, in the
+             zone accent, at the end of every shelf and overhang in the act.
+             Owner, August 2026: "still don't like the vertical lines that don't
+             do anything… they just look like errors." They were errors.
+             Where the match is not mutual the surface simply ENDS at the column
+             edge, which is what the end of a shelf is, and the rock band's own
+             face (stroked below) is what closes it off. */
+          const mt = matchBoundaryMutual(spans, i, sp, "top", +1) || sp;
+          const mb = matchBoundaryMutual(spans, i, sp, "bot", +1) || sp;
+          if (sp.mt === mat) { tctx.moveTo(xa, sp.top); tctx.lineTo(xb, mt.top); any = true; }
+          if (sp.mb === mat) { tctx.moveTo(xa, sp.bot); tctx.lineTo(xb, mb.bot); any = true; }
           /* A flank belongs to the rock pass: a wall is where the mass is cut.
              Only where the AIR ends against solid rock, though — a column with
              no spans at all. Stroking it wherever a span had no mutual
@@ -781,9 +939,16 @@ function drawConduitRunOrnament(x, y, w, now) {
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.stroke();
+  /* The light travelling it — INTERPOLATED between the 48px samples, not
+     snapped to them. It used to `Math.floor` onto a sample index, so on a 460px
+     run the light jumped a whole 48px eight times a second: a stepping light is
+     an indicator, and what this is meant to read as is flow. Same clock, same
+     direction as a trunk's beats. */
   const phase = (now % RACK_PULSE_PERIOD) / RACK_PULSE_PERIOD;
-  const gi = clamp(Math.floor(phase * (pts.length - 1)), 0, pts.length - 1);
-  drawGlow(pts[gi].x, pts[gi].y, 6, TOK.CYAN, 1);
+  const f = phase * (pts.length - 1);
+  const gi = clamp(Math.floor(f), 0, pts.length - 2), gt = f - gi;
+  drawGlow(lerp(pts[gi].x, pts[gi + 1].x, gt), lerp(pts[gi].y, pts[gi + 1].y, gt),
+    6, TOK.CYAN, 1);
   ctx.restore();
 }
 
@@ -847,13 +1012,39 @@ function ornTone(o, now) {
   return { c: o.owner === "his" ? TOK.VIOLET : TOK.CYAN_TEXT, body, glow: 0, lit: false };
 }
 
-/* A solid body: dark fill, a shadowed right-hand face, a lit top edge. Every
-   ornament is built from this so the whole set reads as one material language. */
+/* A solid body: a graded fill, a shadowed right-hand face, a lit top edge. Every
+   ornament is built from this so the whole set reads as one material language.
+
+   THE FILL IS A GRADIENT, and that is the fix for "fill still looks like a gap"
+   (owner, August 2026). Two things were making a hole of it. The tones were
+   inside the rock's own value range — see ORN_BODY (js/acttwo-data.js) for the
+   numbers — and the whole furniture layer was drawn AFTER drawChamberLights,
+   which lifts the room additively, so every lamp pool brightened the rock and
+   left the furniture at its literal value: a dark rectangle punched through a
+   lit wall. That draw call has moved (js/render.js), so the room's lamps light
+   its furniture along with everything else in it.
+   The gradient itself is the third part. Light down here comes from fittings
+   that are overwhelmingly overhead, so the top of a box is lit and its base
+   sits in its own shade; a flat fill of ANY value reads as a cutout at
+   silhouette scale, and this is what says solid instead. */
+function ornBodyFill(y, h, t) {
+  const b = t.body || ORN_BODY.hers;
+  if (typeof b === "string") return b;            // a plain tone, if one is ever passed
+  const g = ctx.createLinearGradient(0, y, 0, y + Math.max(6, h));
+  g.addColorStop(0, b.lit);
+  g.addColorStop(1, b.base);
+  return g;
+}
 function ornBody(x, y, w, h, t, r) {
   r = r == null ? 3 : r;
-  ctx.fillStyle = t.body || ORN_BODY.hers;      // dark steel, never black
+  ctx.fillStyle = ornBodyFill(y, h, t);         // steel, lit down its own height
   ctx.beginPath(); pathRoundRect(x, y, w, h, r); ctx.fill();
-  ctx.fillStyle = oa(t, .05);                       // the face turned away
+  /* The turned-away face, as a SHADE of the body rather than a wash of the
+     accent. `oa()` is an accent at 30% of an already-low alpha, which over a
+     dark fill was invisible and over the new one is a faint colour cast — but
+     the job of this face is to be darker, which is the only reading that gives
+     a box a third dimension. */
+  ctx.fillStyle = "rgba(0,0,0,.28)";
   ctx.beginPath(); pathRoundRect(x + w * 0.56, y, w * 0.44, h, r); ctx.fill();
   ctx.strokeStyle = oa(t, t.lit ? .7 : .32); ctx.lineWidth = 1.8;
   if (t.glow) { ctx.shadowColor = t.c; ctx.shadowBlur = 7 * t.glow; }

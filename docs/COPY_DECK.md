@@ -569,7 +569,8 @@ shield to catalogue it, no shot)
 
 ## 12a. Act Two — the descent (Bundle P · P·slice)
 
-**Not reachable in normal play.** Act Two is behind `__doids.loadChamber("slice")`
+**Not reachable in normal play.** Act Two is behind `__doids.loadChamber(1)`
+(or `("breach")`, `("wards")`, `("slice")` — see the ladder below)
 until P·content and P·persist wire it into the campaign, so none of this has
 shipped to a player. It is here because the house rule is that copy lands in the
 deck in the same PR as the code (R10), and because the voice of Act Two is worth
@@ -584,6 +585,33 @@ A broader "Act Two never bills the player" line stood here until July 2026 and
 was an assistant's assumption, not an owner decision: **failures do cost
 points** down here, and every impact on a rack is charged per impact. See
 APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
+
+### Chamber intro cards (`brief` on each chamber, `js/acttwo-data.js`)
+
+**Owner decision, August 2026, and it is load-bearing rather than flavour:**
+*"intro cards for these levels should help players interpret what they are
+seeing as it won't be obvious. Just a little allusion to the fact we are under
+Solace's wreck, seeing the remains of her attempts to keep her people alive."*
+The same round gave the furniture a fiction it cannot state for itself (hers,
+wrecked — then his, installed over it), so a player who has not been told reads a
+room of dark boxes where one who has reads her last shift. One line converts the
+whole dressing budget into story.
+
+Kept to an allusion, per the act's voice: understatement, and never a tutorial.
+Carried on the chamber beside the geometry it explains, so a chamber cannot be
+merged without its line; the QA harness shows it on load and **P·content wires it
+into `BRIEFS`/`toBriefing`** (Act One's shipped grammar — no new screen).
+
+| # | Chamber | Card |
+|---|---|---|
+| 1 | THE BREACH | `Her forward intake, opened to the rock. One bank still on mains, and the light coming in is daylight she never saw.` |
+| 2 | THE WARDS | `Her ward deck. The beds are still in their rows, and someone has run new cable over every one of them.` |
+| 3 | THE DEEP INTAKE | `The last of her, and the first of him. Past this floor the rock stops being a wreck and starts being a facility.` |
+
+Chambers 4–10 are unwritten; their cards are authored with their geometry.
+Chamber three's name changed from `INTAKE` when it became the third floor rather
+than the first — the id stays `slice` (it is not player-facing, and ~20 test call
+sites and the QA harness use it).
 
 ### Banners (`banner()`, `js/acttwo-update.js`)
 
