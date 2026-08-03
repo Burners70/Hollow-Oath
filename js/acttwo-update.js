@@ -47,6 +47,33 @@ let a2Saved = 0, a2Lost = 0;
 let a2Line = null;            // the transfusion line, while it is out
 let a2FirePrev = true;        // FIRE is edge-triggered (a held FIRE never releases)
 
+/* ---- P·systems — the ladder's two movements -------------------------------
+   Everything Act Two scores goes through these, and nothing writes `score`
+   directly, for three reasons that are each a bug someone would otherwise
+   reintroduce: rule 8's floor has to be applied at EVERY charge rather than at
+   the end (Act One clamps at each site, and a single missed clamp is how a
+   score goes negative); `a2Score` has to move in lockstep with `score` or Act
+   Two's own board records a different run from the one that was played; and
+   a2Score must take the SAME clamp, or a run that is floored on the global
+   total keeps accruing a private negative that surfaces later as a dead zone.
+
+   The floor is applied to each independently and that is deliberate: they
+   started from different places (a chamber entered mid-campaign inherits an Act
+   One score; a2Score always starts at 0), so they can legitimately floor at
+   different moments. */
+function a2Award(n) {
+  if (!(n > 0)) return 0;
+  score += n; a2Score += n;
+  return n;
+}
+function a2Charge(n) {
+  if (!(n > 0)) return 0;
+  const paid = Math.min(n, score);   // what the floor actually let it take
+  score = Math.max(0, score - n);
+  a2Score = Math.max(0, a2Score - n);
+  return paid;
+}
+
 function actTwoActive() { return !!(level && level.racks && level.racks.length); }
 function towing() { return !!(level && level.towedRack) && !ship.dead; }
 function towedCage() {
@@ -95,15 +122,15 @@ function closeTrunk(c) {
     return;
   }
   /* A decoy. §7.1: "it's his line, so he now knows you're here." The cost is
-     that he is listening and the time is gone.
-     A SCORE PENALTY BELONGS HERE and is not yet wired — it lands with the ladder
-     in P·systems. This comment used to claim Act Two never bills the player for
+     that he is listening, the time is gone — and, since P·systems, a hundred
+     points. This comment used to claim Act Two never bills the player for
      reading a room wrong; that was an assistant's assumption and the owner
-     overturned it (July 2026). It costs points AS WELL as the time and his
-     attention, which is not charging twice: "your score is the only permanent
-     record of your success. The others just make your game harder." The other
-     currencies shape the attempt you are having; score is what survives it.
-     See APP_STORE_ROADMAP.md, Bundle P · P·systems for the proposed table. */
+     overturned it (July 2026, ladder rule 6). It costs points AS WELL as the
+     time and his attention, which is not charging twice: "your score is the
+     only permanent record of your success. The others just make your game
+     harder." The other currencies shape the attempt you are having; score is
+     what survives it. */
+  a2Charge(A2_DEAD_LINE);
   banner("DEAD LINE — NOTHING WAS ON THE END OF IT\nHE KNOWS SOMEONE IS DOWN HERE NOW", PAL().DANGER);
   staticTick(); staticSurge = Math.max(staticSurge, 0.9);
   camera.shake += 7; haptic.heavy();
@@ -125,7 +152,7 @@ function actTwoShotHit(b) {
     const r = c.rack && level.racks.find(k => k.id === c.rack);
     explode(b.x, b.y, PAL().DANGER, 18);
     if (r && !r.lost && !r.delivered) {
-      loseRack(r, "THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT");
+      loseRack(r, "THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT", true);
     } else {
       addText(b.x, b.y - 20, "DEAD LINE", PAL().WARN);
     }
@@ -170,10 +197,17 @@ function updateReserves(dt, beat) {
 /* §7.3 — flatline is death, total, never partial. The chamber is the retry unit
    (§11.1), which is what lets that be true without training the player to
    save-scum; the checkpoint itself is P·persist. */
-function loseRack(r, why) {
+/* `byShot` separates the ladder's two loss rows. They are the same number — a
+   bank is a bank however it died — but they are kept as separate constants and
+   a separate argument because they are separate DECISIONS: one is the reserve
+   running out on you, the other is Act One's "killed by your own hand", and a
+   later retune that wants to price them differently should not have to first
+   work out which call site meant which. */
+function loseRack(r, why, byShot) {
   r.lost = true; r.reserve = 0; r.state = "gone"; r.towed = false;
   if (level.towedRack === r) level.towedRack = null;
   a2Lost++;
+  a2Charge(byShot ? A2_LOST_SHOT : A2_LOST);
   /* Owner feedback: the second line used to read "THE CHAMBER IS THE UNIT OF
      RETRY", which is a sentence from the design doc and meant nothing to the
      person reading it off a phone. Say the thing it was shorthand for. */
@@ -185,6 +219,7 @@ function loseRack(r, why) {
   dullThud(); haptic.heavy();
   camera.shake += 9;
   explode(r.x, r.y, PAL().DANGER, 22, true);
+  checkChamberClear();
 }
 
 /* ---- landing ON the rack (owner feedback, July 2026) ----------------------
@@ -281,9 +316,18 @@ function askLeaveChamber(rY) {
   s.y = rY + SHIP_R + 8; s.vy = 40;
   const left = (level.racks || []).filter(r => !r.delivered && !r.lost).length;
   let body = "MERCY is up there. The cable goes all the way.";
-  body += "\n" + left + (left === 1 ? " bank is still down here, still on reserve."
-                                    : " banks are still down here, still on reserve.");
-  body += "\nNobody else is coming for them.";
+  /* The plea only makes sense while somebody is still on reserve. On a cleared
+     floor it read "0 banks are still down here, still on reserve" — the card
+     arguing against a decision the room no longer has any stake in, in a
+     sentence that does not parse. A finished floor gets the plain fact instead:
+     the way out is the way out, and it still ends the run. */
+  if (left) {
+    body += "\n" + left + (left === 1 ? " bank is still down here, still on reserve."
+                                      : " banks are still down here, still on reserve.");
+    body += "\nNobody else is coming for them.";
+  } else {
+    body += "\nThis floor is finished. Nothing down here is still breathing.";
+  }
   body += "\nThis ends your run.";
   confirmCard = { kicker: "THE SHAFT — UP AND OUT", title: "LEAVE THIS FLOOR?",
     body, color: PAL().WARN, kind: "leaveChamber",
@@ -627,14 +671,20 @@ function towCollide(r, dt) {
   }
 }
 
-/* THE LADDER'S HOOK (owner decision, July 2026 — not yet implemented). Integrity
+/* THE LADDER'S HOOK (owner decision, July 2026 — wired by P·systems). Integrity
    must NOT scale the delivery award, but every impact on the rack costs points,
    per impact — and it costs them ON TOP of the reserve and integrity it already
    takes, because those two only make this attempt harder while the score is the
-   permanent record. This function is where that belongs: it already fires exactly once
+   permanent record. This function is where that belongs: it fires exactly once
    per qualifying impact, already knows the damage, and already carries FIELD
-   MEDIC's wider free band — so a penalty added here inherits all three rather
-   than re-deriving them. Left unwired until P·systems builds the ladder. */
+   MEDIC's wider free band — so the penalty inherits all three rather than
+   re-deriving them.
+
+   FLAT, not scaled by the damage, and that is rule 2 read strictly: the ladder
+   never prices how much a bank has suffered, only how often you hit them. A
+   damage-scaled charge would smuggle integrity back into the score through the
+   side door, and it would make the gentlest possible slam nearly free — which
+   is the opposite of what a per-impact charge is for. */
 function towContact(r, vn) {
   // §4.4's FIELD MEDIC contract, unchanged: a wider free band and half damage
   const safe = easyMode ? SLING_SAFE_V * 1.3 : SLING_SAFE_V;
@@ -644,6 +694,13 @@ function towContact(r, vn) {
   r.integrity = Math.max(0, r.integrity - dmg);
   r.reserve = Math.max(0, r.reserve - dmg);
   r.slamT = 1;
+  a2Charge(A2_IMPACT);
+  /* One number, and it stays the damage rather than the points. The floating
+     figure is what the player reads to judge how hard that was — a second
+     number beside it would compete with it for the same glance and teach
+     nothing the first does not, since the score charge is flat and therefore
+     carries no information about the impact. The points appear where they can
+     be read at leisure: the floor's ledger, on the clear banner. */
   addText(r.x, r.y - 40, "-" + Math.max(1, Math.round(dmg)), PAL().DANGER);
   /* Owner feedback: "hitting the ground and walls should damage the rack. Maybe
      there are even yells or something from within" — answered as audio, a
@@ -855,6 +912,12 @@ function deliverRack(w) {
   level.towedRack = null;
   r.towed = false; r.delivered = true; r.state = "reserve";
   a2Saved++; w.taken++;
+  /* Rule 2 — FLAT. A bank delivered at 60% pays exactly what a bank delivered
+     at 100% pays, and the difference between those two runs is already priced,
+     impact by impact, on the way here. Scaling this by integrity as well would
+     bill the same mistakes twice and make a badly-handled rescue feel like a
+     failure when it is the thing the act is asking you to do. */
+  a2Award(A2_DELIVER);
   /* §7.4 — "Delivery heals you… The reward for finishing a rescue is your own
      recovery." Which is what makes the transfusion floor survivable as a design:
      you fly the last leg nearly dead, and getting them home is what fixes you. */
@@ -867,6 +930,84 @@ function deliverRack(w) {
   goldBurst(r.x, r.y);
   heartbeat(); haptic.medium();
   blip(520, 1040, 0.3, "sine", 0.14);
+  checkChamberClear();
+}
+
+/* ---- P·systems — the floor is finished -----------------------------------
+   Act One's own clear test (`checkSectorClear`, js/update.js) explicitly bails
+   in a chamber, and rightly: a chamber holds no Scions, so MERCY's manifest is
+   trivially closed on frame one. Act Two therefore needs its own, and this is
+   it — the event the ladder's two CHAMBER-level rows hang on, which did not
+   exist before this item.
+
+   THE CRITERION IS "every bank is resolved", not "every bank is home". A rack
+   is resolved when it is delivered or lost, because a lost bank is not a floor
+   you can still finish — §7.3 locks flatline as total and §11.1 makes the
+   chamber the retry unit, so a player who wants those people back retries the
+   floor rather than being held on it. Holding the room open after a loss would
+   mean either a clear that can never fire or a player circling a dead rack, and
+   both are worse than closing the ledger honestly.
+
+   Deliberately does NOT move you on. There is no descent yet — chamber-to-
+   chamber progression, MERCY paying the well deeper, and the checkpoint that
+   makes a retry mean something are P·persist's, and inventing a destination
+   here would be exactly the guess the phased plan exists to prevent. So the
+   floor closes its books, says so, and the shaft is still how you leave. */
+function checkChamberClear() {
+  if (!level || level.cleared || !level.racks || !level.racks.length) return;
+  if (level.racks.some(r => !r.delivered && !r.lost)) return;
+  level.cleared = true;
+
+  const saved = level.racks.filter(r => r.delivered).length;
+  const lost = level.racks.length - saved;
+  const souls = level.racks.reduce((n, r) => n + (r.delivered ? r.occupants : 0), 0);
+  /* GENTLE HANDS is the whole floor, not one bank (the table says "chamber"),
+     and it is derived from integrity rather than from a counter because
+     `towContact` is the only thing that ever writes integrity — the drain never
+     touches it. So "nobody was slammed in this room" is already recorded, on
+     the racks, with nothing extra to keep in step. It is per-ATTEMPT by
+     construction: integrity lives on `level.racks`, so it resets when the room
+     does, which is the answer the owner gave for whether a retry clears it.
+
+     IT REQUIRES DELIVERY, and that is PENDULUM_SPEC §5's definition rather than
+     an addition to it: "GENTLE HANDS — delivered at full integrity". The
+     roadmap widened the SCOPE from one relic to the chamber; it did not drop
+     the delivery. Without that clause the award pays out on the act's worst
+     outcome — a floor where every bank flatlined, untouched, would be
+     "not one slam" and collect +750 for it, which reads as being congratulated
+     for handling the dead carefully. Gentleness with nobody to be gentle to is
+     not the thing this award is for. */
+  const gentle = level.racks.every(r => r.delivered && r.integrity >= 100);
+  /* Rule 5 — the same award as a sector cleared without firing, which since
+     V·pacifism means the DERIVED one rather than a flat 2000. Calling Act One's
+     helper is what makes rule 7 structural: the invariant is a property of the
+     formula (BASE > 0 and FACTOR > 1), so it holds for the most heavily armed
+     chamber P·content will ever author, and it cannot hold in one act while
+     quietly failing in the other.
+
+     UNLIKE GENTLE HANDS, this does NOT require delivery, and the asymmetry is
+     the point. The oath is about what you did, not about how it turned out:
+     Act One pays its no-harm bonus on a sector where Scions died, because
+     restraint under pressure is the thing being priced and the deaths are
+     already billed at −1000 apiece. A floor where the bank flatlined and you
+     never fired still comes out net negative, which is the correct shape —
+     you are not rewarded for it, you are simply not charged twice for it. */
+  const noFire = level.firedShots === 0 ? a2Award(noFireAward(level)) : 0;
+  const hands = gentle ? a2Award(A2_GENTLE) : 0;
+
+  /* THE FLOOR'S LEDGER. Act Two bills the player in four places now, none of
+     which announces itself at the time — a dead line and a decoy already have
+     their own banner to carry, and an impact's floating number is the damage
+     rather than the points (see towContact). So the one place the whole
+     accounting is legible is here, at leisure, on a floor that is finished. */
+  let body = saved + (saved === 1 ? " BANK HOME" : " BANKS HOME");
+  if (souls) body += " · " + souls + " SOULS";
+  if (lost) body += " · " + lost + (lost === 1 ? " LOST" : " LOST");
+  if (noFire) body += "\nNOT ONE SHOT — HIPPOCRATIC BONUS +" + noFire;
+  if (hands) body += "\nGENTLE HANDS — NOT ONE SLAM +" + hands;
+  banner((saved ? "THE FLOOR IS CLEAR" : "NOTHING LEFT TO CARRY") + "\n" + body,
+    saved ? PAL().SAFE : PAL().DANGER);
+  if (saved) { heartbeat(); haptic.medium(); }
 }
 
 /* The hull died. §4.3's rule for the load, plus the line: you cannot be giving
@@ -896,10 +1037,11 @@ function respawnInChamber() {
 }
 
 /* ---- the decoy boxes (owner feedback, July 2026) --------------------------
-   Landing beside one costs vitals, once. See the note on DECOY_VITALS for why
-   vitals and not score: you are the blood supply down here, so it is taken out of
-   the same pool a real bank will need later — the cost is real without inventing
-   a ladder Act Two does not have yet.
+   Landing beside one costs vitals, once — and, since the ladder, points as well.
+   See the note on DECOY_VITALS for why vitals FIRST: you are the blood supply
+   down here, so it is taken out of the same pool a real bank will need later.
+   The points are rule 6 on top of that, not instead of it: the vitals make this
+   attempt harder, the points are what the run is remembered by.
 
    Once per box, deliberately. A repeating charge for standing in the wrong place
    would turn a wrong read into a bleed you cannot walk away from, and the lesson
@@ -912,6 +1054,7 @@ function updateDecoys() {
     if (d.penalised) continue;
     if (Math.hypot(s.x - d.x, s.y - d.y) > DECOY_R) continue;
     d.penalised = true;
+    a2Charge(A2_DECOY);
     s.vitals = Math.max(1, s.vitals - (easyMode ? DECOY_VITALS * 0.5 : DECOY_VITALS));
     /* Never below 1: the clinical floor GIVE_FLOOR exists for, applied here for
        the same reason. A wrong read must never be the thing that kills you — it

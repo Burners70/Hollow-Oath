@@ -66,6 +66,13 @@ const cloud = (() => {
    App Store Connect records (setup table in app/MAC_SETUP.md). */
 const GC_BOARD_ALLTIME = "hollowoath.score.alltime";
 const GC_BOARD_DAILY = "hollowoath.score.daily";
+/* Bundle P · P·systems rule 4 — Act Two's own board. The owner creates the
+   App Store Connect record when the 1.1 build is pushed, so THIS CODE SHIPS
+   BEFORE THE BOARD EXISTS. That is safe by construction rather than by luck:
+   `call` swallows both a missing plugin and a rejected promise, so submitting
+   to an unknown leaderboard id is already a silent no-op on device and a trace
+   entry on the web — which is what the roadmap asked for. */
+const GC_BOARD_ACTTWO = "hollowoath.score.acttwo";
 const GC_ACH = {
   oathKeeper: "hollowoath.oath_keeper",             // answered, runFired === 0
   hollowKeeper: "hollowoath.hollow_keeper",         // answered, fired only at secrets

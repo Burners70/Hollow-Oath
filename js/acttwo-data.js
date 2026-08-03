@@ -1247,13 +1247,53 @@ function buildConduits(ch, spans, racks, decoys) {
    What it costs is VITALS (owner's call). It is the right currency: you are the
    blood supply down here, so anything that takes vitals takes reserve you could
    have given a real bank later.
-   It costs points AS WELL, once the ladder lands (P·systems) — not instead. The
-   "never score" reasoning that used to sit here was an assistant's assumption and
-   the owner overturned it (July 2026): "your score is the only permanent record
-   of your success. The others just make your game harder." Vitals shape this
-   attempt; score is the record of it. See APP_STORE_ROADMAP.md, Bundle P. */
+   It costs points AS WELL — not instead, and that is now wired (A2_DECOY below).
+   The "never score" reasoning that used to sit here was an assistant's assumption
+   and the owner overturned it (July 2026): "your score is the only permanent
+   record of your success. The others just make your game harder." Vitals shape
+   this attempt; score is the record of it. See APP_STORE_ROADMAP.md, Bundle P. */
 const DECOY_VITALS = 12;       // the cost of going to have a look
 const DECOY_R = 104;           // how close is "beside it"
+
+/* ===== P·systems — THE LADDER =============================================
+   Owner sign-off, July 2026. These are the numbers, not a proposal, and they
+   are anchored on Act One's own values rather than invented: sector clear
+   +1000, a lost Scion −250 (−500 famous), a Scion killed by your own hand
+   −1000. See APP_STORE_ROADMAP.md, Bundle P · P·systems for the table and the
+   eight rules it was derived from. Four of those rules are load-bearing here
+   and are worth restating beside the numbers, because each one is a decision a
+   later session could plausibly and wrongly "fix":
+
+   RULE 2 — integrity does NOT scale the delivery award, but every impact costs,
+     per impact. Delivering a bank at 60% pays the same as at 100%; what is
+     billed is the EVENT of hitting them, each time. So A2_DELIVER is flat and
+     A2_IMPACT rides towContact.
+   RULE 6 — a failure that already costs vitals costs points AS WELL. Not double
+     billing: vitals, reserve, fuel and time are in-run difficulty and then they
+     are gone; score is the only permanent record. That is why a dead line and a
+     decoy box are both scored despite already costing time and blood.
+   RULE 7 — the pacifist invariant. Shooting a chamber out must always total
+     LESS than clearing it without firing. NOT enforced by a hardcoded number
+     here: the no-fire award is `noFireAward(level)` (js/world.js), the same
+     derived helper Act One uses, so the invariant is a property of the formula
+     rather than of any chamber P·content ever authors.
+   RULE 8 — zero is the floor. The consequence is accepted rather than
+     overlooked: a player at zero misreads rooms for free. The trade is a score
+     that always reads as an achievement rather than a debt.
+
+   The delivery award is deliberately equal to Act One's sector clear. A bank is
+   eight to twelve people and a sector is a handful, so the parity is not a
+   valuation of lives — it is a statement that finishing the unit of work is
+   worth the same wherever you are, which is what keeps one run's score readable
+   across two acts. What DOES price the people is the loss: −1000, four Scions'
+   worth, because "8–12 people is not one object". */
+const A2_DELIVER    = 1000;   // a bank seated in THE WELL — Act One's sector clear
+const A2_GENTLE     = 750;    // GENTLE HANDS — the whole chamber, not one slam
+const A2_IMPACT     = 25;     // charged per qualifying impact, on towContact
+const A2_LOST       = 1000;   // flatline: they were alive when you started
+const A2_LOST_SHOT  = 1000;   // §7.1, and Act One's "killed by your own hand"
+const A2_DEAD_LINE  = 100;    // cutting a trunk with nothing on the end of it
+const A2_DECOY      = 100;    // landing beside a box with nobody in it
 
 function buildDecoys(ch, spans) {
   const cage = RACK_SIZE.h * RACK_CAGE_H;

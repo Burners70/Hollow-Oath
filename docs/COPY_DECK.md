@@ -589,8 +589,10 @@ clinical than Act One's, and they name the cost out loud. Nothing here says
 vitals is care, not a mistake. That is the *only* thing this exemption covers.
 A broader "Act Two never bills the player" line stood here until July 2026 and
 was an assistant's assumption, not an owner decision: **failures do cost
-points** down here, and every impact on a rack is charged per impact. See
-APP_STORE_ROADMAP.md, Bundle P · P·systems, for the ladder as decided.
+points** down here, and every impact on a rack is charged per impact. That
+ladder is now built (P·systems, August 2026) — the transfusion exemption above
+survived it unchanged and is the only one that did. See APP_STORE_ROADMAP.md,
+Bundle P · P·systems, for the table.
 
 ### Chamber intro cards (`brief` on each chamber, `js/acttwo-chambers.js`)
 
@@ -648,6 +650,19 @@ comment cannot say.
 | Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
+| The floor's books close, banks home (P·systems) | `THE FLOOR IS CLEAR` + `<n> BANKS HOME · <n> SOULS` |
+| …and nobody left alive to carry | `NOTHING LEFT TO CARRY` + `0 BANKS HOME · <n> LOST` |
+| …the oath held in that room | `NOT ONE SHOT — HIPPOCRATIC BONUS +<n>` |
+| …and not one slam, on any bank | `GENTLE HANDS — NOT ONE SLAM +<n>` |
+
+**The clear banner is the only place Act Two's ledger is legible**, and that is
+deliberate. Three of the four things the ladder charges for happen in the middle
+of a manoeuvre — a dead line and a decoy box already have their own banner to
+carry, and an impact's floating number is the *damage*, because the score charge
+is flat and so tells you nothing about how hard you hit. A second number
+competing for the same glance would teach nothing. So the accounting is read at
+leisure, on a floor that is finished. See APP_STORE_ROADMAP.md, Bundle P ·
+P·systems, for the table these come from.
 
 ### Confirm card — leaving by the well shaft (`js/acttwo-update.js`)
 
@@ -656,6 +671,7 @@ comment cannot say.
 | Kicker | `THE SHAFT — UP AND OUT` |
 | Title | `LEAVE THIS FLOOR?` |
 | Body | mixed case, assembled: `MERCY is up there. The cable goes all the way.` / `<n> bank(s) still down here, still on reserve.` / `Nobody else is coming for them.` / `This ends your run.` |
+| Body, on a floor whose books are closed | the two pleading lines are replaced by `This floor is finished. Nothing down here is still breathing.` — the card used to read "0 banks are still down here, still on reserve", arguing against a decision the room no longer has any stake in, in a sentence that does not parse |
 | Buttons | `⚠ CLIMB OUT AND END THE RUN` / `STAY ON THIS FLOOR` |
 
 Owner, August 2026: "flying to the top of the well shouldn't kill you. Maybe

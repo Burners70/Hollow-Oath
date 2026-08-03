@@ -876,7 +876,16 @@ function saveHi() {
   runsPlayed++;
   try { localStorage.setItem("doids_plays", runsPlayed); } catch (e) {}
   cloud.set("doids_plays", runsPlayed);   // E4 mirror
-  const isNewHiscore = score > hiscore;
+  /* P·systems rule 3 — THE GLOBAL RECORD IS FOR A RUN BEGUN AT ACT ONE
+     SECTOR 0. "A continuous campaign scores into doids_hi; a chamber entered
+     directly does not." This is a fix, not a precaution: `confirmLeaveChamber`
+     already routes here, so before the flag existed, climbing out of a
+     `loadChamber` sandbox pushed Act Two emplacement kills onto the all-time
+     board off the back of no campaign at all. Act Two's OWN record below is
+     unaffected by provenance and should be — a chamber flown on its own is a
+     real descent, and it is only the claim on the cross-act total that direct
+     entry cannot support. */
+  const isNewHiscore = runFromStart && score > hiscore;
   if (isNewHiscore) {
     hiscore = score;
     try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
@@ -886,8 +895,28 @@ function saveHi() {
   // G2 — the all-time board. FIELD MEDIC runs stay off it (H3: report only
   // when easy mode is off); the daily flight posts to its own board in
   // recordDaily() instead.
-  if (!easyMode && runMode !== "daily") gc.score(score, GC_BOARD_ALLTIME);
+  if (!easyMode && runMode !== "daily" && runFromStart) gc.score(score, GC_BOARD_ALLTIME);
+  saveActTwoHi();
   return isNewHiscore;
+}
+
+/* P·systems rule 4 — Act Two's own best and its own board, written from
+   `a2Score` rather than from the run total, so a descent is compared against
+   other descents. Same FIELD MEDIC rule as Act One's board (H3), and the same
+   fail-silent submission — the App Store Connect record does not exist yet and
+   this ships before it does (see GC_BOARD_ACTTWO). No rating ask hangs off it:
+   X6's ask is already spent on the global hiscore in the same call, and two
+   prompts in one breath is exactly the needy behaviour X6 was tuned away from. */
+function saveActTwoHi() {
+  if (a2Score <= 0) return false;   // never flew a chamber, or floored to nothing
+  const best = a2Score > a2Hi;
+  if (best) {
+    a2Hi = a2Score;
+    try { localStorage.setItem("doids_a2hi", a2Hi); } catch (e) {}
+    cloud.set("doids_a2hi", a2Hi);   // E4 mirror
+  }
+  if (!easyMode) gc.score(a2Score, GC_BOARD_ACTTWO);
+  return best;
 }
 
 let introIdx = 0;
@@ -941,6 +970,12 @@ function updateMenu() {
         const r = checkpoint;
         restoreRun(r);
         score = Math.floor(r.score * 0.75);
+        // P·systems — the continue penalty has to take Act Two's slice with it,
+        // or a run that dies underground keeps its full descent score while the
+        // total it is part of is docked 25%, and `a2Score` can end up larger
+        // than the `score` it is a subset of. `restoreRun` has already put the
+        // saved value back (0 for a v1 save), so this scales rather than reads.
+        a2Score = Math.floor(a2Score * 0.75);
         lives = startLives();
         checkpoint = null;
         toBriefing(r.levelIdx);
@@ -952,6 +987,7 @@ function updateMenu() {
         if (checkpoint) {
           restoreRun(checkpoint);
           score = Math.floor(checkpoint.score * 0.75);
+          a2Score = Math.floor(a2Score * 0.75);   // the same penalty, same reason
           lives = startLives();
           snapshotRun();
           checkpoint = null;
@@ -1164,7 +1200,7 @@ let legendReturnState = "title";
    (audio/assist/difficulty). Double-tap-to-confirm on the settings row. */
 let resetArmed = false;
 function resetProgress() {
-  const wipe = ["doids_hi", "doids_codex", "doids_run", "doids_logs",
+  const wipe = ["doids_hi", "doids_a2hi", "doids_codex", "doids_run", "doids_logs",
     "doids_shrines_seen", "doids_unres", "doids_veteran", "doids_daily",
     "doids_intro", "doids_trained", "doids_vetintro", "doids_plays",   // X3 fork + V8 veteran intro re-show after a wipe
     // both found while wiring the post-completion title flow: doids_solace
@@ -1177,7 +1213,7 @@ function resetProgress() {
     try { localStorage.removeItem(k); } catch (e) {}
     cloud.remove(k);   // E4 — a wipe means the cloud copy too
   }
-  hiscore = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set(); runsPlayed = 0;
+  hiscore = 0; a2Hi = 0; codex = new Set(); logsSeen = new Set(); shrinesSeen = new Set(); runsPlayed = 0;
   savedRun = null; checkpoint = null; veteran = false; introSeen = false;
   vetIntroSeen = false;   // V8
   trained = false;   // X3 — the first-play fork asks again after a full wipe
@@ -1808,16 +1844,18 @@ function updateEnemies(dt) {
              reflected kill keeps the no-harm bonus alive. Deliberate: a parry is
              defensive, and it is the one route that is neither shooting first
              nor merely enduring. See js/world.js, noFireAward. */
-          t.alive = false; score += KILL_TURRET;
+          t.alive = false;
+          const paid = awardGunKill();
           explode(t.x, t.y - 8, PAL().WARN, 30);
-          addText(t.x, t.y - 40, "REFLECTED +" + KILL_TURRET, TOK.PARRIED);
+          addText(t.x, t.y - 40, "REFLECTED +" + paid, TOK.PARRIED);
         }
       }
       for (const dr of level.drones) {
         if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
-          dr.alive = false; gone = true; score += KILL_DRONE;
+          dr.alive = false; gone = true;
+          const paidD = awardDroneKill();
           explode(dr.x, dr.y, PAL().DANGER, 22);
-          addText(dr.x, dr.y - 30, "REFLECTED +" + KILL_DRONE, TOK.PARRIED);
+          addText(dr.x, dr.y - 30, "REFLECTED +" + paidD, TOK.PARRIED);
         }
       }
       if (gone) level.bullets.splice(i, 1);
@@ -1892,17 +1930,17 @@ function updateEnemies(dt) {
           continue;
         }
         t.alive = false;
-        score += KILL_TURRET;
+        const paid = awardGunKill();
         explode(t.x, t.y - 8, PAL().WARN, 30);
-        addText(t.x, t.y - 40, "+" + KILL_TURRET, PAL().WARN);
+        addText(t.x, t.y - 40, "+" + paid, PAL().WARN);
       }
     }
     for (const dr of level.drones) {
       if (dr.alive && Math.hypot(b.x - dr.x, b.y - dr.y) < 16) {
         dr.alive = false; gone = true; firedAtCombat = true;
-        score += KILL_DRONE;
+        const paidD = awardDroneKill();
         explode(dr.x, dr.y, PAL().DANGER, 22);
-        addText(dr.x, dr.y - 30, "+" + KILL_DRONE, PAL().DANGER);
+        addText(dr.x, dr.y - 30, "+" + paidD, PAL().DANGER);
       }
     }
     // friendly fire: a stray shot can hit the very Scion you came for
@@ -2816,7 +2854,10 @@ function updateTransfusion(dt, rd) {
     const prevCost = Math.floor(rd.charged);
     rd.charged += delivered * XFUSE_COST;
     const dCost = Math.floor(rd.charged) - prevCost;
-    if (dCost > 0) score = Math.max(0, score - dCost);
+    // chargeRun, not a bare write: the refueller follows you into a chamber
+    // (it comes down THE WELL), so this toll has to land on Act Two's ledger
+    // as well when it fires there — see js/world.js.
+    if (dCost > 0) chargeRun(dCost);
     // the drip — and while a contaminant rides along, the pump inherits
     // the arrhythmia (same 0.5/1.7 stutter as the score and the ECG)
     rd.dripT += dt;
@@ -2836,7 +2877,7 @@ function updateTransfusion(dt, rd) {
     }
   } else if (rd.everAttached) {
     if (d >= XFUSE_SNAP_R) {   // wandered too far — the line parts
-      score = Math.max(0, score - 50);
+      chargeRun(50);           // same reason as the toll above
       banner("LINE SEVERED — REMAINDER LOST  -50\nSIGNAL AGAIN IF YOU NEED IT", PAL().DANGER);
       blip(500, 90, 0.3, "sawtooth", 0.14);
       haptic.medium();

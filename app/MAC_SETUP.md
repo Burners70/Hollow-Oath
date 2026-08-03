@@ -119,9 +119,22 @@ Leaderboards (classic, integer score, best-score-wins):
 |---|---|
 | `hollowoath.score.alltime` | ROTATION RECORD (all-time) |
 | `hollowoath.score.daily` | DAILY FLIGHT |
+| `hollowoath.score.acttwo` | THE DESCENT — **create with the 1.1 build, not before** |
 
-FIELD MEDIC (easy mode) runs never post to either board — gated in
-`saveHi()`/`recordDaily()` (H3).
+FIELD MEDIC (easy mode) runs never post to any of the three boards — gated in
+`saveHi()`/`saveActTwoHi()`/`recordDaily()` (H3).
+
+**The Act Two board ships before its record exists, deliberately** (roadmap
+Bundle P · P·systems rule 4). `saveActTwoHi()` submits to it from 1.1's code,
+and a submission to an unknown leaderboard id is a silent no-op — `gc.call`
+swallows both a missing plugin and a rejected promise — so nothing breaks in the
+window between the build going up and the record being created. It posts
+`a2Score`, the Act Two slice of the run, rather than the run total: a descent and
+a surface run are not comparable numbers.
+Two more differences from the all-time board, both intended: it is **not** gated
+on run provenance (a chamber flown on its own is a real descent; it is only the
+cross-act total that a direct entry cannot claim), and it fires **no rating
+prompt** — X6's ask is already spent on the global hiscore in the same call.
 
 Achievements (all 100-pt single-step, hidden until earned where noted).
 The 1024×1024 images and the earned/pre-earned description copy to paste
