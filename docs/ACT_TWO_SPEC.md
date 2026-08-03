@@ -429,16 +429,23 @@ vitals to keep twelve people ticking a few minutes longer.
   every impact tolerance and halved what giving costs, and did nothing at all to
   the one clock an assist mode most needs to be able to lift.
 
-**A third meaning for SHIELD, and the rule that keeps all three apart** (built in
-P·intake, August 2026). Landed on a low tank in a chamber, SHIELD calls the
-resupply drone — the owner's own suggestion: set the bank down, settle on its lid,
-call for fuel. It cannot be the THRUST hold the surface uses, because that hold
-works only while the tank is empty and the engine is a no-op; with fuel in it the
-same hold flies you off the pad long before the charge lands. The three meanings
-are **mutually exclusive by state, not by convention**: giving blood requires being
-airborne, the signal requires being landed with fuel, the scuttle requires zero.
-`chamberSignalReady()` is the single predicate the signal, the field's own gate and
-the on-screen prompt all read, so they cannot disagree about what the button meant.
+**SHIELD does not gain a third meaning, and that is an owner ruling** (P·intake,
+August 2026). A low-fuel resupply call for a chamber was asked for and built — set
+the bank down, settle on its lid, hold SHIELD — on SHIELD because it cannot be
+THRUST: that hold works only while the tank is empty and the engine is a no-op, and
+with fuel in it the same hold flies you off the pad long before the charge lands.
+The owner removed it: *"keep the fuel drone to thrust — too confusing to have shield
+doing so much work. It is primarily a no-fuel rescue. When you see you are getting
+low you can land and use small thrusts to deplete it fully without lifting off too
+far."*
+Which is the better resolution, and worth recording as a rule for anything later
+that wants a button: SHIELD already carries the field, the parry, the transfusion
+and the scuttle charge, and a fifth meaning is a cost every player pays to serve one
+state. The player's own hands close this particular gap — the walk from "low" to
+"empty" is deliberate and available — so the drone stays what it was: **landed, and
+dry.** Act Two's fuel plan is the cans — which the hanging load can now collect, the
+other half of P·intake's fuel fix and the one that answered the measured problem —
+plus a free top-up at the well; the drone is the floor under both.
 
 ### 7.5 The ward — readable without a HUD, and without sound
 

@@ -1780,52 +1780,75 @@ test("P·intake: an unladen hull still has to fly into a can itself", async ({ p
   expect(r.near).toBe(true);
 });
 
-test("P·intake: underground the drone answers a low tank, not only a dry one", async ({ page }) => {
-  /* Owner: "or introduce a top up if you land the rack, settle on top of it, then
-     call the drone?" Down here the cans are the fuel plan and MERCY is nine
-     thousand pixels up a shaft, so the drone is the fallback for a plan that was
-     wrong — and it used to require stranding yourself completely first, which
-     turns a decision into an accident. The fill is still U2's diminishing one. */
+test("P·intake: the drone answers a dry tank and only a dry tank, on THRUST", async ({ page }) => {
+  /* THE OWNER'S RULING, and it is a rule with three parts that have to hold
+     together. P·intake built a low-fuel version of the call for a chamber, on
+     SHIELD — because THRUST cannot carry one: the dry signal works only while the
+     engine is a no-op, and with fuel in the tank the same hold flies you off the
+     pad. The owner removed it: "keep the fuel drone to thrust — too confusing to
+     have shield doing so much work. It is primarily a no-fuel rescue. When you see
+     you are getting low you can land and use small thrusts to deplete it fully
+     without lifting off too far."
+
+     So: SHIELD is a field and nothing else; a THRUST hold with fuel in the tank is
+     an engine and never a signal; and the route the ruling relies on — burn the
+     last of it off deliberately, then signal — actually works. */
   await intake(page);
-  const low = await page.evaluate(async () => {
+
+  // 1. SHIELD at low fuel is a field. No signal, at any level above zero.
+  const shielded = await page.evaluate(async () => {
     const x = 2600;
     __doids.a2Warp(x, __doids.ground(x) - SHIP_R, true);
     ship.fuel = maxFuel() * 0.3;
-    /* SHIELD, not THRUST, and that is not a preference. The dry signal works
-       because at zero fuel the engine is a no-op; with fuel in the tank the same
-       hold flies you off the pad long before a 1.8s charge lands, so the low-fuel
-       call cannot be the same button. SHIELD is free while grounded, which is the
-       judgement the scuttle charge already made above ground. */
     input.shield = true;
     for (let i = 0; i < 30; i++) await new Promise(k => requestAnimationFrame(k));
-    const armed = ship.signalT > 0;
-    const field = ship.shield;         // and it is a signal, not a field
-    for (let i = 0; i < 200 && !resupplyDrone; i++) await new Promise(k => requestAnimationFrame(k));
+    const out = { signalT: ship.signalT, field: ship.shield, called: !!resupplyDrone };
     input.shield = false;
-    return { armed, field, called: !!resupplyDrone, landed: ship.landed };
-  });
-  expect(low.armed).toBe(true);
-  expect(low.field).toBe(false);
-  expect(low.called).toBe(true);
-  expect(low.landed).toBe(true);      // the gesture never lifted the ship
-
-  // and the surface rule is untouched: up there the drone is a lifeline for a
-  // ship that is already stranded, and calling it early would make the whole
-  // resupply economy optional
-  const surface = await page.evaluate(async () => {
-    __doids.reset(); __doids.go(0); __doids.launch();
-    ship.x = 1200; ship.y = __doids.ground(1200) - SHIP_R;
-    ship.landed = true; ship.vx = ship.vy = 0;
-    ship.fuel = maxFuel() * 0.3;
-    input.shield = true;
-    for (let i = 0; i < 60; i++) await new Promise(k => requestAnimationFrame(k));
-    input.shield = false;
-    const out = { signalT: ship.signalT, called: !!resupplyDrone };
-    for (let i = 0; i < 5; i++) await new Promise(k => requestAnimationFrame(k));
+    for (let i = 0; i < 3; i++) await new Promise(k => requestAnimationFrame(k));
     return out;
   });
-  expect(surface.signalT).toBe(0);
-  expect(surface.called).toBe(false);
+  expect(shielded.field).toBe(true);      // exactly what it has always been
+  expect(shielded.signalT).toBe(0);
+  expect(shielded.called).toBe(false);
+
+  // 2. THRUST with fuel in the tank is an engine, and never arms the signal —
+  //    which is the whole reason the low-fuel call could not live on this button
+  const thrusted = await page.evaluate(async () => {
+    const x = 2600;
+    __doids.a2Warp(x, __doids.ground(x) - SHIP_R, true);
+    ship.fuel = 30;
+    const f0 = ship.fuel;
+    input.thrust = true;
+    let worst = 0;
+    for (let i = 0; i < 40; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+      worst = Math.max(worst, ship.signalT);
+    }
+    input.thrust = false;
+    const out = { worst, burned: f0 - ship.fuel, called: !!resupplyDrone };
+    for (let i = 0; i < 3; i++) await new Promise(k => requestAnimationFrame(k));
+    return out;
+  });
+  expect(thrusted.worst).toBe(0);
+  expect(thrusted.called).toBe(false);
+  // …and it BURNS, which is what makes the owner's route available at all: the
+  // walk from "getting low" to "able to signal" is a thing you do on purpose
+  expect(thrusted.burned).toBeGreaterThan(0);
+
+  // 3. dry and landed, the hold calls the drone — down here it comes off the well
+  const dry = await page.evaluate(async () => {
+    const x = 2600;
+    __doids.a2Warp(x, __doids.ground(x) - SHIP_R, true);
+    ship.fuel = 0;
+    input.thrust = true;
+    for (let i = 0; i < 240 && !resupplyDrone; i++) await new Promise(k => requestAnimationFrame(k));
+    input.thrust = false;
+    const out = { called: !!resupplyDrone, landed: ship.landed };
+    for (let i = 0; i < 3; i++) await new Promise(k => requestAnimationFrame(k));
+    return out;
+  });
+  expect(dry.called).toBe(true);
+  expect(dry.landed).toBe(true);     // the hold is a signal, not a take-off
 });
 
 test("P·intake: the death flash is read before the ledger, and carries none of it", async ({ page }) => {

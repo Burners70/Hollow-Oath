@@ -651,18 +651,16 @@ comment cannot say.
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
 | A deception is touched and stops lying (§8.1) | `IT WASN'T THERE` — floating text at the point of contact, not a banner |
-| Landed on a low tank in a chamber (P·intake) | `LOW FUEL — HOLD SHIELD TO SIGNAL` — the surface pair below is unchanged, and the scuttle line is offered only to a dry ship |
-
-**Why the low-fuel call is SHIELD and the dry one is THRUST.** The dry signal works
-*because* the tank is empty: at zero fuel the engine is a no-op, so THRUST is free
-to mean something else. With fuel in the tank the same hold lifts you off the pad
-long before the 1.8s charge finishes, so a low-fuel signal on THRUST cannot be
-built at all. SHIELD is free in exactly this state — a field over a grounded ship
-protects it from nothing staying put would not — and the code had already made this
-call once for the same reason (the scuttle charge sits on SHIELD above ground
-because THRUST was taken). The three shield meanings cannot overlap: giving blood
-requires being airborne, the signal requires being landed with fuel, the scuttle
-requires zero.
+**The resupply prompt is unchanged, and that was a decision.** P·intake built a
+low-fuel version of the call for a chamber (a "hold SHIELD to signal" line — quoted
+without backticks deliberately, because no such string exists in the game) and
+the owner removed it: *"keep the fuel drone to thrust — too confusing to have shield
+doing so much work. It is primarily a no-fuel rescue. When you see you are getting
+low you can land and use small thrusts to deplete it fully without lifting off too
+far."* SHIELD already carries the field, the parry, the transfusion and the scuttle
+charge; a fifth meaning is a cost every player pays to serve one state. And the last
+sentence is the better answer anyway — the walk from "low" to "empty" is a thing the
+player can already do on purpose, so the prompt stays one line about one state.
 
 **The second line of a death used to read**
 `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.`

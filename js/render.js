@@ -906,15 +906,7 @@ function drawShip(now) {
   // (owner feedback, July 2026) — no longer gated on `landed`: the case that most
   // needs the scuttle prompt is hanging fuel-dry in a gravity anomaly, where the
   // ship never touches ground at all.
-  /* P·intake — in a chamber the drone answers a LOW tank and not only a dry one
-     (see updateResupplySignal), so the prompt has to appear at the same
-     threshold or the affordance is invisible and nobody ever calls it. The
-     wording says which case it is: out of fuel is a rescue, low is a decision —
-     and which button, because at low fuel it is SHIELD rather than THRUST (a
-     THRUST hold with fuel in the tank flies you off the pad instead). Asked of
-     the same predicate the signal itself uses, so the two cannot disagree. */
-  const a2Low = chamberSignalReady();
-  if ((s.fuel <= 0 || a2Low) && !s.dead && !resupplyDrone) {
+  if (s.fuel <= 0 && !s.dead && !resupplyDrone) {
     ctx.textAlign = "center";
     ctx.font = mono(10);
     if (level.isCave) {
@@ -940,18 +932,14 @@ function drawShip(now) {
       ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 8;
       // the drone only answers a ship that has set down, so say so when airborne —
       // which is also the state an anomaly can hold you in indefinitely
-      ctx.fillText(a2Low ? "LOW FUEL — HOLD SHIELD TO SIGNAL"
-                 : s.landed ? "OUT OF FUEL — HOLD THRUST TO SIGNAL"
+      ctx.fillText(s.landed ? "OUT OF FUEL — HOLD THRUST TO SIGNAL"
                             : "OUT OF FUEL — SET DOWN TO SIGNAL", s.x, s.y - 40);
       ctx.shadowBlur = 0;
       // (owner feedback, July 2026) — the second way out, for an anomaly core or a
       // dip the drone's tank can't lift you clear of. Quieter than the signal line:
       // the drone is still the first thing to try, this is the hatch under it.
-      // Only ever offered to a DRY ship, which is the only state that can arm it.
-      if (s.fuel <= 0) {
-        ctx.fillStyle = shade(TOK.GOLD, .8);
-        ctx.fillText("OR HOLD SHIELD TO SCUTTLE", s.x, s.y - 28);
-      }
+      ctx.fillStyle = shade(TOK.GOLD, .8);
+      ctx.fillText("OR HOLD SHIELD TO SCUTTLE", s.x, s.y - 28);
       if (s.signalT > 0) {
         const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
         ctx.strokeStyle = PAL().WARN; ctx.lineWidth = 2.4;

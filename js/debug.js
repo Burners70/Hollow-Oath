@@ -308,13 +308,13 @@ window.__doids = {
     r.reserve = v; return true;
   },
   a2Vitals: v => { ship.vitals = v; },
-  /* P·intake — the tank, for the on-device rig. The low-fuel resupply call (hold
-     SHIELD, landed, in a chamber) is the one fix from that round that cannot be
-     reached by flying to a place: it needs a state, and burning 65% of a tank to
-     get there by hand is the kind of setup the harness exists to skip. Takes a
-     FRACTION rather than a number, because what matters is which side of
-     A2_SIGNAL_FRAC you are on and maxFuel() moves with the Levi-Montalcini
-     upgrade and the `rationed` daily modifier. */
+  /* P·intake — the tank, for the on-device rig. Act Two's fuel plan is the cans
+     plus a drone that only answers a DRY ship (owner: "it is primarily a no-fuel
+     rescue"), so both ends of that are states rather than places: burning a tank
+     down by hand to reach either is exactly the setup the harness exists to skip.
+     Takes a FRACTION, not a number — maxFuel() moves with the Levi-Montalcini
+     upgrade and the `rationed` daily modifier, so a fraction is the thing that
+     means the same on every run. */
   a2Fuel: frac => { ship.fuel = clamp(frac, 0, 1) * maxFuel(); return Math.round(ship.fuel); },
 
   /* ---- the on-device rig's entry points (tests/qa-harness.html) ------------

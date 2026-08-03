@@ -1773,19 +1773,30 @@ done, so the chain now starts at P·slice.
   the box is dragging along that deck anyway, and a bank hauled over a can
   collects it. Deliberately not a wider hull radius, which would make an unladen
   fly-past sloppier to pay for the laden case.
-  Owner's other suggestion, also built: **the drone answers a low tank
-  underground**, not only a dry one — set the bank down, settle on its lid, call
-  for fuel. It sits on **SHIELD** rather than THRUST, and that is forced rather
-  than chosen: the dry signal works *because* the tank is empty, so the engine is
-  a no-op; with fuel in it the same hold flies you off the pad long before a 1.8s
-  charge lands. SHIELD is free while grounded, which is the judgement the scuttle
-  charge already made above ground for the same reason. The three shield meanings
-  cannot overlap — giving blood needs to be airborne, the signal needs to be
-  landed with fuel, the scuttle needs zero. The fill is still U2's diminishing
-  one, still launched from the well, still flown.
-  Rejected, on the owner's other option: **no slower burn while towing.** It
-  contradicts what the player can feel (a load makes you thrust more) and it fixes
-  the arithmetic without fixing the reaching, which was the note.
+  Owner's other suggestion — *"or introduce a top up if you land the rack, settle
+  on top of it, then call the drone?"* — was built and then **withdrawn by the
+  owner, which is the more interesting outcome.** It was built on SHIELD, because
+  THRUST cannot carry it: the dry signal works *because* the tank is empty, so the
+  engine is a no-op, and with fuel in it the same hold flies you off the pad long
+  before a 1.8s charge lands. That is a fact about the input, not a tuning choice.
+  The ruling: *"keep the fuel drone to thrust — too confusing to have shield doing
+  so much work. It is primarily a no-fuel rescue. When you see you are getting low
+  you can land and use small thrusts to deplete it fully without lifting off too
+  far."*
+  Right on both counts, and worth keeping as a **rule for anything later that
+  wants a button**: SHIELD already carries the field, the parry, the transfusion
+  and the scuttle charge, and a fifth meaning is a cost every player pays to serve
+  one state. And the second half is the better mechanism — the walk from "low" to
+  "empty" is already something the player can do deliberately, so the gap closes
+  without a new verb. The drone is unchanged: **landed, and dry, on THRUST.** The
+  test that covered the low-fuel call now covers the ruling instead — SHIELD stays
+  a field, a THRUST hold with fuel is an engine and never a signal, thrust while
+  landed genuinely burns (so the route exists), and dry-and-landed still calls.
+  Also rejected, on the owner's remaining option: **no slower burn while towing.**
+  It contradicts what the player can feel (a load makes you thrust more) and it
+  fixes the arithmetic without fixing the reaching, which was the note.
+  So of the two things asked for here, **the sling picking up cans is the whole
+  fix** — which is the one that answers the measured problem.
 
   **4 — the pace of the dying.** *"Slow the vitals decay of the racks (certainly
   in the earlier levels) — it is too difficult at the moment."* At the shipped

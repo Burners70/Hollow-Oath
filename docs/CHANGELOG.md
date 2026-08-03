@@ -40,9 +40,11 @@ now, the same as a bolted one.
 **Fuel while carrying was impossible rather than fiddly.** A can sits a few pixels
 off the deck and is taken by the hull; with a bank on the line the hull cannot get
 within reach of one at all, by 15px at the very best angle. The load takes cans
-now — the box is dragging along that deck anyway. And underground the resupply
-drone answers a *low* tank rather than only an empty one: set the bank down, settle
-on its lid, hold SHIELD. Same diminishing allowance, same flight out to the line.
+now — the box is dragging along that deck anyway. A low-fuel resupply call was
+built alongside it and then dropped on the owner's ruling: the drone stays a
+no-fuel rescue on THRUST, because SHIELD is already carrying four meanings and the
+walk from "getting low" to "empty" is something a player can do on purpose —
+land, tap the last of it away, signal.
 
 **The banks die more slowly on the early floors.** The drain was tuned against
 what is now the third chamber; the first one gives 129 seconds from the cut
