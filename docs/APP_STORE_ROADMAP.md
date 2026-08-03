@@ -123,7 +123,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·design, P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. **P·systems' score ladder has landed too** (August 2026): every row of the locked table, the derived pacifist invariant, the zero floor, run provenance, a second hiscore + Game Center board, and the chamber-clear event none of it could hang on before. What is left of P·systems is the §8.1 tell — which needs a hazard re-authored to attach to, because **no chamber currently carries one** — plus pulse-reading, deep readers, the well deepening, the remaining ward channels, geology, husks, and the rank *names* (deferred with the act's name, §15 q1). **P·persist** keeps the chamber checkpoint and the descent; its schema half (v2 + the migration that keeps a shipped Act One save loadable) shipped with the ladder. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
+| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·design, P·terrain, P·slice, P·feedback, P·floor, P·ramp and P·intake have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. **P·intake** closed the first on-device round on chamber ONE (August 2026): the landing guide reads the surface under the hull rather than the deck below it, a bank you have set down is a landing pad again (it was a soft-lock — the load could never be re-cradled), the sling collects fuel cans a hanging load put out of the hull's reach, the reserve runs a per-chamber `pace`, and the floor's ledger is a CARD instead of a banner that used to overwrite the death flash on the frame it appeared. **P·systems' score ladder has landed too** (August 2026): every row of the locked table, the derived pacifist invariant, the zero floor, run provenance, a second hiscore + Game Center board, and the chamber-clear event none of it could hang on before. What is left of P·systems is the §8.1 tell — which needs a hazard re-authored to attach to, because **no chamber currently carries one** — plus pulse-reading, deep readers, the well deepening, the remaining ward channels, geology, husks, and the rank *names* (deferred with the act's name, §15 q1). **P·persist** keeps the chamber checkpoint and the descent; its schema half (v2 + the migration that keeps a shipped Act One save loadable) shipped with the ladder. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -1733,6 +1733,126 @@ done, so the chain now starts at P·slice.
   holds; the QA harness's picker is ordered by chamber number and annotated with
   it ("2 · THE WARDS (3 feeds, 2 decoys, rest gap)"), so a tester reaching for
   "the first level" does not have to know which id that is. Suite 178 → 186.
+
+- [x] **P·intake. The first on-device round on chamber ONE.** *(Owner, August
+  2026, six notes on THE INTAKE.)* The first round flown on a room built to teach
+  rather than to exercise everything, and five of the six notes turned out to be
+  one identified cause each. Every fix below is a rule, which is why they are all
+  in the suite; none of them is a feel value.
+
+  **1 + 2 — the landing guide, one bug.** *"Flying under the left side of the
+  first mezzanine, the assist line becomes vertical as though there was a wall
+  there"* and *"still no landing assist line when landing on the top of the
+  mezzanine."* `drawLandingGuide` asked `groundAt(s.x)` with **no y** — "the
+  lowest floor in this column", i.e. the hall deck, wherever you actually were.
+  `landingEval` had this exact fault fixed in P·floor and passes the ship's y; the
+  drawing never went with it, so the verdict was judged against the surface under
+  your feet and drawn against one you might not be able to see. Measured on
+  chamber one's shelf at x 4300: **on top** of it the guide answered 1148 against a
+  surface at 801, so `alt` came out 347, past its own 320px cull, and it never
+  drew at all; **under its west tip** the one-answer path interpolates the single
+  span's floor toward the shelf's, so groundAt steps 1128 → 1047 → 1133 across
+  16px of x, and the bar is struck between x±14. There was never a wall.
+  Fixed by passing the y, plus two things worth having anyway: the surface bar
+  now **terminates where its surface does** (a sample past the end of a floor is
+  the same misleading near-vertical, just rarer), and a **rack's lid is the
+  surface the guide measures** when the hull is over one — with `landingEval(true)`
+  to match, since `rackLanding` already judges a lid as the machined deck it is.
+  `landingGuideGeom` is split out from the drawing so the suite asserts which
+  surface was resolved: the bug was never in a stroke, so a pixel test would have
+  passed throughout.
+
+  **3 — fuel while carrying.** *"Needs to be simpler to pick up fuel while
+  carrying the rack."* It was not merely hard, it was **geometrically impossible**
+  by the obvious route, and the arithmetic says so: a can sits ~14px above the
+  deck and is captured within 30px of the HULL's centre, but with the load resting
+  on the deck and the rope taut the hull is **80px** above it, and with the rope
+  fully slack and the hull as low as the cage lid allows, **45px**. The only way in
+  was to fly the hull to within ~11px of the deck with the load shoved off to one
+  side — which is setting it down, done awkwardly. **The sling takes cans now**:
+  the box is dragging along that deck anyway, and a bank hauled over a can
+  collects it. Deliberately not a wider hull radius, which would make an unladen
+  fly-past sloppier to pay for the laden case.
+  Owner's other suggestion — *"or introduce a top up if you land the rack, settle
+  on top of it, then call the drone?"* — was built and then **withdrawn by the
+  owner, which is the more interesting outcome.** It was built on SHIELD, because
+  THRUST cannot carry it: the dry signal works *because* the tank is empty, so the
+  engine is a no-op, and with fuel in it the same hold flies you off the pad long
+  before a 1.8s charge lands. That is a fact about the input, not a tuning choice.
+  The ruling: *"keep the fuel drone to thrust — too confusing to have shield doing
+  so much work. It is primarily a no-fuel rescue. When you see you are getting low
+  you can land and use small thrusts to deplete it fully without lifting off too
+  far."*
+  Right on both counts, and worth keeping as a **rule for anything later that
+  wants a button**: SHIELD already carries the field, the parry, the transfusion
+  and the scuttle charge, and a fifth meaning is a cost every player pays to serve
+  one state. And the second half is the better mechanism — the walk from "low" to
+  "empty" is already something the player can do deliberately, so the gap closes
+  without a new verb. The drone is unchanged: **landed, and dry, on THRUST.** The
+  test that covered the low-fuel call now covers the ruling instead — SHIELD stays
+  a field, a THRUST hold with fuel is an engine and never a signal, thrust while
+  landed genuinely burns (so the route exists), and dry-and-landed still calls.
+  Also rejected, on the owner's remaining option: **no slower burn while towing.**
+  It contradicts what the player can feel (a load makes you thrust more) and it
+  fixes the arithmetic without fixing the reaching, which was the note.
+  So of the two things asked for here, **the sling picking up cans is the whole
+  fix** — which is the one that answers the measured problem.
+
+  **4 — the pace of the dying.** *"Slow the vitals decay of the racks (certainly
+  in the earlier levels) — it is too difficult at the moment."* At the shipped
+  rates a bank enters FAILING 49s after the cut and flatlines at 77s, and chamber
+  one asks for a 1.6s cut, a 2.5s cradle, 0.55s of moorings, a 4,440px laden haul
+  and a 1.5s winch inside that, on a tank worth 19.2s of engine. Those rates were
+  tuned against the slice, which is chamber THREE now, and nothing retuned them
+  when two teaching floors were authored beneath it. **`pace` is a per-chamber
+  scalar** authored beside the geometry — 0.6 / 0.75 / 0.9, and 1 from chamber
+  four — so difficulty sits in the same table as size and the teaching ladder, and
+  chamber three keeps the numbers it was tuned to over four flights. Chamber one
+  now gives 129s. It scales **both** terms, because §7.3's shape is the drain plus
+  the beat's bite and scaling only the continuous one flattens "can I reach the
+  well before the next beat?" exactly where a first-timer needs it legible; what
+  does not scale is `RACK_FAILING_AT`, so a slower clock reaches "failing" later
+  and reads identically when it does. **FIELD MEDIC takes another 0.75** — it
+  widened every impact tolerance and halved what giving costs, and did nothing
+  whatever to the one clock an assist mode most needs to be able to lift.
+
+  **5 — the re-cradle soft-lock, and the worst of the six.** *"Seems to be an
+  error in that you can't land on the rack if it has been moved from its original
+  location, which means you can't pick it up again."* `landableRacks()` filtered on
+  `r.moored`, which goes false **forever** when the mounts part — so the pad
+  existed exactly until the first time you used it. Unlandable meant
+  un-re-cradleable (updateCradle needs `landedOn`), on a floor whose only success
+  criterion is carrying the thing to the well; `RECRADLE_T`, the constant that
+  exists for re-hooking a rack already on reserve, was unreachable code. It also
+  blocked a loop the design already wanted, since §7.4 makes "set them down and
+  treat them" an option and it is not one if setting them down is permanent. The
+  pad is **"moored OR at rest"** now — bolted in, or standing on a floor and not
+  moving, which is the honest reading of what a landing surface is. A falling or
+  swinging box is still not one.
+
+  **6 — the flash, and it was doing all four things at once.** *"The big red
+  message that flashes up when the rack dies is too quick to read. But it is also
+  doing too much. It is the wrong place to carry the no-shot fired message. Ensure
+  we continue the act one logic for what appears in a flash message vs an end game
+  card."* All of it was a single bug: both events that finish a floor —
+  `deliverRack` and `loseRack` — set their own banner and then call
+  `checkChamberClear`, which set another, and `banner()` overwrites wholesale. On a
+  one-bank floor the news therefore never rendered for a single frame, and what
+  the owner read after a flatline was `NOTHING LEFT TO CARRY / 0 BANKS HOME · 1
+  LOST / NOT ONE SHOT — HIPPOCRATIC BONUS +500`, in red, gone in four seconds.
+  Act One's grammar was already the answer and Act Two never got its half:
+  `sectorClearNow` clears the banner and goes to a **card**. So the ledger is a
+  card now (`drawChamberClear`, Act One's own clear-screen shape and wording, with
+  a tap that returns you to the room because there is nowhere to advance to until
+  P·persist lands the descent), and it **waits for the flash** — timed off the
+  banner's own remaining life rather than a second number that could drift from
+  it. Two more, in the same pass: **banner duration is per line** (a one-liner
+  keeps its 4.2s exactly, so no Act One beat moves), and the death line stops
+  promising `THIS FLOOR STARTS OVER`, which the build cannot honour — the chamber
+  checkpoint is P·persist's. It reads `<n> SOULS, AND THEY DON'T COME BACK`, the
+  exact counterpart of the delivery flash.
+
+  Suite 205 → 217.
 
 - [ ] **P·content. The ten chambers**, authored against proven systems, never
   before them.

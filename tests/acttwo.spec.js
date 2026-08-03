@@ -1550,3 +1550,424 @@ test("§8.1: reduced flash gets a longer window, never a shorter tell (H-bundle)
   expect(reduced.drawn).toBe(true);            // the tell still fires
   expect(reduced.t).toBeGreaterThan(normal.t); // and is held longer, not dropped
 });
+
+/* ===========================================================================
+   P·intake — the first on-device round on CHAMBER ONE (owner, August 2026).
+
+   Six notes, five root causes, and every one of them is a rule rather than a
+   feel value, which is why they belong in the suite at all. The chamber-one
+   loader is its own helper because three of them are about geometry that only
+   exists in that room: the shelf at x 4300 (the act's first overhang you can
+   both fly under and land on), and a single bank whose loss closes the floor.
+   =========================================================================== */
+const intake = async page => {
+  const info = await page.evaluate(() => __doids.loadChamber("breach"));
+  expect(info).not.toBeNull();
+  return info;
+};
+
+test("P·intake: the landing guide reads the surface under the hull, not the deck below it", async ({ page }) => {
+  /* Owner: "still no landing assist line when landing on the top of the
+     mezzanine." The guide asked groundAt(x) with no y — "the lowest floor in this
+     column" — so on top of chamber one's shelf it measured the hall deck ~350px
+     below, failed its own 320px altitude cull, and never drew at all. */
+  await intake(page);
+  const onTop = await page.evaluate(() => {
+    assist = true;
+    // over the shelf's top surface, well within a landing approach
+    const sp = spanAt(4400, 700);
+    ship.x = 4400; ship.y = sp.bot - SHIP_R - 30;
+    ship.vx = 0; ship.vy = 20; ship.landed = false; ship.dead = false;
+    return { shelfTop: Math.round(sp.bot), deck: Math.round(groundAt(4400)),
+      guide: __doids.landingGuide(), visible: __doids.landingGuideVisible() };
+  });
+  // the room really does have a projection here, with the deck far below it
+  expect(onTop.deck - onTop.shelfTop).toBeGreaterThan(300);
+  expect(onTop.visible).toBe(true);
+  expect(onTop.guide.drawn).toBe(true);                    // it draws at all now
+  expect(onTop.guide.surface).toBe(onTop.shelfTop);        // and about the shelf
+  expect(onTop.guide.alt).toBeLessThan(60);                // a landing, not a fall
+});
+
+test("P·intake: the guide's surface bar never rears up at the end of an overhang", async ({ page }) => {
+  /* Owner: "flying under the left side of the first mezzanine, the assist line
+     becomes vertical as though there was a wall there." There is no wall. The
+     one-answer groundAt interpolates a single span's floor toward the shelf's
+     across the column where the span count changes, so it stepped ~86px in 16px
+     of x, and the bar is struck between x±14.
+
+     Two assertions, and the first is what keeps the second honest: the
+     discontinuity IS still there in the no-y path (that is the shipped
+     heightmap-equivalent answer and Act One depends on it), and the guide no
+     longer reads it. */
+  await intake(page);
+  const r = await page.evaluate(() => {
+    const y = 1000;                       // under the shelf, over the deck
+    let worstNoY = 0, worstBar = 0, worstAt = 0;
+    for (let x = 4200; x <= 4700; x += 4) {
+      worstNoY = Math.max(worstNoY, Math.abs(groundAt(x + 14) - groundAt(x - 14)));
+      ship.x = x; ship.y = y; ship.vx = 0; ship.vy = 20;
+      ship.landed = false; ship.dead = false;
+      const g = __doids.landingGuide();
+      if (g.barRise > worstBar) { worstBar = g.barRise; worstAt = x; }
+    }
+    return { worstNoY, worstBar, worstAt, step: GUIDE_BAR_STEP };
+  });
+  // the trap is real: the surface the guide USED to read jumps by most of a room
+  expect(r.worstNoY).toBeGreaterThan(60);
+  // and the bar it draws now stays a piece of floor, at every x across the tip
+  expect(r.worstBar, "surface bar rise at x=" + r.worstAt).toBeLessThanOrEqual(r.step);
+});
+
+test("P·intake: a rack's lid is the surface the guide measures, and it is level", async ({ page }) => {
+  await intake(page);
+  const r = await page.evaluate(() => {
+    assist = true;
+    const rk = level.racks[0], cage = rk.h * RACK_CAGE_H;
+    ship.x = rk.x; ship.y = rk.y - cage / 2 - 40;
+    ship.vx = 0; ship.vy = 20; ship.landed = false; ship.dead = false;
+    return { lid: Math.round(rk.y - cage / 2), deck: Math.round(groundAt(rk.x)),
+      guide: __doids.landingGuide() };
+  });
+  expect(r.guide.onPad).toBe(true);
+  expect(r.guide.surface).toBe(r.lid);      // the lid, not the deck it stands on
+  expect(r.guide.surface).toBeLessThan(r.deck);
+  expect(r.guide.barRise).toBe(0);          // a machined deck, level by construction
+});
+
+test("P·intake: a rack you have set down can be landed on and picked up again", async ({ page }) => {
+  /* Owner: "seems to be an error in that you can't land on the rack if it has
+     been moved from its original location, which means you can't pick it up
+     again." A soft-lock, not a nuisance: landableRacks() filtered on `moored`,
+     which goes false forever when the mounts part, so the pad existed exactly
+     until the first time you used it — and updateCradle needs `landedOn`, so
+     unlandable meant un-re-cradleable on a floor whose only success criterion is
+     carrying the thing to the well. RECRADLE_T was unreachable code. */
+  await intake(page);
+  const r = await page.evaluate(async () => {
+    __doids.a2Cut("c1");
+    __doids.a2Cradle("r1");
+    const rk = level.racks[0];
+    releaseRack();
+    /* THE STATE UNDER TEST IS "rigged, mounts parted, and now standing on a floor
+       somewhere else" — so it is reached by putting the load there, mid-hall, and
+       not by flying to it. Two rounds of trying to fly it say why:
+
+       `a2Warp(x, ground - 100, true)` forces `ship.landed` with the hull in mid
+       air, which the sim is entitled to resolve however frame timing lets it — on
+       CI the hull fell, died on impact, and froze the rack mid-drop, so the pad
+       assertion failed for a reason with nothing to do with the pad. (CI caught
+       that on the first push; two local runs did not.)
+
+       And landing the hull ON the deck instead is worse, because `a2Warp` seats a
+       towed load straight below the hull: from a hull at deck level that is 90px
+       INTO the rock, and towCollide's un-burying clamp hands the Verlet step a
+       94px correction it reads as −1100px/s, which fires the box at the ceiling.
+       A debug-warp artefact rather than a game bug — nothing in play teleports a
+       slung load into a floor — but it is not the set-down this test is about.
+
+       So: released first, then placed where a set-down actually leaves it — clear
+       of the deck, beside the hull, at rest. `died` guards the whole settle, so
+       any repeat of that class of flake names itself instead of looking like the
+       thing under test. */
+    const to = 3000;
+    __doids.a2Warp(to, __doids.ground(to) - SHIP_R, true);
+    rk.x = to + 130;
+    rk.y = __doids.ground(rk.x) - rk.h * RACK_CAGE_H / 2 - 6;
+    rk.vx = 0; rk.vy = 0;
+    let died = false;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+      if (state !== "play") died = true;
+    }
+    const settled = { died, moored: rk.moored, towed: rk.towed,
+      landable: landableRacks().some(k => k.id === "r1"),
+      onFloor: Math.round(rk.y + rk.h * RACK_CAGE_H / 2 - spanAt(rk.x, rk.y).bot),
+      speed: Math.round(Math.hypot(rk.vx, rk.vy)) };
+    // and set down on its lid, exactly as you would on its moorings
+    __doids.a2Warp(rk.x, rackPad(rk).top - SHIP_R - 14, false);
+    ship.vy = 12;
+    for (let i = 0; i < 40; i++) await new Promise(k => requestAnimationFrame(k));
+    const on = { landedOn: ship.landedOn, dead: ship.dead, state };
+    for (let i = 0; i < 120; i++) await new Promise(k => requestAnimationFrame(k));
+    return { settled, on, towing: !!level.towedRack, everTowed: rk.everTowed };
+  });
+  expect(r.settled.died, "the hull survived the set-down — see the note above").toBe(false);
+  expect(r.settled.moored).toBe(false);     // the mounts are gone for good
+  expect(r.settled.towed).toBe(false);
+  expect(r.settled.speed).toBeLessThan(24); // it is standing still…
+  expect(Math.abs(r.settled.onFloor)).toBeLessThanOrEqual(5);   // …on a floor
+  expect(r.settled.landable).toBe(true);    // …which is what makes it a pad
+  expect(r.on.state).toBe("play");
+  expect(r.on.landedOn).toBe("r1");
+  expect(r.on.dead).toBe(false);
+  expect(r.towing).toBe(true);              // re-cradled, at the RECRADLE_T rate
+  expect(r.everTowed).toBe(true);
+});
+
+test("P·intake: a rack in mid-air is not a landing pad", async ({ page }) => {
+  // the pad is "moored OR at rest", and the second half has to mean at rest —
+  // otherwise a load dropped from height is a platform on the way down
+  await intake(page);
+  const r = await page.evaluate(() => {
+    __doids.a2Cut("c1");
+    __doids.a2Cradle("r1");
+    const rk = level.racks[0];
+    rk.towed = false; level.towedRack = null;
+    rk.y = __doids.ground(rk.x) - 400; rk.vx = 0; rk.vy = 260;   // falling
+    const falling = landableRacks().length;
+    rk.vy = 0; rk.y = __doids.ground(rk.x) - 300;                // hanging, still
+    const hanging = landableRacks().length;
+    return { falling, hanging };
+  });
+  expect(r.falling).toBe(0);
+  expect(r.hanging).toBe(0);   // nothing under it — not a floor, not a pad
+});
+
+test("P·intake: the earlier floors run a slower clock, and FIELD MEDIC slows it further", async ({ page }) => {
+  /* Owner: "slow the vitals decay of the racks (certainly in the earlier levels)
+     — it is too difficult at the moment." The rates were tuned against the slice,
+     which is chamber THREE now, and nothing retuned them when two teaching floors
+     were authored beneath it. Driven through updateReserves rather than by waiting
+     on the clock, so the assertion is the arithmetic and not a stopwatch. */
+  const bite = async (page, id, easy) => page.evaluate(([id, easy]) => {
+    __doids.loadChamber(id);
+    easyMode = easy;
+    __doids.a2Cut(level.conduits.find(c => c.rack).id);
+    const r = level.racks.find(k => k.cut);
+    r.reserve = 100;
+    updateReserves(1, false);            // one second, no beat
+    const perSec = 100 - r.reserve;
+    r.reserve = 100;
+    updateReserves(0, true);             // the beat's bite alone
+    return { pace: rackPace(), chamberPace: level.rackPace,
+      drain: RACK_DRAIN, beatBite: RACK_BEAT_BITE,
+      perSec: +perSec.toFixed(3), bite: +(100 - r.reserve).toFixed(3) };
+  }, [id, easy]);
+
+  const one = await bite(page, "breach", false);
+  const three = await bite(page, "slice", false);
+  const medic = await bite(page, "breach", true);
+
+  // the ladder ramps, and chamber one is the gentlest floor in the act
+  expect(one.chamberPace).toBeLessThan(three.chamberPace);
+  expect(three.chamberPace).toBeLessThanOrEqual(1);
+  // BOTH terms take the factor, so the beat keeps its weight in the mix (§7.3)
+  expect(one.perSec).toBeCloseTo(one.drain * one.pace, 3);
+  expect(one.bite).toBeCloseTo(one.beatBite * one.pace, 3);
+  expect(one.perSec).toBeLessThan(three.perSec);
+  expect(one.bite).toBeLessThan(three.bite);
+  // and FIELD MEDIC lifts the one pressure it never used to touch
+  expect(medic.pace).toBeLessThan(one.pace);
+  expect(medic.perSec).toBeLessThan(one.perSec);
+});
+
+test("P·intake: the load takes a fuel can the hull cannot reach", async ({ page }) => {
+  /* Owner: "needs to be simpler to pick up fuel while carrying the rack." It was
+     not merely hard — a deck-level can is 45px from the hull at the very lowest a
+     hanging load allows, against a 30px capture radius, so the obvious approach
+     could not work at any skill level. The box is dragging along that deck
+     anyway; a bank hauled over a can now collects it. */
+  await intake(page);
+  const r = await page.evaluate(() => {
+    __doids.a2Cut("c1");
+    __doids.a2Cradle("r1");
+    const f = level.fuelCans[0];
+    ship.fuel = 20;
+    // hull directly over the can at the altitude a taut sling implies
+    ship.x = f.x; ship.y = f.y - SLING_L;
+    seatPayload(level.towedRack, true);
+    const hullD = Math.round(Math.hypot(ship.x - f.x, ship.y - f.y));
+    const loadD = Math.round(Math.hypot(level.towedRack.x - f.x, level.towedRack.y - f.y));
+    updateFuelCans();
+    return { hullD, loadD, r: FUEL_CAN_R, taken: f.taken, fuel: Math.round(ship.fuel) };
+  });
+  expect(r.hullD).toBeGreaterThan(r.r);    // the hull alone could never have it
+  expect(r.loadD).toBeLessThan(r.hullD);
+  expect(r.taken).toBe(true);
+  expect(r.fuel).toBeGreaterThan(20);
+});
+
+test("P·intake: an unladen hull still has to fly into a can itself", async ({ page }) => {
+  // the sling is an addition, not a wider net: nothing about the unladen pickup
+  // moves, or a fly-past gets sloppier to pay for the laden case
+  await intake(page);
+  const r = await page.evaluate(() => {
+    const f = level.fuelCans[0];
+    ship.fuel = 20;
+    ship.x = f.x; ship.y = f.y - SLING_L;      // same altitude, no load
+    updateFuelCans();
+    const far = f.taken;
+    ship.y = f.y - FUEL_CAN_R + 4;             // and inside its own radius
+    updateFuelCans();
+    return { far, near: f.taken };
+  });
+  expect(r.far).toBe(false);
+  expect(r.near).toBe(true);
+});
+
+test("P·intake: the drone answers a dry tank and only a dry tank, on THRUST", async ({ page }) => {
+  /* THE OWNER'S RULING, and it is a rule with three parts that have to hold
+     together. P·intake built a low-fuel version of the call for a chamber, on
+     SHIELD — because THRUST cannot carry one: the dry signal works only while the
+     engine is a no-op, and with fuel in the tank the same hold flies you off the
+     pad. The owner removed it: "keep the fuel drone to thrust — too confusing to
+     have shield doing so much work. It is primarily a no-fuel rescue. When you see
+     you are getting low you can land and use small thrusts to deplete it fully
+     without lifting off too far."
+
+     So: SHIELD is a field and nothing else; a THRUST hold with fuel in the tank is
+     an engine and never a signal; and the route the ruling relies on — burn the
+     last of it off deliberately, then signal — actually works. */
+  await intake(page);
+
+  // 1. SHIELD at low fuel is a field. No signal, at any level above zero.
+  const shielded = await page.evaluate(async () => {
+    const x = 2600;
+    __doids.a2Warp(x, __doids.ground(x) - SHIP_R, true);
+    ship.fuel = maxFuel() * 0.3;
+    input.shield = true;
+    for (let i = 0; i < 30; i++) await new Promise(k => requestAnimationFrame(k));
+    const out = { signalT: ship.signalT, field: ship.shield, called: !!resupplyDrone };
+    input.shield = false;
+    for (let i = 0; i < 3; i++) await new Promise(k => requestAnimationFrame(k));
+    return out;
+  });
+  expect(shielded.field).toBe(true);      // exactly what it has always been
+  expect(shielded.signalT).toBe(0);
+  expect(shielded.called).toBe(false);
+
+  // 2. THRUST with fuel in the tank is an engine, and never arms the signal —
+  //    which is the whole reason the low-fuel call could not live on this button
+  const thrusted = await page.evaluate(async () => {
+    const x = 2600;
+    __doids.a2Warp(x, __doids.ground(x) - SHIP_R, true);
+    ship.fuel = 30;
+    const f0 = ship.fuel;
+    input.thrust = true;
+    let worst = 0;
+    for (let i = 0; i < 40; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+      worst = Math.max(worst, ship.signalT);
+    }
+    input.thrust = false;
+    const out = { worst, burned: f0 - ship.fuel, called: !!resupplyDrone };
+    for (let i = 0; i < 3; i++) await new Promise(k => requestAnimationFrame(k));
+    return out;
+  });
+  expect(thrusted.worst).toBe(0);
+  expect(thrusted.called).toBe(false);
+  // …and it BURNS, which is what makes the owner's route available at all: the
+  // walk from "getting low" to "able to signal" is a thing you do on purpose
+  expect(thrusted.burned).toBeGreaterThan(0);
+
+  // 3. dry and landed, the hold calls the drone — down here it comes off the well
+  const dry = await page.evaluate(async () => {
+    const x = 2600;
+    __doids.a2Warp(x, __doids.ground(x) - SHIP_R, true);
+    ship.fuel = 0;
+    input.thrust = true;
+    for (let i = 0; i < 240 && !resupplyDrone; i++) await new Promise(k => requestAnimationFrame(k));
+    input.thrust = false;
+    const out = { called: !!resupplyDrone, landed: ship.landed };
+    for (let i = 0; i < 3; i++) await new Promise(k => requestAnimationFrame(k));
+    return out;
+  });
+  expect(dry.called).toBe(true);
+  expect(dry.landed).toBe(true);     // the hold is a signal, not a take-off
+});
+
+test("P·intake: the death flash is read before the ledger, and carries none of it", async ({ page }) => {
+  /* Owner: "the big red message that flashes up when the rack dies is too quick
+     to read. But it is also doing too much. It is the wrong place to carry the
+     no-shot fired message."
+
+     All of which was one bug: loseRack set its banner and then closed the floor's
+     books, which set another, and banner() overwrites wholesale — so on a
+     one-bank floor the death line never rendered for a single frame and what you
+     read was the score summary, in red. The ledger is a card now, in Act One's
+     own clear-screen shape, and it waits for the flash. */
+  await intake(page);
+  const flash = await page.evaluate(async () => {
+    // parked and landed: a chamber puts you in mid-air at the well, and an
+    // unflown hull left to fall would die during the wait and take the state
+    // with it — this test is about which screen the news arrives on
+    __doids.a2Warp(2600, __doids.ground(2600) - SHIP_R, true);
+    __doids.a2Cut("c1");
+    __doids.a2SetReserve("r1", 0.2);
+    for (let i = 0; i < 30 && !level.racks[0].lost; i++) await new Promise(k => requestAnimationFrame(k));
+    return { str: bannerMsg && bannerMsg.str, t: bannerMsg && bannerMsg.t,
+      state, cleared: !!level.cleared, pending: __doids.get().actTwo.ledgerPending };
+  });
+  expect(flash.str).toMatch(/FLATLINE/);
+  expect(flash.str).toMatch(/THEY DON'T COME BACK/);
+  expect(flash.str).not.toMatch(/HIPPOCRATIC|BANKS HOME|BONUS/);   // not its job
+  expect(flash.str.split("\n").length).toBe(2);
+  expect(flash.t).toBeGreaterThan(4.2);        // longer than a one-line banner
+  expect(flash.state).toBe("play");            // the card is not up yet
+  expect(flash.cleared).toBe(true);            // though the books are closed
+  expect(flash.pending).toBe(true);
+
+  // and once the flash has had its read, the ledger arrives as a card
+  const card = await page.evaluate(async () => {
+    for (let i = 0; i < 700 && state === "play"; i++) await new Promise(k => requestAnimationFrame(k));
+    return { state, banner: bannerMsg, ledger: __doids.get().actTwo.ledger,
+      pending: __doids.get().actTwo.ledgerPending };
+  });
+  expect(card.state).toBe("clear");
+  expect(card.banner).toBeNull();               // the flash is not left underneath
+  expect(card.pending).toBe(false);
+  expect(card.ledger.saved).toBe(0);
+  expect(card.ledger.lost).toBe(1);
+  expect(card.ledger.noFire).toBeGreaterThan(0);   // where the bonus belongs
+
+  // a chamber's clear card returns you to the room — there is nowhere to advance
+  // to until P·persist lands the descent, and Act One's path would brief a
+  // surface sector out of nowhere
+  const back = await page.evaluate(async () => {
+    for (let i = 0; i < 70; i++) await new Promise(k => requestAnimationFrame(k));
+    input.tap = true;
+    for (let i = 0; i < 20; i++) await new Promise(k => requestAnimationFrame(k));
+    return { state, isChamber: !!level.isChamber };
+  });
+  expect(back.state).toBe("play");
+  expect(back.isChamber).toBe(true);
+});
+
+test("P·intake: a delivery keeps its own flash too", async ({ page }) => {
+  // the same clobber ate the good news: deliverRack banners and then closes the
+  // books, so "ABOARD — n SOULS" was overwritten on the frame it appeared
+  await intake(page);
+  const r = await page.evaluate(async () => {
+    __doids.a2Cut("c1");
+    __doids.a2Cradle("r1");
+    const w = level.wellDock;
+    __doids.a2Warp(w.x, w.y + 40, false);
+    seatPayload(level.towedRack, true);
+    for (let i = 0; i < 400 && !level.racks[0].delivered; i++) {
+      const rk = level.towedRack;
+      if (rk) { rk.x = w.x; rk.y = w.y; rk.vx = 0; rk.vy = 0; }
+      await new Promise(k => requestAnimationFrame(k));
+    }
+    return { delivered: level.racks[0].delivered, str: bannerMsg && bannerMsg.str, state };
+  });
+  expect(r.delivered).toBe(true);
+  expect(r.str).toMatch(/ABOARD/);
+  expect(r.str).not.toMatch(/BANKS HOME|HIPPOCRATIC/);
+  expect(r.state).toBe("play");
+});
+
+test("P·intake: a banner's read is scaled by how much there is to read", async ({ page }) => {
+  await intake(page);
+  const r = await page.evaluate(() => {
+    banner("ONE LINE", PAL().WARN);
+    const one = bannerMsg.t;
+    banner("ONE LINE\nAND ANOTHER", PAL().WARN);
+    const two = bannerMsg.t;
+    banner("ONE\nTWO\nTHREE", PAL().WARN);
+    return { one, two, three: bannerMsg.t };
+  });
+  expect(r.one).toBe(4.2);          // a one-liner keeps exactly what it had
+  expect(r.two).toBeGreaterThan(r.one);
+  expect(r.three).toBeGreaterThan(r.two);
+});

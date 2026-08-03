@@ -26,6 +26,7 @@ const DECK = path.join(ROOT, "docs", "COPY_DECK.md");
 // the deck as a record. Each entry needs a reason.
 const HISTORICAL = new Map([
   ["PASSENGER KILLED BY VECTOR", "S7 promoted it to the 'A PASSENGER IS DEAD' banner; the deck records the old floating text"],
+  ["THEY DON'T COME BACK. THIS FLOOR STARTS OVER.", "P·intake dropped the second sentence: the chamber checkpoint is P·persist's and has not landed, so nothing restarts. The deck records the old second line and why it went"],
 ]);
 
 // Deck notation that isn't a literal string: section titles, templates, and

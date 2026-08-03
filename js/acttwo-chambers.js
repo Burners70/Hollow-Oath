@@ -125,6 +125,9 @@ const SLICE_CHAMBER = {
   id: "slice", n: 3, name: "THE THEATRE", seed: 90210, W: 9000, H: 2050, zone: "cyan",
   brief: "The deepest room she finished, and the best cut of the three. He set "
        + "up in it because she had already done the hard part.",
+  // P·intake — the clock is nearly full rate by the third floor; see the ladder
+  // above BREACH_CHAMBER for the whole ramp, and rackPace() for what it scales
+  pace: 0.9,
   /* SOLACE's breached intake is beat 1; the plant proper is 2–5 (spec §11.1), so
      this chamber is NOT dressed as a plant — `plant` stays false and the machined
      surfaces read as her own wrecked intake gear rather than his facility. */
@@ -441,18 +444,26 @@ const SLICE_CHAMBER = {
    owner has widened it to 1–2 here, because Act Two's elements are smaller.
    Read down the "new" column and it is the teaching order:
 
-     #  chamber        W      new this level                         built
-     1  THE INTAKE     5600   the tether · deliver to THE WELL       here
-     2  THE WARDS      7200   the deduction (decoys) · an authored   here
-                              gap the load must be settled for
-     3  THE THEATRE    9000   the momentum pinch · the emplacement   above
-     4  plant          9600   the deception tell (§8.1) · lights-out  P·content
-     5  plant         10200   two banks in one room                  P·content
-     6  deep line     10800   deep readers (live, unswitchable)      P·content
-     7  deep line     11400   anomaly geology (Bundle Z gravity)     P·content
-     8  deep line     12000   THE LAST HEART (§12)                   P·content
-     9  the mask      12600   no fight — the husk                    P·content
-    10  her           13200   one rescue, the climb, the quickening  P·content
+     #  chamber        W    pace  new this level                       built
+     1  THE INTAKE     5600  0.6  the tether · deliver to THE WELL      here
+     2  THE WARDS      7200 0.75  the deduction (decoys) · an authored  here
+                                  gap the load must be settled for
+     3  THE THEATRE    9000  0.9  the momentum pinch · the emplacement  above
+     4  plant          9600    1  the deception tell (§8.1) · lights-out P·content
+     5  plant         10200    1  two banks in one room                 P·content
+     6  deep line     10800    1  deep readers (live, unswitchable)     P·content
+     7  deep line     11400    1  anomaly geology (Bundle Z gravity)    P·content
+     8  deep line     12000    1  THE LAST HEART (§12)                  P·content
+     9  the mask      12600    1  no fight — the husk                   P·content
+    10  her           13200    1  one rescue, the climb, the quickening P·content
+
+   `pace` is P·intake's: how fast a bank dies here, scaling both the continuous
+   drain and the beat's bite (rackPace(), js/acttwo-data.js). It is a fourth
+   monotonic column and it belongs in this table rather than in a tuning file,
+   because the clock is the difficulty of a rescue level — chamber one gives 129
+   seconds from the cut, the full rate gives 77, and an author choosing a pace is
+   choosing how much room the element being taught has to be learned in. From
+   four it is 1, so nothing later needs a value typed.
 
    Three properties of that table are load-bearing and should survive any
    re-ordering of the rows:
@@ -543,6 +554,13 @@ const BREACH_AT = hallRefs(BREACH_HALL);
 const BREACH_CHAMBER = {
   id: "breach", n: 1, name: "THE INTAKE", seed: 40771, W: 5600, H: 1500, zone: "cyan",
   plant: false,
+  /* P·intake (owner, August 2026: "slow the vitals decay of the racks, certainly
+     in the earlier levels"). The slowest clock in the act, because this is the
+     room where cutting a feed is a thing you have never done: 129s to flatline
+     against the full rate's 77s, on a floor that asks for a 4,440px laden haul
+     and at least two fuel stops. See rackPace() for what it scales and why both
+     terms take the same factor. */
+  pace: 0.6,
   matTop: MAT_ROCK, matBot: MAT_MACH,
   /* The intro card's copy (roadmap P·content, owner August 2026: "a little
      allusion to the fact we are under Solace's wreck, seeing the remains of her
@@ -707,6 +725,9 @@ const WARDS_AT = hallRefs(WARDS_HALL);
 const WARDS_CHAMBER = {
   id: "wards", n: 2, name: "THE WARDS", seed: 51884, W: 7200, H: 1800, zone: "cyan",
   plant: false,
+  // P·intake — one step up from chamber one, and the deduction has to be paid for
+  // out of the same clock, so it is a step and not a jump
+  pace: 0.75,
   matTop: MAT_ROCK, matBot: MAT_MACH,
   brief: "Where triage sent them. The bays are still in their rows, and someone "
        + "has run new cable over every one of them.",

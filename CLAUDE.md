@@ -89,9 +89,9 @@ the order is `acttwo-data` → `acttwo-chambers` → `acttwo-render` →
 `acttwo-update`). **What each holds is in the source-file map above; what has
 LANDED versus what is still to build is Bundle P's checkboxes in
 `docs/APP_STORE_ROADMAP.md`** — that record lives in one place, not two. As of
-August 2026: `P·design`, `P·terrain`, `P·slice`, `P·feedback`, `P·floor` and
-`P·ramp` have landed, and two slices of `P·systems` with them — the **score
-ladder** and **§8.1's deception tell** (the rest of `P·systems` — pulse-reading,
+August 2026: `P·design`, `P·terrain`, `P·slice`, `P·feedback`, `P·floor`,
+`P·ramp` and `P·intake` have landed, and two slices of `P·systems` with them — the
+**score ladder** and **§8.1's deception tell** (the rest of `P·systems` — pulse-reading,
 deep readers, the well deepening, the remaining ward channels, geology, husks,
 the rank names — has not). The tell ships **proved but unmet**: no authored
 chamber carries a hazard, and the teaching ladder puts the first at chamber
@@ -99,6 +99,17 @@ four, so it is tested against a purpose-built chamber via `__doids.enterChamber`
 `P·persist` shipped only its **save-schema** half (`doids_run` v2 + the v1
 migration); its chamber checkpoint and the descent have not. `P·scions` and
 `P·content` (chambers four to ten) have not started.
+
+`P·intake` was the first on-device round on chamber ONE, and three of its fixes
+reach outside the `acttwo-*` files, so they are worth knowing before you touch
+them: `drawLandingGuide` (`js/render.js`) resolves against the span the hull is
+over and against a rack's lid when there is one under it — never `groundAt(x)` with
+no `y`, which on a chamber means the hall deck however high you are; `banner()`
+(`js/update.js`) scales its duration by line count; and Act Two's floor ledger is a
+**card** (`state = "clear"` → `drawChamberClear`), because it used to be a banner
+that overwrote the death flash on the frame it appeared. A chamber also carries a
+`pace` scalar for how fast its banks die (`rackPace`), authored in the ladder table
+in `js/acttwo-chambers.js`.
 
 `js/acttwo-chambers.js` was split out of `js/acttwo-data.js` in August 2026 on
 the same reasoning as the exception itself: three chambers were already ~700 of
@@ -200,7 +211,7 @@ doc only when the task touches it:
 ## Workflow
 
 - **Branch:** develop on the feature branch you were assigned; never push to `main` without explicit permission. `main` is not auto-published anywhere (see Bundle O7 above) — a merge is the source for the *next* TestFlight/App Store build, not an instant live release; it only reaches players once someone runs the manual archive/upload step (`app/MAC_SETUP.md`). Still treat a merge as consequential — it's what ships next.
-- **Tests:** Playwright smoke suite in `tests/` — 205 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `acttwo`, `copy-deck`, `qa-harness`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
+- **Tests:** Playwright smoke suite in `tests/` — 217 tests across concern-based spec files (`boot`, `settings`, `audio`, `worldgen`, `flight`, `rescue`, `finale`, `story`, `acttwo`, `copy-deck`, `qa-harness`), sharing `tests/harness.js`; see `tests/README.md` for which file holds what. They load `index.html` over `file://`. Run with `cd tests && npm ci && npx playwright test` (or `npx playwright test rescue` for one file). CI runs the same suite on every PR (`.github/workflows/tests.yml`). Chromium is preinstalled — don't run `playwright install`. `playwright.config.js` auto-detects the container's browser (the stable symlink `/opt/pw-browsers/chromium`), so no env var is needed. If a run ever errors *"Executable doesn't exist at …chromium…-<rev>"*, that's a version-pin mismatch (the installed `@playwright/test` wants a different Chromium revision than the container ships), **not** a missing file — the config already handles it; only if that fails, set `PLAYWRIGHT_EXECUTABLE_PATH=/opt/pw-browsers/chromium`.
 - **iOS wrapper:** `app/` holds the Capacitor config, custom plugins (`game-connect`, `icloud-kv`, `rating`), and Mac setup notes (`app/MAC_SETUP.md`). Changing on-page JS that touches `window.Capacitor` can affect the native build — flag it.
 - **Manual/on-device testing:** `tests/qa-harness.html` is a standalone tap-driven rig + injected console for trying a build on a phone without a Mac or typed commands — see `docs/QA_HARNESS.md`. It's decoupled from any one branch (`?src=` picks the build), so reuse the same file rather than forking it; Act Two has a **section** in it, not a second harness. Its chrome floats over the game and hides entirely (a tab at the mid-right edge), because shrinking the iframe shrinks the game. `tests/qa-harness.spec.js` is its static drift guard — the rig itself can't be driven by the suite, since that needs same-origin and the suite is `file://`.
 - **Assets:** icons/manifest at root (`icon-*.png`, `manifest.webmanifest`, `apple-touch-icon.png`); art in `assets/`.

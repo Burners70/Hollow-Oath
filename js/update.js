@@ -169,7 +169,17 @@ let ratingAskMsg = null;   // X6 — contextual line drawn into the win/gameover
    V13 — an optional yFrac (0–1 of screen height) overrides the default
    top-quarter position, for a banner that would otherwise sit over the
    action (see the S4 extraction call below). */
-function banner(str, color, yFrac) { bannerMsg = { str, color, t: 4.2, yFrac }; }
+/* P·intake (owner, August 2026) — "the big red message that flashes up when the
+   rack dies is too quick to read". It was 4.2s flat regardless of length, so a
+   two-line banner gave each line half the reading time a one-line banner gives
+   its own, and the two-line ones are the banners carrying the news that matters.
+   Per line now: a single line keeps exactly the 4.2s it has always had, so no
+   shipped Act One beat changes its timing. */
+const BANNER_T = 4.2, BANNER_T_LINE = 1.6;
+function banner(str, color, yFrac) {
+  const lines = String(str).split("\n").length;
+  bannerMsg = { str, color, t: BANNER_T + (lines - 1) * BANNER_T_LINE, yFrac };
+}
 function addText(x, y, str, color) { texts.push({ x, y, str, color, t: 2.6 }); }
 
 function showCard(card) { revealCard = card; state = "reveal"; stateT = 0; }
@@ -1133,6 +1143,15 @@ function updateBrief(dt) {
 }
 
 function updateClear() {
+  /* P·intake — a chamber's clear card goes back to the room it just closed. There
+     is no descent yet (P·persist owns chamber-to-chamber progression), and the
+     sector path below would take a floor's tap as "advance Act One", which on a
+     directly-entered chamber means briefing a surface sector out of nowhere. The
+     shaft is still how you leave, exactly as checkChamberClear says. */
+  if (level.isChamber) {
+    if (input.tap && stateT > 0.8) { state = "play"; stateT = 0; }
+    input.tap = false; return;
+  }
   if (input.tap && stateT > 0.8) {
     if (clearCards.length > 0) { clearCards.shift(); stateT = Math.max(stateT, 0.81); }
     else if (levelIdx < FINALE_IDX - 1) toBriefing(levelIdx + 1);
@@ -2727,6 +2746,29 @@ function tethered() {
   return !!(resupplyDrone && resupplyDrone.phase === "line" &&
             resupplyDrone.everAttached && !ship.dead);
 }
+/* THE DRONE ANSWERS A DRY TANK, AND ONLY A DRY TANK — and that survived a round
+   of being changed, so it is worth writing down as a decision rather than leaving
+   as the absence of one.
+
+   P·intake asked for a top-up you could call before stranding yourself: "introduce
+   a top up if you land the rack, settle on top of it, then call the drone?" It was
+   built, on SHIELD — because THRUST cannot carry it. The dry signal works only
+   *because* the tank is empty: at zero fuel the engine is a no-op, so the button is
+   free to mean something else, and with fuel in it the same hold lifts you off the
+   pad long before a 1.8s charge completes.
+
+   The owner's ruling, on reading that: **keep it on THRUST.** "Too confusing to
+   have shield doing so much work. It is primarily a no-fuel rescue. When you see
+   you are getting low you can land and use small thrusts to deplete it fully
+   without lifting off too far."
+
+   Which resolves it better than the mechanism did. SHIELD already carries the
+   field, the parry, the transfusion (§7.4) and the scuttle charge; a fifth meaning
+   is a cost paid by every player to serve one state. And the last sentence is the
+   real answer: the threshold existed to spare you the walk from "low" to "empty",
+   and that walk is *already* a thing you can do deliberately — land, tap it down,
+   signal. One button, one meaning, and the player's own hands close the gap. So
+   the rule below is the shipped one, unchanged: landed, and dry. */
 function updateResupplySignal(dt) {
   const s = ship;
   const stranded = s.landed && s.fuel <= 0 && !s.dead;

@@ -164,6 +164,20 @@
           </select>
           <button class="a2" data-run="a2Vitals">Set</button>
         </div>
+        <!-- P·intake: the fuel plan is a STATE, not a place. The drone answers a
+             DRY ship only (owner: "primarily a no-fuel rescue"), so 10% is the
+             interesting one — land and tap the last of it away, which is the
+             owner's own route from "getting low" to being able to signal. -->
+        <div class="row" style="margin-top:6px">
+          <label for="fuelSel">fuel</label>
+          <select id="fuelSel">
+            <option value="1">full</option>
+            <option value="0.3">30% · low — cans or the well from here</option>
+            <option value="0.1" selected>10% · land and tap it down to signal</option>
+            <option value="0">0 · dry — THRUST signals, SHIELD scuttles</option>
+          </select>
+          <button class="a2" data-run="a2Fuel">Set</button>
+        </div>
       </div>
 
       <div class="grp">
@@ -523,6 +537,14 @@
       var v = +document.getElementById("vitalsSel").value;
       d.a2Vitals(v);
       status.textContent = "your vitals = " + v;
+    },
+    a2Fuel: function (d) {
+      if (!needA2(d, "a2Fuel")) return;
+      var f = +document.getElementById("fuelSel").value;
+      var got = d.a2Fuel(f);
+      status.textContent = "fuel = " + got +
+        (f === 0 ? " — dry: HOLD THRUST to signal, SHIELD to scuttle"
+         : f > 0 && f < 0.35 ? " — low: cans, the well, or tap it dry and signal" : "");
     },
 
     /* ---- Act One ---- */

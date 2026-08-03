@@ -79,7 +79,16 @@ window.__doids = {
         state: rackStateFor(r), reserve: +r.reserve.toFixed(2),
         integrity: +r.integrity.toFixed(2), cut: r.cut, towed: r.towed,
         delivered: r.delivered, lost: r.lost, gives: r.gives,
-        occupants: r.occupants, cradleT: +r.cradleT.toFixed(2) })),
+        occupants: r.occupants, cradleT: +r.cradleT.toFixed(2),
+        /* P·intake — a moved rack must stay a landing pad, or it can never be
+           re-cradled. `moored` and `landable` are separate on purpose: the whole
+           bug was the two being treated as one thing. */
+        moored: !!r.moored, everTowed: !!r.everTowed,
+        landable: landableRacks().some(k => k.id === r.id) })),
+      // P·intake — the chamber's clock, and FIELD MEDIC's share of it
+      pace: rackPace(), chamberPace: level.rackPace,
+      // P·intake — the floor's ledger, which is a CARD now and not a banner
+      ledger: level.clearLedger || null, ledgerPending: a2LedgerPending,
       conduits: level.conduits.map(c => ({ id: c.id, rack: c.rack, real: c.real,
         x: Math.round(c.x), cut: c.cut, scanT: +c.scanT.toFixed(2),
         // owner: a trunk runs DOWN and along under the deck now, so the suite
@@ -236,6 +245,9 @@ window.__doids = {
      bare id, and a chamber that quietly grew a gun is then visible. */
   a2Ladder: () => ACT_TWO_CHAMBERS.map(c => ({
     id: c.id, n: c.n, name: c.name, brief: c.brief, W: c.W, H: c.H,
+    // P·intake — how fast the banks die here; a fourth monotonic column, and the
+    // one an author most needs to see beside the elements it buys room for
+    pace: c.pace != null ? c.pace : RACK_PACE_DEFAULT,
     racks: (c.racks || []).length, conduits: (c.conduits || []).length,
     decoys: (c.decoys || []).length, turrets: (c.turrets || []).length,
     pinches: partList(c.parts).filter(p => p.pinch).map(p => p.pinch),
@@ -296,6 +308,14 @@ window.__doids = {
     r.reserve = v; return true;
   },
   a2Vitals: v => { ship.vitals = v; },
+  /* P·intake — the tank, for the on-device rig. Act Two's fuel plan is the cans
+     plus a drone that only answers a DRY ship (owner: "it is primarily a no-fuel
+     rescue"), so both ends of that are states rather than places: burning a tank
+     down by hand to reach either is exactly the setup the harness exists to skip.
+     Takes a FRACTION, not a number — maxFuel() moves with the Levi-Montalcini
+     upgrade and the `rationed` daily modifier, so a fraction is the thing that
+     means the same on every run. */
+  a2Fuel: frac => { ship.fuel = clamp(frac, 0, 1) * maxFuel(); return Math.round(ship.fuel); },
 
   /* ---- the on-device rig's entry points (tests/qa-harness.html) ------------
      Act Two is tuned by hand on a phone, so the tap-driven QA harness needs to
@@ -340,6 +360,13 @@ window.__doids = {
     shipShare: SLING_SHIP_W, safeV: SLING_SAFE_V, dmgK: SLING_DMG_K,
     reserveMax: RACK_RESERVE_MAX, drain: RACK_DRAIN, beatBite: RACK_BEAT_BITE,
     failingAt: RACK_FAILING_AT,
+    /* P·intake — the clock the owner asked to slow, which is a per-chamber scalar
+       on both drain terms rather than a change to either of them. `pace` is what
+       is actually in force here (FIELD MEDIC included); `chamberPace` is what the
+       floor authored. On the dials because this is the number a feel note about
+       "too difficult" is now most likely to be about. */
+    pace: level && level.isChamber ? rackPace() : null,
+    chamberPace: level ? level.rackPace : null,
     giveRate: GIVE_RATE, givePerLine: GIVE_PER_LINE, giveFloor: GIVE_FLOOR,
     wellDockR: WELL_DOCK_R, wellDockV: WELL_DOCK_V,
     cradleT: CRADLE_T, recradleT: RECRADLE_T, trunkCutT: TRUNK_CUT_T,
@@ -666,6 +693,20 @@ window.__doids = {
   solid: solidAt,
   evalLanding: landingEval,
   landingGuideVisible,   // owner fix: ASSIST off hides the landing-guide visuals
+  /* P·intake — WHICH SURFACE the guide resolved to, and the ends of its surface
+     bar. The bug it exists for was not a drawing fault: every stroke was correct
+     about the wrong floor, so a pixel test would have passed throughout. Rounded,
+     because the assertions are about which surface and how level, never about a
+     sub-pixel. */
+  landingGuide: () => {
+    const g = landingGuideGeom();
+    return { onPad: g.onPad, drawn: g.drawn,
+      surface: Math.round(g.surface), alt: Math.round(g.alt),
+      a: { x: Math.round(g.a.x), y: Math.round(g.a.y) },
+      b: { x: Math.round(g.b.x), y: Math.round(g.b.y) },
+      // the bar's own gradient — the whole "as though there was a wall" symptom
+      barRise: Math.round(Math.abs(g.b.y - g.a.y)), barRun: Math.round(Math.abs(g.b.x - g.a.x)) };
+  },
   logCardBody: idx => archiveCardFor(idx).body,   // A6 — sentence-broken reveal body
   btnHit: (x, y) => buttonsAt(x, y),              // C1 — touch-button hit test
   give: k => { upgrades[k] = true; },

@@ -645,16 +645,64 @@ comment cannot say.
 | Closing one of his decoy lines | `DEAD LINE — NOTHING WAS ON THE END OF IT` / `HE KNOWS SOMEONE IS DOWN HERE NOW` |
 | Cradling a rack for the first time | `CRADLED — SHE HANGS BELOW YOU NOW` / `FIRE RELEASES. EVERY SLAM IS FELT BY EVERYONE IN THE BOX.` |
 | First transfusion into a rack | `YOUR OWN VITALS, INTO THEIRS` / `THERE IS NO MERCY DOWN HERE. YOU ARE THE SUPPLY.` |
-| Reserve reaches zero | `FLATLINE — THE BANK IS GONE` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
-| A slam finishes a failing rack | `THE LAST SLAM DID IT — THE BANK IS GONE` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
-| Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
+| Reserve reaches zero | `FLATLINE — THE BANK IS GONE` + `<n> SOULS, AND THEY DON'T COME BACK` |
+| A slam finishes a failing rack | `THE LAST SLAM DID IT — THE BANK IS GONE` + `<n> SOULS, AND THEY DON'T COME BACK` |
+| Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `<n> SOULS, AND THEY DON'T COME BACK` |
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
 | A deception is touched and stops lying (§8.1) | `IT WASN'T THERE` — floating text at the point of contact, not a banner |
-| The floor's books close, banks home (P·systems) | `THE FLOOR IS CLEAR` + `<n> BANKS HOME · <n> SOULS` |
-| …and nobody left alive to carry | `NOTHING LEFT TO CARRY` + `0 BANKS HOME · <n> LOST` |
-| …the oath held in that room | `NOT ONE SHOT — HIPPOCRATIC BONUS +<n>` |
-| …and not one slam, on any bank | `GENTLE HANDS — NOT ONE SLAM +<n>` |
+**The resupply prompt is unchanged, and that was a decision.** P·intake built a
+low-fuel version of the call for a chamber (a "hold SHIELD to signal" line — quoted
+without backticks deliberately, because no such string exists in the game) and
+the owner removed it: *"keep the fuel drone to thrust — too confusing to have shield
+doing so much work. It is primarily a no-fuel rescue. When you see you are getting
+low you can land and use small thrusts to deplete it fully without lifting off too
+far."* SHIELD already carries the field, the parry, the transfusion and the scuttle
+charge; a fifth meaning is a cost every player pays to serve one state. And the last
+sentence is the better answer anyway — the walk from "low" to "empty" is a thing the
+player can already do on purpose, so the prompt stays one line about one state.
+
+**The second line of a death used to read**
+`THEY DON'T COME BACK. THIS FLOOR STARTS OVER.`
+(P·intake, August 2026 — owner: the flash "is also doing too
+much"). Two things were wrong with it. *"This floor starts over"* is a claim about
+progression the build cannot honour — the chamber checkpoint is P·persist's and
+has not landed, so nothing restarts and the shaft is still how you leave; and
+where the floor goes next is the clear card's to say, not a flash's. What is left
+is the loss at the scale it happened, which makes it the exact counterpart of the
+delivery line above it: the two outcomes of one bank, in one another's words.
+
+**Banner duration is now per line** (`BANNER_T` + 1.6s each, `js/update.js`).
+Owner: "the big red message that flashes up when the rack dies is too quick to
+read." It was 4.2s flat however long it was, so a two-line banner gave each line
+half the time a one-liner gives its own. A single line is unchanged, so no shipped
+Act One beat moves.
+
+### Chamber clear — the floor's ledger (`drawChamberClear`, `js/render.js`)
+
+**It is a card now, not a banner** (P·intake). Both events that can finish a floor
+set their own flash and then closed the books, and `banner()` overwrites
+wholesale — so on a one-bank floor the death line never rendered for a single
+frame and what you read instead was the score summary, in red, in flight. That is
+the whole of the owner's note: *"too quick to read… also doing too much… the wrong
+place to carry the no-shot fired message"*, and summary score arriving before the
+completion card. Act One's own grammar was already the answer (`sectorClearNow`
+clears the banner and shows `drawClear`); Act Two never got its half.
+
+| Field | Copy |
+|---|---|
+| Title, banks home | `<CHAMBER NAME> CLEAR` |
+| Title, nobody left to carry | `NOTHING LEFT TO CARRY` |
+| Bonus line, the oath held | `PRIMUM NON NOCERE — Hippocratic bonus +<n>` — deliberately Act One's exact wording on its own clear screen |
+| Bonus line, not one slam on any bank | `GENTLE HANDS — not one slam +<n>` |
+| Count | `banks home <n>/<n>` · `✝ lost <n>` when any were |
+| Souls | `<n> souls aboard MERCY` |
+| Score | `act two score <n>` |
+| Dismiss | `tap to return — the shaft is how you leave` |
+
+The last line is the one difference from Act One's clear screen, and it is honest
+rather than stylistic: a sector's clear advances to the next briefing, and a
+chamber has nowhere to advance to until P·persist lands the descent.
 
 **Why the reveal is three words and not a banner.** §8.1's tell is meant to be
 read off the *world* — the wall appears, the ledge stops being drawn — and a
@@ -663,14 +711,15 @@ a tell must not do. But a reveal in total silence reads as a rendering glitch,
 so the world names what it did, once, where it happened, in the voice §7.5 uses
 for everything else down there.
 
-**The clear banner is the only place Act Two's ledger is legible**, and that is
+**The clear card is the only place Act Two's ledger is legible**, and that is
 deliberate. Three of the four things the ladder charges for happen in the middle
 of a manoeuvre — a dead line and a decoy box already have their own banner to
 carry, and an impact's floating number is the *damage*, because the score charge
 is flat and so tells you nothing about how hard you hit. A second number
 competing for the same glance would teach nothing. So the accounting is read at
-leisure, on a floor that is finished. See APP_STORE_ROADMAP.md, Bundle P ·
-P·systems, for the table these come from.
+leisure, on a floor that is finished — which is also why it cannot be a banner
+over live flight. See APP_STORE_ROADMAP.md, Bundle P · P·systems, for the table
+these come from.
 
 ### Confirm card — leaving by the well shaft (`js/acttwo-update.js`)
 

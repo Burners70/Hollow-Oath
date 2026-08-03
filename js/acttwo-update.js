@@ -82,6 +82,7 @@ function towedCage() {
 
 function resetActTwo() {
   a2Saved = 0; a2Lost = 0; a2Line = null; a2FirePrev = true;
+  a2LedgerPending = false;   // P·intake — a fresh attempt owes no ledger card
 }
 
 /* ---- §7.1 the trunk, and closing it --------------------------------------
@@ -182,9 +183,12 @@ function updateReserves(dt, beat) {
     }
     r.slamT = Math.max(0, r.slamT - dt * 3);
     if (!r.cut || r.delivered || r.lost) { r.state = rackStateFor(r); continue; }
-    r.reserve -= RACK_DRAIN * dt;
+    // P·intake — the chamber's pace, and FIELD MEDIC's share of it. Both terms
+    // take the same factor, so the beat's bite keeps its weight in the mix.
+    const pace = rackPace();
+    r.reserve -= RACK_DRAIN * pace * dt;
     if (beat) {
-      r.reserve -= RACK_BEAT_BITE;
+      r.reserve -= RACK_BEAT_BITE * pace;
       // the network's bite is simultaneous across every rack (§7.3); the ripple
       // that leads it is already drawn (networkRippleT, js/acttwo-render.js)
       if (r.reserve > 0) { addText(r.x, r.y - 46, "THE BEAT TOOK MORE", PAL().DANGER); }
@@ -210,8 +214,18 @@ function loseRack(r, why, byShot) {
   a2Charge(byShot ? A2_LOST_SHOT : A2_LOST);
   /* Owner feedback: the second line used to read "THE CHAMBER IS THE UNIT OF
      RETRY", which is a sentence from the design doc and meant nothing to the
-     person reading it off a phone. Say the thing it was shorthand for. */
-  banner(why + "\nTHEY DON'T COME BACK. THIS FLOOR STARTS OVER.", PAL().DANGER);
+     person reading it off a phone. Say the thing it was shorthand for.
+
+     P·intake — and then say only that. It went on to read "THIS FLOOR STARTS
+     OVER", which is a claim about progression the build cannot honour: the
+     chamber checkpoint is P·persist's and has not landed, so nothing restarts and
+     the shaft is still how you leave. A death flash promising a mechanic that
+     does not exist is part of what the owner meant by the message "doing too
+     much". What belongs here is the loss, at the scale it happened, and it is now
+     the exact counterpart of the delivery flash ("ABOARD — n SOULS, AND SHE CAN
+     STOP NOW") — the two outcomes of one bank, in one another's words. Where the
+     floor goes next is the clear card's to say. */
+  banner(why + "\n" + r.occupants + " SOULS, AND THEY DON'T COME BACK", PAL().DANGER);
   /* §7.5's last row is the whole grammar of the game in one cue: a steady,
      unbroken glow with NO beat at all. Absence of rhythm has always meant
      something is wrong; here it means someone died. So the sound is the
@@ -329,14 +343,72 @@ function probeLies() {
 
    So a moored rack is a landable surface. Its cage top is the pad, and the
    landing is billed exactly like any other: a soft touch sets you down, a hard
-   one costs the hull. Only while moored — a rack on a rope is not somewhere to
-   put a spacecraft. */
+   one costs the hull. Not while it is on the rope, though — a rack under a
+   flying ship is not somewhere to put a spacecraft.
+
+   ---- P·intake (owner, August 2026) ---------------------------------------
+   "Seems to be an error in that you can't land on the rack if it has been moved
+   from its original location, which means you can't pick it up again."
+
+   Exactly so, and it was a soft-lock rather than a nuisance: the filter below
+   read `r.moored`, and `moored` goes false FOREVER the moment the mounts part
+   (updateMooring). So the pad existed only until the first time you used it. A
+   rack set down anywhere was unlandable, and since updateCradle requires
+   `s.landedOn === r.id`, unlandable means un-re-cradleable — the load could
+   never be picked up again, on a floor whose only success criterion is carrying
+   it to the well. RECRADLE_T, the constant that exists for precisely this
+   ("re-hooking a rack already on reserve", js/acttwo-data.js), was unreachable
+   code.
+
+   It also blocked a loop the design already wanted: §7.4 makes "set them down
+   and treat them" a real option, and it is not an option if setting them down
+   is permanent.
+
+   THE PAD IS THEREFORE "MOORED **OR** AT REST", which is the honest reading of
+   what a landing surface is. Bolted in, or standing on a floor and not moving:
+   both are a box you can put a ship on. A rack in mid-fall or mid-bounce is
+   not, hence the velocity gate — and it has to be a gate rather than an exact
+   zero because updateLooseRacks re-derives velocity from displacement every
+   frame, so a settled rack reads as a few px/s of noise, not as 0. */
 function rackPad(r) {
   const cage = { w: (r.w || RACK_SIZE.w) * RACK_CAGE_W, h: (r.h || RACK_SIZE.h) * RACK_CAGE_H };
-  return { top: r.y - cage.h / 2, hw: cage.w / 2 };
+  // x0/x1 are the lid's own ends, so the landing guide's surface bar can stop
+  // where the cage does rather than run out into air either side of it
+  return { top: r.y - cage.h / 2, hw: cage.w / 2, x0: r.x - cage.w / 2, x1: r.x + cage.w / 2 };
+}
+/* Standing on something, and still. `applyContactDamping` deadbands residual
+   motion below 3px/s to zero on a contact frame, so a genuinely settled rack is
+   at 0 and this threshold is headroom for the frame it settles ON, not a licence
+   to land on a moving one: a dropped rack still falling is doing hundreds. */
+const RACK_REST_V = 24;
+function rackSettled(r) {
+  if (Math.hypot(r.vx || 0, r.vy || 0) > RACK_REST_V) return false;
+  const hh = (r.h || RACK_SIZE.h) * RACK_CAGE_H / 2;
+  const sp = spanAt(r.x, r.y);
+  // its base is on the floor of the span it is in — a shelf's floor counts, and
+  // a rack hanging in mid-air after a debug warp does not
+  return !!sp && r.y + hh >= sp.bot - 5;
 }
 function landableRacks() {
-  return (level.racks || []).filter(r => r.moored && !r.towed && !r.delivered && !r.lost);
+  return (level.racks || []).filter(r => !r.towed && !r.delivered && !r.lost &&
+    (r.moored || rackSettled(r)));
+}
+/* THE LID THE HULL IS OVER, for the landing guide to measure against (P·intake).
+   The same note that asked for the guide to read a mezzanine also made landing on
+   a rack a repeated act rather than a one-off, and the guide was answering about
+   the deck the whole time the pad was the thing about to be touched — including
+   its slope, which on a machined lid is nothing at all. So it uses the same
+   containment window shipRackLanding does and the guide cannot promise a pad the
+   landing itself would refuse. Nearest lid below the hull wins. */
+function rackPadUnder(s) {
+  let best = null;
+  for (const r of landableRacks()) {
+    const pad = rackPad(r);
+    if (Math.abs(s.x - r.x) > pad.hw + SHIP_R * 0.5) continue;
+    if (pad.top < s.y + SHIP_R) continue;      // not below the hull — beside it, or past it
+    if (!best || pad.top < best.top) best = pad;
+  }
+  return best;
 }
 /* Returns false if the touchdown killed the hull, matching shipSolidCollide's
    contract so updatePlay can bail the same way. */
@@ -1093,19 +1165,49 @@ function checkChamberClear() {
   const noFire = level.firedShots === 0 ? a2Award(noFireAward(level)) : 0;
   const hands = gentle ? a2Award(A2_GENTLE) : 0;
 
-  /* THE FLOOR'S LEDGER. Act Two bills the player in four places now, none of
-     which announces itself at the time — a dead line and a decoy already have
-     their own banner to carry, and an impact's floating number is the damage
-     rather than the points (see towContact). So the one place the whole
-     accounting is legible is here, at leisure, on a floor that is finished. */
-  let body = saved + (saved === 1 ? " BANK HOME" : " BANKS HOME");
-  if (souls) body += " · " + souls + " SOULS";
-  if (lost) body += " · " + lost + (lost === 1 ? " LOST" : " LOST");
-  if (noFire) body += "\nNOT ONE SHOT — HIPPOCRATIC BONUS +" + noFire;
-  if (hands) body += "\nGENTLE HANDS — NOT ONE SLAM +" + hands;
-  banner((saved ? "THE FLOOR IS CLEAR" : "NOTHING LEFT TO CARRY") + "\n" + body,
-    saved ? PAL().SAFE : PAL().DANGER);
+  /* THE FLOOR'S LEDGER, AND IT IS A CARD (P·intake). Act Two bills the player in
+     four places, none of which announces itself at the time — a dead line and a
+     decoy have their own banner to carry, and an impact's floating number is the
+     damage rather than the points (see towContact). So the one place the whole
+     accounting is legible is a floor that is finished.
+
+     It used to be a BANNER, and that was the bug behind every part of the owner's
+     August 2026 note about the flash. Both events that can finish a floor —
+     `deliverRack` and `loseRack` — set their own banner and then call this
+     function, which set another, and `banner()` overwrites wholesale. So on a
+     one-bank floor the news never rendered for a single frame: what you saw after
+     a flatline was "NOTHING LEFT TO CARRY / 0 BANKS HOME · 1 LOST / NOT ONE SHOT
+     — HIPPOCRATIC BONUS +500", in red, gone in four seconds. Hence, exactly, "too
+     quick to read", "doing too much", "the wrong place to carry the no-shot fired
+     message", and score summary arriving before the completion card.
+
+     Act One had the answer already and Act Two simply never got its half:
+     `sectorClearNow` clears the banner and goes to a CARD (`state = "clear"`,
+     drawClear), and the Hippocratic bonus lives there. So this arms the same
+     state, and `updateChamberLedger` shows it once the in-flight flash has been
+     read. The ledger is held on the LEVEL, so it resets when the room does — the
+     same reasoning that puts integrity there. */
+  level.clearLedger = { saved, lost, souls, noFire, hands,
+    total: level.racks.length, name: level.chamber ? level.chamber.name : "" };
+  a2LedgerPending = true;
   if (saved) { heartbeat(); haptic.medium(); }
+}
+
+/* The card waits for the flash. Not a duration of its own — the BANNER's own
+   remaining time, so there is one number governing how long a flash is read for
+   (BANNER_T, js/update.js) instead of two that can drift apart. It appears as the
+   banner starts to fade, which is also what makes the sequence read as one beat:
+   the news, then the ledger. Only ever from live play; dying in the seconds after
+   the last bank resolves must not put a clear card over the game-over screen. */
+let a2LedgerPending = false;
+const A2_LEDGER_FADE = 1;
+function updateChamberLedger() {
+  if (!a2LedgerPending || state !== "play") return;
+  if (bannerMsg && bannerMsg.t > A2_LEDGER_FADE) return;
+  a2LedgerPending = false;
+  bannerMsg = null;
+  state = "clear"; stateT = 0;
+  blip(440, 1760, 0.5, "sine", 0.15);   // Act One's own sector-clear chime
 }
 
 /* The hull died. §4.3's rule for the load, plus the line: you cannot be giving
@@ -1169,14 +1271,43 @@ function updateDecoys() {
    Flown into rather than landed on — see the note on FUEL_CAN_GIVE for why a
    fuel stop must not cost a set-down. Tops the tank up to full at most, so a can
    taken on a nearly-full tank is wasted and the player learns to leave it where
-   it is until the way back. */
+   it is until the way back.
+
+   ---- P·intake (owner, August 2026) ---------------------------------------
+   "Needs to be simpler to pick up fuel while carrying the rack."
+
+   It was not merely hard, it was GEOMETRICALLY IMPOSSIBLE by the obvious route,
+   and the numbers say so. A can sits ~14px above the deck and is captured within
+   FUEL_CAN_R of the HULL's centre. Measured at chamber one's first can, with the
+   load resting on the deck and the rope taut, the hull is 80px above it; with the
+   rope fully slack and the hull dropped as low as the cage lid allows, 45px. Both
+   outside 30. The only way to take a deck-level can while slung was to fly the
+   hull down to within ~11px of the deck with the load pushed off to one side —
+   which is setting it down, done awkwardly.
+
+   THE SLING TAKES CANS TOO, which is the fix that needs no new number: the box is
+   already dragging along that deck, and a bank hauled over a can collects it. It
+   also keeps the authored placement honest — chamber one's cans are weighted to
+   the laden leg on purpose, and every one of them was unreachable laden.
+
+   Deliberately NOT a wider hull radius. That would make an unladen fly-past
+   sloppier to buy a laden one, and the thing the note is about is what the load
+   can reach, not what the ship can. */
+function fuelPickupRadius(r) {
+  // the cage's own half-diagonal, so the can is taken when the BOX passes it
+  const cage = { w: (r.w || RACK_SIZE.w) * RACK_CAGE_W, h: (r.h || RACK_SIZE.h) * RACK_CAGE_H };
+  return FUEL_CAN_R + Math.hypot(cage.w, cage.h) / 2;
+}
 function updateFuelCans() {
   if (!level.fuelCans) return;
   const s = ship;
   if (s.dead) return;
+  const load = level.towedRack;
   for (const f of level.fuelCans) {
     if (f.taken) continue;
-    if (Math.hypot(s.x - f.x, s.y - f.y) > FUEL_CAN_R) continue;
+    const byHull = Math.hypot(s.x - f.x, s.y - f.y) <= FUEL_CAN_R;
+    const bySling = !!load && Math.hypot(load.x - f.x, load.y - f.y) <= fuelPickupRadius(load);
+    if (!byHull && !bySling) continue;
     const before = s.fuel;
     s.fuel = Math.min(maxFuel(), s.fuel + FUEL_CAN_GIVE);
     f.taken = true;
@@ -1443,5 +1574,7 @@ function updateActTwo(dt) {
   }
   updateGive(dt);
   updateWellDock(dt, now);
+  // last, so a floor finished this frame gets its flash read before its card
+  updateChamberLedger();
 }
 /* ================ end js/acttwo-update.js ================ */

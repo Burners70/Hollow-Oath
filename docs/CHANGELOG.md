@@ -12,6 +12,54 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## Six notes on the first floor, five root causes (August 2026)
+
+**Release:** 1.1 · Bundle P · P·intake.
+
+The first on-device round on THE INTAKE — a room built to teach the tether rather
+than to exercise every mechanic at once — and almost all of it was identified
+faults rather than tuning.
+
+**The landing guide was answering about a floor you could not see.** It asked the
+terrain for "the lowest surface in this column", which on a chamber's span terrain
+is the hall deck however high above it you are. So on top of the one shelf in the
+room the guide decided you were 347px up and refused to draw at all, and under its
+west end it struck its surface bar between two different floors and read as a wall
+that was not there. It reads the surface under the hull now — and a rack's lid,
+when you are over one, judged as the machined deck it is. The bar also stops where
+its surface stops, so the end of an overhang no longer produces a line that means
+nothing.
+
+**A rack you had moved could never be picked up again.** Landing on a bank is how
+you rig its sling, and the pad was tied to its moorings — which are gone for good
+the moment you pull them. So the lid was a landing surface exactly once, and
+setting a bank down anywhere was permanent, on a floor whose only success
+criterion is carrying it to the well. A bank standing still on a floor is a pad
+now, the same as a bolted one.
+
+**Fuel while carrying was impossible rather than fiddly.** A can sits a few pixels
+off the deck and is taken by the hull; with a bank on the line the hull cannot get
+within reach of one at all, by 15px at the very best angle. The load takes cans
+now — the box is dragging along that deck anyway. A low-fuel resupply call was
+built alongside it and then dropped on the owner's ruling: the drone stays a
+no-fuel rescue on THRUST, because SHIELD is already carrying four meanings and the
+walk from "getting low" to "empty" is something a player can do on purpose —
+land, tap the last of it away, signal.
+
+**The banks die more slowly on the early floors.** The drain was tuned against
+what is now the third chamber; the first one gives 129 seconds from the cut
+instead of 77, the second and third step up from there, and it is a column in the
+same authored ladder as size. FIELD MEDIC slows it further — it had never touched
+the one clock an assist mode most needs to be able to lift.
+
+**And the red flash that meant someone had died was being overwritten by its own
+scoreboard.** On a one-bank floor the death line never survived a single frame:
+closing the floor's books set a second banner over the top of it, so what you read
+was the score summary, in red, for four seconds. The ledger is a card now, in Act
+One's own shape, and it waits until the flash has been read. The flash carries the
+loss and nothing else — no bonus, no tally, and no longer a promise that the floor
+starts over, which nothing in the build yet does.
+
 ## The lie keeps time with everything else (August 2026)
 
 **Release:** 1.1 · Bundle P · P·systems (§8.1, the tell).

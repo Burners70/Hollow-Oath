@@ -1398,6 +1398,19 @@ test("P·content: the ladder ratchets — size, and one or two new elements a le
   expect(L[2].pinches).toContain("momentum");
   expect(L[2].turrets).toBeGreaterThan(0);
 
+  /* THE CLOCK RATCHETS TOO (P·intake). `pace` scales how fast a bank dies here,
+     and it is a fourth monotonic column: the earlier floors run slower clocks
+     because the element being taught needs room to be learned in, and none of
+     them may run faster than the act's own rate. Owner, August 2026: "slow the
+     vitals decay of the racks (certainly in the earlier levels)". */
+  expect(L[0].pace, "chamber one runs the gentlest clock in the act").toBeLessThan(1);
+  for (let i = 1; i < L.length; i++) {
+    expect(L[i].pace, `${L[i].id} runs no slower a clock than ${L[i - 1].id}`)
+      .toBeGreaterThanOrEqual(L[i - 1].pace);
+    expect(L[i].pace, `${L[i].id} never runs faster than the act's own rate`)
+      .toBeLessThanOrEqual(1);
+  }
+
   /* AN ELEMENT NEVER UN-INTRODUCES ITSELF. Once a chamber has decoys, or a gun,
      every later chamber may have them too but none may be the first to lose
      them and then get them back — that reads as a difficulty saw rather than a
