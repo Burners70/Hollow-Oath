@@ -916,13 +916,14 @@ done, so the chain now starts at P·slice.
   any of it, because several code comments still assert the opposite and were
   wrong (see "corrections" below).
 
-  **THE LADDER HAS LANDED (August 2026); the rest of this item has not.** The
-  item is too large for one branch, so it runs in slices like the bundle around
-  it. What is built: every row of the table below, the pacifist invariant, the
-  zero floor, rule 3's provenance, rule 4's second hiscore and board, and the
-  four corrections listed further down. Suite 187 → 196. What is **not** built
-  and is still this item's: the §8.1 tell (and the hazard re-authoring it now
-  needs — see the correction below), pulse-reading, deep readers, the well
+  **THE LADDER AND THE TELL HAVE LANDED (August 2026); the rest of this item
+  has not.** The item is too large for one branch, so it runs in slices like the
+  bundle around it. Slice one: every row of the table below, the pacifist
+  invariant, the zero floor, rule 3's provenance, rule 4's second hiscore and
+  board, and the four corrections listed further down. Slice two: **§8.1's
+  tell** — the 41-second flicker and reveal-on-contact (see the correction
+  further down for what it actually took). Suite 187 → 205. What is **not**
+  built and is still this item's: pulse-reading, deep readers, the well
   deepening, the ward's remaining channels, anomaly geology, husks, and Act
   Two's **rank names** (deferred with the act's own name, §15 q1 — the scoring
   runs without them and the run-end card shows score and tally instead).
@@ -1147,26 +1148,51 @@ done, so the chain now starts at P·slice.
   fake walls from this level anyway, it is too much for level one but we needed
   to see how they work"). So `falseFloor()` and `paintedRock()` have **zero call
   sites** in `js/acttwo-chambers.js`, `chamberLies` is false for all three
-  chambers, and `level.spansDrawn === level.spans` by identity everywhere. The
-  consequence for whoever builds the tell: **there is nothing for it to attach
-  to.** The item is "build the tell AND re-author at least one hazard", and the
-  only live proof the capability still compiles is the purpose-built chamber
-  inside `tests/worldgen.spec.js`.
-  **And the reveal-on-contact half cannot be built on the four hooks named
-  above.** `shipSolidCollide`, the shield (via `hullImpact`), the projectile
-  test and `towContact` all resolve against *solid* geometry, and a false floor
-  is by definition never solid — the ship, the round and the rack pass through
-  it and nothing fires. Painted rock is fine; the false floor needs a **new
-  drawn-view containment predicate**. Cheap (`spanAt` already takes an explicit
-  spans array, so a `drawnAt(x, y)` mirroring `solidAt` is a couple of lines)
-  but it is new API at four call sites, not a flag added to existing ones.
-  Two more traps found in the same read, both invisible in a single-chamber
-  test: the chambers are module-level `const` literals and `genChamber` never
-  clones `ch.parts`, so **a per-part `revealed` flag would survive
-  `loadChamber()` and every retry in the session** — keep the reveal set on
-  `level`. And `tests/worldgen.spec.js` / `tests/acttwo.spec.js` both assert
-  `spansDrawn === spans` by **identity**, so a per-beat recompile must preserve
-  `genChamber`'s honest-chamber short-circuit rather than always allocating.
+  chambers, and `level.spansDrawn === level.spans` by identity everywhere.
+  **Refined once the ladder was read, and this is the sequencing that matters:**
+  the teaching ladder (the comment above `BREACH_CHAMBER`) already assigns the
+  deception to **chamber four**, which is P·content's and unwritten. So the tell
+  does *not* re-author a hazard into chambers one to three — doing that would
+  break the ladder's own rule that chamber one teaches without one. It ships
+  **proved but unmet**, exactly as `paintedRock()` itself has since the same
+  owner round, and chamber four is where a player first meets it.
+  **THE TELL IS BUILT (August 2026).** `updateLies`/`touchLie`/`probeLies`
+  (`js/acttwo-update.js`), `recompileDrawn` + the reveal-aware `partInView`
+  (`js/acttwo-data.js`), `drawnAt` (`js/world.js`). Ten tests, against a
+  purpose-built chamber entered live through `__doids.enterChamber`. Suite
+  196 → 205. Four things it turned out to need that the note above did not
+  anticipate, each of which would have shipped as a bug:
+  - **The reveal-on-contact half cannot be built on the four hooks named
+    above.** `shipSolidCollide`, the shield (via `hullImpact`), the projectile
+    test and `towContact` all resolve against *solid* geometry, and a false
+    floor is by definition never solid. Worse, even for painted rock the hooks
+    are incomplete: Act One's **vertical resolution runs first** and claims a
+    hull coming *down* on one, landing you on an invisible ledge through
+    `groundAt` without ever reaching the lateral test. So contact is carried by
+    a per-frame probe of the hull and the load against the authored rectangle —
+    as a **ring**, not a point, because the resolvers have already pushed the
+    hull clear by the time it runs.
+  - **`drawnAt` must NOT use `spanAt`.** `solidAt` interpolates between adjacent
+    columns, which is right for resolving a moving hull against a continuous
+    surface and wrong for "what is on the screen": for a point *inside* thin
+    rock between two spans it pairs the span below with the neighbour column's
+    span above and blends them into an opening that exists in neither column —
+    a 65px false floor read as open air from the inside. `drawnAt` asks the
+    columns exactly, as the tile builder does.
+  - **`updateActTwo` was gated on the level carrying RACKS.** A deception is a
+    property of the room, and the ladder already has a room with no bank in it
+    (chamber nine, "the husk in the mask. No fight."), which would have been
+    silently honest. The guard is now the chamber.
+  - **`__doids.deceptions()` looked its chamber up in `ACT_TWO_CHAMBERS`**, so
+    it returned undefined for a purpose-built chamber and counted every real
+    hazard as undeclared drift. `level.chamber` now holds the definition.
+  Two traps the note *did* anticipate, both avoided: the reveal set lives on
+  `level` (the chambers are module-level `const` literals that `genChamber`
+  never clones, so a per-part flag would have survived every retry in the
+  session), and `genChamber`'s honest-chamber short-circuit is preserved, so
+  the two tests asserting `spansDrawn === spans` by **identity** still hold —
+  there is a test that an honest chamber never allocates a second view even
+  when the beat fires.
   **The false floor's silhouette bug is fixed** (it was the same
   `matchSpan` fault as the missing wall outlines — see P·floor's second round):
   the end faces of a drawn-only ledge used to render as full-height vertical

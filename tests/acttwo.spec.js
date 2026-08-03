@@ -1344,3 +1344,209 @@ test("P·content: no chamber kills you against nothing", async ({ page }) => {
     expect(r.bad, `${id}: the hull was stopped by something that is not there`).toEqual([]);
   }
 });
+
+/* ===== P·systems — §8.1, the tell ==========================================
+   Owner, August 2026: "If it's a fake wall, it should have a 41 second flicker,
+   should disappear on contact (with bullet, ship or shield — or the rack)."
+
+   Driven against a PURPOSE-BUILT chamber, not an authored one, and that is not
+   a shortcut — no authored chamber carries a deception. Both hazards were
+   pulled from chamber one after the second on-device round, and the teaching
+   ladder puts the next one at chamber four, which P·content has not written. So
+   the tell ships proved but unmet, exactly as `paintedRock()` itself has since
+   the same round; what makes these tests real is that they run the LIVE code
+   path — a beat, a recompile, four contact surfaces — rather than compiling
+   spans and inspecting them. */
+
+// a room with one of each lie, in known places, entered as the live level
+async function liar(page) {
+  return page.evaluate(() => {
+    const parts = partList([
+      hall([{ x: 0, ceil: 400, floor: 1200 }, { x: 2400, ceil: 400, floor: 1200 }]),
+      paintedRock(700, 240, { y: 700, h: 600 }),   // real, never drawn
+      falseFloor(1500, 300, { y: 900 })            // drawn, not there
+    ]);
+    return __doids.enterChamber({ id: "liar", n: 0, name: "THE LIAR",
+      W: 2400, H: 1500, seed: 5, parts });
+  });
+}
+// is (x, y) rock in each view? — the two questions the whole tell turns on
+const views = (page, x, y) => page.evaluate(([x, y]) =>
+  ({ solid: __doids.solidAt(x, y), drawn: __doids.drawnAt(x, y) }), [x, y]);
+
+test("§8.1: a chamber with nothing to hide never allocates a second view", async ({ page }) => {
+  await slice(page);
+  /* The identity that makes the whole system free where it is not needed, and
+     it is asserted by two other tests as well — a flicker that recompiled
+     unconditionally would break all three. An honest chamber has no lies, so
+     updateLies returns on its first line and `spansDrawn` is never rebuilt. */
+  const r = await page.evaluate(() => {
+    __doids.a2Beat();
+    return { same: level.spansDrawn === level.spans, lies: level.lies.length };
+  });
+  expect(r.lies).toBe(0);
+  expect(r.same).toBe(true);
+});
+
+test("§8.1: the two hazards are inverses, and the room starts out lying", async ({ page }) => {
+  const info = await liar(page);
+  expect(info.lies).toBe(2);
+  // painted rock: you fly into it, and it looked like air
+  const rock = await views(page, 820, 900);
+  expect(rock.solid).toBe(true);
+  expect(rock.drawn).toBe(false);
+  // false floor: a ledge you can see, and drop straight through
+  const floor = await views(page, 1650, 930);
+  expect(floor.solid).toBe(false);
+  expect(floor.drawn).toBe(true);
+});
+
+test("§8.1: the Static's beat shows the truth, briefly, then takes it back", async ({ page }) => {
+  await liar(page);
+  const before = await views(page, 820, 900);
+  expect(before.drawn).toBe(false);          // the wall is still hidden
+
+  const during = await page.evaluate(async () => {
+    __doids.a2Beat();
+    await new Promise(k => requestAnimationFrame(k));
+    return { drawnRock: __doids.drawnAt(820, 900), drawnFloor: __doids.drawnAt(1650, 930),
+      lies: __doids.lies() };
+  });
+  /* BOTH, and in opposite directions — one rule, two hazards. The painted rock
+     flicks INTO view; the false floor flicks OUT of it. A player watching the
+     room for one beat can read either. */
+  expect(during.lies.flick).toBe(true);
+  expect(during.drawnRock).toBe(true);       // the wall shows itself
+  expect(during.drawnFloor).toBe(false);     // and the ledge admits it is not there
+  // it is a flicker, not a reveal: nothing was touched, so nothing is permanent
+  expect(during.lies.shown).toEqual([]);
+
+  const after = await page.evaluate(async () => {
+    for (let i = 0; i < 120 && level.flickT > 0; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+    }
+    return { drawnRock: __doids.drawnAt(820, 900), flick: level.flickT > 0 };
+  });
+  expect(after.flick).toBe(false);
+  expect(after.drawnRock).toBe(false);       // and the room goes back to lying
+});
+
+test("§8.1: flying into a painted rock reveals it permanently (contact)", async ({ page }) => {
+  await liar(page);
+  const r = await page.evaluate(async () => {
+    // put the hull into the hidden mass, the way charging through it would
+    __doids.a2Warp(820, 900, false);
+    for (let i = 0; i < 6; i++) await new Promise(k => requestAnimationFrame(k));
+    return { shown: __doids.lies().shown.length, drawn: __doids.drawnAt(820, 900),
+      flick: level.flickT > 0 };
+  });
+  expect(r.shown).toBe(1);
+  expect(r.drawn).toBe(true);
+  /* PERMANENT, and not because a beat happens to be running — this is what
+     stops a deception being a memory test across retries: the first time a lie
+     catches you is the only time. */
+  expect(r.flick).toBe(false);
+  const still = await page.evaluate(() => __doids.drawnAt(820, 900));
+  expect(still).toBe(true);
+});
+
+test("§8.1: dropping through a false floor reveals it — the hook no impact can supply", async ({ page }) => {
+  await liar(page);
+  /* THE CASE THAT NEEDED NEW CODE. All four contact hooks §8.1 names resolve
+     against SOLID geometry, and a false floor is never solid — the hull, the
+     round and the rack pass straight through and nothing fires. The evidence
+     that it is a lie is precisely that nothing happened, which is why the
+     probe asks the DRAWN view a question of its own (`drawnAt`). */
+  const r = await page.evaluate(async () => {
+    __doids.a2Warp(1650, 930, false);        // inside the ledge that isn't there
+    for (let i = 0; i < 6; i++) await new Promise(k => requestAnimationFrame(k));
+    return { shown: __doids.lies().shown.length, drawn: __doids.drawnAt(1650, 930),
+      solid: __doids.solidAt(1650, 930), dead: ship.dead };
+  });
+  expect(r.shown).toBe(1);
+  expect(r.drawn).toBe(false);   // it stops being drawn — you can see the gap now
+  expect(r.solid).toBe(false);   // and the truth never moved
+  expect(r.dead).toBe(false);    // a projection cannot kill you; falling might
+});
+
+test("§8.1: a round reads a wall without risking the hull, and pays for it", async ({ page }) => {
+  await liar(page);
+  const r = await page.evaluate(async () => {
+    __doids.a2Warp(400, 900, false);
+    level.shots.push({ x: 700, y: 900, vx: 600, vy: 0, t: 1 });
+    for (let i = 0; i < 8; i++) await new Promise(k => requestAnimationFrame(k));
+    return { shown: __doids.lies().shown.length, drawn: __doids.drawnAt(820, 900) };
+  });
+  /* The one probe that costs nothing but the oath. §10a.2's question with a
+     price on it: firing to read a wall forfeits the no-fire award (rule 5),
+     which is exactly the trade the act wants a player to feel rather than a
+     free scan. */
+  expect(r.shown).toBe(1);
+  expect(r.drawn).toBe(true);
+});
+
+test("§8.1: the truth never flickers — only the picture does", async ({ page }) => {
+  await liar(page);
+  /* THE INVARIANT THE WHOLE DESIGN RESTS ON. Collision is the truth, and a
+     reveal must never move a wall the player has already flown against — a
+     hazard that became passable on the beat would be a different game, and a
+     solid view that changed under a hull mid-flight would be unflyable. So
+     `spans` is compiled once and every recompile touches `spansDrawn` only. */
+  const r = await page.evaluate(async () => {
+    const before = JSON.stringify(level.spans);
+    __doids.a2Beat();
+    await new Promise(k => requestAnimationFrame(k));
+    const onBeat = JSON.stringify(level.spans);
+    __doids.a2Warp(820, 900, false);          // and reveal one by contact
+    for (let i = 0; i < 6; i++) await new Promise(k => requestAnimationFrame(k));
+    return { onBeat: onBeat === before, afterTouch: JSON.stringify(level.spans) === before,
+      shown: __doids.lies().shown.length };
+  });
+  expect(r.onBeat).toBe(true);
+  expect(r.afterTouch).toBe(true);
+  expect(r.shown).toBeGreaterThan(0);   // something really was revealed
+});
+
+test("§8.1: a reveal is per attempt — the chamber is the unit of retry", async ({ page }) => {
+  await liar(page);
+  await page.evaluate(async () => {
+    __doids.a2Warp(820, 900, false);
+    for (let i = 0; i < 6; i++) await new Promise(k => requestAnimationFrame(k));
+  });
+  expect((await page.evaluate(() => __doids.lies().shown.length))).toBe(1);
+  /* THE TRAP THIS EXISTS TO CATCH. The chambers are module-level `const`
+     literals and genChamber reads `ch.parts` by reference without cloning, so
+     writing a `revealed` flag onto the part would mutate the authored constant
+     — and the reveal would survive every reload for the rest of the session,
+     invisible to any test that loads a chamber once. The reveal set lives on
+     `level`, so re-entering the room restores the lie. */
+  await liar(page);
+  const fresh = await page.evaluate(() => ({
+    shown: __doids.lies().shown.length, drawn: __doids.drawnAt(820, 900) }));
+  expect(fresh.shown).toBe(0);
+  expect(fresh.drawn).toBe(false);
+});
+
+test("§8.1: reduced flash gets a longer window, never a shorter tell (H-bundle)", async ({ page }) => {
+  /* An accessibility setting may change HOW information is presented and must
+     never remove it. Reduced flash cannot turn the tell off, because the tell
+     is the only thing standing between a deception and an unfair trap — so it
+     holds the same truth for twice as long instead. */
+  await liar(page);
+  const normal = await page.evaluate(async () => {
+    reducedFlash = false;
+    __doids.a2Beat();
+    await new Promise(k => requestAnimationFrame(k));
+    return { t: level.flickT, drawn: __doids.drawnAt(820, 900) };
+  });
+  const reduced = await page.evaluate(async () => {
+    level.flickT = 0;
+    reducedFlash = true;
+    __doids.a2Beat();
+    await new Promise(k => requestAnimationFrame(k));
+    return { t: level.flickT, drawn: __doids.drawnAt(820, 900) };
+  });
+  expect(normal.drawn).toBe(true);
+  expect(reduced.drawn).toBe(true);            // the tell still fires
+  expect(reduced.t).toBeGreaterThan(normal.t); // and is held longer, not dropped
+});

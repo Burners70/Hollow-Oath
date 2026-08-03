@@ -1910,6 +1910,14 @@ function updateEnemies(dt) {
     // P·terrain — solidAt is the same test on both models: past the floor, into
     // the roof, or (chambers only) buried in a pillar or an overhang's mass
     let gone = b.t <= 0 || solidAt(b.x, b.y);
+    /* §8.1 — "should disappear on contact (with bullet…)". A round is the one
+       probe that reads BOTH hazards without risking the hull, and it reads them
+       in opposite ways: it stops dead in painted rock (`gone` above), and it
+       sails straight through a false floor that it visibly should have hit.
+       Firing to test a wall is a real choice rather than a free one — it costs
+       the no-fire award (P·systems rule 5), which is the price §10a.2 wants on
+       reaching for a gun to answer a question. */
+    if (level.isChamber && (gone || drawnAt(b.x, b.y))) touchLie(b.x, b.y);
     /* Bundle P (P·slice) — §7.1: "Shooting a feed dumps the rack." A live trunk
        IS the bank's life support, so a round through it kills everyone in the
        box. The oath has teeth again, and it's a wire rather than a lecture.

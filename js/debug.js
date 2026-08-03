@@ -185,6 +185,21 @@ window.__doids = {
     const ch = ACT_TWO_CHAMBERS.find(c => c.id === key)
       || (Number.isFinite(num) ? ACT_TWO_CHAMBERS.find(c => c.n === num) : null);
     if (!ch) return null;
+    return __doids.enterChamber(ch);
+  },
+
+  /* The same entry, for a chamber that is not on the ladder. §8.1's tell has to
+     be provable against a purpose-built room — the authored chambers carry no
+     deception at all (the owner pulled both hazards from chamber one after the
+     second on-device round, and the ladder puts the next one at chamber four,
+     which P·content has not written) — and it must be provable LIVE rather than
+     by compiling spans, because the whole tell is runtime behaviour: a beat, a
+     recompile and four contact surfaces.
+
+     Takes a chamber object built from the same authoring vocabulary the real
+     ones use, so what it proves is the real code path and not a stand-in. */
+  enterChamber: ch => {
+    if (!ch || !ch.parts) return null;
     level = genChamber(ch);
     resetActTwo(); dustReset();       // P·slice — a fresh chamber attempt, and its own tallies
     /* P·systems rule 3 — THIS IS "a chamber entered directly". Loading a floor
@@ -212,7 +227,7 @@ window.__doids = {
       W: ch.W, H: ch.H, cols: level.spans.length,
       racks: level.racks.length, conduits: level.conduits.length,
       decoys: level.decoys.length, turrets: level.turrets.length,
-      well: !!level.wellDock };
+      well: !!level.wellDock, lies: level.lies.length };
   },
   /* The ladder, for anything that needs to offer a choice of chamber — today
      the QA harness's picker, tomorrow P·content's real progression. Ordered,
@@ -417,6 +432,9 @@ window.__doids = {
       tightest: tightest === Infinity ? null : Math.round(tightest) };
   },
   solidAt: (x, y) => solidAt(x, y),
+  // §8.1 — the same question asked of what the player can SEE. The two answers
+  // agree everywhere the chamber is honest, and their disagreement is the lie.
+  drawnAt: (x, y) => drawnAt(x, y),
   roofAtY: (x, y) => roofAt(x, y),
 
   /* §8 — where the drawn view and the solid view deliberately disagree. Every
@@ -430,8 +448,12 @@ window.__doids = {
        entirely — it read 0 painted rock on a chamber that has some. */
     const openLen = col => (col || []).reduce((a, sp) => a + (sp.bot - sp.top), 0);
     // every difference must fall inside a part that DECLARED a view, or the two
-    // views have drifted apart on their own, which is the bug worth catching
-    const ch = ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
+    // views have drifted apart on their own, which is the bug worth catching.
+    // `level.chamber` rather than a lookup by id: §8.1's tell has to be provable
+    // against a purpose-built chamber, and one of those is not in the ladder —
+    // the lookup returned undefined for it and counted every real hazard as
+    // undeclared drift.
+    const ch = level.chamber || ACT_TWO_CHAMBERS.find(c => c.id === level.chamberId);
     const ranges = ((ch && ch.parts) || []).filter(p => p.view)
       .map(p => [p.x - STEP * 2, p.x + p.w + STEP * 2]);
     const declared = x => ranges.some(r => x >= r[0] && x <= r[1]);
@@ -445,6 +467,21 @@ window.__doids = {
     }
     return { falseFloors, paintedRock, undeclaredColumns };
   },
+  /* §8.1's tell — what the chamber is currently admitting to. `declared` is
+     every authored deception, `shown` the ones contact has made permanently
+     honest, `flick` whether the Static's beat is showing the truth right now.
+     A lie is being told iff it is declared and neither shown nor flickering. */
+  lies: () => ({
+    declared: (level.lies || []).slice(),
+    shown: [...(level.lieShown || [])],
+    flick: !!(level.flickT > 0), flickT: +(level.flickT || 0).toFixed(3)
+  }),
+  /* Put the Static's clock on the edge of a beat, so the next frame fires one.
+     Tests must not wait 41 real seconds for a tell that is defined by it, and
+     they must not fake `staticBeat` either — that would skip updateStaticClock
+     and prove the tell against a signal the game never sends. */
+  a2Beat: () => { staticClock = STATIC_PERIOD; return true; },
+
   // the first column where a ledge is drawn but nothing is solid: the ledge's y,
   // the real ground you actually fall to, and whether the ledge holds you
   falseFloorProbe: () => {
