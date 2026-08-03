@@ -212,6 +212,40 @@ const RACK_DRAIN = 1.2;        // reserve/second once the trunk is cut
 const RACK_BEAT_BITE = 7;      // the network's simultaneous bite, per 41s beat
 const RACK_FAILING_AT = 34;    // below this the beat drops to a single flicker
 
+/* ---- P·intake: the pace of the dying, per chamber -------------------------
+   Owner, August 2026: "Slow the vitals decay of the racks (certainly in the
+   earlier levels) — it is too difficult at the moment."
+
+   The arithmetic backs it. At the rates above a bank enters FAILING 49s after
+   you cut its feed and flatlines at 77s, and inside that window chamber one asks
+   for a 1.6s cut, a 2.5s cradle, 0.55s of moorings, a 4,440px laden haul from
+   the bank to the well and a 1.5s winch — on a tank worth 19.2s of engine, so
+   two or three fuel stops with the load on the line. Tuned against the slice
+   chamber, which is now chamber THREE; nothing re-tuned it when a first level
+   was authored beneath it.
+
+   A SCALAR ON THE CHAMBER, authored beside its geometry, rather than a softer
+   global rate. Difficulty then sits in the same table as size and the teaching
+   ladder, which is where P·ramp put every other difficulty decision, and
+   chamber three keeps the numbers it was tuned to over four flights.
+
+   IT SCALES BOTH TERMS BY THE SAME FACTOR, deliberately. §7.3's shape is the
+   continuous drain PLUS the beat's bite, and the whole point of the bite is the
+   question "can I reach the well before the next one?" — scaling only the
+   continuous term would flatten that question exactly where a first-timer needs
+   it to be legible. What must NOT scale is RACK_FAILING_AT: the state table is a
+   function of absolute reserve, so a slower drain reaches "failing" later and
+   reads identically when it does. Degradation is still shape, never rate. */
+const RACK_PACE_DEFAULT = 1;
+/* FIELD MEDIC's own share. §4.4 already widens every impact tolerance and halves
+   what giving costs you, and it did nothing whatever to the clock a rack is on —
+   which is the one pressure an assist mode most needs to be able to lift. */
+const RACK_PACE_MEDIC = 0.75;
+function rackPace() {
+  const base = level && level.rackPace != null ? level.rackPace : RACK_PACE_DEFAULT;
+  return base * (easyMode ? RACK_PACE_MEDIC : 1);
+}
+
 /* The transfusion, inverted (§7.4). Same machinery as Act One's resupply line
    (updateTransfusion, js/update.js) and the exact opposite direction: MERCY is
    not here, so you are the supply. The floor is the clinical rule — you cannot
@@ -1411,6 +1445,8 @@ function genChamber(ch) {
     // the mouths you can leave by (§11.1) — see atSkyExit/askLeaveChamber
     skyExits: partList(ch.parts).filter(p => p.exitUp).map(p => [p.x, p.x + p.w]),
     n: 0, W: ch.W, H: ch.H, spans, spansDrawn: drawn, chamberId: ch.id,
+    // P·intake — how fast the banks die here (see rackPace); absent means 1
+    rackPace: ch.pace != null ? ch.pace : RACK_PACE_DEFAULT,
     /* §8.1's tell, per-chamber-attempt state. `chamber` is the definition the
        drawn view is recompiled from — held here rather than looked up through
        ACT_TWO_CHAMBERS, because a purpose-built test chamber is not in that

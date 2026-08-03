@@ -425,7 +425,20 @@ vitals to keep twelve people ticking a few minutes longer.
 - **Diminishing returns per rack** (the existing `0.9^refuels` shape): each
   top-up buys less, so stalling isn't a strategy.
 - **FIELD MEDIC** (`doids_easy`): transfusion cost ×0.5, per the existing
-  accessibility contract.
+  accessibility contract. **And, since P·intake, reserve drain ×0.75** — it widened
+  every impact tolerance and halved what giving costs, and did nothing at all to
+  the one clock an assist mode most needs to be able to lift.
+
+**A third meaning for SHIELD, and the rule that keeps all three apart** (built in
+P·intake, August 2026). Landed on a low tank in a chamber, SHIELD calls the
+resupply drone — the owner's own suggestion: set the bank down, settle on its lid,
+call for fuel. It cannot be the THRUST hold the surface uses, because that hold
+works only while the tank is empty and the engine is a no-op; with fuel in it the
+same hold flies you off the pad long before the charge lands. The three meanings
+are **mutually exclusive by state, not by convention**: giving blood requires being
+airborne, the signal requires being landed with fuel, the scuttle requires zero.
+`chamberSignalReady()` is the single predicate the signal, the field's own gate and
+the on-screen prompt all read, so they cannot disagree about what the button meant.
 
 ### 7.5 The ward — readable without a HUD, and without sound
 

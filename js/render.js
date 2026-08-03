@@ -906,7 +906,15 @@ function drawShip(now) {
   // (owner feedback, July 2026) — no longer gated on `landed`: the case that most
   // needs the scuttle prompt is hanging fuel-dry in a gravity anomaly, where the
   // ship never touches ground at all.
-  if (s.fuel <= 0 && !s.dead && !resupplyDrone) {
+  /* P·intake — in a chamber the drone answers a LOW tank and not only a dry one
+     (see updateResupplySignal), so the prompt has to appear at the same
+     threshold or the affordance is invisible and nobody ever calls it. The
+     wording says which case it is: out of fuel is a rescue, low is a decision —
+     and which button, because at low fuel it is SHIELD rather than THRUST (a
+     THRUST hold with fuel in the tank flies you off the pad instead). Asked of
+     the same predicate the signal itself uses, so the two cannot disagree. */
+  const a2Low = chamberSignalReady();
+  if ((s.fuel <= 0 || a2Low) && !s.dead && !resupplyDrone) {
     ctx.textAlign = "center";
     ctx.font = mono(10);
     if (level.isCave) {
@@ -932,14 +940,18 @@ function drawShip(now) {
       ctx.fillStyle = PAL().WARN; ctx.shadowColor = PAL().WARN; ctx.shadowBlur = 8;
       // the drone only answers a ship that has set down, so say so when airborne —
       // which is also the state an anomaly can hold you in indefinitely
-      ctx.fillText(s.landed ? "OUT OF FUEL — HOLD THRUST TO SIGNAL"
+      ctx.fillText(a2Low ? "LOW FUEL — HOLD SHIELD TO SIGNAL"
+                 : s.landed ? "OUT OF FUEL — HOLD THRUST TO SIGNAL"
                             : "OUT OF FUEL — SET DOWN TO SIGNAL", s.x, s.y - 40);
       ctx.shadowBlur = 0;
       // (owner feedback, July 2026) — the second way out, for an anomaly core or a
       // dip the drone's tank can't lift you clear of. Quieter than the signal line:
       // the drone is still the first thing to try, this is the hatch under it.
-      ctx.fillStyle = shade(TOK.GOLD, .8);
-      ctx.fillText("OR HOLD SHIELD TO SCUTTLE", s.x, s.y - 28);
+      // Only ever offered to a DRY ship, which is the only state that can arm it.
+      if (s.fuel <= 0) {
+        ctx.fillStyle = shade(TOK.GOLD, .8);
+        ctx.fillText("OR HOLD SHIELD TO SCUTTLE", s.x, s.y - 28);
+      }
       if (s.signalT > 0) {
         const p = clamp(s.signalT / SIGNAL_HOLD_T, 0, 1);
         ctx.strokeStyle = PAL().WARN; ctx.lineWidth = 2.4;
@@ -1099,12 +1111,67 @@ function landingGuideVisible() {
   return assist && !ship.dead && !ship.landed && state === "play" &&
     !(level.extraction && level.extraction.done);
 }
+/* P·intake (owner, August 2026), and BOTH halves of the note are this one
+   argument. "Flying under the left side of the first mezzanine, the assist line
+   becomes vertical as though there was a wall there" and "still no landing
+   assist line when landing on the top of the mezzanine."
+
+   The guide asked `groundAt(s.x)` with no y, which on span terrain means "the
+   LOWEST floor in this column" — the hall deck, wherever you actually are.
+   `landingEval` had exactly this fault fixed in P·floor and passes the ship's y
+   (js/update.js); the drawing never went with it, so the verdict was judged
+   against the surface under your feet and drawn against one you might not be
+   able to see. Two symptoms, measured on chamber one's shelf at x 4300:
+
+     ON TOP of it (surface y 801) the answer was the deck at 1148, so `alt` came
+     out 347, past the 320 cull below, and the guide simply never drew — on the
+     one landable projection in the room.
+
+     UNDER ITS WEST TIP the one-answer path interpolates the single span's floor
+     toward the shelf's, so groundAt goes 1128 (x 4260) → 1047 (4276) → 1133
+     (4292): an 86px step across 16px of x. The surface bar is struck between
+     x±14, so it reared up into a near-vertical line right where the note says
+     there was a wall. There isn't one.
+
+   WHAT the guide is about is split from how it is drawn (`landingGuideGeom`), so
+   the suite can assert on the surface it resolved to rather than on pixels — the
+   bug was never in a stroke, every one of which was correct about a wrong floor,
+   and a pixel test would have passed throughout. */
+const GUIDE_MAX_ALT = 320;
+/* The bar STOPS WHERE THE SURFACE STOPS. Passing the ship's y fixes which surface
+   is measured; it cannot fix the fact that a surface may not reach x±14 at all —
+   the tip of a shelf, the lip of a shaft, a pillar's flank — and a bar struck to a
+   sample taken past the end of the floor it is drawing is the same misleading
+   near-vertical, just rarer. So each end is taken only while it is plausibly the
+   same floor, and the bar is shortened to the part that is. Deliberately generous
+   against real slope: the steepest ground the landing rule will even call
+   survivable is 0.35, i.e. ~5px across the 14 this samples. */
+const GUIDE_BAR_STEP = 26;
+function landingGuideGeom() {
+  const s = ship;
+  /* A rack lid, where there is one under the hull, is the surface about to be
+     touched — and it is judged as a machined, level deck (rackLanding calls
+     landingEval(true)), so the guide has to ask the same question or it can read
+     "GROUND TOO STEEP" over a pad the landing will accept without comment. */
+  const pad = level.racks ? rackPadUnder(s) : null;
+  const surface = pad ? pad.top : groundAt(s.x, s.y);
+  const alt = surface - (s.y + SHIP_R);
+  const barEnd = dx => {
+    // a lid is level by construction and ends where the cage does
+    if (pad) return { x: s.x + clamp(dx, pad.x0 - s.x, pad.x1 - s.x), y: surface };
+    const gy = groundAt(s.x + dx, s.y);
+    return Math.abs(gy - surface) <= GUIDE_BAR_STEP ? { x: s.x + dx, y: gy }
+                                                    : { x: s.x, y: surface };
+  };
+  return { onPad: !!pad, surface, alt, a: barEnd(-14), b: barEnd(14),
+    drawn: alt > 0 && alt <= GUIDE_MAX_ALT };
+}
 function drawLandingGuide() {
   const s = ship;
-  const g = groundAt(s.x);
-  const alt = g - (s.y + SHIP_R);
-  if (alt <= 0 || alt > 320) return;
-  const ev = landingEval();
+  const geom = landingGuideGeom();
+  if (!geom.drawn) return;
+  const g = geom.surface;
+  const ev = landingEval(geom.onPad);
   const P = PAL();
   const color = ev.soft ? P.SAFE : ev.survivable ? P.WARN : P.DANGER;
   // shape redundancy (H2): the state reads without colour at all
@@ -1118,8 +1185,8 @@ function drawLandingGuide() {
   ctx.setLineDash([]);
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(s.x - 14, groundAt(s.x - 14));
-  ctx.lineTo(s.x + 14, groundAt(s.x + 14));
+  ctx.moveTo(geom.a.x, geom.a.y);
+  ctx.lineTo(geom.b.x, geom.b.y);
   ctx.stroke();
   ctx.font = body(11);
   ctx.textAlign = "left";
@@ -4269,7 +4336,27 @@ function tallyLine() {
   return "saved " + runSaved + (runLost > 0 ? "  ·  ✝ lost " + runLost : "");
 }
 
+/* P·intake — Act Two's floor ledger, in Act One's own clear-screen shape rather
+   than in a banner over live flight (see checkChamberClear for what that cost).
+   Same screen, same order of information, same "tap to continue": the bonuses
+   first because they are the things you can change how you play to earn, then the
+   count, then what it did to the score. The one difference is the last line —
+   Act One's clear advances a sector, and a chamber's returns you to the room,
+   because there is nowhere yet to advance to (P·persist). */
+function drawChamberClear() {
+  const L = level.clearLedger || { saved: 0, lost: 0, souls: 0, noFire: 0, hands: 0, total: 0, name: "" };
+  const bonus = (L.noFire ? "PRIMUM NON NOCERE — Hippocratic bonus +" + L.noFire + "\n" : "") +
+    (L.hands ? "GENTLE HANDS — not one slam +" + L.hands + "\n" : "");
+  const count = "banks home " + L.saved + "/" + L.total +
+    (L.lost > 0 ? "  ·  ✝ lost " + L.lost : "") +
+    (L.souls ? "\n" + L.souls + (L.souls === 1 ? " soul" : " souls") + " aboard MERCY" : "");
+  drawCenter((L.saved ? (L.name || "THE FLOOR") + " CLEAR" : "NOTHING LEFT TO CARRY"),
+    bonus + count + "\nact two score " + a2Score +
+    "\n\ntap to return — the shaft is how you leave",
+    L.saved ? PAL().SAFE : PAL().DANGER);
+}
 function drawClear(now) {
+  if (level.isChamber) { drawChamberClear(); return; }
   if (clearCards.length > 0) { drawCardPanel(clearCards[0], now); return; }
   /* V·pacifism — print what was actually PAID, not a constant. The award has
      been derived (noFireAward: 500 + 1.25 × the sector's gun value) since the

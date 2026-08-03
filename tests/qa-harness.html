@@ -164,6 +164,19 @@
           </select>
           <button class="a2" data-run="a2Vitals">Set</button>
         </div>
+        <!-- P·intake: the low-fuel resupply call is a STATE, not a place — the
+             only fix from that round you cannot reach by flying somewhere. Set
+             the tank under a third, land (a rack's lid counts), hold SHIELD. -->
+        <div class="row" style="margin-top:6px">
+          <label for="fuelSel">fuel</label>
+          <select id="fuelSel">
+            <option value="1">full</option>
+            <option value="0.3" selected>30% · low — SHIELD calls the drone</option>
+            <option value="0.1">10% · nearly out</option>
+            <option value="0">0 · dry — THRUST signals, SHIELD scuttles</option>
+          </select>
+          <button class="a2" data-run="a2Fuel">Set</button>
+        </div>
       </div>
 
       <div class="grp">
@@ -523,6 +536,14 @@
       var v = +document.getElementById("vitalsSel").value;
       d.a2Vitals(v);
       status.textContent = "your vitals = " + v;
+    },
+    a2Fuel: function (d) {
+      if (!needA2(d, "a2Fuel")) return;
+      var f = +document.getElementById("fuelSel").value;
+      var got = d.a2Fuel(f);
+      status.textContent = "fuel = " + got +
+        (f > 0 && f < 0.35 ? " — land and hold SHIELD to call the drone"
+         : f === 0 ? " — dry: THRUST signals, SHIELD scuttles" : "");
     },
 
     /* ---- Act One ---- */
