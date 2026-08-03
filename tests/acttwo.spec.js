@@ -1648,17 +1648,41 @@ test("P·intake: a rack you have set down can be landed on and picked up again",
     __doids.a2Cut("c1");
     __doids.a2Cradle("r1");
     const rk = level.racks[0];
-    /* Carry it somewhere else and set it down. Mid-hall, deliberately: cradling
-       seats the load under the HULL, which enters at the well, so "somewhere
-       else" has to be measured from the room rather than from where the bank
-       stood. Landed rather than dropped from height, because this test is about
-       the pad and not about whether an unflown hull survives a fall. */
-    const to = 3000;
-    __doids.a2Warp(to, __doids.ground(to) - 100, true);
     releaseRack();
-    for (let i = 0; i < 90; i++) await new Promise(k => requestAnimationFrame(k));
-    const settled = { moored: rk.moored, towed: rk.towed,
+    /* THE STATE UNDER TEST IS "rigged, mounts parted, and now standing on a floor
+       somewhere else" — so it is reached by putting the load there, mid-hall, and
+       not by flying to it. Two rounds of trying to fly it say why:
+
+       `a2Warp(x, ground - 100, true)` forces `ship.landed` with the hull in mid
+       air, which the sim is entitled to resolve however frame timing lets it — on
+       CI the hull fell, died on impact, and froze the rack mid-drop, so the pad
+       assertion failed for a reason with nothing to do with the pad. (CI caught
+       that on the first push; two local runs did not.)
+
+       And landing the hull ON the deck instead is worse, because `a2Warp` seats a
+       towed load straight below the hull: from a hull at deck level that is 90px
+       INTO the rock, and towCollide's un-burying clamp hands the Verlet step a
+       94px correction it reads as −1100px/s, which fires the box at the ceiling.
+       A debug-warp artefact rather than a game bug — nothing in play teleports a
+       slung load into a floor — but it is not the set-down this test is about.
+
+       So: released first, then placed where a set-down actually leaves it — clear
+       of the deck, beside the hull, at rest. `died` guards the whole settle, so
+       any repeat of that class of flake names itself instead of looking like the
+       thing under test. */
+    const to = 3000;
+    __doids.a2Warp(to, __doids.ground(to) - SHIP_R, true);
+    rk.x = to + 130;
+    rk.y = __doids.ground(rk.x) - rk.h * RACK_CAGE_H / 2 - 6;
+    rk.vx = 0; rk.vy = 0;
+    let died = false;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+      if (state !== "play") died = true;
+    }
+    const settled = { died, moored: rk.moored, towed: rk.towed,
       landable: landableRacks().some(k => k.id === "r1"),
+      onFloor: Math.round(rk.y + rk.h * RACK_CAGE_H / 2 - spanAt(rk.x, rk.y).bot),
       speed: Math.round(Math.hypot(rk.vx, rk.vy)) };
     // and set down on its lid, exactly as you would on its moorings
     __doids.a2Warp(rk.x, rackPad(rk).top - SHIP_R - 14, false);
@@ -1668,9 +1692,11 @@ test("P·intake: a rack you have set down can be landed on and picked up again",
     for (let i = 0; i < 120; i++) await new Promise(k => requestAnimationFrame(k));
     return { settled, on, towing: !!level.towedRack, everTowed: rk.everTowed };
   });
+  expect(r.settled.died, "the hull survived the set-down — see the note above").toBe(false);
   expect(r.settled.moored).toBe(false);     // the mounts are gone for good
   expect(r.settled.towed).toBe(false);
-  expect(r.settled.speed).toBeLessThan(24); // it is standing still on a floor
+  expect(r.settled.speed).toBeLessThan(24); // it is standing still…
+  expect(Math.abs(r.settled.onFloor)).toBeLessThanOrEqual(5);   // …on a floor
   expect(r.settled.landable).toBe(true);    // …which is what makes it a pad
   expect(r.on.state).toBe("play");
   expect(r.on.landedOn).toBe("r1");
