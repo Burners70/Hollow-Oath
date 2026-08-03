@@ -123,7 +123,7 @@ bundle's section — grep the bundle heading to jump there.
 | O | Store listing & submission | 1 | 1.0 | O9 — swap the "coming soon" CTA for a real App Store link (**launch-day, after approval**; lands on `gh-pages`) |
 | T | Zone identity | 2 | launch-stretch → 1.1 | T4 destructible scenery, T5 weather — both pre-approved to slip |
 | V | 1.0.1 maintenance & narrative | 2 | 1.0.1 | V1 the ROTATION CHART, now unlocked by **Mary Seacole on the Nullwave** (a twelfth famous Scion), V·ship (the release action itself — code side is done) |
-| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·design, P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. Next are **P·systems** (the score ladder, from a locked table) and **P·persist** (run provenance + chamber checkpointing), both fully specified and neither blocked on a decision. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
+| P | **Act Two — the descent** | 6 | **1.1** | Phased — spec is [ACT_TWO_SPEC.md](ACT_TWO_SPEC.md). Re-scoped July 2026 to a ten-level underground rescue campaign; PENDULUM_SPEC.md is the physics reference only. **P·design, P·terrain, P·slice, P·feedback, P·floor and P·ramp have landed** — the loop runs end to end, and Act Two is now a three-chamber ladder that ratchets (THE BREACH · THE WARDS · the slice, promoted to third) with its geometry guards running over every chamber. **P·systems' score ladder has landed too** (August 2026): every row of the locked table, the derived pacifist invariant, the zero floor, run provenance, a second hiscore + Game Center board, and the chamber-clear event none of it could hang on before. What is left of P·systems is the §8.1 tell — which needs a hazard re-authored to attach to, because **no chamber currently carries one** — plus pulse-reading, deep readers, the well deepening, the remaining ward channels, geology, husks, and the rank *names* (deferred with the act's name, §15 q1). **P·persist** keeps the chamber checkpoint and the descent; its schema half (v2 + the migration that keeps a shipped Act One save loadable) shipped with the ladder. P·content authors chambers four to ten against the ladder in `js/acttwo-chambers.js`; the narrative that carries three teaching floors is decided and written up as ACT_TWO_SPEC §5.1b — they are floors she BUILT, not floors of her |
 | W | Landscape challenge escalation | 2 | optional polish | W1 progressive terrain difficulty, W·guard — **no longer load-bearing** (Act Two carries 1.1 and the price move) |
 | Q | The deep Hollows | 0 | fully dispositioned | Nothing open. Caves absorbed by Act Two; Laennec/AUSCULTATION → Bundle P; the ROTATION CHART → V1. Section kept, items struck, for the reasoning trail |
 
@@ -916,6 +916,68 @@ done, so the chain now starts at P·slice.
   any of it, because several code comments still assert the opposite and were
   wrong (see "corrections" below).
 
+  **THE LADDER HAS LANDED (August 2026); the rest of this item has not.** The
+  item is too large for one branch, so it runs in slices like the bundle around
+  it. What is built: every row of the table below, the pacifist invariant, the
+  zero floor, rule 3's provenance, rule 4's second hiscore and board, and the
+  four corrections listed further down. Suite 187 → 196. What is **not** built
+  and is still this item's: the §8.1 tell (and the hazard re-authoring it now
+  needs — see the correction below), pulse-reading, deep readers, the well
+  deepening, the ward's remaining channels, anomaly geology, husks, and Act
+  Two's **rank names** (deferred with the act's own name, §15 q1 — the scoring
+  runs without them and the run-end card shows score and tally instead).
+  - **A CHAMBER-CLEAR EVENT HAD TO BE BUILT FIRST, because none existed.** Two
+    of the nine rows are chamber-level, and Act One's `checkSectorClear`
+    explicitly bails in a chamber (correctly — a chamber holds no Scions, so
+    MERCY's manifest is trivially closed on frame one). `checkChamberClear`
+    (`js/acttwo-update.js`) is the new one, fired from `deliverRack` and
+    `loseRack`. **The criterion is "every bank resolved", not "every bank
+    home"** — a lost bank is not a floor you can still finish (§7.3 locks
+    flatline as total), so the room closes its books rather than holding a
+    player over a dead rack. It deliberately **does not move you on**: there is
+    still no descent, and inventing a destination here would be the guess the
+    phased plan exists to prevent. The floor closes, says so, and the shaft is
+    still how you leave.
+  - **GENTLE HANDS requires DELIVERY as well as no slam**, which is
+    PENDULUM_SPEC §5's own definition ("delivered at full integrity") rather
+    than an addition to it; this table widened the *scope* from one relic to the
+    chamber, not the criterion. Without the delivery clause the award pays out
+    on the act's worst outcome — a floor where every bank flatlined, untouched,
+    is "not one slam" and would collect +750 for it.
+  - **The no-fire award is NOT withheld for a loss, and the asymmetry is
+    deliberate.** The oath prices what you did, not how it turned out — Act One
+    pays its no-harm bonus on a sector where Scions died, because the deaths are
+    already billed. A total-loss floor still comes out net negative.
+  - **Rule 3's provenance was a live bug, not a precaution.**
+    `confirmLeaveChamber` already called `saveHi()`, so climbing out of a
+    `loadChamber` sandbox pushed Act Two emplacement kills onto `doids_hi` and
+    the all-time board off the back of no campaign at all. Fixed by
+    `runFromStart`, set in `resetRun` (the one door every legitimate run start
+    goes through — campaign, remix, daily and training all reach sector 0 that
+    way, and all four already had a claim this must not quietly revoke) and
+    cleared only by direct chamber entry.
+  - **The save schema is at v2, with the migration §11.2 demanded.** `validRun`
+    demanded `r.v === 1` **exactly**, and an invalid save is *deleted* on the
+    next boot — so writing v2 without this would have wiped every shipped save,
+    the precise failure §11.2 names as the constraint. A v1 save now loads with
+    `a2Score: 0` and `fromStart: true` (it can only have come from an Act One
+    run begun at sector 0; Act Two did not exist when it was written), and
+    `doids_a2hi` is mirrored through E4's iCloud path like every other key.
+    **The rest of P·persist — the chamber checkpoint itself — is untouched.**
+  - **Two things `awardKill` fixed that no single call site could show.** Act
+    One's shot loop runs in a chamber unchanged, so a chamber emplacement was
+    paying Act One's +250 *into Act One's total and nothing into Act Two's*.
+    Both halves were wrong. All four kill sites (own shot / parried × turret /
+    drone) now route through one helper that knows the price and the ledger, and
+    `gunValue` prices a chamber's guns at `KILL_EMPLACEMENT` so the number the
+    game prints as "what you passed up" is what you passed up.
+  - **Handed to P·persist, found while reading for this one:** `enterPause`
+    calls `snapshotRun()` ungated, so pausing inside a chamber writes a *valid*
+    snapshot naming whatever Act One sector `levelIdx` still holds — which
+    restores silently and puts the player on the surface with the chamber gone.
+    Not fixed here because the fix is a chamber-aware snapshot, which is exactly
+    that item.
+
   **THE LADDER, as decided.**
   1. **Failures cost points.** Act Two is scored like Act One: awards for what
      you achieve, penalties for what you lose. The earlier "Act Two never bills
@@ -964,7 +1026,7 @@ done, so the chain now starts at P·slice.
   | Event | Proposed | Anchored on |
   |---|---|---|
   | Bank delivered to THE WELL | **+1000** | Act One's sector clear |
-  | Chamber cleared without firing | **+2000** | Act One's no-harm bonus, rule 5 |
+  | Chamber cleared without firing | **+2000** → **`noFireAward(level)`** | Act One's no-harm bonus, rule 5 |
   | GENTLE HANDS — chamber, no slam | **+750** | flat, never integrity-scaled (rule 2) |
   | Each impact on a rack | **−25** | per impact, on `towContact` (rule 2) |
   | Bank lost (flatline) | **−1000** *(owner)* | four Scions' worth — 8–12 people is not one object |
@@ -972,6 +1034,22 @@ done, so the chain now starts at P·slice.
   | Dead line cut | **−100** | a misread, scored per rule 6 |
   | Landing beside a decoy box | **−100** | the same misread, same weight |
   | Emplacement destroyed | **+120** *(owner: yes, but smaller)* | still a test of skill, but bounded by rule 7 |
+
+  **One row moved between sign-off and build, and it moved because Act One did.**
+  The table was locked in July 2026 against Act One's then-flat **+2000**
+  no-harm bonus; **V·pacifism landed afterwards** and re-based it to
+  `noFireAward(lvl)` = `500 + 1.25 × gunValue(lvl)` — the exact discipline rule 7
+  asks for, arrived at independently and for the same reason. Rule 5 says "the
+  same award as a sector cleared without firing" and rule 7 says "derive it,
+  never hardcode 2000", and both are satisfied by **calling Act One's helper**,
+  which is what shipped. Owner confirmed, August 2026. The consequence is real
+  and worth stating: a gunless chamber pays **500**, not 2000, and a
+  one-emplacement chamber pays **650**. Chambers one and two carry no guns at
+  all, so on the ladder as authored today the first two floors pay the base for
+  restraint that cost nothing — accepted, because it is exactly what Act One's
+  `NOFIRE_BASE` comment already commits to ("an unarmed sector still pays
+  something") and because one shared helper is what stops the invariant holding
+  in one act while quietly failing in the other.
 
   7. **THE PACIFIST INVARIANT** (owner, July 2026): *"the combined value of
      shooting guns should never outweigh the pacifist score."* Killing everything
@@ -999,16 +1077,21 @@ done, so the chain now starts at P·slice.
   the *difference*. Asserting against 0 proves nothing — see the decoy tripwire in
   `tests/acttwo.spec.js`.
 
-  **Corrections this decision forces.** These are live in code and in the docs,
-  and every one of them was an assistant's inference presented as design:
-  - `closeTrunk` (js/acttwo-update.js) says a decoy cut is "never score, because
-    …billing the player for reading a room wrong is not the pressure this act
-    runs on." Not an owner decision. Pending the call above.
-  - The `DECOY_VITALS` note (js/acttwo-data.js) says the same thing.
-  - `acttwo.spec.js` asserts `score` stays 0 after a decoy cut, which *holds* the
-    overturned decision. It passes today only because no ladder exists yet.
-  - COPY_DECK.md states "Act Two never bills the player for keeping people
-    alive". Narrowed: that is true of the **transfusion** and nothing else.
+  **Corrections this decision forces — all four discharged, August 2026.** Every
+  one of them was an assistant's inference presented as design:
+  - ~~`closeTrunk` (js/acttwo-update.js) says a decoy cut is "never score".~~
+    Rewritten; the cut now charges `A2_DEAD_LINE`.
+  - ~~The `DECOY_VITALS` note (js/acttwo-data.js) says the same thing.~~
+    Rewritten; landing beside a box costs vitals **and** points (rule 6).
+  - ~~`acttwo.spec.js` asserts `score` stays 0 after a decoy cut.~~ Inverted, and
+    the tripwire's own warning was heeded: it seeds a score and asserts the
+    **difference**, because zero is the floor and an assertion against 0 passes
+    whether the charge fired or not. Every penalty test in the file seeds first,
+    and there is now a test for the floor itself.
+  - ~~COPY_DECK.md states "Act Two never bills the player for keeping people
+    alive".~~ Already narrowed to the transfusion before this round; the
+    surviving exemption is now asserted rather than asserted-about — the
+    transfusion test seeds a score and checks it is **unchanged**.
 
   **And one contradiction the emplacement introduced (assistant error, July
   2026).** "Act Two touches score nowhere" stopped being true the moment
@@ -1054,10 +1137,36 @@ done, so the chain now starts at P·slice.
 
   **§8's PAINTED ROCK IS NOW GATED ON THIS ITEM.** Owner, August 2026: "we need
   to give some sort of clue to the invisible walls so they aren't unfair… we
-  wouldn't want any on this first level anyway." Chamber one's was removed, so
-  the deception layer is currently one-sided — a false floor and no invisible
-  wall. The tell is what unblocks putting them back, which makes this item
-  content-gating rather than polish.
+  wouldn't want any on this first level anyway." The tell is what unblocks
+  putting them back, which makes this item content-gating rather than polish.
+  **Correction, August 2026 (P·systems' ladder round): NO AUTHORED CHAMBER
+  CARRIES A DECEPTION OF EITHER KIND.** This paragraph said the layer was
+  "currently one-sided — a false floor and no invisible wall", and
+  ACT_TWO_SPEC §8.1 said the same; both were written when only the painted rock
+  had been pulled. The false floor went in the same owner round ("let's remove
+  fake walls from this level anyway, it is too much for level one but we needed
+  to see how they work"). So `falseFloor()` and `paintedRock()` have **zero call
+  sites** in `js/acttwo-chambers.js`, `chamberLies` is false for all three
+  chambers, and `level.spansDrawn === level.spans` by identity everywhere. The
+  consequence for whoever builds the tell: **there is nothing for it to attach
+  to.** The item is "build the tell AND re-author at least one hazard", and the
+  only live proof the capability still compiles is the purpose-built chamber
+  inside `tests/worldgen.spec.js`.
+  **And the reveal-on-contact half cannot be built on the four hooks named
+  above.** `shipSolidCollide`, the shield (via `hullImpact`), the projectile
+  test and `towContact` all resolve against *solid* geometry, and a false floor
+  is by definition never solid — the ship, the round and the rack pass through
+  it and nothing fires. Painted rock is fine; the false floor needs a **new
+  drawn-view containment predicate**. Cheap (`spanAt` already takes an explicit
+  spans array, so a `drawnAt(x, y)` mirroring `solidAt` is a couple of lines)
+  but it is new API at four call sites, not a flag added to existing ones.
+  Two more traps found in the same read, both invisible in a single-chamber
+  test: the chambers are module-level `const` literals and `genChamber` never
+  clones `ch.parts`, so **a per-part `revealed` flag would survive
+  `loadChamber()` and every retry in the session** — keep the reveal set on
+  `level`. And `tests/worldgen.spec.js` / `tests/acttwo.spec.js` both assert
+  `spansDrawn === spans` by **identity**, so a per-beat recompile must preserve
+  `genChamber`'s honest-chamber short-circuit rather than always allocating.
   **The false floor's silhouette bug is fixed** (it was the same
   `matchSpan` fault as the missing wall outlines — see P·floor's second round):
   the end faces of a drawn-only ledge used to render as full-height vertical

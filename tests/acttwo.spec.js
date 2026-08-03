@@ -121,35 +121,68 @@ test("P·slice: closing the right feed starts the dying; the beat bites (§7.3/�
 // against RACK_BEAT_BITE itself
 const RESERVE_BITE_FLOOR = 3;
 
-test("P·slice: a dead line costs you time and tells him you are here (§7.1)", async ({ page }) => {
+test("P·systems: a dead line costs you time, tells him you are here, and is billed (§7.1)", async ({ page }) => {
   await slice(page);
+  /* THE TRIPWIRE THAT USED TO LIVE HERE IS MET. It asserted `score === 0` after
+     a decoy cut, holding an assistant's assumption that Act Two never bills the
+     player for reading a room wrong; the owner overturned it (July 2026, ladder
+     rule 6) and a dead line now carries −100.
+
+     SEED FIRST, AND ASSERT THE DIFFERENCE — the trap the tripwire left a note
+     about. Zero is the floor (rule 8), so a fresh chamber starts at 0 and a
+     penalty applied to it changes nothing: an assertion against 0 passes
+     whether the charge fired or not, and proves neither. Every penalty test in
+     this file seeds a score for exactly this reason. */
+  await page.evaluate(() => { score = 500; a2Score = 500; });
   const decoy = await page.evaluate(() => __doids.get().actTwo.conduits.find(c => !c.rack).id);
   await page.evaluate(id => __doids.a2Cut(id), decoy);
   const s = await page.evaluate(() => __doids.get());
   expect(s.actTwo.conduits.find(c => c.id === decoy).cut).toBe(true);
   expect(s.actTwo.racks[0].cut).toBe(false);       // the rack is still on mains
   expect(s.staticSurge).toBeGreaterThan(0);        // he is listening now
-  /* TRIPWIRE. This assertion is KNOWN TO BE WRONG for the finished game and is
-     kept green only because the ladder does not exist yet. It encoded an
-     assistant's assumption that Act Two never bills the player; the owner
-     overturned it (July 2026) and a dead line carries a −100 penalty.
+  expect(s.score).toBe(400);
+  expect(s.a2Score).toBe(400);                     // and Act Two's own ledger moves with it
+});
 
-     When P·systems builds the ladder, INVERT it — and note the trap, because
-     zero is the floor (`score = Math.max(0, score - penalty)`, owner decision):
-     a fresh chamber starts at 0, so a penalty applied here changes nothing and
-     an assertion against 0 would still pass while proving nothing. Seed a score
-     first and assert the DIFFERENCE:
-         await page.evaluate(() => { score = 500; });
-         … cut the decoy …
-         expect(s.score).toBe(400);
-     Left as a marker rather than deleted, so the ladder cannot land without
-     someone meeting it. */
+test("P·systems: zero is the floor, and it holds both ledgers (rule 8)", async ({ page }) => {
+  await slice(page);
+  /* The consequence the owner accepted and asked to have recorded rather than
+     "fixed" later: a player already at zero misreads rooms for free. Asserting
+     it is what stops a future session reading the clamp as a bug — and it
+     matters that a2Score is clamped too, or a floored run keeps accruing a
+     private negative that surfaces later as a stretch where nothing scores. */
+  await page.evaluate(() => { score = 40; a2Score = 40; });
+  const decoy = await page.evaluate(() => __doids.get().actTwo.conduits.find(c => !c.rack).id);
+  await page.evaluate(id => __doids.a2Cut(id), decoy);
+  const s = await page.evaluate(() => __doids.get());
   expect(s.score).toBe(0);
+  expect(s.a2Score).toBe(0);         // not −60, in either ledger
+});
+
+test("P·systems: landing beside a decoy box costs vitals AND points (rule 6)", async ({ page }) => {
+  await slice(page);
+  const d = await page.evaluate(() => {
+    score = 500; a2Score = 500;
+    const box = level.decoys[0];
+    // set down beside it, the way the penalty is meant to be earned
+    __doids.a2Warp(box.x, box.y - 40, true);
+    return { id: box.id, before: ship.vitals };
+  });
+  await page.waitForFunction(id => __doids.get().actTwo.decoys.find(k => k.id === id).penalised,
+    d.id, { timeout: 4000 });
+  const s = await page.evaluate(() => __doids.get());
+  /* BOTH currencies, which is the whole of rule 6: vitals make this attempt
+     harder and are then gone; the points are what the run is remembered by. A
+     test that checked only one would let either half be quietly removed. */
+  expect(s.ship.vitals).toBeLessThan(d.before);
+  expect(s.score).toBe(400);
+  expect(s.a2Score).toBe(400);
 });
 
 test("P·slice: shooting a live feed dumps the rack (§7.1)", async ({ page }) => {
   await slice(page);
   const lost = await page.evaluate(() => {
+    score = 5000; a2Score = 5000;   // seeded so the ladder's charge is visible (rule 8)
     const c = level.conduits.find(k => k.rack);
     // a round on the trunk, mid-span rather than at either end
     level.shots.push({ x: (c.x + c.x1) / 2, y: (c.y0 + c.y1) / 2, vx: 0, vy: 0, t: 1 });
@@ -161,9 +194,49 @@ test("P·slice: shooting a live feed dumps the rack (§7.1)", async ({ page }) =
   expect(s.racks[0].lost).toBe(true);
   expect(s.racks[0].state).toBe("gone");   // §7.5 — a steady glow with no beat
   expect(s.lost).toBe(1);
+  const g = await page.evaluate(() => __doids.get());
   // §7.3 — Act Two's losses are tracked SEPARATELY, so Act One's ranks and
   // achievements keep their exact meaning
-  expect((await page.evaluate(() => __doids.get())).runLost).toBe(0);
+  expect(g.runLost).toBe(0);
+  /* P·systems — and the ladder's heaviest single charge: Act One's "killed by
+     your own hand". A bank is eight to twelve people, so it is priced at four
+     Scions rather than one. Asserted as ONE charge, not two: the rack is lost
+     to the round, so it must never also flatline and be billed again.
+     The floor then closes and pays its no-fire award — `firedShots` is still 0
+     because the test pushes a round straight into `level.shots` rather than
+     pulling a trigger, so the ladder is right to say the oath held. */
+  const expected = 5000 - 1000 + g.actTwo.noFire;
+  expect(g.score).toBe(expected);
+  expect(g.a2Score).toBe(expected);
+});
+
+test("P·systems: a flatline is billed once, and the floor closes its books", async ({ page }) => {
+  await slice(page);
+  const before = await page.evaluate(() => {
+    score = 5000; a2Score = 5000;
+    __doids.a2Cut("c1");
+    __doids.a2SetReserve("r1", 0.2);   // on the edge, so the drain finishes it
+    return __doids.get().actTwo.cleared;
+  });
+  expect(before).toBe(false);
+  await page.waitForFunction(() => __doids.get().actTwo.racks[0].lost, null, { timeout: 4000 });
+  await page.waitForTimeout(200);   // long enough for a second charge to land, if one were coming
+  const s = await page.evaluate(() => __doids.get());
+  /* THE CHAMBER-CLEAR CRITERION IS "every bank resolved", NOT "every bank home".
+     A lost bank is not a floor you can still finish — §7.3 locks flatline as
+     total — so the room closes rather than holding a player over a dead rack. */
+  expect(s.actTwo.cleared).toBe(true);
+  /* The floor's books, exactly: −1000 for the bank, then the no-fire award,
+     which is deliberately NOT withheld for the loss (the oath is about what you
+     did, and Act One pays its no-harm bonus on a sector where Scions died) —
+     and NO GENTLE HANDS, which requires delivery (PENDULUM_SPEC §5). Derived
+     from the exposed award rather than typed, so a content change that arms
+     this chamber differently retunes the test with the game. */
+  const expected = 5000 - 1000 + s.actTwo.noFire;
+  expect(s.score).toBe(expected);
+  expect(s.a2Score).toBe(expected);
+  // a total loss still comes out behind where a delivery would have put you
+  expect(s.score).toBeLessThan(5000);
 });
 
 test("P·slice: the sling hangs, swings and holds its length (PENDULUM_SPEC §4.1)", async ({ page }) => {
@@ -280,7 +353,7 @@ test("P·slice: FIRE releases the load and never fires (PENDULUM_SPEC §4.2, §1
 
 test("P·slice: the transfusion spends YOUR vitals, and stops before it kills you (§7.4)", async ({ page }) => {
   await slice(page);
-  await page.evaluate(() => { __doids.a2Cut("c1"); });
+  await page.evaluate(() => { score = 500; a2Score = 500; __doids.a2Cut("c1"); });
   await page.evaluate(() => __doids.a2SetReserve("r1", 40));
   // hover in the rack's window, off the ground, and hold SHIELD
   const gave = await page.evaluate(async () => {
@@ -322,8 +395,16 @@ test("P·slice: the transfusion spends YOUR vitals, and stops before it kills yo
   expect(floored.dead).toBe(false);
   expect(floored.vitals).toBeGreaterThanOrEqual(floored.floor - 1);
   expect(floored.line).toBe(false);   // it let go rather than finish you
-  // §7.4 — and it is never billed to your score. The price moved to your body.
-  expect((await page.evaluate(() => __doids.get())).score).toBe(0);
+  /* §7.4 — and it is never billed to your score. The price moved to your body.
+     THIS IS THE ONE SURVIVING "Act Two never bills you" CLAIM, narrowed to the
+     transfusion alone (COPY_DECK §12a): the broader version was an assistant's
+     assumption and the owner overturned it. Seeded above and asserted UNCHANGED
+     rather than against 0, because a fresh chamber starts at 0 and the ladder's
+     floor would let a charge hide behind it — the same trap the dead-line
+     tripwire warned about, in the mirror. */
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.score).toBe(500);
+  expect(s.a2Score).toBe(500);
 });
 
 test("P·slice: giving the same rack twice buys less each time (§7.4)", async ({ page }) => {
@@ -407,7 +488,222 @@ test("P·slice: docking a swinging load into the well delivers it, and heals you
   expect(s.ship.vitals).toBeGreaterThan(90);
   expect(s.ship.fuel).toBeGreaterThan(90);
   // §10a.1 — and the well refuels for free; fuel is a lap budget, not a crisis
-  expect(s.score).toBe(0);   // Act Two scores on its own ladder (P·systems)
+
+  /* P·systems — THE LADDER, END TO END, on the one run that earns everything.
+     The slice is a single-rack chamber, so seating that load also resolves the
+     floor: delivery, then the two chamber awards on the same frame. Derived
+     from the exposed no-fire value rather than typed, so arming this chamber
+     differently retunes the assertion with the game rather than against it. */
+  expect(s.actTwo.cleared).toBe(true);
+  const expected = 1000 + s.actTwo.noFire + 750;
+  expect(s.score).toBe(expected);
+  expect(s.a2Score).toBe(expected);
+  /* And the two ledgers are the SAME number here, which is the case worth
+     pinning: this chamber was entered directly, so it started from a score of
+     0 and everything in it is Act Two's. In a continuous campaign they diverge
+     — `score` carries the surface run in as well — and that divergence is the
+     whole reason rule 4 wants a second board. */
+  expect(s.a2Score).toBe(s.score);
+});
+
+/* ===== P·systems — the ladder ============================================
+   The rows the two tests above do not reach, plus the three rules that are
+   properties of the SYSTEM rather than of any one event. Every one seeds a
+   score first: zero is the floor (rule 8), so an assertion against 0 passes
+   whether or not the charge fired. */
+
+test("P·systems: every impact on a rack is billed, per impact (rule 2)", async ({ page }) => {
+  await slice(page);
+  const hit = await page.evaluate(async () => {
+    score = 5000; a2Score = 5000;
+    __doids.a2Cut("c1");
+    __doids.a2Warp(1150, level.racks[0].y - 40, true);
+    __doids.a2Cradle("r1");
+    const r = level.racks[0];
+    // drive the load down into the deck hard enough to clear the free band
+    for (let i = 0; i < 90; i++) {
+      await new Promise(k => requestAnimationFrame(k));
+      if (r.integrity < 100) break;
+      r.vy = 900; r.y += 6;
+    }
+    return { integrity: r.integrity, score, a2Score };
+  });
+  expect(hit.integrity).toBeLessThan(100);        // it actually landed a slam
+  /* FLAT, and a whole number of charges — rule 2 says the ladder prices the
+     EVENT of hitting them, never how much they have suffered. So the drop is a
+     multiple of A2_IMPACT and carries no fractional part of the damage. */
+  const paid = 5000 - hit.score;
+  expect(paid).toBeGreaterThanOrEqual(25);
+  expect(paid % 25).toBe(0);
+  expect(hit.a2Score).toBe(hit.score);
+  // and integrity does NOT scale it: the charge is the same size every time
+  expect(paid).toBeLessThan(5000);
+});
+
+test("P·systems: firing forfeits the no-fire award, and shooting never beats restraint (rules 5 and 7)", async ({ page }) => {
+  await slice(page);
+  const armed = await page.evaluate(() => ({
+    noFire: __doids.get().actTwo.noFire,
+    guns: __doids.get().actTwo.gunValue,
+    turrets: level.turrets.length
+  }));
+  /* RULE 7, THE PACIFIST INVARIANT, asserted on the chamber rather than
+     assumed from the formula: "the combined value of shooting guns should never
+     outweigh the pacifist score." It holds here because the award is DERIVED
+     (NOFIRE_BASE > 0, NOFIRE_FACTOR > 1) — which is why it will still hold for
+     the most heavily armed chamber P·content ever authors, and why this test
+     does not need re-tuning when it does. */
+  expect(armed.noFire).toBeGreaterThan(armed.guns);
+  // and a chamber's guns are priced as EMPLACEMENTS, not as Act One turrets
+  expect(armed.guns).toBe(armed.turrets * 120);
+
+  const fired = await page.evaluate(async () => {
+    score = 5000; a2Score = 5000;
+    // pull the trigger properly — the ladder reads level.firedShots, which only
+    // a real shot sets, so pushing into level.shots would not prove anything
+    input.fire = true;
+    for (let i = 0; i < 6; i++) await new Promise(k => requestAnimationFrame(k));
+    input.fire = false;
+    return level.firedShots;
+  });
+  expect(fired).toBeGreaterThan(0);
+  // now finish the floor: the delivery still pays, the oath bonus does not
+  await page.evaluate(() => {
+    __doids.a2Cut("c1");
+    __doids.a2Warp(1150, level.racks[0].y - 40, true);
+    __doids.a2Cradle("r1");
+    const w = level.wellDock;
+    __doids.a2Warp(w.x, w.y + 44 - SLING_L, false);
+  });
+  await page.waitForFunction(() => __doids.get().actTwo.racks[0].delivered, null, { timeout: 8000 });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.actTwo.cleared).toBe(true);
+  /* The floor still pays its delivery and still pays GENTLE HANDS — the oath is
+     not the only thing being scored, and firing does not void the rescue. What
+     it forfeits is exactly the no-fire award, and nothing else. */
+  expect(s.score).toBe(5000 + 1000 + 750);
+  /* Which is strictly less than the same floor flown without firing (asserted
+     directly in the delivery test above). That gap is rule 5 doing its job:
+     without it Act Two paid you for shooting — the emplacement award runs in a
+     chamber via Act One's own shot loop — and paid nothing at all for not. */
+  expect(s.score).toBeLessThan(5000 + 1000 + 750 + armed.noFire);
+});
+
+test("P·systems: a run begun at Act One keeps the global record; a chamber entered directly does not (rule 3)", async ({ page }) => {
+  /* THIS IS A FIX, NOT A PRECAUTION. `confirmLeaveChamber` already calls
+     saveHi(), so before provenance existed, climbing out of a debug-loaded
+     chamber pushed Act Two points onto the all-time hiscore and the Game
+     Center board off the back of no campaign at all. */
+  const fresh = await page.evaluate(() => __doids.get().fromStart);
+  expect(fresh).toBe(true);              // a boot-fresh run has the claim
+
+  await slice(page);
+  const direct = await page.evaluate(() => {
+    const before = __doids.get().gcReports.length;
+    score = 9999; a2Score = 4444; hiscore = 0; a2Hi = 0;
+    saveHi();
+    const g = __doids.get();
+    return { fromStart: g.fromStart, hiscore: g.hiscore, a2Hi: g.a2Hi,
+      boards: g.gcReports.slice(before).filter(r => r.method === "submitScore")
+        .map(r => r.leaderboardId) };
+  });
+  expect(direct.fromStart).toBe(false);  // loadChamber cleared it
+  expect(direct.hiscore).toBe(0);        // …so the global record is untouched
+  expect(direct.boards).not.toContain("hollowoath.score.alltime");
+  /* Act Two's OWN record is not gated on provenance, and should not be: a
+     chamber flown on its own is a real descent. It is only the claim on the
+     cross-act total that a direct entry cannot support. */
+  expect(direct.a2Hi).toBe(4444);
+  expect(direct.boards).toContain("hollowoath.score.acttwo");
+});
+
+test("P·systems: a continuous run scores into both records (rules 3 and 4)", async ({ page }) => {
+  await page.evaluate(() => {
+    resetRun();                     // a run begun at Act One sector 0
+    score = 7000; a2Score = 2500; hiscore = 0; a2Hi = 0;
+    // resetRun zeroes them; put the run back the way a real descent would leave it
+    runFromStart = true;
+    saveHi();
+  });
+  const s = await page.evaluate(() => __doids.get());
+  expect(s.hiscore).toBe(7000);    // the whole run, both acts
+  expect(s.a2Hi).toBe(2500);       // and the descent on its own
+  const boards = s.gcReports.filter(r => r.method === "submitScore").map(r => r.leaderboardId);
+  expect(boards).toContain("hollowoath.score.alltime");
+  expect(boards).toContain("hollowoath.score.acttwo");
+});
+
+test("P·systems: an Act One charge that reaches a chamber lands on both ledgers", async ({ page }) => {
+  await slice(page);
+  /* `a2Score` is a SUBSET of `score`, so anything that moves one inside a
+     chamber must move the other — otherwise Act Two's leaderboard reports a run
+     nobody played, and the subset can end up larger than the total it is part
+     of. Act Two's own events go through a2Charge/a2Award by construction; the
+     risk is ACT ONE code that follows you underground. There is exactly one
+     such charge today — the field refueller's fuel toll (U2), which reaches a
+     chamber because the resupply drone has its own route down THE WELL — and
+     `chargeRun` is what keeps it honest.
+
+     Asserted on the helper rather than by flying a refuel, because the drone is
+     a multi-second scripted arrival and this is testing a routing rule, not the
+     drone. What it catches: any future `score = Math.max(0, score - n)` written
+     straight into a path that runs underground. */
+  const inChamber = await page.evaluate(() => {
+    score = 500; a2Score = 500;
+    chargeRun(120);
+    return { score, a2Score, isChamber: !!level.isChamber };
+  });
+  expect(inChamber.isChamber).toBe(true);
+  expect(inChamber.score).toBe(380);
+  expect(inChamber.a2Score).toBe(380);   // the ledger followed
+
+  // and on the surface it is Act One's charge, untouched — a2Score must NOT move
+  const onSurface = await page.evaluate(() => {
+    __doids.go(1);
+    score = 500; a2Score = 500;
+    chargeRun(120);
+    return { score, a2Score, isChamber: !!level.isChamber };
+  });
+  expect(onSurface.isChamber).toBe(false);
+  expect(onSurface.score).toBe(380);
+  expect(onSurface.a2Score).toBe(500);
+});
+
+test("P·persist: the schema bump keeps a shipped Act One save loadable (§11.2)", async ({ page }) => {
+  /* §11.2's hard constraint: "the migration must never wipe an Act One save."
+     `validRun` used to demand `r.v === 1` exactly, so writing v2 would have made
+     every shipped save invalid — and an invalid save is DELETED on the next
+     boot, not ignored. A v1 save carries no provenance field, and the correct
+     default is that it HAS the claim: it can only have come from an Act One run
+     begun at sector 0, because Act Two did not exist when it was written. */
+  const v1 = await page.evaluate(() => {
+    const old = { v: 1, levelIdx: 3, score: 4200, lives: 2, runSaved: 5, runLost: 1,
+      runFired: 0, firedAtSecret: false, firedAtCombat: false, scannedSecret: false,
+      runFragments: 2, blackboxCount: 1, shrines: [], upgrades: {},
+      runSeed: 0, runMode: "campaign", famousMap: null };
+    return { valid: validRun(old), restored: (restoreRun(old),
+      { levelIdx, score, a2Score, fromStart: runFromStart }) };
+  });
+  expect(v1.valid).toBe(true);
+  expect(v1.restored.levelIdx).toBe(3);
+  expect(v1.restored.score).toBe(4200);
+  expect(v1.restored.a2Score).toBe(0);       // it never flew a chamber
+  expect(v1.restored.fromStart).toBe(true);  // …and it keeps its claim on the hiscore
+
+  // and a v2 save round-trips both new fields through localStorage
+  const v2 = await page.evaluate(() => {
+    score = 8800; a2Score = 3300; runFromStart = false; levelIdx = 2; lives = 3;
+    snapshotRun();
+    const raw = JSON.parse(localStorage.getItem("doids_run"));
+    score = 0; a2Score = 0; runFromStart = true;
+    restoreRun(raw);
+    return { v: raw.v, score, a2Score, fromStart: runFromStart, valid: validRun(raw) };
+  });
+  expect(v2.v).toBe(2);
+  expect(v2.valid).toBe(true);
+  expect(v2.score).toBe(8800);
+  expect(v2.a2Score).toBe(3300);
+  expect(v2.fromStart).toBe(false);   // a direct entry does not regain the claim on resume
 });
 
 test("P·slice: dying parts the sling and puts you back in the chamber (§4.3)", async ({ page }) => {

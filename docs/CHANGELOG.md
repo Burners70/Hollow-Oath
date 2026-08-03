@@ -12,6 +12,66 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## Act Two keeps score, and a chamber can be finished (August 2026)
+
+**Release:** 1.1 · Bundle P · P·systems (the score ladder half), plus P·persist's
+save-schema half.
+
+**Act Two scored nothing it meant to, and one thing it didn't.** Act One's shot
+loop runs inside a chamber unchanged, so from the moment P·feedback gave chambers
+emplacements, the only thing Act Two paid you for was **shooting** — which is
+precisely what §10a.2's oath question exists to make expensive. The ladder the
+owner signed off in July 2026 is now built, and it starts by fixing that: an
+emplacement pays **+120** rather than Act One's +250, and clearing a chamber
+without firing pays `noFireAward(level)` — Act One's own derived helper, so the
+pacifist invariant ("shooting a chamber out must always total less than leaving
+it alone") is a property of the formula rather than of any chamber P·content
+will ever author. A bank delivered pays **+1000**, flat, whatever state it is
+in; every impact on the way costs **−25**, per impact, because the ladder prices
+the *event* of hitting them and never how much they have suffered. Losing a bank
+costs **−1000** — four Scions, since eight to twelve people is not one object —
+and cutting a dead line or landing beside a decoy box costs **−100** each. Those
+last two overturn a claim three code comments and one test used to make: *"Act
+Two never bills the player for reading a room wrong."* That was an assistant's
+assumption, and the owner's rule replaces it — *"your score is the only permanent
+record of your success. The others just make your game harder."* Vitals, reserve,
+fuel and time shape the attempt you are having; score is what survives it, so a
+failure that costs vitals costs points as well. Zero stays the floor.
+
+**A chamber had no way to be finished, so one had to be built.** Two rows of the
+table are chamber-level, and Act One's `checkSectorClear` deliberately bails
+underground — a chamber holds no Scions, so MERCY's manifest is trivially closed
+on frame one. `checkChamberClear` closes the floor's books when every bank is
+**resolved** rather than every bank home: a lost bank is not a floor you can
+still finish, so the room stops rather than holding a player over a dead rack.
+It pays the oath bonus and **GENTLE HANDS**, and it is the only place Act Two's
+accounting is legible — the other three charges land mid-manoeuvre, where a
+second number would compete with the damage figure for the same glance and teach
+nothing, since the charge is flat. GENTLE HANDS requires *delivery* as well as no
+slam, which is PENDULUM_SPEC §5's own wording; without that clause a floor where
+every bank flatlined untouched would collect +750 for handling the dead
+carefully.
+
+**A live bug, found while wiring the record.** `confirmLeaveChamber` already
+called `saveHi()`, so climbing out of a debug-loaded chamber pushed Act Two
+points onto the all-time hiscore and the Game Center board off the back of no
+campaign at all. The run now carries **provenance**: a run begun at Act One
+sector 0 keeps its claim on `doids_hi`, a chamber entered directly does not. Act
+Two gets its **own** hiscore (`doids_a2hi`) and a third leaderboard, neither
+gated on provenance — a chamber flown on its own is a real descent; it is only
+the cross-act total a direct entry cannot claim. The board ships before its App
+Store Connect record exists, which is safe: a submission to an unknown
+leaderboard id is already a silent no-op.
+
+**And the save schema moved to v2 without wiping anybody.** `validRun` demanded
+`r.v === 1` **exactly**, and an invalid save is *deleted* on the next boot — so
+writing v2 naively would have destroyed every shipped save, the precise failure
+ACT_TWO_SPEC §11.2 names as the constraint. A v1 save now loads with no Act Two
+score and its hiscore claim intact, because it can only have come from a run
+begun at Act One sector 0: Act Two did not exist when it was written.
+
+Suite 187 → 196.
+
 ## The furniture gets a fiction, and two more bugs (August 2026)
 
 **Landing assist and a wall that was never there.** `landingEval` measured ground

@@ -222,6 +222,24 @@ let liftTransit = null;     // in-progress lift descent/ascent animation
 let trainingT = 0, trainingHeldT = 0, trainingShown = {};
 let state = "title", stateT = 0, score = 0, lives = 3, levelIdx = 0;
 let runSaved = 0, runLost = 0, runFired = 0;
+/* Bundle P · P·systems — Act Two's ladder (roadmap rules 3 and 4).
+   `score` stays the run's single total across both acts, because a continuous
+   campaign is one run; `a2Score` is the slice of it Act Two contributed, and it
+   is what Act Two's own hiscore and leaderboard are written from. Two numbers
+   rather than one because the two records answer different questions: `score`
+   is "how did that run go", `a2Score` is "how well do you fly the descent",
+   and a chamber entered directly can honestly answer the second while having
+   no claim on the first.
+
+   `runFromStart` is rule 3's PROVENANCE. The global hiscore counts both acts
+   only for a run begun at Act One sector 0; a chamber entered directly must
+   not feed `doids_hi`. It is not a future concern — `confirmLeaveChamber`
+   already calls `saveHi()`, so climbing out of a debug-loaded chamber today
+   pushes Act Two emplacement kills onto the all-time board. Every legitimate
+   run start goes through resetRun (campaign, remix, daily and training all
+   begin at sector 0), so the flag is set there and cleared only by a direct
+   chamber entry — which is exactly the distinction rule 3 draws. */
+let a2Score = 0, runFromStart = true;
 // why a no-fire run ended: firedAtSecret = shot a lure-tree / hollow rock
 // (secret-hunting); firedAtCombat = shot a turret / drone. Used to award the
 // HOLLOW KEEPER rank (answered ending, oath broken only to reach the truth).
@@ -262,8 +280,17 @@ let savedRun = null;     // resume-from-title snapshot (doids_run), kept in sync
 /* a snapshot from a corrupt write, an older schema, or (once E4 lands) a
    foreign device must never restore into NaN state or a "RESUME — undefined"
    pill — validate the shape before trusting it */
+/* P·persist (the half P·systems needs) — the schema is versioned, and the bump
+   to 2 must NEVER wipe a shipped save. `r.v === 1` was a strict equality, so
+   simply writing v2 would have made every v1 save invalid and silently deleted
+   it on the next boot (see the removeItem below) — the exact failure §11.2
+   names as the constraint. Accept the whole range instead and migrate on read:
+   a v1 save has no `fromStart` field, and the correct default is TRUE, because
+   a v1 save can only have come from an Act One run that began at sector 0 —
+   Act Two did not exist when it was written. */
+const RUN_SCHEMA_V = 2;
 function validRun(r) {
-  return !!r && r.v === 1 &&
+  return !!r && Number.isInteger(r.v) && r.v >= 1 && r.v <= RUN_SCHEMA_V &&
     Number.isInteger(r.levelIdx) && r.levelIdx >= 0 && r.levelIdx <= FINALE_IDX &&
     typeof r.score === "number" && Number.isFinite(r.score) &&
     Number.isInteger(r.lives);
@@ -276,9 +303,12 @@ try {
 } catch (e) { savedRun = null; }
 function snapshotRun() {
   savedRun = {
-    v: 1, levelIdx, score, lives, runSaved, runLost, runFired, firedAtSecret, firedAtCombat,
+    v: RUN_SCHEMA_V, levelIdx, score, lives, runSaved, runLost, runFired, firedAtSecret, firedAtCombat,
     scannedSecret, runFragments, blackboxCount, shrines: [...shrines], upgrades,
-    runSeed, runMode, famousMap
+    runSeed, runMode, famousMap,
+    // v2 — Act Two's slice of the score, and rule 3's provenance. Both have to
+    // survive a backgrounded phone or the ladder loses its record on resume.
+    a2Score, fromStart: runFromStart
   };
   try { localStorage.setItem("doids_run", JSON.stringify(savedRun)); } catch (e) {}
   cloud.set("doids_run", JSON.stringify(savedRun));   // E4 mirror
@@ -296,12 +326,22 @@ function restoreRun(r) {
   runFragments = r.runFragments; blackboxCount = r.blackboxCount;
   shrines = new Set(r.shrines); upgrades = r.upgrades || {};
   runSeed = r.runSeed || 0; runMode = r.runMode || "campaign"; famousMap = r.famousMap || null;
+  // the v1 migration: no `a2Score` means none was earned, and a missing
+  // `fromStart` means a save written before Act Two existed — which can only
+  // have begun at Act One sector 0, so it keeps its claim on the hiscore.
+  a2Score = r.a2Score || 0;
+  runFromStart = r.fromStart !== false;
   rollDailyMods();
   mercyBreach = null; mercyDamaged = false; endingType = null;
   clearCards = []; revealCard = null; surfaceCtx = null;
 }
 let hiscore = 0;
 try { hiscore = +localStorage.getItem("doids_hi") || 0; } catch (e) {}
+/* P·systems rule 4 — Act Two keeps its own best, alongside Act One's rather
+   than inside it. A descent run and a surface run are not comparable numbers,
+   and folding them would make one ladder unreadable to keep the other short. */
+let a2Hi = 0;
+try { a2Hi = +localStorage.getItem("doids_a2hi") || 0; } catch (e) {}
 // X6 (owner refinement) — completed runs (any ending), so the review prompt
 // can fire on a "you've played enough to have an opinion" milestone, not
 // only on a clean ending or a new hiscore.
@@ -516,14 +556,21 @@ function saveLastRunTally() {
 async function syncFromCloud() {
   if (!cloud.native()) return;
   try {
-    const [cHi, cCodex, cLogs, cShrines, cVet, cRun, cSol] = await Promise.all([
+    const [cHi, cCodex, cLogs, cShrines, cVet, cRun, cSol, cA2] = await Promise.all([
       cloud.get("doids_hi"), cloud.get("doids_codex"), cloud.get("doids_logs"),
       cloud.get("doids_shrines_seen"), cloud.get("doids_veteran"), cloud.get("doids_run"),
-      cloud.get("doids_solace")]);
+      cloud.get("doids_solace"), cloud.get("doids_a2hi")]);
     if (cHi && +cHi > hiscore) {
       hiscore = +cHi;
       try { localStorage.setItem("doids_hi", hiscore); } catch (e) {}
     } else if (hiscore > 0) cloud.set("doids_hi", hiscore);
+    /* §11.2 — "a new key that skips the mirror silently breaks cross-device
+       continuity for exactly the players most likely to notice." Act Two's best
+       merges by the same larger-wins rule as Act One's. */
+    if (cA2 && +cA2 > a2Hi) {
+      a2Hi = +cA2;
+      try { localStorage.setItem("doids_a2hi", a2Hi); } catch (e) {}
+    } else if (a2Hi > 0) cloud.set("doids_a2hi", a2Hi);
     const union = (set, raw, save) => {
       if (!raw) return;
       try {
@@ -1207,6 +1254,14 @@ function scanSpotOK(heights, W, cx) {
    One helper, shared with Act Two (rule 7 of P·systems' ladder), so the
    invariant cannot hold in one act and quietly fail in the other. */
 const KILL_TURRET = 250, KILL_DRONE = 150;
+/* P·systems' table — an Act Two emplacement pays LESS than an Act One turret
+   ("owner: yes, but smaller"). It is still a test of skill, so it still pays;
+   it is bounded by rule 7 so that shooting a chamber out can never approach
+   what leaving it alone is worth. Priced here rather than in acttwo-data.js
+   precisely because gunValue has to know it — a chamber whose guns are worth
+   120 apiece must not have its no-fire award derived from 250 apiece, or the
+   number the game prints as "what you passed up" is not what you passed up. */
+const KILL_EMPLACEMENT = 120;
 /* BASE is a FLOOR for a room with nothing in it to resist, not the body of the
    award — the body is the premium on what you passed up. Held at the old flat
    2000 in the first pass, which held the invariant but roughly doubled a perfect
@@ -1225,13 +1280,48 @@ const NOFIRE_BASE = 500, NOFIRE_FACTOR = 1.25;
 function gunValue(lvl) {
   const L = lvl || level;
   if (!L) return 0;
-  return (L.turrets ? L.turrets.length * KILL_TURRET : 0) +
+  // a chamber's guns are emplacements, and they are worth less (see above)
+  const per = L.isChamber ? KILL_EMPLACEMENT : KILL_TURRET;
+  return (L.turrets ? L.turrets.length * per : 0) +
     (L.drones ? L.drones.length * KILL_DRONE : 0);
 }
 // and what clearing it without firing is worth. Strictly greater than gunValue
 // for any complement, because FACTOR > 1 and BASE > 0 — that is the invariant.
 function noFireAward(lvl) {
   return Math.round(NOFIRE_BASE + gunValue(lvl) * NOFIRE_FACTOR);
+}
+
+/* What a kill pays, and WHICH LEDGER it lands in — one place, because there are
+   four call sites (own shot / parried × turret / drone) and they had already
+   drifted once: Act One's shot loop runs in an Act Two chamber unchanged, so a
+   chamber emplacement was paying Act One's +250 into Act One's total and
+   nothing into Act Two's. Both halves of that were wrong, and neither was
+   visible at any single call site. Returns what was actually paid, which is
+   what the floating "+N" prints — so the number on screen can never disagree
+   with the number banked. */
+function awardKill(n) {
+  if (level && level.isChamber) return a2Award(n);
+  score += n; return n;
+}
+function awardGunKill() {
+  return awardKill(level && level.isChamber ? KILL_EMPLACEMENT : KILL_TURRET);
+}
+function awardDroneKill() { return awardKill(KILL_DRONE); }
+/* The mirror, for an ACT ONE penalty that can fire inside a chamber. There is
+   exactly one — the field refueller's fuel toll (U2), which follows you down
+   because the resupply drone has its own chamber route (it comes down THE WELL,
+   since MERCY is nine thousand pixels of rock away). Everything else Act One
+   charges for needs oids, scenery, a beacon, a breach or an extraction, and a
+   chamber has none of them.
+   It matters because `a2Score` is a SUBSET of `score`: a charge that moves one
+   and not the other makes Act Two's leaderboard report a run nobody played, and
+   can leave the subset larger than the total. Act Two's own penalties go
+   through `a2Charge` directly. */
+function chargeRun(n) {
+  if (level && level.isChamber) return a2Charge(n);
+  const paid = Math.min(n, score);
+  score = Math.max(0, score - n);
+  return paid;
 }
 
 const RECIPE = [
@@ -1965,6 +2055,13 @@ function spawnShip() {
 /* ---------------- state flow ---------------- */
 function resetRun() {
   score = 0; lives = startLives(); runSaved = 0; runLost = 0; runFired = 0;
+  /* Rule 3's provenance is SET here rather than in startFreshRun, because
+     resetRun is the one door every legitimate run start goes through — campaign,
+     remix, daily and training all reach sector 0 this way, and all four already
+     have a claim on `doids_hi` that this must not quietly revoke (saveHi's own
+     mode gates are what handle daily and training). Only a direct chamber entry
+     clears it, and that happens where the direct entry happens. */
+  a2Score = 0; runFromStart = true;
   firedAtSecret = false; firedAtCombat = false; scannedSecret = false;
   runFragments = 0; blackboxCount = 0; shrines = new Set();
   upgrades = {}; mercyBreach = null; mercyDamaged = false; endingType = null;

@@ -514,11 +514,20 @@ both stagecraft (§2):
 > to give some sort of clue to the invisible walls so they aren't unfair… we
 > wouldn't want any on this first level anyway"). There was a 440px undrawn wall
 > sitting on the only route west, which is a trap rather than a hazard in a
-> tutorial floor. So the deception layer is currently one-sided: chamber one has
-> a false floor and no invisible wall. The terrain model still expresses both and
-> `paintedRock()` is still in the authoring vocabulary — the capability keeps its
-> own test against a purpose-built chamber — but authored content does not get
-> another one until the channels below exist. See APP_STORE_ROADMAP.md, P·systems.
+> tutorial floor. The terrain model still expresses both and `paintedRock()` is
+> still in the authoring vocabulary — the capability keeps its own test against a
+> purpose-built chamber — but authored content does not get another one until the
+> channels below exist. See APP_STORE_ROADMAP.md, P·systems.
+>
+> **Correction, August 2026: the layer is not "one-sided", it is EMPTY.** This
+> paragraph said chamber one still had a false floor; it does not. The owner
+> pulled that in the same round ("let's remove fake walls from this level anyway,
+> it is too much for level one but we needed to see how they work"), and the
+> paragraph was written before it. **No authored chamber carries a deception of
+> either kind** — `falseFloor()` and `paintedRock()` have zero call sites in
+> `js/acttwo-chambers.js`, `chamberLies` is false everywhere, and
+> `spansDrawn === spans` by identity. So the tell has nothing to attach to: the
+> work is build-the-tell *and* re-author a hazard, in that order.
 >
 > **And the tell itself is now decided (owner, August 2026): the 41-second
 > flicker, plus reveal on contact.** One rule serving both hazards, and the
@@ -1077,18 +1086,28 @@ Still open:
 1. **The name of the act**, and with it the What's-New line that does the
    price-move work in the store. Owner steer: it comes out of the work, so it is
    written last. **This is the only open owner decision on the forward plan.**
-2. **Scoring numbers** — the shape is decided (§10a.4); the table isn't. Write
-   it from what the vertical slice proves, in the form of PENDULUM_SPEC §5. The
-   slice deliberately touches `score` nowhere, so Act Two's ladder starts from a
-   clean sheet; it tracks `a2Saved`/`a2Lost` only (§7.3's separate bucket).
+2. ~~**Scoring numbers** — the shape is decided (§10a.4); the table isn't.~~
+   **Closed twice over:** the owner signed the table off in July 2026, and it was
+   built in August 2026 (roadmap Bundle P · P·systems, which holds the numbers,
+   the eight rules and the build notes). The line above about the slice touching
+   `score` nowhere is no longer true and was already false when written — Act
+   One's shot loop runs in a chamber unchanged, so an emplacement kill scored
+   from the moment P·feedback gave chambers guns. **What is still open is the
+   rank NAMES**, deferred with the act's own name in q1 below: §10a.4 wants Act
+   Two's ladder to carry its own, and they are written from the finished act
+   rather than ahead of it. The scoring runs without them.
 3. **Chamber pacing** — racks per chamber, and how long one takes. Still open,
    and now answerable: the slice is one rack across a 9000px floor, and what a
    device pass measures is how long that actually takes against the reserve.
 4. **One save or bests alongside it** — the narrow remainder of the persistence
-   question (§11.2). Two narrower questions came out of the slice and are on
-   P·persist in the roadmap: whether a rack's **position** is checkpointed (a rack
-   set down past the momentum pinch is real progress), and whether `integrity`
-   survives a retry — which is really "is GENTLE HANDS per-attempt or per-run?"
+   question (§11.2). The two narrower questions that came out of the slice are
+   both **answered**: a rack's position resets with the room, and `integrity`
+   does not survive a retry, so **GENTLE HANDS is per-attempt** — which the
+   ladder gets for free, since integrity lives on `level.racks` and therefore
+   resets when the room does. The schema half of the persistence work shipped
+   with the ladder (`doids_run` v2, the v1 migration, `doids_a2hi`, both
+   mirrored through E4); what is left is the chamber checkpoint itself and the
+   descent, on P·persist.
 
 ## 16. Next step
 

@@ -21,6 +21,11 @@ window.__doids = {
     runFragments, runSaved, runLost, runFired, firedAtSecret, firedAtCombat, scannedSecret,
     mercyBreach, mercyDamaged,
     endingType, clearCards, revealCard, score, lives,
+    // P·systems — the ladder. `a2Score` is the run's Act Two slice, `hiscore`
+    // and `a2Hi` the two records, `fromStart` rule 3's provenance. Exposed
+    // because every ladder test asserts a DIFFERENCE (zero is the floor, so an
+    // assertion against 0 proves nothing) and needs both numbers to do it.
+    hiscore, a2Score, a2Hi, fromStart: runFromStart,
     shrines: [...shrines], inCave: !!(level && level.isCave),
     input: Object.assign({}, input), ctlShown, introSeen,
     // X1/X3 — onboarding introspection for the guard tests
@@ -66,6 +71,10 @@ window.__doids = {
     actTwo: actTwoActive() ? {
       chamberId: level.chamberId,
       saved: a2Saved, lost: a2Lost,
+      // P·systems — the floor's own books: whether they are closed, whether the
+      // oath held in this room, and what leaving it alone would have paid
+      cleared: !!level.cleared, firedShots: level.firedShots,
+      noFire: noFireAward(level), gunValue: gunValue(level),
       racks: level.racks.map(r => ({ id: r.id, x: Math.round(r.x), y: Math.round(r.y),
         state: rackStateFor(r), reserve: +r.reserve.toFixed(2),
         integrity: +r.integrity.toFixed(2), cut: r.cut, towed: r.towed,
@@ -178,6 +187,14 @@ window.__doids = {
     if (!ch) return null;
     level = genChamber(ch);
     resetActTwo(); dustReset();       // P·slice — a fresh chamber attempt, and its own tallies
+    /* P·systems rule 3 — THIS IS "a chamber entered directly". Loading a floor
+       out of the ladder is not a run begun at Act One sector 0, so it forfeits
+       the run's claim on the global hiscore and the all-time board (saveHi).
+       Act Two's own record is untouched by that and starts clean here, because
+       a direct entry IS a legitimate descent — just not a legitimate campaign.
+       When the descent lands (P·persist), chamber-to-chamber progression will
+       NOT come through here and must not clear the flag. */
+    runFromStart = false; a2Score = 0;
     // owner: you come in at the well, because that is where MERCY can reach.
     // One shared entry point with the death path — see chamberEntryPos.
     const e = chamberEntryPos();
