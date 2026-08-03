@@ -519,6 +519,17 @@ both stagecraft (§2):
 > purpose-built chamber — but authored content does not get another one until the
 > channels below exist. See APP_STORE_ROADMAP.md, P·systems.
 >
+> **THE TELL IS BUILT (August 2026, roadmap P·systems).** The 41-second flicker
+> and reveal-on-contact both run: `updateLies`/`touchLie`/`probeLies`
+> (`js/acttwo-update.js`), `recompileDrawn` and a reveal-aware `partInView`
+> (`js/acttwo-data.js`), and `drawnAt` (`js/world.js`) — the drawn view's own
+> containment predicate, which had to exist because every hook this section
+> named resolves against *solid* geometry and a false floor never is one. The
+> truth never flickers: `spans` is compiled once and only `spansDrawn` is ever
+> rebuilt, so a reveal can never move a wall a player has already flown against.
+> Reduced flash gets a longer window rather than no tell. It ships **proved but
+> unmet** — see below.
+>
 > **Correction, August 2026: the layer is not "one-sided", it is EMPTY.** This
 > paragraph said chamber one still had a false floor; it does not. The owner
 > pulled that in the same round ("let's remove fake walls from this level anyway,
@@ -526,8 +537,12 @@ both stagecraft (§2):
 > paragraph was written before it. **No authored chamber carries a deception of
 > either kind** — `falseFloor()` and `paintedRock()` have zero call sites in
 > `js/acttwo-chambers.js`, `chamberLies` is false everywhere, and
-> `spansDrawn === spans` by identity. So the tell has nothing to attach to: the
-> work is build-the-tell *and* re-author a hazard, in that order.
+> `spansDrawn === spans` by identity. That is **not** a gap the tell closes, and
+> it should not be: the teaching ladder (the comment above `BREACH_CHAMBER`)
+> puts the deception at **chamber four**, and chamber one's whole property is
+> that it teaches without a hazard. So the tell is proved against a
+> purpose-built chamber entered live through `__doids.enterChamber`, and
+> chamber four — P·content's — is where a player first meets it.
 >
 > **And the tell itself is now decided (owner, August 2026): the 41-second
 > flicker, plus reveal on contact.** One rule serving both hazards, and the

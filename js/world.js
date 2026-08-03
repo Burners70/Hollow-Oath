@@ -1126,6 +1126,37 @@ function solidAt(x, y) {
   return !sp || y <= sp.top || y >= sp.bot;
 }
 
+/* THE SAME QUESTION, ASKED OF WHAT THE PLAYER CAN SEE (§8.1, P·systems).
+   `solidAt` reads `level.spans` — the truth — and on an honest chamber the two
+   are the same array, so this is `solidAt` exactly. Where a chamber lies they
+   differ, and the DIFFERENCE is the whole tell: rock you can see and cannot
+   touch is a false floor, rock you can touch and cannot see is painted rock.
+
+   Needed because three of the four contact hooks §8.1 names — the hull, the
+   shield, the projectile test — all resolve against SOLID geometry, and a false
+   floor is by definition never solid: ship, round and rack pass straight
+   through and nothing fires. "Contact reveals it" is unimplementable for half
+   the deception layer without asking the drawn view a question of its own.
+
+   EXACT PER COLUMN, deliberately, where `solidAt` interpolates between two.
+   `solidAt` is right to interpolate — it resolves a moving hull against a
+   continuous surface, and P·floor fixed real bugs by making it do so. But that
+   machinery answers "which span is this y in or nearest to", and for a point
+   INSIDE thin rock between two spans it pairs the span below with the neighbour
+   column's span above and blends them into an opening that exists in neither
+   column: a 65px ledge reported as open air from the inside. Harmless for
+   collision, which only ever asks about a surface it is approaching. Fatal
+   here, where the whole question is what the renderer put on the screen — and
+   the renderer draws the compiled columns, not an interpolation. So this asks
+   the columns, exactly as `buildSpanTile` does. */
+function drawnAt(x, y) {
+  const d = level && level.spansDrawn;
+  if (!d) return solidAt(x, y);
+  const col = d[clamp(Math.round(x / STEP), 0, d.length - 1)];
+  if (!col || !col.length) return true;            // solid, floor to roof
+  return !col.some(sp => y > sp.top && y < sp.bot);
+}
+
 // a chamber may be deeper than Act One's world box; everything else defaults to it
 function levelH() { return (level && level.H) || WORLD_H; }
 

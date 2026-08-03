@@ -636,9 +636,28 @@ function chamberNoise(rng, wl, W) {
    TELL is not here: raising grit off real rock and none off a projection
    (§8.1) is exhaust-particle work in P·systems. This is the hook it needs. */
 function chamberLies(ch) { return ch.parts.some(p => p.view); }
-function partInView(p, view) { return !p.view || p.view === view; }
 
-function compileChamber(ch, view) {
+/* Does part `i` belong in this view? (P·systems, §8.1's tell.)
+
+   THE SOLID VIEW NEVER CHANGES. Collision is the truth and the truth does not
+   flicker — the whole design is that the world is consistent and only the
+   PICTURE of it lies, so a reveal must never move a wall the player has already
+   flown against.
+
+   The drawn view is where the tell lives, on the rule the owner set: a
+   deception is honest on the beat and honest once touched. `shown` is the set
+   of part indices currently being told truthfully — permanently, because
+   something touched them, or momentarily, because the Static is on its beat.
+   The two hazards are exact inverses, which is why one line covers both: a
+   false floor (drawn-only) is drawn until it is honest, painted rock
+   (solid-only) is undrawn until it is. */
+function partInView(p, view, shown, i) {
+  if (!p.view) return true;
+  if (view !== "drawn") return p.view === view;
+  return (p.view === "drawn") !== !!(shown && shown.has(i));
+}
+
+function compileChamber(ch, view, shown) {
   view = view || "solid";
   const cols = Math.floor(ch.W / STEP) + 2;
   const rng = mulberry32(ch.seed);
@@ -650,8 +669,17 @@ function compileChamber(ch, view) {
   const defTop = ch.matTop || MAT_ROCK, defBot = ch.matBot || MAT_ROCK;
   const spans = [];
   for (let i = 0; i < cols; i++) spans.push([]);
-  for (const p of ch.parts) {
-    if (!partInView(p, view)) continue;
+  /* Indexed rather than for-of, because a part's INDEX is its identity for the
+     reveal set. It has to be an index into `ch.parts` and not a flag written
+     onto the part: the chambers are module-level `const` literals and
+     `genChamber` reads `ch.parts` by reference without cloning, so a `revealed`
+     property would be written onto the authored constant and survive
+     `loadChamber()` and every retry for the rest of the page session — the
+     exact opposite of "the chamber is the unit of retry", and invisible to any
+     test that loads one chamber once. */
+  for (let pi = 0; pi < ch.parts.length; pi++) {
+    const p = ch.parts[pi];
+    if (!partInView(p, view, shown, pi)) continue;
     const i0 = Math.max(0, Math.floor(p.x / STEP));
     const i1 = Math.min(cols - 1, Math.ceil((p.x + p.w) / STEP));
     const mt = p.mt || defTop, mb = p.mb || defBot;
@@ -673,6 +701,46 @@ function compileChamber(ch, view) {
   const minGap = ch.minGap != null ? ch.minGap : 10;
   for (let i = 0; i < cols; i++) spans[i] = spans[i].filter(sp => sp.bot - sp.top >= minGap);
   return spans;
+}
+
+/* ===== §8.1 — THE TELL ====================================================
+   Owner, August 2026: *"If it's a fake wall, it should have a 41 second
+   flicker, should disappear on contact (with bullet, ship or shield — or the
+   rack). This may answer our invisible wall issue too — it is exactly the
+   reverse: flicking into view every 41 seconds, becoming visible on impact."*
+
+   One rule, both hazards, and they are inverses of each other. What it buys is
+   the difference between a hazard and a trap: a player who watches a room for
+   one beat before committing can read it, a player who charges through cannot,
+   and the first time a lie catches you is the only time. It costs the act
+   nothing to run, because the clock is already there — this is the same
+   41 seconds the reserve bites on and the whole act is built around, so the
+   deception layer starts keeping time with everything else rather than sitting
+   beside it.
+
+   The window is short on purpose. Long enough to read a room you are already
+   looking at, too short to survey one you are flying through at speed. */
+const LIE_FLICK_T = 0.55;
+/* REDUCED FLASH (Bundle H) does not get to turn the tell off — an accessibility
+   setting must not remove information, only the way it strobes. It gets a
+   longer, calmer window instead: the same truth, held for twice as long, so a
+   player who cannot use a fast flicker has more time to read the same thing. */
+function lieFlickT() { return reducedFlash ? LIE_FLICK_T * 2 : LIE_FLICK_T; }
+
+/* Rebuild the DRAWN view against what is currently being told truthfully, and
+   drop the terrain tile cache so the picture actually changes. Deterministic:
+   `compileChamber` re-seeds from the chamber's own seed every call, which is
+   what `__doids.spanChecksum` already guards, so recompiling twice per 41
+   seconds cannot drift. O(cols × parts) — nothing, at this cadence — but it is
+   still gated behind `lieDirty` so a contact event does not rebuild 563 columns
+   on every frame it is still touching. */
+function recompileDrawn(L) {
+  if (!L || !L.lies || !L.lies.length) return false;
+  const shown = L.flickT > 0 ? new Set(L.lies) : L.lieShown;
+  L.spansDrawn = compileChamber(L.chamber, "drawn", shown);
+  L.lieDirty = false;
+  invalidateTiles();
+  return true;
 }
 
 // how many open spans sit in the column containing x — 2+ means an overhang
@@ -1323,7 +1391,12 @@ function genChamber(ch) {
      SAME array unless the chamber declares a deception, so an honest chamber
      costs nothing and cannot disagree with itself. */
   const spans = compileChamber(ch, "solid");
-  const drawn = chamberLies(ch) ? compileChamber(ch, "drawn") : spans;
+  /* IDENTITY, not equality, on an honest chamber — and it has to stay that way.
+     Two shipped tests assert `level.spansDrawn === level.spans` exactly, and
+     they are right to: it is what proves a chamber with nothing to hide cannot
+     disagree with itself, and it makes `drawnAt` free everywhere it is honest.
+     So the flicker recompiles the drawn view only where there IS one. */
+  const drawn = chamberLies(ch) ? compileChamber(ch, "drawn", null) : spans;
   const racks = buildRacks(ch, spans);
   const decoys = buildDecoys(ch, spans);
   return {
@@ -1338,6 +1411,15 @@ function genChamber(ch) {
     // the mouths you can leave by (§11.1) — see atSkyExit/askLeaveChamber
     skyExits: partList(ch.parts).filter(p => p.exitUp).map(p => [p.x, p.x + p.w]),
     n: 0, W: ch.W, H: ch.H, spans, spansDrawn: drawn, chamberId: ch.id,
+    /* §8.1's tell, per-chamber-attempt state. `chamber` is the definition the
+       drawn view is recompiled from — held here rather than looked up through
+       ACT_TWO_CHAMBERS, because a purpose-built test chamber is not in that
+       list and the tell has to be provable against one. `lies` is the index of
+       every declared deception (empty on an honest chamber, which is what makes
+       the whole system a no-op there); `lieShown` is which of them contact has
+       made permanently honest; `flickT` is the beat's brief window of truth. */
+    chamber: ch, lies: ch.parts.map((p, i) => p.view ? i : -1).filter(i => i >= 0),
+    lieShown: new Set(), flickT: 0, lieDirty: false,
     isChamber: true, isPlant: !!ch.plant, plantZone: ch.zone, dark: false,
     // ornaments and lights are placed against what is REALLY there, not against
     // the lie — a fixture bolted to a floor that doesn't exist would give it away

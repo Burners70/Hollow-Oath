@@ -12,6 +12,47 @@ file; the *plan* they came from is
 [APP_STORE_ROADMAP.md](APP_STORE_ROADMAP.md) (open work) and
 [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) (shipped bundles).
 
+## The lie keeps time with everything else (August 2026)
+
+**Release:** 1.1 · Bundle P · P·systems (§8.1, the tell).
+
+**A deception is now honest on the beat, and honest once touched.** Every 41
+seconds the truth shows briefly — the painted rock flicks *into* view, the false
+floor flicks *out* of it — on the Static's own clock, the one the reserve already
+bites on and the whole act is built around. Touch either with ship, shield,
+bullet or the rack and it stops lying permanently. That is the difference between
+a hazard and a trap: a player who watches a room for one beat can read it, a
+player who charges through cannot, and the first time a lie catches you is the
+only time. Reduced flash gets a longer window rather than no tell — an
+accessibility setting may change how information is presented and must never
+remove it, least of all the thing standing between a deception and an unfair
+trap.
+
+**The truth never flickers; only the picture does.** Collision is compiled once
+and only the drawn view is ever rebuilt, so a reveal can never move a wall a
+player has already flown against.
+
+**Four things it needed that the plan didn't foresee, each of which would
+otherwise have shipped as a bug.** The four contact hooks the spec named all
+resolve against *solid* geometry — and a false floor is by definition never
+solid, so nothing fires; worse, even for painted rock they are incomplete,
+because Act One's vertical resolution runs first and lands you on an invisible
+ledge without ever reaching the lateral test. Contact is carried by a per-frame
+ring probe instead. `drawnAt` could not be built on `spanAt`, which interpolates
+between columns and, for a point inside thin rock between two spans, blends them
+into an opening that exists in neither — a 65px ledge read as open air from the
+inside. `updateActTwo` was gated on the level carrying *racks*, which would have
+made chamber nine ("the husk in the mask. No fight.") silently honest; a
+deception is a property of the room. And `__doids.deceptions()` looked its
+chamber up in the ladder, so it counted every hazard in a purpose-built chamber
+as undeclared drift.
+
+It ships **proved but unmet**: no authored chamber carries a hazard, and the
+teaching ladder puts the first one at chamber four, which P·content has not
+written. Chamber one's property is that it teaches without one.
+
+Suite 196 → 205.
+
 ## Act Two keeps score, and a chamber can be finished (August 2026)
 
 **Release:** 1.1 · Bundle P · P·systems (the score ladder half), plus P·persist's

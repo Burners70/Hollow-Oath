@@ -222,6 +222,103 @@ function loseRack(r, why, byShot) {
   checkChamberClear();
 }
 
+/* ---- §8.1 — the tell -----------------------------------------------------
+   Two halves, one rule. THE BEAT shows the truth briefly, every 41 seconds, on
+   the Static's own clock. CONTACT shows it permanently — ship, shield, bullet
+   or the rack — so a deception catches you once and is then simply a feature of
+   the room. Both are the same operation: put a part into the "told truthfully"
+   set and recompile the drawn view.
+
+   Deliberately NOT tied to whether the player is looking. A tell you can only
+   read by happening to face the right way is a lottery, and the point of
+   hanging this on the clock is that the beat is already a thing the player
+   listens for. */
+function updateLies(dt, beat) {
+  if (!level.lies || !level.lies.length) return;
+  if (beat) {
+    /* Every unrevealed lie, at once. They are on one clock because they are on
+       one story — the Static's beat is Glycon's projector faltering, not each
+       hazard keeping its own time — and staggering them would read as noise
+       rather than as a rhythm you can plan against. */
+    level.flickT = lieFlickT();
+    level.lieDirty = true;
+    staticTick();
+  } else if (level.flickT > 0) {
+    level.flickT -= dt;
+    if (level.flickT <= 0) { level.flickT = 0; level.lieDirty = true; }
+  }
+  if (level.lieDirty) recompileDrawn(level);
+}
+
+/* Something touched a lie. Finds the declared deception containing (x, y) and
+   makes it permanently honest.
+
+   Tested against the AUTHORED rectangle rather than the compiled spans, and the
+   slack is the point: the compiled surface carries roughness and a profile, so
+   a hull resting against a painted rock's face can sit a few px outside the
+   span it is touching. Being generous here can only reveal a lie the player has
+   already met — which is the outcome the rule wants — whereas being strict
+   fails to reveal one they demonstrably hit, and that reads as the tell being
+   broken. */
+const LIE_TOUCH_PAD = 6;
+function touchLie(x, y) {
+  if (!level.lies || !level.lies.length) return false;
+  let hit = false;
+  for (const i of level.lies) {
+    if (level.lieShown.has(i)) continue;
+    const p = level.chamber.parts[i];
+    if (x < p.x - LIE_TOUCH_PAD || x > p.x + p.w + LIE_TOUCH_PAD) continue;
+    if (y < p.y - LIE_TOUCH_PAD || y > p.y + p.h + LIE_TOUCH_PAD) continue;
+    level.lieShown.add(i);
+    level.lieDirty = true;
+    hit = true;
+  }
+  if (!hit) return false;
+  recompileDrawn(level);
+  /* Named, once, because a hazard that reveals itself in silence reads as a
+     rendering glitch. §7.5's grammar: the world tells you what it did. */
+  addText(x, y - 30, "IT WASN'T THERE", PAL().REVEAL);
+  staticTick(); staticSurge = Math.max(staticSurge, 0.6);
+  haptic.light();
+  return true;
+}
+
+/* The per-frame probe, and it is what actually carries "contact reveals it" for
+   the hull and the load. The impact hooks below fire at the exact instant of a
+   collision, which is right for a round and for a slam — but they cannot carry
+   the whole rule, for two reasons found by flying it:
+
+   A FALSE FLOOR IS NEVER SOLID, so no impact hook fires at all: the ship, the
+   round and the rack pass straight through and the only evidence the thing
+   exists is that nothing happened. That is precisely §8.1's "the world doesn't
+   respond to you" — it has to be looked for, not waited for.
+
+   AND A PAINTED ROCK IS NOT ALWAYS MET SIDEWAYS. `shipSolidCollide` handles the
+   hull flying INTO a wall, but Act One's vertical resolution runs first and
+   claims a hull coming down ON one — it reads the painted rock's surface
+   through `groundAt` (which sees the truth) and lands you on an invisible
+   ledge, without ever reaching the lateral test. Landing on a wall that is not
+   drawn is exactly the moment the tell exists for.
+
+   So the containment test is the authored rectangle — which is the lie's own
+   definition, needs no span arithmetic, and is the same test `touchLie` already
+   applies.
+
+   THE HULL IS PROBED AS A RING, not as a point, and that is what catches the
+   landing case: the collision resolvers have already pushed the hull clear by
+   the time this runs, so its CENTRE is outside the thing it just touched. The
+   surface under your feet is the one you are standing on. */
+function probeLieRing(x, y, r) {
+  return touchLie(x, y) || touchLie(x, y + r) || touchLie(x, y - r) ||
+         touchLie(x - r, y) || touchLie(x + r, y);
+}
+function probeLies() {
+  if (!level.lies || !level.lies.length) return;
+  if (!ship.dead) probeLieRing(ship.x, ship.y, SHIP_R + 4);
+  const r = level.towedRack;
+  if (r) probeLieRing(r.x, r.y, RACK_SIZE.h * RACK_CAGE_H / 2 + 4);
+}
+
 /* ---- landing ON the rack (owner feedback, July 2026) ----------------------
    "To keep some of the previous functionality, you should land on the rack to
    connect your cable." Which is right on two counts: Act One's whole grammar is
@@ -691,6 +788,7 @@ function towContact(r, vn) {
   if (vn <= safe) return;
   const dmg = (vn - safe) * SLING_DMG_K * (easyMode ? 0.5 : 1);
   if (dmg < 0.4) return;
+  touchLie(r.x, r.y);   // §8.1 — "or the rack", the fourth surface the owner named
   r.integrity = Math.max(0, r.integrity - dmg);
   r.reserve = Math.max(0, r.reserve - dmg);
   r.slamT = 1;
@@ -1253,6 +1351,11 @@ function shipSolidCollide() {
            started killing. solidNormal reads the face's actual orientation off
            the local field, so flying ALONG a slope costs nothing and flying
            INTO a wall costs all of it. */
+        // §8.1 — reveal BEFORE the correction moves the hull, while we still
+        // hold the point that was demonstrably inside rock. Covers the shield
+        // too: a bounce reaches hullImpact from here, so a field held against a
+        // painted rock reveals it exactly as a bare hull does.
+        touchLie(s.x + side * SHIP_R, s.y);
         const n = solidNormal(s.x, s.y, SHIP_R + 2);
         const vx0 = s.vx, vy0 = s.vy;   // the approach, kept for the shield bounce
         const vn = n ? Math.max(0, -(vx0 * n.x + vy0 * n.y))
@@ -1275,6 +1378,7 @@ function shipSolidCollide() {
      hull, which needs no gradient estimate and is exactly right for a face of
      any orientation: you are shoved out along the normal, by definition. */
   const vx0 = s.vx, vy0 = s.vy, x0 = s.x, y0 = s.y;
+  touchLie(x0, y0);   // §8.1 — buried in it, so it is certainly touched
   if (s.a2FreeX != null && !solidAt(s.a2FreeX, s.a2FreeY)) { s.x = s.a2FreeX; s.y = s.a2FreeY; }
   else {
     const col = level.spans[clamp(Math.round(s.x / STEP), 0, level.spans.length - 1)] || [];
@@ -1296,12 +1400,23 @@ function shipSolidCollide() {
    resolved (the tether corrects against a settled hull) and after
    updateStaticClock, so a beat lands in the same frame it fires. */
 function updateActTwo(dt) {
-  if (!actTwoActive()) return;
-  const now = performance.now() / 1000;
+  /* THE GUARD IS THE CHAMBER, NOT THE RACKS. It was `actTwoActive()` — a level
+     carrying racks — which was right while everything in this file was the
+     rescue loop. §8.1's tell is not: a deception is a property of the ROOM, and
+     the ladder already has rooms that hold no bank (chamber nine is "the husk in
+     the mask. No fight."). Gating the tell on the rescue loop would have made
+     those rooms silently honest, and made the whole system untestable against a
+     purpose-built chamber — which is the only place it can be tested, since no
+     authored chamber carries a deception yet. */
+  if (!level || !level.isChamber) return;
   // set by updateStaticClock this same frame (js/update.js) — an exact signal,
   // not inferred from the clock's value; see the note on `staticBeat` there
   const beat = staticBeat;
+  updateLies(dt, beat);
+  probeLies();
 
+  if (!actTwoActive()) return;
+  const now = performance.now() / 1000;
   updateReserves(dt, beat);
   updateFuelCans();
   updateDecoys();

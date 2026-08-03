@@ -650,10 +650,18 @@ comment cannot say.
 | Shooting a live feed (§7.1) | `THE FEED IS CUT — YOU SHOT THEIR LIFE SUPPORT` + `THEY DON'T COME BACK. THIS FLOOR STARTS OVER.` |
 | Delivered at THE WELL | `ABOARD — <n> SOULS, AND SHE CAN STOP NOW` + either `· GENTLE HANDS — NOT ONE SLAM` or `INTEGRITY <n>%` |
 | Respawning after a death in a chamber | `BACK IN — THEY ARE STILL DOWN HERE, AND STILL DYING` |
+| A deception is touched and stops lying (§8.1) | `IT WASN'T THERE` — floating text at the point of contact, not a banner |
 | The floor's books close, banks home (P·systems) | `THE FLOOR IS CLEAR` + `<n> BANKS HOME · <n> SOULS` |
 | …and nobody left alive to carry | `NOTHING LEFT TO CARRY` + `0 BANKS HOME · <n> LOST` |
 | …the oath held in that room | `NOT ONE SHOT — HIPPOCRATIC BONUS +<n>` |
 | …and not one slam, on any bank | `GENTLE HANDS — NOT ONE SLAM +<n>` |
+
+**Why the reveal is three words and not a banner.** §8.1's tell is meant to be
+read off the *world* — the wall appears, the ledge stops being drawn — and a
+banner would explain what the player has just been shown, which is the one thing
+a tell must not do. But a reveal in total silence reads as a rendering glitch,
+so the world names what it did, once, where it happened, in the voice §7.5 uses
+for everything else down there.
 
 **The clear banner is the only place Act Two's ledger is legible**, and that is
 deliberate. Three of the four things the ladder charges for happen in the middle
